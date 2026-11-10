@@ -111,6 +111,22 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     });
     const foto = async (n) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${n}.png`) }); };
     const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
+    // arrastar com o dedo (toques sintéticos) de x=de até x=ate, no primeiro elemento de sel
+    // (trocar: a meio do gesto, o elemento sai da página, como quando a Onda redesenha o ecrã)
+    const deslizarEm = (sel, de, ate, trocar = false) => page.evaluate(async ([sel, de, ate, trocar]) => {
+        const el = document.querySelector(sel);
+        const r = el.getBoundingClientRect(), y = r.top + Math.min(30, r.height / 2);
+        const toque = (x) => new Touch({ identifier: 3, target: el, clientX: x, clientY: y });
+        el.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(de)], bubbles: true, cancelable: true }));
+        let n = 0;
+        for (const x of [de + Math.sign(ate - de) * 20, (de + ate) / 2, ate]) {
+            el.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(x)], bubbles: true, cancelable: true }));
+            if (trocar && ++n === 1) el.replaceWith(el.cloneNode(true));
+        }
+        await new Promise((ok) => setTimeout(ok, 150));
+        el.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
+    }, [sel, de, ate, trocar]);
+    const separador = () => page.locator('#mu-nav [aria-current="page"]').getAttribute('data-onda');
 
     // 1) o link de ligação: Client ID, ligar, voltar com a chave
     await page.goto(`${APP}?ligar=LIGAR-123&proxy=${encodeURIComponent(WORKER)}`);
@@ -197,7 +213,29 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(await page.evaluate(() => document.querySelector('.mu-folha').style.transform), '');
     await arrastar(600);
     await page.locator('.mu-pl.aberta').waitFor({ state: 'detached' });
+    // puxar para baixo também fecha quando a faixa debaixo do dedo é redesenhada a meio do gesto
     await page.locator('.mu-pl-a').click();
+    await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
+    await page.waitForTimeout(400);
+    await page.evaluate(async () => {
+        const el = document.querySelector('.mu-folha .mu-xf li');
+        const toque = (y) => new Touch({ identifier: 4, target: el, clientX: 200, clientY: y });
+        el.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(150)], bubbles: true, cancelable: true }));
+        el.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(170)], bubbles: true, cancelable: true }));
+        el.replaceWith(el.cloneNode(true));
+        for (const y of [380, 600]) el.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(y)], bubbles: true, cancelable: true }));
+        await new Promise((ok) => setTimeout(ok, 120));
+        el.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
+    });
+    await page.locator('.mu-pl.aberta').waitFor({ state: 'detached' });
+    await page.locator('.mu-pl-a').click();
+    // arrastar uma faixa para a esquerda: «não esta»; outra vez: «afinal fica»
+    await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
+    await page.waitForTimeout(400);
+    await deslizarEm('.mu-folha .mu-xf li[data-esq]', 330, 60);
+    await page.locator('.mu-folha .mu-xf li.fora[data-esq-rotulo="Afinal fica"]').first().waitFor();
+    await deslizarEm('.mu-folha .mu-xf li[data-esq]', 330, 60);
+    await page.locator('.mu-folha .mu-xf li.fora').waitFor({ state: 'detached' });
     await page.getByRole('button', { name: 'Abrir' }).click();
     await page.getByRole('heading', { name: 'Som para o carro' }).waitFor();
     assert.equal(await page.locator('#faixas .mu-faixa').count(), doc.faixas.length);
@@ -364,6 +402,19 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const pedido = JSON.parse(await env.KV.get('pedidos'))[0];
     assert.equal(pedido.texto, 'Faixas bem gravadas para testar o som do carro');
     assert.equal(pedido.opcoes.limpa, true);
+    // mudar de separador a arrastar: para a direita, o anterior (Playlists); para a esquerda, o seguinte (Pedir)
+    assert.equal(await separador(), 'ir\t3');
+    await deslizarEm('#mu-body h1', 60, 330);
+    await page.waitForFunction(() => document.querySelector('#mu-nav [aria-current="page"]').dataset.onda === 'ir\t1');
+    await page.locator('.mu-pl').first().waitFor();
+    await page.waitForLoadState('networkidle');
+    await deslizarEm('#mu-body h1', 330, 60, true); // (com o ecrã redesenhado a meio do gesto)
+    await page.waitForFunction(() => document.querySelector('#mu-nav [aria-current="page"]').dataset.onda === 'ir\t3');
+    // arrastar um pedido à espera para a esquerda cancela-o
+    await page.locator('.mu-pedido[data-esq]').first().waitFor();
+    await deslizarEm('.mu-pedido[data-esq]', 330, 60);
+    await page.locator('.mu-pedido[data-esq]').waitFor({ state: 'detached' });
+    assert.equal(JSON.parse(await env.KV.get('pedidos')).some((x) => x.id === pedido.id), false, 'o pedido foi cancelado');
 
     // 7) as ideias do Maestro (as do momento), as propostas para escolher, «não esta» e afinar com o Maestro
     const agente7 = await env.KV.get('agente:chave');
@@ -439,6 +490,15 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-pl-apagar').getByText('É uma proposta: sai só da app.').waitFor();
     await page.getByRole('button', { name: 'Não', exact: true }).click();
     await page.locator('details.mu-grupo .mu-pl-a').waitFor();
+    // se o apagar falhar (ex.: o Cloudflare sem gravações), diz porquê e o cartão volta ao normal
+    env.KV.cheia = true;
+    await deslizar(60);
+    await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
+    await page.locator('#mu-aviso').getByText(/gravações grátis do Cloudflare/).waitFor();
+    await page.locator('details.mu-grupo .mu-pl-a').waitFor();
+    assert.equal(await page.locator('.mu-pl-apagar').count(), 0, 'depois do erro, o cartão volta ao normal');
+    env.KV.cheia = false;
+    for (let i = erros.length - 1; i >= 0; i--) if (/status of 503/.test(erros[i])) erros.splice(i, 1); // (o 503 deste passo é o esperado)
     await deslizar(60);
     await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
     await page.locator('#mu-aviso').getByText('Apagada da app.').waitFor();
