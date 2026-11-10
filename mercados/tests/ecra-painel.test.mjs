@@ -281,6 +281,9 @@ function verificar({ de, ate, seed }) {
                     if (items.length && r && r.discount) T.desconto++;
                     if (a.kind === 'crypto' && mk.taxLine(k)) T.imposto++;
                     if (!!sub !== !!(badge || items.length)) erro(`${k}: a linha de baixo ${sub ? 'a mais' : 'falta'}`);
+                    // sem a análise ainda: o lugar da linha de baixo guardado (sem saltos quando chega)
+                    if (!!row.querySelector('.r-sk') !== (!sub && !r)) erro(`${k}: o lugar da linha de baixo ${row.querySelector('.r-sk') ? 'a mais' : 'falta'}`);
+                    if (!sub && !r) T.esqueleto = (T.esqueleto || 0) + 1;
                     if (sub) {
                         const b = sub.querySelector('.badge');
                         if (badge ? !b || b.className !== 'badge ' + badge[1] || b.textContent !== txt(badge[0]) : b) erro(`${k}: o conselho ${b && b.outerHTML} em vez de ${JSON.stringify(badge)}`);

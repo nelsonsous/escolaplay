@@ -77,7 +77,9 @@
     ? vd { "<span class=\"nb\">" fm_pct1 * _ar_vnum _ar_get d $"dd" 100. " do máximo</span>" 0 } 0
     ? && vd vt "<span class=\"dotsep\"> · </span>" 0
     ? vt { "<span class=\"nb\">" _ar_ps tx 1 "</span>" 0 } 0
-    "</div>" 0 } 0 }
+    "</div>" 0 }
+    # ainda sem a análise: o lugar do conselho e do desconto já ocupado, para a linha não crescer (e a lista saltar) depois
+    { ? ~ _ar_verd an "<div class=\"r-sk\"><span class=\"badge skel\">Manter</span><span class=\"nb skel\">−00,0% do máximo</span></div>" 0 } }
 
 # ===== as listas =====
 # os ativos das chaves da lista l (pela ordem dela; as que não são ativos ficam de fora), menos os que tenho (fl & 1) e os
