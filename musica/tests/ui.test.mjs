@@ -150,6 +150,9 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(doc.candidatas.length, 6);
     await nav(1);
     await page.locator('.mu-pl').getByText('Som para o carro').waitFor();
+    // ao abrir, vê-se a página: nada a tapa (a espreita dos separadores só aparece durante a troca)
+    assert.equal(await page.evaluate(() => document.getElementById('mu-espreita').hidden), true);
+    assert.ok(await page.evaluate(() => { const b = document.querySelector('.mu-pl').getBoundingClientRect(); const el = document.elementsFromPoint(b.left + b.width / 2, b.top + b.height / 2)[0]; return !!el.closest('#mu-body'); }), 'a lista vê-se (nada por cima)');
     // o cartão abre-se ali mesmo: as faixas, ouvir 30 s (as que têm pré-escuta), «não esta» e afinar; «Abrir» leva à playlist
     assert.ok(await page.locator('.mu-pl .chev').first().isVisible(), 'a seta mostra que o cartão abre');
     await page.locator('.mu-pl-a').click();

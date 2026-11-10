@@ -134,6 +134,7 @@
     const espreita = document.createElement('div');
     espreita.id = 'mu-espreita';
     espreita.setAttribute('aria-hidden', 'true');
+    espreita.hidden = true; // só aparece durante a troca (sem isto, tapava a página ao abrir)
     document.body.appendChild(espreita);
     const indice = () => separadores().findIndex((b) => b.getAttribute('aria-current') === 'page');
     const marcaEm = (i, solta = true) => { if (!nav) return; nav.classList.toggle('a-arrastar', !solta); nav.style.setProperty('--i', String(i)); };
