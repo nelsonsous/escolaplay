@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.18.4';
+    const VERSION = '4.19.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -2054,17 +2054,22 @@
             if (!mode && (Math.abs(mx) > 8 || Math.abs(my) > 8)) mode = Math.abs(mx) > Math.abs(my) ? 'h' : 'v';
             if (mode !== 'h') return;
             const base = w.classList.contains('open') ? -W : 0;
-            dx = Math.max(-W * 1.4, Math.min(0, base + mx));
+            dx = Math.max(-w.clientWidth, Math.min(0, base + mx));
             const r = w.querySelector('.row'); r.style.transition = 'none'; r.style.transform = `translateX(${dx}px)`;
+            // o botão vermelho cresce com o arrasto; passado o limite, largar apaga
+            const del = w.querySelector('.sw-del'); del.style.width = Math.max(W, -dx) + 'px'; del.classList.toggle('vai', -dx > limite(w));
         }, { passive: true });
+        // arrastar até mais de metade da linha (como no Mail do iPhone) retira logo, com "Desfazer"
+        const limite = (el) => Math.min(220, el.clientWidth * 0.55);
         document.addEventListener('touchend', () => {
             if (!w) return;
-            const r = w.querySelector('.row');
+            const r = w.querySelector('.row'), del = w.querySelector('.sw-del');
             if (mode === 'h') {
-                const open = dx < -W / 2;
-                r.style.transition = ''; r.style.transform = '';
-                w.classList.toggle('open', open); st.swipe = open ? w.dataset.swk : null;
                 st.noClick = now() + 400; // o arrasto não abre a ficha
+                if (-dx > limite(w)) { const b = del.dataset; w = null; mode = ''; st.touching = false; hideAsset(b.hide, b.grp); return; }
+                const open = dx < -W / 2;
+                r.style.transition = ''; r.style.transform = ''; del.style.width = ''; del.classList.remove('vai');
+                w.classList.toggle('open', open); st.swipe = open ? w.dataset.swk : null;
             }
             w = null; mode = ''; st.touching = false;
             if (st.renderLater) { st.renderLater = false; scheduleRender(); }
@@ -2074,6 +2079,99 @@
             const op = e.target.closest && e.target.closest('.sw-wrap.open');
             if (op && !e.target.closest('.sw-del')) { op.classList.remove('open'); st.swipe = null; e.stopPropagation(); e.preventDefault(); }
         }, true);
+    })();
+
+    // a lista dos Ajustes: arrastar uma linha para a esquerda retira-a (com "Desfazer"); a pega ≡ continua a reordenar
+    (() => {
+        let w = null, x0 = 0, y0 = 0, dx = 0, mode = '';
+        document.addEventListener('touchstart', (e) => {
+            const el = e.target.closest && e.target.closest('.wl-i');
+            if (!el || e.target.closest('.wl-h') || e.touches.length !== 1) { w = null; return; }
+            w = el; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; mode = '';
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (!w) return;
+            const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+            if (!mode && (Math.abs(mx) > 8 || Math.abs(my) > 8)) mode = Math.abs(mx) > Math.abs(my) && mx < 0 ? 'h' : 'v';
+            if (mode !== 'h') return;
+            dx = Math.min(0, mx);
+            w.classList.add('sw'); w.classList.toggle('vai', -dx > w.clientWidth * 0.4);
+            w.style.transition = 'none'; w.style.transform = `translateX(${dx}px)`;
+        }, { passive: true });
+        const fim = () => {
+            if (!w) return;
+            const el = w; w = null;
+            if (mode !== 'h') return;
+            st.noTap = now() + 400;
+            if (-dx > el.clientWidth * 0.4) { hideAsset(el.dataset.wk, 'list'); return; }
+            el.style.transition = 'transform .2s ease-out'; el.style.transform = '';
+            setTimeout(() => el.classList.remove('sw', 'vai'), 200);
+        };
+        document.addEventListener('touchend', fim, { passive: true });
+        document.addEventListener('touchcancel', fim, { passive: true });
+    })();
+
+    // ---------- mudar de separador ----------
+    const TABS = ['painel', 'destaques', 'analise', 'carteira', 'ajustes'];
+    function irPara(tab) {
+        cfg.tab = tab; saveCfg(); window.scrollTo(0, 0);
+        if (tab === 'destaques' && !MOVERS) loadMovers();
+        render();
+    }
+    // arrastar para a esquerda ou para a direita em qualquer parte do ecrã: o separador ao lado (como nas apps do iPhone).
+    // Ficam de fora o que já usa o gesto para o lado: as linhas que se apagam (para a esquerda), os gráficos com o dedo,
+    // as barras de deslizar, os campos e o que desliza para o lado (as tabelas largas).
+    (() => {
+        const body = $('#mk-body');
+        let x0 = null, y0 = 0, t0 = 0, dx = 0, mode = '', linha = null, vai = false;
+        const deslizaX = (el) => { for (let a = el; a && a !== body; a = a.parentElement) { const o = getComputedStyle(a).overflowX; if ((o === 'auto' || o === 'scroll') && a.scrollWidth > a.clientWidth + 1) return true; } return false; };
+        document.addEventListener('touchstart', (e) => {
+            x0 = null;
+            const t = e.target;
+            if (vai || e.touches.length !== 1 || !$('#mk-sheet').hidden || !body.contains(t) || !t.closest) return;
+            if (t.closest('input, select, textarea, canvas, .sim-g, .wl-h, .sw-wrap.open') || deslizaX(t)) return;
+            linha = t.closest('.sw-wrap, .wl-i');
+            x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = e.timeStamp; dx = 0; mode = '';
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (x0 == null) return;
+            const mx = e.touches[0].clientX - x0, my = e.touches[0].clientY - y0;
+            if (!mode) {
+                if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+                // para o lado (bem mais do que para baixo); numa linha que se apaga, para a esquerda é dela
+                mode = Math.abs(mx) > Math.abs(my) * 1.3 && !(linha && mx < 0) && !st.pulling ? 'h' : 'v';
+            }
+            if (mode !== 'h') return;
+            const i = TABS.indexOf(cfg.tab), tem = mx < 0 ? i < TABS.length - 1 : i > 0;
+            dx = tem ? mx : mx / 4; // no primeiro e no último, resiste
+            body.style.transition = 'none'; body.style.transform = `translateX(${dx}px)`;
+        }, { passive: true });
+        const fim = (e) => {
+            if (x0 == null) return;
+            x0 = null;
+            if (mode !== 'h') return;
+            st.noTap = now() + 400;
+            const i = TABS.indexOf(cfg.tab), j = i + (dx < 0 ? 1 : -1), v = Math.abs(dx) / Math.max(1, e.timeStamp - t0);
+            if (j < 0 || j >= TABS.length || !(Math.abs(dx) > 80 || (Math.abs(dx) > 35 && v > 0.45))) {
+                body.style.transition = 'transform .2s ease-out'; body.style.transform = ''; return;
+            }
+            // sai para o lado do dedo e o novo entra do outro lado
+            const lado = dx < 0 ? -1 : 1;
+            vai = true;
+            body.style.transition = 'transform .14s ease-in'; body.style.transform = `translateX(${lado * innerWidth}px)`;
+            setTimeout(() => {
+                irPara(TABS[j]);
+                body.style.transition = 'none'; body.style.transform = `translateX(${-lado * innerWidth * 0.35}px)`;
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    body.style.transition = 'transform .2s cubic-bezier(.2, .8, .2, 1)'; body.style.transform = '';
+                    setTimeout(() => { body.style.transition = ''; vai = false; }, 220);
+                }));
+            }, 140);
+        };
+        document.addEventListener('touchend', fim, { passive: true });
+        document.addEventListener('touchcancel', fim, { passive: true });
+        // o arrasto não carrega no que estava debaixo do dedo
+        document.addEventListener('click', (e) => { if (st.noTap && now() < st.noTap && body.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } }, true);
     })();
 
     // ---------- ações do utilizador ----------
@@ -2145,7 +2243,7 @@
         const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv]');
         if (!t) return;
         const d = t.dataset;
-        if (d.tab) { cfg.tab = d.tab; saveCfg(); window.scrollTo(0, 0); if (d.tab === 'destaques' && !MOVERS) loadMovers(); render(); return; }
+        if (d.tab) { irPara(d.tab); return; }
         if (d.open) { openSheet(d.open, d.name, d.ut); return; }
         if (d.claude) { setClaude(d.claude === '1'); return; }
         if (d.others) {
