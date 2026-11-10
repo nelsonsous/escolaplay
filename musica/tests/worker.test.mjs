@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.11.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.12.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -596,7 +596,7 @@ test('propostas, ideias e afinar: várias versões só na app, escolher uma para
     assert.deepEqual((await (await get('/api/ideias', chave)).json()).ideias, [{ texto: 'Estrada ao sol', momento: 'dia', arco: 'sobe' }, { texto: 'Condução à noite', momento: 'noite', estilo: 'audiofilo' }, { texto: 'Sempre bom', momento: 'sempre' }]);
 });
 
-test('ouvir 30 s: a pré-escuta do Deezer (pelo ISRC ou pela pesquisa), guardada até caducar; o género para agrupar', async () => {
+test('ouvir 30 s e capas: a pré-escuta e a capa do Deezer (pelo ISRC ou pela pesquisa), guardadas; o género e a capa da playlist no índice', async () => {
     const { chave } = await ligarPrimeiraVez();
     const res = (await (await post('/api/resolver', { faixas: [{ titulo: 'So What' }, { titulo: 'Feeling Good' }, { titulo: 'Barco Negro' }, { titulo: 'Teardrop' }] }, chave)).json()).faixas;
     const doc = await (await post('/api/playlists', { nome: 'Ouvir', faixas: res.map((f, i) => ({ ...f, genero: i < 3 ? 'jazz' : 'trip-hop' })) }, chave)).json();
@@ -610,4 +610,9 @@ test('ouvir 30 s: a pré-escuta do Deezer (pelo ISRC ou pela pesquisa), guardada
     assert.deepEqual((await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).previas, p);
     assert.equal(sim.chamadas.slice(antes).filter((x) => /deezer/.test(x)).length, 0);
     assert.equal((await (await get('/api/playlists', chave)).json())[0].genero, 'jazz');
+    // a capa de cada faixa (pequena: 120 px) e, para a lista, a capa da playlist (1, porque não há 4 álbuns diferentes)
+    const c = (await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).capas;
+    assert.deepEqual(Object.keys(c).sort(), ['101', '102', '106']);
+    assert.match(c[102], /^https:\/\/cdn-images\.dzcdn\.net\/images\/cover\/[0-9a-f]{32}\/120x120-000000-80-0-0\.jpg$/);
+    assert.deepEqual((await (await get('/api/playlists', chave)).json())[0].capas, [c[101]]);
 });

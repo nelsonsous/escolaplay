@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.11.0';
+const VERSION = '1.12.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -22,7 +22,7 @@ class Erro extends Error {
 // O dono (quem montou a app) fica com as chaves de sempre; cada pessoa convidada tem as suas com o prefixo u:<id>:.
 // As chaves globais (aparelhos, Client ID, códigos, convites, o estado do login) são as mesmas para todos.
 const DONO = 'dono';
-const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:|tendencias:|previa:)/;
+const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:|tendencias:|previa:|capa:)/;
 function deUtilizador(env, uid) {
     if (!uid || uid === DONO) return { ...env, UID: DONO };
     const k = (x) => (GLOBAL.test(x) ? x : `u:${uid}:${x}`);
@@ -477,6 +477,7 @@ const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.
     ...(d.rascunho ? { rascunho: true, grupo: d.grupo || '', variante: d.variante || '' } : {}),
     // para agrupar na app: o pedido (se houve) e o género que mais aparece
     ...(d.pedido ? { pedido: txt(d.pedido, 120) } : {}), ...(generoDe(d.faixas) ? { genero: generoDe(d.faixas) } : {}),
+    ...(d.capas?.length ? { capas: d.capas } : {}),
     ...(d.avaliacao ? { avaliacao: { nota: d.avaliacao.nota, etiqueta: d.avaliacao.etiqueta, guardadas: d.avaliacao.guardadas.length, tiradas: d.avaliacao.tiradas.length } } : {}) });
 function generoDe(faixas) {
     const n = new Map();
@@ -648,45 +649,64 @@ async function avaliar(env, d, fav, gostava, nasMixes) {
 // não serve daqui: o iTunes limita o IP partilhado do Cloudflare (HTTP 429). O endereço do Deezer é assinado e caduca
 // (exp=…): fica na KV até pouco antes disso; o «não há» fica um dia. ----------
 const MAX_PREVIAS = 45; // pedidos externos por chamada (o plano gratuito deixa 50)
+// ouvir 30 s e a capa: o Deezer dá as duas na mesma resposta. A pré-escuta guarda-se até o link caducar; a capa, 30 dias.
+// A playlist guarda as primeiras capas para o mosaico da lista (4 pequenas, ou 1 se não houver 4 álbuns diferentes).
 async function previas(env, id) {
     const d = await obter(env, id);
-    const out = {};
+    const out = {}, capas = {};
     const agora = Math.floor(Date.now() / 1000);
     let pedidos = 0;
     const fx = d.faixas.slice(0, 100);
     for (let i = 0; i < fx.length; i += 10) {
         await Promise.all(fx.slice(i, i + 10).map(async (f) => {
-            const k = 'previa:d:' + f.id;
-            let url = await env.KV.get(k);
-            if (url === null && pedidos < MAX_PREVIAS) {
-                url = await previaDeezer(f, () => ++pedidos <= MAX_PREVIAS).catch(() => null);
-                if (url !== null) {
+            const kp = 'previa:d:' + f.id, kc = 'capa:d:' + f.id;
+            let [url, capa] = await Promise.all([env.KV.get(kp), env.KV.get(kc)]);
+            if ((url === null || capa === null) && pedidos < MAX_PREVIAS) {
+                const r = await previaDeezer(f, () => ++pedidos <= MAX_PREVIAS).catch(() => null);
+                if (r) {
+                    url = r.p; capa = r.c;
                     const exp = Number((/exp=(\d+)/.exec(url) || [])[1]) || 0;
                     const ttl = url ? (exp ? exp - agora - 120 : 3600) : 86400;
-                    if (ttl >= 60) await env.KV.put(k, url, { expirationTtl: ttl });
+                    if (ttl >= 60) await env.KV.put(kp, url, { expirationTtl: ttl });
+                    await env.KV.put(kc, capa, { expirationTtl: capa ? 30 * 86400 : 86400 });
                 }
             }
             if (url) out[f.id] = url;
+            if (capa) capas[f.id] = capa;
         }));
     }
-    return { previas: out };
+    const albuns = [...new Set(fx.map((f) => capas[f.id]).filter(Boolean))];
+    const mosaico = albuns.length >= 4 ? albuns.slice(0, 4).map((u) => u.replace('/120x120-', '/56x56-')) : albuns.slice(0, 1);
+    if (mosaico.length && JSON.stringify(mosaico) !== JSON.stringify(d.capas || [])) {
+        d.capas = mosaico;
+        await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+        await atualizarIndice(env, d);
+    }
+    return { previas: out, capas };
 }
-// '' se o Deezer não a tem; null se não deu para saber (sem folga de pedidos, ou o Deezer falhou)
+// a capa pequena do álbum (120 px, uns 5 KB), só do CDN de imagens do Deezer
+const capaDeezer = (y) => {
+    const u = String(y?.album?.cover_small || '');
+    return /^https:\/\/[a-z0-9-]+\.dzcdn\.net\/images\/cover\/[0-9a-f]{32}\/\d+x\d+-[0-9a-z-]+\.jpg$/.test(u) ? u.replace(/\/\d+x\d+-/, '/120x120-') : '';
+};
+// { p: pré-escuta, c: capa } ('' se o Deezer não a tem); null se não deu para saber (sem folga de pedidos, ou o Deezer falhou)
 async function previaDeezer(f, pode) {
+    let c = '';
     if (f.isrc) {
         if (!pode()) return null;
         const r = await fetch(`https://api.deezer.com/track/isrc:${encodeURIComponent(f.isrc)}`);
         if (!r.ok) return null;
         const j = await r.json();
-        if (j?.preview) return j.preview;
+        c = capaDeezer(j);
+        if (j?.preview) return { p: j.preview, c };
     }
-    if (!pode()) return null;
+    if (!pode()) return c ? { p: '', c } : null;
     const artista = f.artistas?.[0] || '';
     const r = await fetch(`https://api.deezer.com/search?${new URLSearchParams({ q: `${artista} ${f.titulo}`, limit: '5' })}`);
     if (!r.ok) return null;
     const a = normal(artista), t = normal(f.titulo);
     const x = ((await r.json())?.data || []).find((y) => y.preview && normal(y.title_short || y.title).startsWith(t.slice(0, 12)) && (!a || normal(y.artist?.name).includes(a.split(' ')[0])));
-    return x?.preview || '';
+    return { p: x?.preview || '', c: c || capaDeezer(x) };
 }
 
 // ---------- mudar o nome (e a descrição): na app e no Tidal, no mesmo link; a renovação semanal mantém-no ----------
