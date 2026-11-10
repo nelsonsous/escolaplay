@@ -420,6 +420,29 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await nav(1);
     await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
     assert.equal(await page.locator('details.mu-grupo .mu-pl').count(), 1, 'a escolhida sai das propostas');
+    // arrastar a proposta para a esquerda: pouco volta ao sítio; mais de um terço pergunta se é para apagar
+    const deslizar = (ate) => page.evaluate(async (ate) => {
+        const c = document.querySelector('details.mu-grupo .mu-pl');
+        const toque = (x) => new Touch({ identifier: 2, target: c, clientX: x, clientY: c.getBoundingClientRect().top + 30 });
+        c.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(330)], bubbles: true, cancelable: true }));
+        for (const x of [310, (330 + ate) / 2, ate]) c.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(x)], bubbles: true, cancelable: true }));
+        const durante = [c.style.transform, getComputedStyle(c, '::after').content];
+        await new Promise((ok) => setTimeout(ok, 150));
+        c.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
+        return durante;
+    }, ate);
+    assert.deepEqual(await deslizar(290), ['translateX(-40px)', '"Apagar"'], 'o cartão segue o dedo e mostra o vermelho');
+    await page.waitForTimeout(300);
+    assert.equal(await page.locator('.mu-pl-apagar').count(), 0, 'arrastar pouco não pergunta');
+    await deslizar(60);
+    await page.locator('.mu-pl-apagar').getByText(/^Apagar «.*»\?$/).waitFor();
+    await page.locator('.mu-pl-apagar').getByText('É uma proposta: sai só da app.').waitFor();
+    await page.getByRole('button', { name: 'Não', exact: true }).click();
+    await page.locator('details.mu-grupo .mu-pl-a').waitFor();
+    await deslizar(60);
+    await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
+    await page.locator('#mu-aviso').getByText('Apagada da app.').waitFor();
+    assert.equal(await page.locator('details.mu-grupo').count(), 0, 'a proposta apagada sai da lista');
     // agrupar por: data (por omissão), tipo, género, Tidal, avaliação — e fica escolhido
     await page.getByRole('heading', { name: /^Esta semana/ }).waitFor();
     await page.getByRole('button', { name: 'Tidal', exact: true }).click();

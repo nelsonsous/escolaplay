@@ -279,6 +279,16 @@ button.mu-chip { cursor: pointer; }
 .mu-pl.tidal .chev { right: 62px; }
 .mu-pl.aberta .chev { transform: rotate(180deg); stroke: var(--fg); }
 .mu-cx-fora { color: var(--mut); font-size: 13px; margin: -4px 0 12px; }
+/* arrastar para a esquerda: o vermelho «Apagar» vem colado ao cartão; depois, a pergunta no lugar do cartão */
+.mu-lista-pl { overflow-x: clip; }
+.mu-pl.a-deslizar { overflow: visible; z-index: 1; }
+.mu-pl.a-deslizar::after { content: "Apagar"; position: absolute; top: 0; bottom: 0; left: calc(100% + 8px); width: 100vw; border-radius: 16px;
+    background: var(--red); color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; padding-left: 18px; }
+.mu-pl-apagar { display: flex; flex-direction: column; gap: 10px; padding: 14px; box-shadow: inset 0 0 0 1px rgba(255, 69, 58, .45); }
+.mu-pl-apagar::before { display: none; }
+.mu-pl-apagar .tx b { display: block; font-size: 15.5px; overflow-wrap: anywhere; }
+.mu-pl-apagar .tx span { color: var(--mut); font-size: 13px; }
+.mu-pl-apagar .mu-acoes { margin: 0; flex-wrap: wrap; }
 /* o cartão aberto é uma folha que ocupa o ecrã: sobe de baixo e, ao fechar, desce (a casca espera pelo fim) e a lista
    fica onde estava, porque nunca se mexeu */
 .mu-pl.aberta { overflow: visible; }
