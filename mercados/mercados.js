@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.18.3';
+    const VERSION = '4.18.4';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1727,37 +1727,44 @@
     }
     // puxar a folha para baixo para fechar (como nas apps de bolsa); a velocidade conta pelo tempo dos próprios toques
     // (e.timeStamp), não pelo relógio de quando o browser os trata (com o telemóvel ocupado chegam todos de seguida)
+    // Em qualquer parte, como na TR: no gráfico (para baixo puxa; para o lado é o dedo nos preços), no fundo escuro e,
+    // com o conteúdo descido, ao subir até ao topo e continuar a puxar no mesmo gesto.
     (function swipeToClose() {
-        const c = $('#mk-sheet-card'), bg = $('.mk-sheet-bg');
-        let y0 = null, dy = 0, t0 = 0, drag = false;
-        c.addEventListener('touchstart', (e) => {
-            if (e.touches.length !== 1 || e.target.closest('#d-cv')) { y0 = null; return; }
-            y0 = e.touches[0].clientY; dy = 0; t0 = e.timeStamp; drag = false;
+        const sh = $('#mk-sheet'), c = $('#mk-sheet-card'), bg = $('.mk-sheet-bg');
+        // o gesto: null (ainda não se sabe), 'x' (para o lado), 'ler' (a deslizar o conteúdo) ou 'puxa'
+        let y0 = null, x0 = 0, yAnt = 0, dy = 0, t0 = 0, modo = null, naFolha = true;
+        sh.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) { y0 = null; return; }
+            y0 = yAnt = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; t0 = e.timeStamp; modo = null; naFolha = c.contains(e.target);
         }, { passive: true });
-        c.addEventListener('touchmove', (e) => {
+        sh.addEventListener('touchmove', (e) => {
             if (y0 == null) return;
-            dy = e.touches[0].clientY - y0;
-            if (!drag) {
-                if (dy > 6 && c.scrollTop <= 0) drag = true;
-                else if (dy < -6 || c.scrollTop > 0) { y0 = null; return; }
-                else return;
+            const y = e.touches[0].clientY, mx = e.touches[0].clientX - x0, desce = y > yAnt;
+            yAnt = y; dy = y - y0;
+            if (modo == null) {
+                if (Math.abs(dy) < 7 && Math.abs(mx) < 7) return;
+                modo = Math.abs(mx) > Math.abs(dy) ? 'x' : dy > 0 && (!naFolha || c.scrollTop <= 0) ? 'puxa' : 'ler';
             }
-            e.preventDefault();
+            if (modo === 'x') return;
+            // a subir o conteúdo até ao topo e a continuar a puxar: passa a fechar, a contar daqui
+            if (modo === 'ler') { if (!(desce && c.scrollTop <= 0)) return; modo = 'puxa'; y0 = y; t0 = e.timeStamp; dy = 0; }
+            st.puxaFolha = true;
+            if (e.cancelable) e.preventDefault();
             const d = Math.max(0, dy);
             c.style.transition = 'none'; c.style.transform = `translateY(${d}px)`;
             bg.style.transition = 'none'; bg.style.opacity = String(Math.max(0.15, 1 - d / 500));
         }, { passive: false });
         const end = (e) => {
             if (y0 == null) return;
-            const was = drag; y0 = null; drag = false;
-            if (!was) return;
+            const era = modo === 'puxa'; y0 = null; modo = null; st.puxaFolha = false;
+            if (!era) return;
             const v = dy / Math.max(1, e.timeStamp - t0);
             if (dy > 110 || (dy > 30 && v > 0.5)) { closeSheet(true); return; }
             c.style.transition = 'transform .2s ease-out'; c.style.transform = '';
             bg.style.transition = 'opacity .2s'; bg.style.opacity = '';
         };
-        c.addEventListener('touchend', end);
-        c.addEventListener('touchcancel', end);
+        sh.addEventListener('touchend', end);
+        sh.addEventListener('touchcancel', end);
     })();
     function analyseOne(k) {
         const c = closesFor(k);
@@ -1977,7 +1984,7 @@
         const cv = $('#d-cv');
         if (!cv) return;
         const at = (ev) => {
-            if (!sheetPts || sheetPts.length < 2 || !sheetDraw) return;
+            if (st.puxaFolha || !sheetPts || sheetPts.length < 2 || !sheetDraw) return;
             const x = ev.clientX - cv.getBoundingClientRect().left;
             let best = 0, bd = Infinity;
             for (let i = 0; i < sheetPts.length; i++) { const d = Math.abs(sheetDraw.X(i) - x); if (d < bd) { bd = d; best = i; } }
