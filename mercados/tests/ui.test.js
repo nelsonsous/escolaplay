@@ -203,7 +203,8 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="carteira"]');
     await page.waitForSelector('.sim');
     const campo = async (k, v) => { await page.evaluate(([k, v]) => { const i = document.querySelector(`.sim [data-cfg="${k}"]`); i.value = String(v); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, v]); };
-    await campo('budget', 900);
+    await page.evaluate(() => { window.__mk.cfg.budget = 900; }); // o plano dos Ajustes
+    await campo('simBudget', 900);
     await page.waitForSelector('.sim-big b');
     assert.match(await page.locator('.sim-big b').textContent(), /^\d{1,3}(\s\d{3})*\s€$/, 'o valor no fim, em euros');
     assert.equal(await page.locator('.sim-meta').count(), 0, 'sem objetivo, sem caixa');
@@ -279,8 +280,17 @@ function proxyBody(u) {
     assert.match(await page.locator('.sim [data-out="simStart"]').evaluate((e) => e.previousElementSibling.textContent), /Já tens \(a tua carteira\)/);
     await page.click('.sim [data-act="sim-step"][data-k="simStart"][data-d="-1000"]');
     assert.equal(await page.evaluate(() => window.__mk.cfg.simStartManual), true);
+    // o «Por mês» do simulador é só do simulador: não muda o plano dos Ajustes
+    const planoAntes = await page.evaluate(() => window.__mk.cfg.budget);
+    await page.click('.sim [data-act="sim-step"][data-k="simBudget"][data-d="50"]');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.budget), planoAntes, 'o plano fica como estava');
+    assert.equal((await page.locator('.sim [data-out="simBudget"]').textContent()).replace(/\s/g, ' '), `${planoAntes + 50} €`, 'o simulador mexe no seu');
+    // o botão repõe a carteira e o plano de uma vez
+    assert.match(await page.locator('.sim [data-act="sim-carteira"]').textContent(), /Usar a tua carteira e o teu plano/);
     await page.click('[data-act="sim-carteira"]');
     assert.equal(await page.evaluate(() => window.__mk.cfg.simStartManual), false, 'volta a seguir a carteira');
+    assert.equal((await page.locator('.sim [data-out="simBudget"]').textContent()).replace(/\s/g, ' '), `${planoAntes} €`, 'volta ao plano');
+    assert.equal(await page.locator('.sim [data-act="sim-carteira"]').count(), 0, 'sem diferenças, sem botão');
     await page.evaluate(() => { delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.cfg.simStart = 0; window.__mk.render(); });
     // a carteira conta sempre em euros (o preço médio da TR é em euros), também com «Moeda local» nos Ajustes
     await page.evaluate(() => { window.__mk.cfg.eur = false; });

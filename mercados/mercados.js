@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.19.1';
+    const VERSION = '4.19.2';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1117,9 +1117,12 @@
         }
         return { v, cp: v > 0 ? vc / v : 0 };
     }
+    // o «Por mês» do simulador é só dele (mexer nele não muda o plano dos Ajustes); sem valor próprio, segue o plano
+    const simBudget = () => (Number.isFinite(cfg.simBudget) ? cfg.simBudget : +cfg.budget || 0);
     function walletSnap() {
         const ch = carteiraHoje(), real = ch.v > 0 && !cfg.simStartManual;
-        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund),
+        const mexido = (ch.v > 0 && !!cfg.simStartManual) || (Number.isFinite(cfg.simBudget) && cfg.simBudget !== (+cfg.budget || 0));
+        return { budget: simBudget(), mexido, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund),
             start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap() };
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
@@ -2366,11 +2369,12 @@
                 break;
             }
             case 'sim-hoje': cfg.simHoje = t.dataset.v === '1'; saveCfg(); render(); break;
-            case 'sim-carteira': cfg.simStartManual = false; saveCfg(); render(); break;
+            case 'sim-carteira': cfg.simStartManual = false; cfg.simBudget = null; saveCfg(); render(); break;
             case 'sim-step': {
                 const k = t.dataset.k, d = +t.dataset.d || 0, rg = t.parentElement && t.parentElement.querySelector('.sim-rg'), mn = rg ? +rg.min : 0;
                 // o «Já tens» parte do valor da carteira; mexer nele passa a valor à mão
                 if (k === 'simStart' && !cfg.simStartManual) { cfg.simStart = Math.round(carteiraHoje().v) || +cfg.simStart || 0; cfg.simStartManual = true; }
+                if (k === 'simBudget' && !Number.isFinite(cfg.simBudget)) cfg.simBudget = +cfg.budget || 0;
                 const v = (+cfg[k] || 0) + d;
                 cfg[k] = k === 'simYears' ? Math.min(60, Math.max(1, Math.round(v || 20))) : Math.max(mn, v);
                 saveCfg(); render(); break;
@@ -2408,7 +2412,7 @@
         }
         if (t.dataset && t.dataset.cfg) {
             if (t.dataset.cfg === 'simStart') cfg.simStartManual = true; // mexeu à mão: deixa de seguir a carteira
-            cfg[t.dataset.cfg] = ['alertPct', 'budget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
+            cfg[t.dataset.cfg] = ['alertPct', 'budget', 'simBudget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
             saveCfg();
             if (t.dataset.cfg === 'distrito') { cfg.municipio = ''; saveCfg(); FUEL = null; loadFuel(); render(); }
             if (t.dataset.cfg === 'municipio') { FUEL = null; loadFuel(); }
