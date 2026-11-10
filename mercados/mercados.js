@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.16.4';
+    const VERSION = '4.17.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -2129,6 +2129,8 @@
             const n = +d.sday;
             cfg.saveDays = cfg.saveDays.includes(n) ? cfg.saveDays.filter((x) => x !== n) : cfg.saveDays.concat(n).sort((a, b) => a - b);
             if (!cfg.saveDays.length) cfg.saveDays = [n];
+            // o Claude lê os dias do diário: manda-os já, para a análise seguinte não usar os antigos
+            if (cfg.proxy && cfg.jid) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {});
             saveCfg(); render(); return;
         }
         switch (d.act) {

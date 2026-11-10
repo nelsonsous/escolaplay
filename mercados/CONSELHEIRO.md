@@ -64,9 +64,9 @@ Este ficheiro é o procedimento que a tarefa agendada segue **duas vezes por dia
    ```json
    {
      "headline": "frase curta com a leitura do dia (até 160 caracteres)",
-     "tldr": ["Mercado: …", "Plano: …", "Atenção: …"],
-     "market": "2 a 5 frases sobre o mercado e o que importa hoje",
-     "planNote": "ex.: 900 € em 2 execuções (dias 2 e 16) · próxima a 16/11",
+     "tldr": ["Mercado: …", "Hoje: …", "Atenção: …"],
+     "market": "até 3 frases curtas: o que mexeu e porquê; a cripto; a agenda",
+     "planNote": "só o porquê da divisão, ou o que muda e porquê (sem dias nem valores de cada execução: a app mostra-os)",
      "plan": [
        { "s": "VWCE.DE", "amount": "810 €", "why": "núcleo do plano" },
        { "s": "c:BTC", "amount": "90 €", "why": "cripto todos os meses, manter ≥ 365 dias" }
@@ -97,7 +97,10 @@ Este ficheiro é o procedimento que a tarefa agendada segue **duas vezes por dia
    - `plan` (de cada ativo, opcional, até 280): o que fazer — quanto (em € ou % da carteira), de uma vez ou em partes, quando. Na cripto com menos de 365 dias, o custo de vender.
    - `rank` (opcional): a tua classificação por prazo (até 15, só ativos que se compram), da maior convicção para a menor — o publicar confirma a ordem; sem `rank`, ordena pela convicção.
    - `plan` (do mês): o que fazer com os 900 € **deste mês** (soma = 900 €). Se a próxima execução for amanhã, dizê-lo.
-   - `tldr`: **resumo em 3 linhas curtas** (até 120 caracteres cada), é o que o investidor lê primeiro: 1) **Mercado:** o essencial do dia; 2) **Plano:** o que fazer com os 900 € (valores); 3) **Atenção:** o ativo, a oportunidade ou o risco do dia. Sem jargão.
+   - `tldr`: **resumo em 3 linhas curtas** (até 120 caracteres cada), é o que o investidor lê primeiro: 1) **Mercado:** o essencial do dia; 2) **Hoje:** a ação concreta de hoje — a melhor ideia com valor e preço, ou "nada a fazer, o plano corre sozinho"; 3) **Atenção:** o ativo, a oportunidade ou o risco do dia. Sem jargão. **Não repetir o plano todos os dias**: a app já o mostra por baixo, com a próxima execução; só entra no resumo no dia em que mudares a divisão ("Plano: passa a … porque …").
+   - `market`: até 3 frases curtas, por esta ordem — o que mexeu e porquê, a cripto, a agenda. O detalhe vai nos ativos.
+   - `planNote`: o porquê da divisão do plano, ou o que muda e porquê. **Sem os dias nem os valores de cada execução**: a app calcula-os dos Ajustes (os dias de execução que ele escolheu) e mostra-os; se os escreveres, podem ficar desatualizados.
+   - **Revisão do plano (na primeira análise de cada mês, e quando ele mudar o que tem):** o plano por omissão (fundo núcleo + Bitcoin) não é um dogma. Vê o que ele já tem ("O que tens", as compras da cripto) e diz se a divisão do dinheiro novo continua a melhor: se uma parte já pesa demais, se falta diversificação (ex.: pequenas empresas, mercados emergentes, obrigações para o curto prazo), se a cripto já passa do peso que ele quer. Proposta concreta em `plan` e `planNote` (o que muda, quanto, porquê); se nada muda, uma frase a dizer porquê.
    - `movers`: para **cada** ativo da secção "Movimentos fortes de hoje", o **motivo** em 1–2 frases, com base nas notícias do `dados.md` (ex.: "cai 7% depois de resultados abaixo do esperado"; "arrastado pela venda em tecnologia: Nasdaq −5%"). Se nenhuma notícia explicar, dizê-lo ("sem notícia própria: segue o mercado"). Nunca inventar causas.
    - Português de Portugal, frases curtas, números concretos, sem avisos.
 5. Publicar (valida e grava `advice:<data>`, `advice:latest` e as lições no KV; a app mostra a análise no cartão "Hoje" do Painel, na lista do separador Análise e na ficha de cada ativo):

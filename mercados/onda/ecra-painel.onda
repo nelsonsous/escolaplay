@@ -497,8 +497,11 @@
     ? && ~ cv && bv || @ + b 2 @ + b 4 pn_mexe b 0
     # o plano do mês: o do Claude; o automático só sem ele
     "<div class=\"i-blk plan-blk\"><div class=\"i-h\">Plano do mês na Trade Republic<small>"
-    = pnt ? cv _ar_get c $"planNote" 0 ? _ar_verd pnt _ar_ps pnt 1 ? bv pn_psub b 0
+    # o subtítulo é sempre o da app (a estratégia e o valor dos Ajustes: os dias e os valores de cada execução vêm daí,
+    # como a próxima execução); a nota do Claude, se a há, vai por baixo
+    = pnt ? cv _ar_get c $"planNote" 0 ? bv pn_psub b 0
     "</small></div>"
+    ? _ar_verd pnt { "<p class=\"pl-nota\">" _ar_ps pnt 1 "</p>" 0 } 0
     ? cp pn_citens cp ? bv pn_bitens b 0
     ? _ar_verd x pn_exbox x ne 0
     "</div>"

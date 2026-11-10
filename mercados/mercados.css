@@ -755,3 +755,4 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .cons-av { color: #f59e0b; }
 .cons-box .adv-meta small { color: var(--muted); }
 .real .sec-h .real-edit { margin-left: auto; font-size: calc(.84rem * var(--k)); }
+.pl-nota { color: var(--muted); font-size: calc(.82rem * var(--k)); margin: 2px 0 8px; }
