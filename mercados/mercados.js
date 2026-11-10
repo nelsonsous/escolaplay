@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.19.0';
+    const VERSION = '4.19.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -2353,6 +2353,11 @@
             case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); cfg.funds = DEFAULT_FUNDS.slice(); watchChanged(); break;
             // Carteira: valor no futuro ou em euros de hoje; − e + nos controlos do simulador
             // Carteira: abre «O que tens e as tuas compras» e leva-o à vista
+            case 'lot-clear': {
+                const L = { ...lotOf(d.k) }; if (d.f === 'plan') L.plan = ''; else delete L.qd;
+                const i = t.closest('.dt') && t.closest('.dt').querySelector('input'); if (i) i.value = '';
+                if (REG[d.k]) setLots(d.k, L); break;
+            }
             case 'real-ed': { const d = $('details.real-ed'); if (d) { d.open = true; st.fold['real-ed'] = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } break; }
             // Carteira: colar de uma vez (uma linha por ativo: símbolo, quantidade, preço médio de compra)
             case 'lot-import': {
