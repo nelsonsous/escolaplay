@@ -99,6 +99,9 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     page.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()); });
     page.on('pageerror', (e) => erros.push(String(e)));
     if (process.env.MUSICA_DEBUG) { page.on('console', (m) => m.text() && console.log('consola:', m.type(), m.text().slice(0, 300))); page.on('pageerror', (e) => console.log('pageerror:', String(e).slice(0, 400))); }
+    // as capas vêm do CDN do Deezer: no teste, uma imagem de 1 px (sem ir à rede)
+    const PIXEL = Buffer.from('R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=', 'base64');
+    await page.route('https://cdn-images.dzcdn.net/**', (route) => route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL }));
     await page.route('https://login.tidal.com/**', (route) => {
         const u = new URL(route.request().url());
         assert.equal(u.searchParams.get('client_id'), 'ClienteTidal123');
@@ -147,6 +150,9 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.evaluate(() => { window.musicaLeitor.play = () => Promise.resolve(); }); // (sem ir à rede no teste)
     await page.locator('.mu-pl.aberta [data-previa]').first().click();
     assert.equal(await page.evaluate(() => window.musicaLeitor.dataset.src), previa, 'toca a pré-escuta');
+    // as capas dos álbuns nas faixas (só as que o Deezer tem; as outras ficam com o quadrado cinzento)
+    assert.match(await page.locator('.mu-pl.aberta .mu-xf .cp img').first().getAttribute('src'), /^https:\/\/cdn-images\.dzcdn\.net\/images\/cover\/[0-9a-f]{32}\/120x120-/);
+    assert.equal(await page.locator('.mu-pl.aberta .mu-xf .cp').count(), doc.faixas.length);
     await page.locator('.mu-pl.aberta [placeholder^="Ex.: menos eletrónica"]').waitFor();
     await page.locator('.mu-pl-a').click();
     assert.equal(await page.locator('.mu-pl.aberta').count(), 0, 'tocar outra vez fecha');
@@ -226,6 +232,9 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await nav(1);
     await page.locator('.mu-pl').first().waitFor();
     assert.deepEqual(await page.locator('.mu-pl .nm').allTextContents(), ['Som para o carro']);
+    // depois de aberta uma vez, a playlist tem capa: o mosaico de 4 capas pequenas
+    assert.equal(await page.locator('.mu-pl .mu-pl-capa.m4 img').count(), 4);
+    assert.match(await page.locator('.mu-pl .mu-pl-capa img').first().getAttribute('src'), /\/56x56-/);
     // como correu (o conector avalia-a: ainda é cedo) e atualizar sozinha (liga-se aqui; o Maestro renova-a)
     const agente = await env.KV.get('agente:chave');
     assert.equal((await worker.fetch(new Request(WORKER + '/api/avaliacoes', { headers: { authorization: `Bearer ${agente}` } }), env, { waitUntil() {} })).status, 200);

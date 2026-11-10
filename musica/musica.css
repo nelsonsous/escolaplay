@@ -274,7 +274,13 @@ button.mu-chip { cursor: pointer; }
 .mu-cx { padding: 0 14px 14px; }
 .mu-cx > .mu-nota { margin: 0 0 10px; }
 .mu-xf { list-style: none; margin: 0 0 12px; padding: 0; border-top: 1px solid var(--line); }
-.mu-xf li { display: grid; grid-template-columns: 20px minmax(0, 1fr) 34px 30px; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.mu-xf li { display: grid; grid-template-columns: 40px minmax(0, 1fr) 34px 30px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+/* a capa do álbum (120 px do Deezer, só quando aparece no ecrã); sem capa fica o quadrado cinzento */
+.mu-xf .cp { width: 40px; height: 40px; border-radius: 6px; background: var(--panel3); overflow: hidden; }
+.mu-xf .cp img, .mu-pl-capa img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* a capa da playlist: 4 capas em mosaico (ou 1), por cima do gradiente */
+.mu-pl-capa { position: absolute; left: 12px; top: 12px; width: 48px; height: 48px; border-radius: 10px; overflow: hidden; pointer-events: none; display: grid; }
+.mu-pl-capa.m4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 .mu-xf .n { color: var(--dim); font: 600 12px/1 var(--mono); text-align: right; }
 .mu-xf .tx b { display: block; font-size: 14.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mu-xf .tx span { display: block; color: var(--mut); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
