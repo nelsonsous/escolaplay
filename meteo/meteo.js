@@ -5,7 +5,7 @@
 // análise diária do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps } from './lib/data.js';
-import { withReport, reportActive } from './lib/engine.js';
+import { withReport, reportActive, warnHereText } from './lib/engine.js';
 import { mergeMemory, learnHistory, LVARS, LEADS } from './lib/learn.js';
 import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
 import { REPORT_KINDS, REPORT_MIN } from './lib/sources.js';
@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.18.3';
+const VERSION = '1.19.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -510,7 +510,7 @@ function alertsHtml(fc) {
     const W = fc.warnings || [];
     if (W.length) {
         h += `<div class="warns">${W.map((w) => `<div class="warn ${esc(w.level)}" role="note">${ui('alert')}<div><b>${esc(w.type)}</b> · aviso ${esc((F.WARN[w.level] || w.level || '').toLowerCase())}
-            <span class="w-when">${esc(F.period(w.start, w.end, today))} · ${esc(w.source || 'IPMA')}</span>${w.text ? `<p>${esc(w.text)}</p>` : ''}</div></div>`).join('')}</div>`;
+            <span class="w-when">${esc(F.period(w.start, w.end, today))} · ${esc(w.source || 'IPMA')}</span>${w.text ? `<p>${esc(w.text)}</p>` : ''}${w.here ? `<p class="w-here">${esc(warnHereText(w))}</p>` : ''}</div></div>`).join('')}</div>`;
     }
     const ind = fc.indicators || {};
     const act = Object.keys(IND).filter((k) => (ind[k]?.level || 0) >= 2).sort((a, b) => ind[b].level - ind[a].level);
