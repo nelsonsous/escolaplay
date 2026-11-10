@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.17.0';
+    const VERSION = '4.17.1';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -531,7 +531,7 @@
         return t.exempt ? `${t.exempt}/${t.n} isentas · próxima em ${t.next.days} d` : `isenta em ${t.next.days} d`;
     }
     function setLots(k, L) {
-        if (!L.plan && !(L.buys || []).length && !(+L.pm > 0) && !(+L.qty > 0) && !(+L.cost > 0) && !L.qd) delete cfg.lots[k]; else cfg.lots[k] = L;
+        if (!L.plan && !(L.buys || []).length && !(+L.pm > 0) && !(+L.qty > 0) && !(+L.cost > 0) && !(+L.avg > 0) && !L.qd) delete cfg.lots[k]; else cfg.lots[k] = L;
         saveCfg();
         if (cfg.proxy) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {});
         if (sheetKey === k) renderSheet();
@@ -1149,7 +1149,7 @@
         return {
             edOpen: !!st.fold['real-ed'], now: now() / 1000, desde: t0 ? dmy(new Date(t0 * 1000).toISOString().slice(0, 10)) : null, loading: lhVai.size > 0,
             bench: { name: nameOf(cfg.coreFund), px: qv(cfg.coreFund).price, h: histOf(cfg.coreFund) },
-            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: qv(k).price, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: +L.qty || 0, cost: +L.cost || 0, qd: L.qd || '' }; }),
+            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: qv(k).price, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: +L.qty || 0, cost: +L.cost || 0, avg: +L.avg || (+L.qty > 0 && +L.cost > 0 ? Math.round((+L.cost / +L.qty) * 1e4) / 1e4 : 0), qd: L.qd || '' }; }),
         };
     }
     function walletHtml() {
@@ -2230,7 +2230,9 @@
             if (t.dataset.lot === 'plan') L.plan = data;
             else if (t.dataset.lot === 'qd') L.qd = data || undefined;
             // o teclado do iPhone em português escreve a vírgula: 0,0412 → 0.0412 (e tira os espaços dos milhares)
-            else L[t.dataset.lot === 'pm' ? 'pm' : t.dataset.lot === 'qty' ? 'qty' : 'cost'] = Math.max(0, +String(t.value).replace(/\s/g, '').replace(',', '.') || 0) || undefined;
+            else L[t.dataset.lot === 'pm' ? 'pm' : t.dataset.lot === 'qty' ? 'qty' : t.dataset.lot === 'avg' ? 'avg' : 'cost'] = Math.max(0, +String(t.value).replace(/\s/g, '').replace(',', '.') || 0) || undefined;
+            // o investido é a quantidade × o preço médio de compra (o que a TR mostra na posição)
+            if (['qty', 'avg'].includes(t.dataset.lot)) L.cost = +L.qty > 0 && +L.avg > 0 ? Math.round(+L.qty * +L.avg * 100) / 100 : t.dataset.lot === 'avg' ? undefined : L.cost;
             setLots(k, L); return;
         }
         if (t.dataset && t.dataset.cfg) {
