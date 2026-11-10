@@ -144,7 +144,9 @@ function glDraw(t) {
     const w = Math.max(1, Math.round(c.clientWidth * k)), h = Math.max(1, Math.round(c.clientHeight * k));
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     gl.viewport(0, 0, w, h);
-    gl.uniform1fv(GL.u, new Float32Array([t % 600, w, h, ...GL.p])); // t dá a volta de 10 em 10 min (a precisão de 32 bits)
+    // t dá a volta de 10 em 10 min (a precisão de 32 bits); o modo leva também os píxeis por ponto (×4, de 128 para cima)
+    const [chuva, neve, nuvens, vento, modo] = GL.p;
+    gl.uniform1fv(GL.u, new Float32Array([t % 600, w, h, chuva, neve, nuvens, vento, (modo & 127) + 128 * Math.round(k * 4)]));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     GL.frames++;
 }
