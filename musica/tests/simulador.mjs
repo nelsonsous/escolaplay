@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 
 export function kv() {
     const m = new Map();
-    return { m, get: async (k, t) => (m.has(k) ? (t === 'json' ? JSON.parse(m.get(k)) : m.get(k)) : null), put: async (k, v) => { m.set(k, String(v)); }, delete: async (k) => { m.delete(k); } };
+    // escritas: conta-as (o plano gratuito dá 1000 por dia); cheia: recusa-as, como quando se passa o limite
+    const o = { m, escritas: 0, cheia: false, get: async (k, t) => (m.has(k) ? (t === 'json' ? JSON.parse(m.get(k)) : m.get(k)) : null),
+        put: async (k, v) => { if (o.cheia) throw new Error('KV put() limit exceeded for the day.'); o.escritas++; m.set(k, String(v)); }, delete: async (k) => { m.delete(k); } };
+    return o;
 }
 
 export const ARTISTAS = { a1: 'Miles Davis', a2: 'Nina Simone', a3: 'Daft Punk', a4: 'Amália Rodrigues', a5: 'Massive Attack', a6: 'Pop Teste' };

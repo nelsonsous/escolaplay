@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.13.0';
+const VERSION = '1.14.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -647,57 +647,72 @@ async function avaliar(env, d, fav, gostava, nasMixes) {
 
 // ---------- ouvir 30 s: a pré-escuta pública do Deezer (pelo ISRC, ou pela pesquisa do artista e do título). A da Apple
 // não serve daqui: o iTunes limita o IP partilhado do Cloudflare (HTTP 429). O endereço do Deezer é assinado e caduca
-// (exp=…): fica na KV até pouco antes disso; o «não há» fica um dia. ----------
+// (exp=…): as da playlist ficam na KV até pouco antes do primeiro caducar. ----------
 const MAX_PREVIAS = 40; // pedidos ao Deezer por chamada (o plano gratuito deixa 50; o Tidal leva até 6)
 // ouvir 30 s e a capa. A capa vem do Tidal (a edição exata que está na playlist); o Deezer, que dá a pré-escuta e uma capa
-// na mesma resposta, fica de reserva. A pré-escuta guarda-se até o link caducar; as capas, 30 dias.
-// A playlist guarda as primeiras capas para o mosaico da lista (4 pequenas, ou 1 se não houver 4 álbuns diferentes).
+// na mesma resposta, fica de reserva. Poucas escritas na KV (o plano gratuito dá 1000 por dia, para a conta toda):
+//   - as capas ficam na própria playlist (capasF), escritas uma vez quando há faixas novas;
+//   - as pré-escutas de uma playlist ficam numa só chave, até o primeiro link caducar.
+// A playlist guarda também as primeiras capas para o mosaico da lista (4 pequenas, ou 1 se não houver 4 álbuns).
+// Se a KV recusar escritas (limite do dia), responde na mesma: só não guarda.
 async function previas(env, id) {
     const d = await obter(env, id);
-    const out = {}, capas = {};
-    const agora = Math.floor(Date.now() / 1000);
-    let pedidos = 0;
     const fx = d.faixas.slice(0, 100);
-    const doTidal = await capasTidal(env, fx).catch(() => ({}));
-    for (let i = 0; i < fx.length; i += 10) {
-        await Promise.all(fx.slice(i, i + 10).map(async (f) => {
-            const kp = 'previa:d:' + f.id, kc = 'capa:d:' + f.id;
-            let [url, capa] = await Promise.all([env.KV.get(kp), env.KV.get(kc)]);
-            if ((url === null || capa === null) && pedidos < MAX_PREVIAS) {
-                const r = await previaDeezer(f, () => ++pedidos <= MAX_PREVIAS).catch(() => null);
-                if (r) {
-                    url = r.p; capa = r.c;
-                    const exp = Number((/exp=(\d+)/.exec(url) || [])[1]) || 0;
-                    const ttl = url ? (exp ? exp - agora - 120 : 3600) : 86400;
-                    if (ttl >= 60) await env.KV.put(kp, url, { expirationTtl: ttl });
-                    await env.KV.put(kc, capa, { expirationTtl: capa ? 30 * 86400 : 86400 });
-                }
-            }
-            if (url) out[f.id] = url;
-            if (doTidal[f.id] || capa) capas[f.id] = doTidal[f.id] || capa;
+    const agora = Math.floor(Date.now() / 1000);
+    const guarda = (k, v, o) => env.KV.put(k, v, o).catch(() => {});
+    // as capas: as da playlist; as que faltam, das chaves antigas por faixa (só leitura) e depois do Tidal
+    const capasF = {};
+    for (const f of fx) if (d.capasF?.[f.id] !== undefined) capasF[f.id] = d.capasF[f.id];
+    const semCapa = fx.filter((f) => capasF[f.id] === undefined);
+    await Promise.all(semCapa.map(async (f) => { const c = await env.KV.get('capa:t:' + f.id); if (c) capasF[f.id] = c; }));
+    const doTidal = await capasTidal(env, fx.filter((f) => capasF[f.id] === undefined)).catch(() => ({}));
+    Object.assign(capasF, doTidal);
+    // as pré-escutas: uma chave por playlist; vão ao Deezer só as que faltam (e as capas que o Tidal não tem)
+    const kp = 'previas:p:' + d.id;
+    const antes = (await env.KV.get(kp, 'json')) || {};
+    const pv = { ...antes };
+    let pedidos = 0;
+    const falta = fx.filter((f) => pv[f.id] === undefined);
+    for (let i = 0; i < falta.length && pedidos < MAX_PREVIAS; i += 10) {
+        await Promise.all(falta.slice(i, i + 10).map(async (f) => {
+            const r = await previaDeezer(f, () => ++pedidos <= MAX_PREVIAS).catch(() => null);
+            if (!r) return;
+            pv[f.id] = r.p;
+            if (!capasF[f.id] && r.c) capasF[f.id] = r.c;
         }));
     }
+    if (JSON.stringify(pv) !== JSON.stringify(antes)) {
+        const exps = Object.values(pv).map((u) => Number((/exp=(\d+)/.exec(u) || [])[1]) || 0).filter(Boolean);
+        const ttl = exps.length ? Math.min(...exps) - agora - 120 : 86400;
+        if (ttl >= 60) await guarda(kp, JSON.stringify(pv), { expirationTtl: Math.min(ttl, 86400) });
+    }
+    const out = {}, capas = {};
+    for (const f of fx) { if (pv[f.id]) out[f.id] = pv[f.id]; if (capasF[f.id]) capas[f.id] = capasF[f.id]; }
+    // a playlist (e o índice, para o mosaico) só se escreve quando algo mudou
     const albuns = [...new Set(fx.map((f) => capas[f.id]).filter(Boolean))];
     const mosaico = albuns.length >= 4 ? albuns.slice(0, 4).map(capaPequena) : albuns.slice(0, 1);
-    if (mosaico.length && JSON.stringify(mosaico) !== JSON.stringify(d.capas || [])) {
-        d.capas = mosaico;
-        await env.KV.put('playlist:' + d.id, JSON.stringify(d));
-        await atualizarIndice(env, d);
+    const novoMosaico = mosaico.length && JSON.stringify(mosaico) !== JSON.stringify(d.capas || []);
+    if (novoMosaico || JSON.stringify(capasF) !== JSON.stringify(d.capasF || {})) {
+        d.capasF = capasF;
+        if (novoMosaico) d.capas = mosaico;
+        await guarda('playlist:' + d.id, JSON.stringify(d));
+        if (novoMosaico) await atualizarIndice(env, d).catch(() => {});
     }
     return { previas: out, capas };
 }
-// as capas do Tidal: as faixas dão o álbum, o álbum dá a capa (160 px). Até 6 pedidos; o que não se souber fica para a próxima
+// as capas do Tidal: as faixas dão o álbum, o álbum dá a capa (160 px). Até 6 pedidos. Devolve a capa, '' quando o Tidal
+// não a tem, e nada quando não se soube (fica para a próxima). Não escreve na KV: a playlist guarda-as.
 const MAX_IDS_CAPAS = 20;
 async function capasTidal(env, fx) {
-    const out = {}, falta = [];
-    await Promise.all(fx.map(async (f) => { const c = await env.KV.get('capa:t:' + f.id); if (c === null) falta.push(f.id); else if (c) out[f.id] = c; }));
-    if (!falta.length) return out;
+    const out = {};
+    if (!fx.length) return out;
     const t = await acesso(env);
     const pais = t.pais || 'PT';
     const albumDe = {}, arte = {}, vistas = new Set(), vistos = new Set();
     let pedidos = 0;
-    for (let i = 0; i < falta.length && pedidos < 3; i += MAX_IDS_CAPAS, pedidos++) {
-        const lote = falta.slice(i, i + MAX_IDS_CAPAS);
+    const ids = fx.map((f) => String(f.id));
+    for (let i = 0; i < ids.length && pedidos < 3; i += MAX_IDS_CAPAS, pedidos++) {
+        const lote = ids.slice(i, i + MAX_IDS_CAPAS);
         const doc = await tidal(env, '/tracks', { query: { 'filter[id]': lote, include: ['artists', 'albums', 'genres'], countryCode: pais } });
         lote.forEach((id) => vistas.add(id));
         for (const x of doc?.data || []) { const a = x?.relationships?.albums?.data?.[0]?.id; if (a) albumDe[String(x.id)] = String(a); }
@@ -710,12 +725,7 @@ async function capasTidal(env, fx) {
         const obras = new Map((doc?.included || []).filter((x) => x.type === 'artworks').map((x) => [String(x.id), x]));
         for (const a of doc?.data || []) { const u = ficheiroCapa(obras.get(String(a?.relationships?.coverArt?.data?.[0]?.id))); if (u) arte[String(a.id)] = u; }
     }
-    // guarda só o que se ficou a saber: a capa, ou '' (sem capa no Tidal) por um dia
-    await Promise.all(falta.filter((id) => vistas.has(id) && (!albumDe[id] || vistos.has(albumDe[id]))).map(async (id) => {
-        const u = arte[albumDe[id]] || '';
-        await env.KV.put('capa:t:' + id, u, { expirationTtl: u ? 30 * 86400 : 86400 });
-        if (u) out[id] = u;
-    }));
+    for (const id of ids) if (vistas.has(id) && (!albumDe[id] || vistos.has(albumDe[id]))) out[id] = arte[albumDe[id]] || '';
     return out;
 }
 // o ficheiro de 160 px da capa (ou o mais pequeno acima disso), só do servidor de imagens do Tidal
