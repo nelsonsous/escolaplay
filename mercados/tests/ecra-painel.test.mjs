@@ -79,7 +79,10 @@ function verificar({ de, ate, seed }) {
     // as tabelas do mercados.js
     const MKT = { LS: 'Portugal · PSI', DE: 'Alemanha · DAX', F: 'Alemanha · DAX', PA: 'França · CAC 40', AS: 'Países Baixos · AEX', MI: 'Itália · FTSE MIB', MC: 'Espanha · IBEX 35', L: 'Reino Unido · FTSE 100', CO: 'Dinamarca · OMX', SW: 'Suíça · SMI', BR: 'Bélgica · BEL 20', HE: 'Finlândia', ST: 'Suécia', OL: 'Noruega', T: 'Japão · Nikkei', HK: 'Hong Kong' };
     const mktOf = (k) => { const m = /\.([A-Z]{1,3})$/.exec(k); return m ? MKT[m[1]] || 'Outras bolsas' : 'EUA · S&P 500 / Nasdaq'; };
-    const SHORT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Não reforçar', turn: 'Esperar', reduce: 'Reduzir', avoid: 'Evitar', sell: 'Vender', up: 'Em alta', flat: 'Lateral', down: 'Em queda' };
+    // o rótulo (4.11): entrar Comprar / Reforçar, ficar Aguardar / Manter, sair Evitar / Vender — conforme já tem o ativo
+    const SHORT = { buy: 1, scale: 1, hold: 1, wait: 1, neutral: 1, turn: 1, reduce: 1, avoid: 1, sell: 1, up: 1, flat: 1, down: 1 };
+    const lbl = (k, own) => ({ buy: 1, scale: 1 }[k] ? (own ? 'Reforçar' : 'Comprar') : { hold: 1, wait: 1, neutral: 1, turn: 1 }[k] ? (own ? 'Manter' : 'Aguardar')
+        : { reduce: 1, sell: 1, avoid: 1 }[k] ? (own ? (k === 'reduce' ? 'Vender parte' : 'Vender') : 'Evitar') : { up: 'Em alta', flat: 'Lateral', down: 'Em queda' }[k]);
     const CL_TONE = { buy: 'up', scale: 'up', hold: 'flat', wait: 'flat', neutral: 'flat', turn: 'flat', reduce: 'down', avoid: 'down', sell: 'down', up: 'up', flat: 'flat', down: 'down' };
     const tab = (t, k) => (typeof k === 'string' && Object.prototype.hasOwnProperty.call(t, k) ? t[k] : undefined);
     const fin = (x) => typeof x === 'number' && Number.isFinite(x);
@@ -272,7 +275,7 @@ function verificar({ de, ate, seed }) {
                 const sub = row.querySelector('.r-sub'), note = row.querySelector('.r-note');
                 if (md === 2) {
                     const cl = x.cl, r = AN[k];
-                    const badge = cl && cl.action ? [tab(SHORT, cl.key) || cl.action, tab(CL_TONE, cl.key) || 'flat'] : r && r.advice ? [tab(SHORT, r.advice.key) || r.advice.action, 'auto'] : null;
+                    const badge = cl && cl.action ? [(tab(SHORT, cl.key) && lbl(cl.key, true)) || cl.action, tab(CL_TONE, cl.key) || 'flat'] : r && r.advice ? [(tab(SHORT, r.advice.key) && lbl(r.advice.key, true)) || r.advice.action, 'auto'] : null;
                     const items = [r && r.discount ? `${mk.fmtPct1(r.discount.dd * 100)} do máximo` : '', a.kind === 'crypto' ? mk.taxLine(k) : ''].filter(Boolean);
                     if (badge) T[badge[1] === 'auto' ? 'badgeAuto' : 'badgeClaude']++;
                     if (items.length && r && r.discount) T.desconto++;

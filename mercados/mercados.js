@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.10.0';
+    const VERSION = '4.11.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -562,7 +562,19 @@
         scheduleRender();
     }
     // etiquetas curtas dos veredictos (do Claude e dos sinais automáticos); up/flat/down: referência (índices, futuros)
-    const SHORT = { buy: 'Comprar', scale: 'Comprar aos poucos', hold: 'Manter', wait: 'Esperar', neutral: 'Não reforçar', turn: 'Esperar', reduce: 'Reduzir', avoid: 'Evitar', sell: 'Vender', up: 'Em alta', flat: 'Lateral', down: 'Em queda' };
+    // o rótulo do veredicto (4.11): três famílias — entrar, ficar, sair — e a palavra depende de já ter o ativo
+    const FAMS = { buy: 1, scale: 1, hold: 0, wait: 0, neutral: 0, turn: 0, reduce: -1, sell: -1, avoid: -1 };
+    const REF_LBL = { up: 'Em alta', flat: 'Lateral', down: 'Em queda' };
+    const owns = (k) => cfg.holdings.includes(k);
+    function rotulo(key, own) {
+        const f = FAMS[key];
+        if (f === 1) return own ? 'Reforçar' : 'Comprar';
+        if (f === 0) return own ? 'Manter' : 'Aguardar';
+        if (f === -1) return own ? (key === 'reduce' ? 'Vender parte' : 'Vender') : 'Evitar';
+        return REF_LBL[key] || '';
+    }
+    // o pormenor por baixo do rótulo: a frase do Claude ou do algoritmo, se diz mais do que o rótulo
+    const nuance = (lbl, txt) => (txt && txt.trim().toLowerCase() !== lbl.toLowerCase() ? `<div class="adv-nu">${esc(txt)}</div>` : '');
     function evalJournal() {
         if (!JOURNAL || !JOURNAL.days) return null;
         const days = Object.keys(JOURNAL.days).sort();
@@ -1236,19 +1248,22 @@
         const a = AN[k] && AN[k].advice;
         if (!a || !buyable(k) || FAM[c.key] == null) return '';
         const diff = algDiff(k, c);
-        return `<div class="adv-alg${diff ? ' diff' : ''}"><b>Algoritmo:</b> ${esc(a.action)} · ${diff ? `<b>o Claude discorda</b>${c.algWhy ? ` — ${esc(c.algWhy)}` : ''}` : 'o Claude concorda'}</div>`;
+        return `<div class="adv-alg${diff ? ' diff' : ''}"><b>Algoritmo:</b> ${esc(rotulo(a.key, owns(k)) || a.action)} · ${diff ? `<b>o Claude discorda</b>${c.algWhy ? ` — ${esc(c.algWhy)}` : ''}` : 'o Claude concorda'}</div>`;
     }
     function claudeBox(k, q) {
         const c = claudeFor(k);
         if (!c) return '';
         const A_ = REG[k], tone = CL_TONE[c.key] || 'flat';
+        const lbl = rotulo(c.key, owns(k)) || c.action || '', cs = HZ.map(([h]) => c[h]).filter(fin);
+        // forte: convicção de 70 ou mais nalgum prazo (entrar), ou de 30 ou menos (sair)
+        const forte = cs.length && (FAMS[c.key] === 1 ? Math.max(...cs) >= 70 : FAMS[c.key] === -1 ? Math.min(...cs) <= 30 : false);
         const dist = (v) => { const p = clPx(k, q, v); return fin(p) && fin(q.price) && q.price ? fmtPct((p / q.price - 1) * 100) : ''; };
         const conv = HZ.filter(([h]) => fin(c[h])).map(([h, l]) => `<div class="cv"><small>${l} prazo</small>${scoreBar({ score: c[h], tone: scoreTone(c[h]) })}</div>`).join('');
         const lv = [['entry', 'Entrada'], ['target', 'Alvo'], ['stop', 'Stop']].filter(([f]) => fin(clPx(k, q, c[f])))
             .map(([f, l]) => `<li class="${f}"><small>${l}</small><b class="num">${fmtPx(clPx(k, q, c[f]), A_, q.currency)}</b><span class="num">${dist(c[f])}</span></li>`).join('');
         return `<div class="box advice cl-adv ${tone}"><h3>${buyable(k) ? 'O que fazer na Trade Republic' : 'Leitura do Claude'}</h3>
             <div class="adv-src">${c.old ? `Análise do Claude de ${esc(dmy(c.date).slice(0, 5))} · último comentário a este ativo` : `Análise do Claude · ${esc(clWhen())}`}</div>
-            <div class="adv-act ${tone}-t">${esc(c.action || SHORT[c.key] || '')}</div>
+            <div class="adv-act ${tone}-t">${esc(lbl)}${forte ? ' <small class="adv-forte">forte</small>' : ''}</div>${nuance(lbl, c.action)}
             ${conv ? `<div class="cl-conv" role="group" aria-label="Convicção do Claude por prazo">${conv}</div>` : ''}
             ${lv ? `<ul class="cl-lv">${lv}</ul>` : ''}
             ${algLine(k, c)}
@@ -1263,7 +1278,8 @@
         if (!r || !r.advice || !buyable(k)) return '';
         const a = r.advice;
         const fmt = (price) => fmtPx(lvPx(k, q, price), REG[k], q.currency);
-        const body = `<div class="adv-act ${a.tone}-t">${esc(a.action)}</div>
+        const al = rotulo(a.key, owns(k)) || a.action;
+        const body = `<div class="adv-act ${a.tone}-t">${esc(al)}</div>${nuance(al, a.action)}
             <div class="adv-txt">${esc(a.text)}</div>
             ${a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : ''}
             ${a.invalid ? `<div class="adv-meta">A ideia falha se fechar abaixo de <b class="num">${fmt(a.invalid)}</b></div>` : ''}
@@ -1371,7 +1387,7 @@
             foldAn: fold('an-auto'), foldUni: fold('uni'), foldRes: fold('an-res'), foldSobre: fold('an-sobre'), uniN: st.uniN, when: clAt(),
             assets: Object.keys(REG).map((k) => {
                 const a = REG[k], r = AN[k], h = r && r.horizons, d = r && r.discount;
-                return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), chg: qv(k).changePct,
+                return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), chg: qv(k).changePct, own: owns(k),
                     an: r ? { h: h ? { short: H(h.short), mid: H(h.mid), long: H(h.long) } : h,
                         d: d ? { dd: d.dd, score: d.score, tone: d.tone, tag: d.tag, opp: d.opp } : d, adv: r.advice && r.advice.key } : r };
             }),

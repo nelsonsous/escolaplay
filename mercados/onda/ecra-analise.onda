@@ -89,6 +89,7 @@
 : ka_rm >i ekt 75
 : ka_rl >i ekt 76
 : ka_ro >i ekt 77
+: ka_own >i ekt 78
 # os conselhos pela ordem das tabelas dos resultados (buy … avoid), e os outros
 : ka_o i>i j ekt + 80 j
 : ka_v_buy >i ekt 80
@@ -120,7 +121,7 @@
   kdef 60 kab "n63" O 0  kdef 61 kab "avg63" O 0  kdef 62 kab "hit63" O 0  kdef 63 kab "ex63" O 0  kdef 64 kab "disc" O 0
   kdef 65 kab "all" O 0  kdef 66 kab "plan" O 0  kdef 67 kab "aux" O 0  kdef 68 kab "index" O 0  kdef 69 kab "stock" O 0
   kdef 70 kab "fund" O 0  kdef 71 kab "crypto" O 0  kdef 72 kab "mix" O 0  kdef 73 kab "etf" O 0  kdef 74 kab "t" O 0
-  kdef 75 kab "m" O 0  kdef 76 kab "l" O 0  kdef 77 kab "o" O 0
+  kdef 75 kab "m" O 0  kdef 76 kab "l" O 0  kdef 77 kab "o" O 0  kdef 78 kab "own" O 0
   kdef 80 kab "buy" O 0  kdef 81 kab "scale" O 0  kdef 82 kab "hold" O 0  kdef 83 kab "wait" O 0  kdef 84 kab "neutral" O 0
   kdef 85 kab "turn" O 0  kdef 86 kab "avoid" O 0  kdef 87 kab "reduce" O 0  kdef 88 kab "sell" O 0  kdef 89 kab "up" O 0
   kdef 90 kab "flat" O 0  kdef 91 kab "down" O 0
@@ -140,14 +141,17 @@
 # CL_TONE[k] || 'flat'
 : an_tom i>i k ? || || _ar_eqt k ka_v_buy _ar_eqt k ka_v_scale _ar_eqt k ka_v_up "up"
   ? || || || _ar_eqt k ka_v_reduce _ar_eqt k ka_v_avoid _ar_eqt k ka_v_sell _ar_eqt k ka_v_down "down" "flat"
-# SHORT[k]: escreve-o e dá 1, ou 0 se não há
-: an_sht i>i k ? _ar_eqt k ka_v_buy { "Comprar" 1 } ? _ar_eqt k ka_v_scale { "Comprar aos poucos" 1 } ? _ar_eqt k ka_v_hold { "Manter" 1 }
-  ? _ar_eqt k ka_v_wait { "Esperar" 1 } ? _ar_eqt k ka_v_neutral { "Não reforçar" 1 } ? _ar_eqt k ka_v_turn { "Esperar" 1 }
-  ? _ar_eqt k ka_v_reduce { "Reduzir" 1 } ? _ar_eqt k ka_v_avoid { "Evitar" 1 } ? _ar_eqt k ka_v_sell { "Vender" 1 }
-  ? _ar_eqt k ka_v_up { "Em alta" 1 } ? _ar_eqt k ka_v_flat { "Lateral" 1 } ? _ar_eqt k ka_v_down { "Em queda" 1 } 0
 # FAM[k]: 0 sem família, 1 entrar, 2 ficar, 3 sair
 : an_fam i>i k ? || _ar_eqt k ka_v_buy _ar_eqt k ka_v_scale 1 ? || || || _ar_eqt k ka_v_hold _ar_eqt k ka_v_wait _ar_eqt k ka_v_neutral _ar_eqt k ka_v_turn 2
   ? || || _ar_eqt k ka_v_reduce _ar_eqt k ka_v_sell _ar_eqt k ka_v_avoid 3 0
+# rotulo(k, own) do JS (4.11): três famílias, e a palavra depende de já ter o ativo (o): entrar Comprar / Reforçar;
+# ficar Aguardar / Manter; sair Evitar / Vender (Vender parte no reduce). Na referência, a direção. Escreve-o e dá 1,
+# ou 0 se a chave não é conhecida
+: an_sht ii>i k o {
+  = f an_fam k
+  ? == f 1 { ? o "Reforçar" "Comprar" 1 } ? == f 2 { ? o "Manter" "Aguardar" 1 }
+  ? == f 3 { ? o { "Vender" ? _ar_eqt k ka_v_reduce " parte" 0 0 } "Evitar" 1 }
+  ? _ar_eqt k ka_v_up { "Em alta" 1 } ? _ar_eqt k ka_v_flat { "Lateral" 1 } ? _ar_eqt k ka_v_down { "Em queda" 1 } 0 }
 # ACT[order[j]] (as tabelas dos resultados)
 : an_act i>i j ? == j 0 "Comprar" ? == j 1 "Comprar aos poucos" ? == j 2 "Manter (não perseguir)" ? == j 3 "Esperar / reforçar"
   ? == j 4 "Manter, sem reforçar" ? == j 5 "Esperar confirmação" "Evitar"
@@ -236,11 +240,11 @@
 # o veredicto: o do Claude, se o há; senão o do algoritmo — no desconto a etiqueta do desconto; nos prazos o conselho
 # automático (AN[k].advice, com as etiquetas curtas) ou, sem ele, a etiqueta do prazo
 : an_ver i>i i {
-  = c an_f i 1 = an an_f i 5 = h an_f i 2
+  = c an_f i 1 = an an_f i 5 = h an_f i 2 = o _ar_verd _ar_get an_f i 0 ka_own
   "<div class=\"lbl "
-  ? c { = kk _ar_get c ka_key an_tom kk "-t\">" ? an_sht kk 0 { = ac _ar_get c ka_action ? _ar_verd ac _ar_ps ac 1 0 } 0 } {
+  ? c { = kk _ar_get c ka_key an_tom kk "-t\">" ? an_sht kk o 0 { = ac _ar_get c ka_action ? _ar_verd ac _ar_ps ac 1 0 } 0 } {
     = ad ? an _ar_get an ka_adv 0
-    ? && ~ an_g 102 an_fam ad { an_tom ad "-t\">" an_sht ad 0 }
+    ? && ~ an_g 102 an_fam ad { an_tom ad "-t\">" an_sht ad o 0 }
       { _ar_ps _ar_get h ka_tone 1 "-t\">" _ar_ps _ar_get h ? an_g 102 ka_tag ka_label 1 0 } }
   "</div>" 0 }
 # a marca no fim da linha de baixo: ≠ algoritmo (o veredicto do Claude é de outra família — entrar, ficar, sair — que o
@@ -329,7 +333,7 @@
   ? dsc { an_p1v _ar_get r ka_dd " do máx." 0 } ln_chg _ar_get r ka_d
   "</div></div><div class=\"r-score\">" an_barv @f + _ar_get r km 1
   = cd an_g 104 = c ? cd an_cl cd s 0
-  ? c { = kk _ar_get c ka_key "<div class=\"lbl " an_tom kk "-t\">" ? an_sht kk 0 { = ac _ar_get c ka_action ? _ar_verd ac _ar_ps ac 1 0 } "</div>" 0 } 0
+  ? c { = kk _ar_get c ka_key "<div class=\"lbl " an_tom kk "-t\">" ? an_sht kk 0 0 { = ac _ar_get c ka_action ? _ar_verd ac _ar_ps ac 1 0 } "</div>" 0 } 0
   "</div></button>" 0 }
 # algoRank(pool, hz): os 10 do pool com sinal automático, pela pontuação (só quando a lista de cima é a do Claude)
 : an_rank_prep >i {

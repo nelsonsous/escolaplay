@@ -23,9 +23,9 @@
 
 # ===== o que o JS tem em tabelas =====
 # SHORT[k] (as etiquetas curtas dos veredictos): escreve-a e dá 1, ou 0 se não há
-: pn_sht i>i k ? _ar_eqt k $"buy" { "Comprar" 1 } ? _ar_eqt k $"scale" { "Comprar aos poucos" 1 } ? _ar_eqt k $"hold" { "Manter" 1 }
-  ? _ar_eqt k $"wait" { "Esperar" 1 } ? _ar_eqt k $"neutral" { "Não reforçar" 1 } ? _ar_eqt k $"turn" { "Esperar" 1 }
-  ? _ar_eqt k $"reduce" { "Reduzir" 1 } ? _ar_eqt k $"avoid" { "Evitar" 1 } ? _ar_eqt k $"sell" { "Vender" 1 }
+: pn_sht i>i k ? || _ar_eqt k $"buy" _ar_eqt k $"scale" { "Reforçar" 1 }
+  ? || || || _ar_eqt k $"hold" _ar_eqt k $"wait" _ar_eqt k $"neutral" _ar_eqt k $"turn" { "Manter" 1 }
+  ? _ar_eqt k $"reduce" { "Vender parte" 1 } ? || _ar_eqt k $"avoid" _ar_eqt k $"sell" { "Vender" 1 }
   ? _ar_eqt k $"up" { "Em alta" 1 } ? _ar_eqt k $"flat" { "Lateral" 1 } ? _ar_eqt k $"down" { "Em queda" 1 } 0
 # CL_TONE[k] || 'flat'
 : pn_tom i>i k ? || || _ar_eqt k $"buy" _ar_eqt k $"scale" _ar_eqt k $"up" "up"
