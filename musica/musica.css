@@ -288,6 +288,11 @@ html, body { overflow-x: clip; }
 [data-esq].a-deslizar::after { content: attr(data-esq-rotulo); position: absolute; top: 0; bottom: 0; left: calc(100% + 8px); width: 100vw; border-radius: 14px;
     background: var(--red); color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; padding-left: 18px; white-space: nowrap; }
 .mu-xf li.fora.a-deslizar::after { background: var(--green); color: #000; }
+[data-esq].a-deslizar.arma::after { font-weight: 800; letter-spacing: .01em; }
+/* puxar para atualizar (no topo da página) */
+#mu-ptr { position: fixed; left: 0; right: 0; top: env(safe-area-inset-top); height: 0; overflow: hidden; z-index: 5; pointer-events: none;
+    display: flex; align-items: flex-end; justify-content: center; color: var(--mut); font-size: 13px; font-weight: 600; padding-bottom: 0; }
+#mu-ptr span { padding-bottom: 12px; }
 /* mudar de separador a arrastar: o ecrã novo entra do lado de onde se arrastou */
 #mu-body.entra-dir { animation: mu-entra-dir .26s cubic-bezier(.2, .8, .2, 1); }
 #mu-body.entra-esq { animation: mu-entra-esq .26s cubic-bezier(.2, .8, .2, 1); }

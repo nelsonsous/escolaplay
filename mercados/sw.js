@@ -3,9 +3,9 @@
 // O domínio é partilhado com a EscolaPlay (/escolaplay/): as caches são do
 // domínio, por isso este SW só mexe nas caches "mercados-*" e só trata pedidos
 // dentro da sua pasta (/escolaplay/mercados/).
-const CACHE = 'mercados-v95';
+const CACHE = 'mercados-v96';
 const ASSETS = [
-    './', './index.html', './mercados.css', './analise-onda.js', './grafico-onda.js', './mercados.js', './manifest.webmanifest',
+    './', './index.html', './mercados.css', './analise-onda.js', './grafico-onda.js', '../onda/rt/gestos-onda.js', './mercados.js', './manifest.webmanifest',
     './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'
 ];
 
@@ -31,7 +31,8 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
     const url = new URL(req.url);
     const scope = new URL(self.registration.scope);
-    if (url.origin !== scope.origin || !url.pathname.startsWith(scope.pathname)) return;
+    const gestos = new URL('../onda/rt/gestos-onda.js', scope).pathname; // o motor de gestos comum às apps (em Onda)
+    if (url.origin !== scope.origin || !(url.pathname.startsWith(scope.pathname) || url.pathname === gestos)) return;
     if (req.mode === 'navigate') {
         event.respondWith((async () => {
             const cache = await caches.open(CACHE);

@@ -1,0 +1,168 @@
+# Ceu animado do cartao "Agora" da Meteo como CAMPO da Onda, na placa grafica (ondac -g ceu): cada pixel e uma funcao
+# de (x, y, t) e do tempo que faz. Brilho do sol ou da lua a respirar, estrelas a cintilar, nuvens a passar (mais
+# depressa com vento), nevoeiro, chuva inclinada pelo vento em duas profundidades, neve a balancar, granizo e
+# relampagos. Sai preto onde nao ha nada: a casca (meteo/sky.js) mistura o canvas no cartao em modo "screen", que so
+# acrescenta luz, e o texto fica por cima, em HTML.
+#
+# Monta-se com: node meteo/onda/build.mjs (gera onda/ceu-glsl.js; os testes usam a mesma funcao em WebAssembly).
+# Na placa grafica: x y = pixel (y para baixo); u[0] = t (s), u[1] = w, u[2] = h (pixeis do canvas) e u[3..7] =
+# chuva (0..1), neve (0..1), nuvens (0..1), vento (0..1) e modo (bits: 1 dia, 2 brilho, 4 nevoeiro, 8 relampago,
+# 16 granizo, 32 ceu escuro de trovoada, 64 morrinha). Cor de saida: R*65536 + G*256 + B.
+# Sem acaso verdadeiro: o mesmo tempo e o mesmo t dao sempre a mesma imagem (redesenhar a pagina nao faz saltar).
+
+# ---------- utilitarios ----------
+: lim fff>f x a b Mx a Mn b x
+: frac f>f x - x Fl x
+: suave fff>f a b x { = k lim / - x a - b a 0.0 1.0 * * k k - 3.0 * 2.0 k }
+: mistura fff>f a b k + a * - b a k
+# o bit k (1, 2, 4, ...) do modo: 1.0 ou 0.0
+: bit ff>f m k ? >= frac / Fl / m k 2.0 0.5 1.0 0.0
+# acaso fixo de duas coordenadas (sem seno: igual na CPU, 64 bits, e na placa grafica, 32 bits)
+: h2 ff>f px py {
+  = a frac * px 0.1031
+  = b frac * py 0.1031
+  = d + + * a + b 33.33 * b + a 33.33 * a + a 33.33
+  frac * + + a b * 2.0 d + a d }
+# ruido suave (valor nos cantos da grelha, interpolado) e duas oitavas dele
+: vn ff>f x y {
+  = ix Fl x
+  = iy Fl y
+  = fx - x ix
+  = fy - y iy
+  = ux * * fx fx - 3.0 * 2.0 fx
+  = uy * * fy fy - 3.0 * 2.0 fy
+  mistura mistura h2 ix iy h2 + ix 1.0 iy ux mistura h2 ix + iy 1.0 h2 + ix 1.0 + iy 1.0 ux uy }
+: fbm ff>f x y + * 0.65 vn x y * 0.35 vn + * 2.03 x 5.2 + * 2.03 y 1.7
+# tres oitavas: mais pormenor nos bordos das nuvens
+: fbm3 ff>f x y + + * 0.55 vn x y * 0.3 vn + * 2.03 x 5.2 + * 2.03 y 1.7 * 0.15 vn + * 4.1 x 1.3 + * 4.1 y 8.9
+
+# ---------- chuva: uma camada (lz 0 longe, 1 perto) ----------
+# pistas inclinadas pelo vento; em cada pista ocupada cai uma gota por volta, com a cabeca mais clara em baixo.
+# As de perto sao mais grossas, mais compridas e mais rapidas (paralaxe); a morrinha (dz) tem gotas curtas.
+: gotas fffffffff>f x y t h sc dens incl lz dz {
+  = pw * + 7.0 * 6.0 lz sc
+  = xl + x * incl y
+  = li Fl / xl pw
+  = hs h2 li + 3.0 * 17.0 lz
+  = ocupa ? < h2 + li 5.0 * 31.0 lz dens 1.0 0.0
+  = v * * h + 0.85 * 0.75 lz + 0.9 * 0.2 hs
+  = per * * h + 0.55 * 0.35 hs ? > dz 0.5 0.22 - 1.2 * 0.8 dens
+  = dl * sc ? > dz 0.5 + 3.0 * 3.0 lz + 7.0 * 17.0 lz
+  = lx * + + li 0.5 * 0.4 - hs 0.5 pw
+  = lw * + 0.55 * 0.55 lz sc
+  = linha lim - + lw 0.5 Ab - xl lx 0.0 1.0
+  = s * per frac / - + y * hs * 3.0 per * v t per
+  = cauda ? < s dl / s dl 0.0
+  * * * ocupa linha cauda + 0.5 * 0.4 lz }
+
+# ---------- neve (ou granizo, gr = 1): uma camada ----------
+# cada floco vive numa celula que desce com o tempo; a neve balanca para os lados, o granizo cai a direito e depressa.
+: flocos ffffffff>f x y t h sc dens lz gr {
+  = cs * - 36.0 * 12.0 lz sc
+  = v * h ? > gr 0.5 + 1.0 * 0.4 lz + 0.09 * 0.08 lz
+  = xs + x * * Sn + + * t 0.8 / y * 45.0 sc * 2.0 lz * 7.0 sc - 1.0 gr
+  = yy - y * v t
+  = cx Fl / xs cs
+  = cy Fl / yy cs
+  = hs h2 cx + cy * 13.0 lz
+  = fx * + + cx 0.2 * 0.6 h2 + cx 1.7 cy cs
+  = fy * + + cy 0.2 * 0.6 h2 cx + cy 2.3 cs
+  = dx - xs fx
+  = dy - yy fy
+  = d Sq + * dx dx * dy dy
+  = r * sc ? > gr 0.5 1.4 + + 1.1 * 1.1 lz * 1.2 hs
+  = a lim / - r d * 0.8 sc 0.0 1.0
+  ? < hs dens * a + 0.5 * 0.35 lz 0.0 }
+
+# ---------- o ceu ----------
+: ceu ffffffffff>i x y t w h chuva neve nuvens vento modo {
+  = sc Mx 1.0 / w 360.0
+  = px / x w
+  = py / y h
+  = dia bit modo 1.0
+  = brilho bit modo 2.0
+  = nevoa bit modo 4.0
+  = raio bit modo 8.0
+  = gr bit modo 16.0
+  = escuro bit modo 32.0
+  = dz bit modo 64.0
+  = r 0.0
+  = g 0.0
+  = b 0.0
+  # nuvens: manchas suaves a atravessar, mais cheias em cima; com trovoada, mais cinzentas e azuladas
+  = cn 0.0
+  ? > nuvens 0.0 {
+    = n fbm3 + * px 2.2 * t + 0.012 * 0.05 vento * py 3.4
+    = lc - 1.0 * 0.62 nuvens
+    = dd suave - lc 0.08 + lc 0.30 n
+    = cn * * dd + 0.5 * 0.5 dd lim - 1.3 py 0.0 1.0
+    = k ? > escuro 0.5 0.15 ? > dia 0.5 0.19 0.11
+    = r + r * cn k
+    = g + g * cn * k 1.04
+    = b + b * cn * k ? > escuro 0.5 1.25 1.12
+    0 } 0
+  # brilho do sol (quente) ou da lua (azulado) no canto de cima, a respirar; as nuvens tapam-no em parte
+  ? > brilho 0.5 {
+    = dx - x * 0.86 w
+    = dy + y * 0.12 h
+    = q / Sq + * dx dx * dy dy * 0.62 w
+    = c lim - 1.0 q 0.0 1.0
+    = k * * * c c + 0.88 * 0.12 Sn * t 0.9 - 1.0 * 0.6 cn
+    = r + r * k ? > dia 0.5 0.40 0.19
+    = g + g * k ? > dia 0.5 0.30 0.20
+    = b + b * k ? > dia 0.5 0.07 0.32
+    0 } 0
+  # estrelas (de noite, com ceu limpo ou pouco nublado): uma por celula, nem todas acesas, a cintilar
+  ? && < dia 0.5 > brilho 0.5 {
+    = cs * 26.0 sc
+    = cx Fl / x cs
+    = cy Fl / y cs
+    = hs h2 + cx 0.5 + cy 7.0
+    = sx * + + cx 0.2 * 0.6 h2 + cx 3.1 cy cs
+    = sy * + + cy 0.2 * 0.6 h2 cx + cy 4.7 cs
+    = d Sq + * - x sx - x sx * - y sy - y sy
+    = a lim / - * 1.7 sc d sc 0.0 1.0
+    = tw + 0.55 * 0.45 Sn + * t + 1.0 * 2.2 hs * 6.28 h2 + cx 9.0 cy
+    = e ? < hs * 0.5 - 1.0 nuvens * * * a tw - 1.0 cn lim - 1.3 * 1.6 py 0.0 1.0 0.0
+    = r + r e
+    = g + g e
+    = b + b e
+    0 } 0
+  # nevoeiro: faixas largas a deslizar devagar
+  ? > nevoa 0.5 {
+    = n fbm + * px 1.4 * t 0.025 * py 5.0
+    = f * suave 0.32 0.78 n 0.22
+    = r + r * f 0.80
+    = g + g * f 0.82
+    = b + b * f 0.86
+    0 } 0
+  # o que cai e forte em cima (a volta da temperatura e do icone) e suave por tras do texto de baixo
+  = fade + 0.24 * 0.76 lim / - 0.66 py 0.20 0.0 1.0
+  ? > chuva 0.0 {
+    = incl + 0.08 * 0.34 vento
+    = a * fade + gotas x y t h sc * chuva 0.45 incl 0.0 dz gotas x y t h sc * chuva 0.62 incl 1.0 dz
+    = r + r * a 0.43
+    = g + g * a 0.69
+    = b + b a
+    0 } 0
+  ? || > neve 0.0 > gr 0.5 {
+    = dn ? > gr 0.5 0.22 * neve 0.8
+    = a * fade + flocos x y t h sc dn 0.0 gr flocos x y t h sc dn 1.0 gr
+    = r + r * a 0.88
+    = g + g * a 0.93
+    = b + b a
+    0 } 0
+  # relampago: dois claroes curtos de 9 em 9 s, a partir de cima
+  ? > raio 0.5 {
+    = ph frac / t 9.0
+    = fi Mx * 0.85 lim - 1.0 / Ab - ph 0.91 0.008 0.0 1.0 * 0.6 lim - 1.0 / Ab - ph 0.934 0.014 0.0 1.0
+    = dx - x * 0.7 w
+    = q / Sq + * dx dx * y y * 1.1 w
+    = k * * fi lim - 1.0 q 0.0 1.0 0.6
+    = r + r * k 0.84
+    = g + g * k 0.80
+    = b + b k
+    0 } 0
+  + + * 65536 I + 0.5 * 255.0 lim r 0.0 1.0 * 256 I + 0.5 * 255.0 lim g 0.0 1.0 I + 0.5 * 255.0 lim b 0.0 1.0 }
+
+: main >i 0

@@ -111,10 +111,14 @@ function proxyBody(u) {
     console.log('✓ análise de teste (formato 4.0) validada pelo publicar.mjs:', ADV.doc.actions.length, 'ativos');
 
     const server = http.createServer((req, res) => {
-        let f = decodeURIComponent(req.url.split('?')[0]).replace(/^\/escolaplay\/mercados\/?/, '/');
+        const u = decodeURIComponent(req.url.split('?')[0]);
+        // o motor de gestos comum às apps (../onda/rt/gestos-onda.js) vem da pasta onda/ do repositório
+        const ONDA_RT = path.resolve(ROOT, '..', 'onda', 'rt');
+        const comum = /^\/escolaplay\/onda\/rt\//.test(u);
+        let f = comum ? u.replace(/^\/escolaplay\/onda\/rt\//, '/') : u.replace(/^\/escolaplay\/mercados\/?/, '/');
         if (f === '/') f = '/index.html';
-        const fp = path.join(ROOT, f);
-        if (!fp.startsWith(ROOT) || !fs.existsSync(fp)) { res.writeHead(404); return res.end(); }
+        const base = comum ? ONDA_RT : ROOT, fp = path.join(base, f);
+        if (!fp.startsWith(base) || !fs.existsSync(fp)) { res.writeHead(404); return res.end(); }
         res.writeHead(200, { 'Content-Type': TYPES[path.extname(fp)] || 'application/octet-stream' });
         fs.createReadStream(fp).pipe(res);
     }).listen(0);
@@ -288,8 +292,9 @@ function proxyBody(u) {
     assert.ok(Math.abs(bL.compras[0].q * pxBtc / 90 - 1) < 0.01, 'as unidades pelo preço de hoje');
     assert.match(await page.locator('#mk-toast').textContent(), /Compra juntada: 90,00\s€ de Bitcoin.*Desfazer/);
     assert.equal(await page.locator('.reg [data-reg="e"]').inputValue(), '', 'o campo fica limpo');
+    await page.waitForSelector('.reg-i', { timeout: 3000 }); // o redesenho vem logo a seguir
     assert.equal(await page.locator('.reg-i').count(), 1, 'aparece na lista');
-    assert.match(await page.locator('.real-l .row[data-open="c:BTC"] .r-sub').textContent(), /investido 3384\s€/, '3293,85 + 90');
+    await page.waitForFunction(() => /investido 3384\s€/.test(document.querySelector('.real-l .row[data-open="c:BTC"] .r-sub').textContent), null, { timeout: 3000 });
     // a TR mostra mais 0,001 (arredondamentos e cashback): escreve-se a quantidade da TR e a app junta a diferença
     const qTr = 0.044679 + bL.compras[0].q + 0.001;
     await page.fill('.reg [data-reg="q"]', qTr.toFixed(8).replace('.', ','));
