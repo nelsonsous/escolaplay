@@ -266,7 +266,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.ok(await page.locator('#nc-chart svg').count(), 'gráfico das 2 horas');
     // a análise diária do Claude está desligada por omissão: o cartão diz o que é e oferece ligá-la para este local
     await page.waitForFunction(() => /Ativar a análise diária do Claude para este local/.test(document.querySelector('#cl-teaser')?.textContent || ''));
-    assert.match(await page.locator('#cl-teaser').textContent(), /Opcional: o Claude escreve uma análise para este ponto exato às 07:12, 13:12 e 19:42.*Só este telemóvel a vê\./s);
+    assert.match(await page.locator('#cl-teaser').textContent(), /Opcional: o Claude escreve uma análise para este ponto exato às 07:12, 13:12 e 19:42.*Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma\./s);
     assert.equal(calls.filter((c) => c === 'POST /api/places').length, 0, 'nada ligado sem o utilizador escolher');
     await noOverflow('Agora (sem análise)');
     await shot('02-agora-sem-analise.png');
@@ -595,7 +595,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(await page.locator('.sec:has(h2:text("Estado das fontes"))').textContent(), /Relevo à volta do ponto/);
     // ✕ na lista também pede confirmação; Desfazer volta a ligar
     assert.match(await page.locator('#locais .sec-h').textContent(), /1 local por telemóvel/);
-    assert.match(await page.locator('#locais').textContent(), /Só este telemóvel a vê; se não abrires a app durante 14 dias, fica em pausa até voltares\./);
+    assert.match(await page.locator('#locais').textContent(), /Uma análise por cidade \(partilhada com quem a ligar na mesma cidade\); se ninguém abrir a app durante 14 dias, fica em pausa até voltarem\./);
     assert.equal(await page.locator('#uso').count(), 0, 'o painel "Utilização" é só do dono');
     const dels0 = calls.filter((c) => c === 'DELETE /api/places/casa').length;
     await page.click('[data-rmplace="casa"]');

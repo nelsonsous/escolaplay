@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.16.3';
+const VERSION = '1.16.4';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -562,7 +562,7 @@ function optInHtml() {
     if (!owner && mine?.off && mine.offBy === 'owner') return `${head}<p>A análise diária deste telemóvel foi desligada pelo dono da app.</p>`;
     if (!owner && othersMode() === 'off') return `${head}<p>A análise diária do Claude está desligada, por agora, pelo dono da app.</p>`;
     const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
-    return `${head}<p>Opcional: o Claude escreve uma análise para este ponto exato ${esc(when)}, com os modelos, as observações, o radar e o satélite. Só este telemóvel a vê.</p>
+    return `${head}<p>Opcional: o Claude escreve uma análise para este ponto exato ${esc(when)}, com os modelos, as observações, o radar e o satélite. Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma.</p>
         ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada telemóvel tem 1 local: a tua análise diária passa de ${mine.name} para aqui.`)}</p>` : ''}
         <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise diária do Claude para este local</span></button>`;
 }
@@ -1189,7 +1189,7 @@ function placesSettingsHtml() {
     }
     const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
     return h + `<div class="hint">O Claude escreve a análise ${esc(when)}, com os modelos, as observações, o radar e as imagens de satélite.${owner ? ''
-        : ` Só este telemóvel a vê; se não abrires a app durante ${PAUSE_DAYS} dias, fica em pausa até voltares.`}</div></div></section>`;
+        : ` Uma análise por cidade (partilhada com quem a ligar na mesma cidade); se ninguém abrir a app durante ${PAUSE_DAYS} dias, fica em pausa até voltarem.`}</div></div></section>`;
 }
 // Ajustes → "Utilização" (só o dono): telemóveis que abrem a app, locais, análises do Claude e a "análise dos outros"
 const pastDay = (d, today) => { const k = F.dayDiff(today, d); return k === 0 ? 'Hoje' : k === -1 ? 'Ontem' : F.dayLabel(d, today); };
