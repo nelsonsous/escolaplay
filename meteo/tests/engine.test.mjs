@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildForecast, warnHere, warnHereText, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns,
+import { buildForecast, warnHere, warnHereText, missingWarnings, missingText, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns,
     buildTerrain, terrainPoints, LOCAL_RULES } from '../lib/engine.js';
 import { wquantile, robustMean, vecDir, haversine, bearing, compass, dewPoint, relHum, wfrac } from '../lib/stats.js';
 
@@ -453,4 +453,37 @@ test('avisos: o que o ponto atinge nas horas do aviso e a frase (sem desvaloriza
     assert.equal(warnHere({ ...wo, start: '2026-11-20T09:00', end: '2026-11-20T21:00' }, st), null);
     assert.equal(warnHere({ type: 'Agitação Marítima', level: 'yellow', start: '2026-11-11T00:00', end: '2026-11-11T06:00' }, st), null);
     assert.equal(warnHereText({ level: 'yellow' }), '');
+});
+
+test('avisos em falta: os modelos no ponto ao nível de um aviso que o IPMA não tem (ou só mais baixo)', () => {
+    const h = (time, precip, gust = 20) => ({ time, precip, gust });
+    const day = (f) => Array.from({ length: 24 }, (_, i) => f(i, `2026-11-11T${String(i).padStart(2, '0')}:00`));
+    // 35 mm entre as 12h e as 17h, sem aviso: nível amarelo; as horas da nota são as da chuva (não as da janela de 6 h)
+    const chuva = day((i, t) => h(t, i >= 12 && i < 17 ? 7 : 0));
+    const [m] = missingWarnings(chuva, []);
+    assert.deepEqual([m.type, m.level, m.start, m.end, m.covered, m.here.p6, m.here.p1], ['Precipitação', 'yellow', '2026-11-11T12:00', '2026-11-11T17:00', 0, 35, 7]);
+    assert.equal(missingText(m), 'Aqui: 35 mm em 6 h (desde as 12h) e 7 mm numa hora — nível amarelo, sem aviso do IPMA para estas horas. É o que dão os modelos.');
+    // com aviso amarelo de chuva nessas horas: nada; se o ponto chega ao laranja, a nota diz que o IPMA só tem amarelo
+    const amarelo = [{ type: 'Precipitação', level: 'yellow', start: '2026-11-11T09:00', end: '2026-11-11T21:00' }];
+    assert.deepEqual(missingWarnings(chuva, amarelo), []);
+    const forte = day((i, t) => h(t, i >= 12 && i < 17 ? 9 : 0));
+    const [f] = missingWarnings(forte, amarelo);
+    assert.equal(f.level, 'orange');
+    assert.match(missingText(f), /nível laranja, o IPMA só tem aviso amarelo para estas horas/);
+    assert.deepEqual(missingWarnings(forte, [{ ...amarelo[0], level: 'orange' }]), []);
+    // um aviso de outro tipo ou de outras horas não conta
+    assert.equal(missingWarnings(chuva, [{ ...amarelo[0], type: 'Vento' }]).length, 1);
+    assert.equal(missingWarnings(chuva, [{ ...amarelo[0], start: '2026-11-11T18:00', end: '2026-11-11T23:00' }]).length, 1);
+    // pouca chuva: nada
+    assert.deepEqual(missingWarnings(day((i, t) => h(t, 2)), []), []);
+    // vento: rajadas de 85 km/h às 14h sem aviso → amarelo; nas terras altas (≥ 1000 m) o amarelo começa nos 90
+    const vento = day((i, t) => h(t, 0, i === 14 ? 85 : i === 15 ? 72 : 30));
+    const [v] = missingWarnings(vento, []);
+    assert.deepEqual([v.type, v.level, v.start, v.end, v.here.gust, v.here.at], ['Vento', 'yellow', '2026-11-11T14:00', '2026-11-11T16:00', 85, '14:00']);
+    assert.equal(missingText(v), 'Aqui: rajadas até 85 km/h às 14h — nível amarelo, sem aviso do IPMA para estas horas. É o que dão os modelos.');
+    assert.deepEqual(missingWarnings(vento, [], { elevation: 1200 }), []);
+    assert.equal(missingWarnings(day((i, t) => h(t, 0, i === 14 ? 135 : 30)), [], { elevation: 1200 })[0].level, 'red');
+    // no resumo da tarefa do Claude, numa secção à parte
+    assert.match(buildSummary({ ...fc, warnMissing: [m, v] }), /## Avisos em falta[^\n]*\nyellow Precipitação 2026-11-11T12:00→2026-11-11T17:00: Aqui: 35 mm em 6 h/);
+    assert.ok(Array.isArray(fc.warnMissing));
 });

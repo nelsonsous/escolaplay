@@ -183,6 +183,9 @@ button.row:active { background: #0e0e10; }
 .warn p { margin: 4px 0 0; color: var(--soft); font-size: calc(.86rem * var(--k)); line-height: 1.4; }
 /* 1.19: o que o ponto atinge nas horas do aviso (os avisos são por distrito) */
 .warn p.w-here { margin-top: 6px; color: var(--muted); font-size: calc(.8rem * var(--k)); }
+/* 1.20: aviso em falta (os modelos no ponto chegam a um nível que o IPMA não tem): tracejado, não é oficial */
+.warn.miss { background: none; border: 1px dashed var(--line2); border-left: 4px dashed var(--w); }
+.warn.miss p.w-here { margin-top: 4px; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; }
 .tag { --c: var(--st-low); display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; background: color-mix(in srgb, var(--c) 16%, var(--card)); font-size: calc(.82rem * var(--k)); color: var(--soft); }
 .tag b { color: var(--text); font-weight: 650; }

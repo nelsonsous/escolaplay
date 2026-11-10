@@ -1091,6 +1091,7 @@ export function buildForecast(raw, opts = {}) {
             name: opts.name || raw.place?.name || null, region: raw.place?.region || null, country: raw.place?.country || null, terrain },
         models, ensemble: ensP ? { members: ensP.members.length, models: ensP.systems } : { members: 0, models: [] },
         now, nowcast, radar, hourly, daily: daily.map(stripInternal), indicators, warnings: warnings.map((w) => ({ ...w, here: warnHere(w, hourly) })),
+        warnMissing: area ? missingWarnings(hourly, warnings, { elevation: targetElev }) : [],
         fire, verification, learning, official, compare,
         local: localSummary(terrain, tAdj, H.slice(nowIdx, nowIdx + 72), H[nowIdx], shifts),
         analysis: raw.analysisMeta || null,
@@ -1530,6 +1531,66 @@ export function warnHere(w, hourly) {
     if (/nevoeiro/.test(type)) { const m = hs.reduce((b, x) => (isNum(x.visibility) && (!b || x.visibility < b.visibility) ? x : b), null); return m ? { kind: 'fog', vis: m.visibility, at: at(m), hours: hs.length } : null; }
     return null;
 }
+// Vento: rajadas a partir das quais começa cada nível (nas terras altas, a partir de 1000 m, +20 km/h no amarelo e no laranja)
+export const WARN_WIND = [['red', 131], ['orange', 91], ['yellow', 70]];
+const windLevel = (g, high) => (WARN_WIND.find(([lv, v]) => g >= (high && lv !== 'red' ? v + 20 : v)) || [null])[0];
+const addH = (t, n) => { const d = new Date(`${t}:00Z`); d.setUTCHours(d.getUTCHours() + n); return d.toISOString().slice(0, 16); };
+/**
+ * Avisos em falta: horas em que o consenso dos modelos dá no ponto chuva (1 h ou 6 h) ou rajadas ao nível de um aviso e
+ * o IPMA não tem aviso desse tipo para essas horas (ou só um mais baixo). Só onde há avisos do IPMA (Portugal).
+ */
+export function missingWarnings(hourly, warnings, { elevation = 0 } = {}) {
+    const H = hourly || [], out = [];
+    const cover = (re, t0, t1) => Math.max(0, ...(warnings || []).filter((w) => re.test(String(w.type).toLowerCase()) && w.start.slice(0, 13) < t1.slice(0, 13) && w.end > t0)
+        .map((w) => WARN_ORDER[w.level] || 0));
+    const spans = (marks) => { // junta as horas/janelas seguidas
+        const res = [];
+        for (const m of marks) {
+            const last = res.at(-1);
+            if (last && m.start <= last.end) { last.end = m.end > last.end ? m.end : last.end; last.items.push(m); } else res.push({ start: m.start, end: m.end, items: [m] });
+        }
+        return res;
+    };
+    // chuva: janelas de 6 h (e cada hora dentro delas)
+    const rain = [];
+    for (let i = 0; i < H.length; i++) {
+        const win = H.slice(i, i + 6), s6 = win.reduce((a, x) => a + (x.precip || 0), 0), m1 = Math.max(0, ...win.map((x) => x.precip || 0));
+        const L = rainLevel(m1, s6);
+        if (!L) continue;
+        const start = H[i].time, end = addH(win.at(-1).time, 1);
+        if ((WARN_ORDER[L] || 0) > cover(/precipita|chuva/, start, end)) rain.push({ start, end, L, s6, m1, at: (win.find((x) => (x.precip || 0) >= 0.5) || H[i]).time.slice(11, 16) });
+    }
+    for (const sp of spans(rain)) {
+        const top = sp.items.reduce((b, m) => ((WARN_ORDER[m.L] > WARN_ORDER[b.L] || (m.L === b.L && m.s6 > b.s6)) ? m : b));
+        // as horas com chuva a sério dentro das janelas (uma janela de 6 h começa antes da chuva)
+        const wet = H.filter((x) => x.time >= sp.start && x.time < sp.end && (x.precip || 0) >= 0.5);
+        if (wet.length) { sp.start = wet[0].time; sp.end = addH(wet.at(-1).time, 1); }
+        out.push({ type: 'Precipitação', level: top.L, start: sp.start, end: sp.end, covered: cover(/precipita|chuva/, sp.start, sp.end),
+            here: { kind: 'rain', p6: r1(Math.max(...sp.items.map((m) => m.s6))), p6At: top.at, p1: r1(Math.max(...sp.items.map((m) => m.m1))), level: top.L } });
+    }
+    // vento: hora a hora
+    const high = elevation >= 1000, wind = [];
+    for (const x of H) {
+        const L = isNum(x.gust) ? windLevel(x.gust, high) : null;
+        if (!L) continue;
+        const end = addH(x.time, 1);
+        if ((WARN_ORDER[L] || 0) > cover(/vento/, x.time, end)) wind.push({ start: x.time, end, L, g: x.gust, at: x.time.slice(11, 16) });
+    }
+    for (const sp of spans(wind)) {
+        const top = sp.items.reduce((b, m) => (m.g > b.g ? m : b));
+        out.push({ type: 'Vento', level: top.L, start: sp.start, end: sp.end, covered: cover(/vento/, sp.start, sp.end),
+            here: { kind: 'wind', gust: top.g, at: top.at, level: top.L } });
+    }
+    return out.sort((a, b) => a.start.localeCompare(b.start));
+}
+/** A frase de um aviso em falta: o que os modelos dão no ponto e que o IPMA não tem aviso (ou só um mais baixo). */
+export function missingText(m) {
+    const h = m.here, lv = WARN_PT[m.level];
+    const ipma = m.covered ? `o IPMA só tem aviso ${WARN_PT[Object.keys(WARN_ORDER).find((k) => WARN_ORDER[k] === m.covered)]} para estas horas` : 'sem aviso do IPMA para estas horas';
+    if (h.kind === 'rain') return `Aqui: ${mm(h.p6)} mm em 6 h (desde as ${h.p6At.replace(':00', 'h')}) e ${mm(h.p1)} mm numa hora — nível ${lv}, ${ipma}. É o que dão os modelos.`;
+    if (h.kind === 'wind') return `Aqui: rajadas até ${Math.round(h.gust)} km/h às ${h.at.replace(':00', 'h')} — nível ${lv}, ${ipma}. É o que dão os modelos.`;
+    return '';
+}
 const nf1 = (x) => String(r1(x)).replace('.', ',');
 const mm = (x) => (x >= 10 ? String(Math.round(x)) : nf1(x)); // 14 mm, 2,7 mm
 /** Uma frase curta: o que o ponto atinge nas horas do aviso e, para a chuva, como fica perto dos critérios do IPMA. */
@@ -1685,6 +1746,10 @@ export function buildSummary(fc, extra = {}) {
     L.push(`pressão: ${I.pressure.trend} (3 h ${f1(I.pressure.delta3h)}, próximas 24 h ${f1(I.pressure.delta24h)} hPa). Previsibilidade: ${I.predictability.text}. Concordância 48 h: ${I.agreement}.`);
     L.push('\n## Avisos oficiais IPMA');
     L.push(fc.warnings.length ? fc.warnings.map((w) => `${w.level} ${w.type} ${w.start}→${w.end}: ${w.text}${w.here ? ` — ${warnHereText(w)}` : ''}`).join('\n') : 'Nenhum.');
+    if (fc.warnMissing?.length) {
+        L.push('\n## Avisos em falta (o consenso dos modelos no ponto chega ao nível de um aviso e o IPMA não o tem)');
+        L.push(fc.warnMissing.map((m) => `${m.level} ${m.type} ${m.start}→${m.end}: ${missingText(m)}`).join('\n'));
+    }
     const F = fc.fire;
     L.push('\n## Incêndios');
     L.push(F.risk ? `Risco IPMA (RCM) concelho ${F.risk.concelho || F.risk.dico}: hoje ${F.risk.today} ${F.risk.label || ''}, amanhã ${F.risk.tomorrow} ${F.risk.labelTomorrow || ''}.` : 'Risco IPMA: n/d.');
