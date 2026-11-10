@@ -98,7 +98,7 @@ export function skyParams(code, isDay = true, wind = 0) {
 // Um só canvas WebGL2 para a app inteira: quando a página se redesenha, muda-se para o cartão novo (criar um contexto
 // por desenho seria lento e o browser limita-os). Sai preto onde não há nada e mistura-se no cartão em modo «screen»
 // (meteo.css: .sky.gl), por isso só acrescenta luz. 30 imagens por segundo, só quando está à vista.
-const GL = { ok: null, canvas: null, gl: null, u: null, p: [0, 0, 0, 0, 0], raf: 0, last: 0, frames: 0, err: '' };
+const GL = { ok: null, canvas: null, gl: null, u: null, p: [0, 0, 0, 0, 0], raf: 0, last: 0, frames: 0, err: '', hold: 0 };
 const GL_SCALE = () => Math.min(1.5, window.devicePixelRatio || 1); // o céu é suave: 1,5 píxeis por ponto chega
 function glInit() {
     if (GL.ok !== null) return GL.ok;
@@ -152,12 +152,14 @@ function glLoop(now) {
     GL.raf = 0;
     const c = GL.canvas;
     if (!GL.ok || !c?.isConnected) return; // o cartão saiu da página: pára até o próximo startSky
-    if (!document.hidden && now - GL.last >= 32) {
+    if (!document.hidden && now >= GL.hold && now - GL.last >= 32) {
         const r = c.getBoundingClientRect();
         if (r.width > 0 && r.bottom > 0 && r.top < window.innerHeight) { GL.last = now; glDraw(now / 1000); }
     }
     GL.raf = requestAnimationFrame(glLoop);
 }
+/** Pára o céu durante ms (enquanto a página anda com o dedo ou troca de separador): menos trabalho, sem tremer. */
+export function pauseSky(ms) { GL.hold = Math.max(GL.hold, performance.now() + ms); }
 /** Liga o céu da Onda ao .sky do cartão (lê os números de data-p). false: sem WebGL2, fica o céu em CSS. */
 export function startSky(sky) {
     if (!sky?.dataset.p || !glInit()) return false;

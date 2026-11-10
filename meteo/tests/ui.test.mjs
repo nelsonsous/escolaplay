@@ -229,13 +229,13 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const shot = async (name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, name), fullPage: true }); } };
     const noOverflow = async (where) => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `sem scroll horizontal em ${where}`);
     // um dedo a deslizar (TouchEvents sintéticos, como no iPhone): começa no 1.º ponto, passa pelos outros e larga no último
-    const swipe = (sel, pts, { lift = true } = {}) => page.evaluate(({ sel, pts, lift }) => {
+    const swipe = (sel, pts, { lift = true, cancelable = true } = {}) => page.evaluate(({ sel, pts, lift, cancelable }) => {
         const el = document.querySelector(sel);
         const t = ([x, y]) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
         el.dispatchEvent(new TouchEvent('touchstart', { touches: [t(pts[0])], changedTouches: [t(pts[0])], bubbles: true, cancelable: true }));
-        for (const p of pts.slice(1)) el.dispatchEvent(new TouchEvent('touchmove', { touches: [t(p)], changedTouches: [t(p)], bubbles: true, cancelable: true }));
+        for (const p of pts.slice(1)) el.dispatchEvent(new TouchEvent('touchmove', { touches: [t(p)], changedTouches: [t(p)], bubbles: true, cancelable }));
         if (lift) el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(pts.at(-1))], bubbles: true }));
-    }, { sel, pts, lift });
+    }, { sel, pts, lift, cancelable });
     const LEFT = [[300, 400], [288, 401], [200, 404], [120, 405]], RIGHT = [[90, 400], [102, 401], [200, 404], [290, 405]];
     const tab = async (t) => { await page.click(`#mt-nav [data-tab="${t}"]`); await page.waitForFunction((x) => document.querySelector(`#mt-nav [data-tab="${x}"]`).classList.contains('on'), t); };
     const toastIs = async (re) => { await page.waitForFunction((s) => new RegExp(s).test(document.querySelector('#mt-toast').textContent) && document.querySelector('#mt-toast').classList.contains('show'), re.source); };
@@ -365,6 +365,17 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         });
         assert.ok(px.blue > 0.002 && px.up > px.low * 1.5, `gotas azuis, mais em cima: ${JSON.stringify(px)}`);
         assert.ok(px.lit > 0.2, `nuvens por todo o lado (encoberto): ${JSON.stringify(px)}`);
+        // a arrastar para o lado: a página anda com o dedo sem ficar transparente e o céu fica parado (antes tremia)
+        await swipe('#mt-body', [[300, 400], [288, 401], [240, 402]], { lift: false });
+        const hold = await page.evaluate(async () => {
+            const b = document.querySelector('#mt-body'), f = window.__mt.skyGL().frames;
+            await new Promise((ok) => setTimeout(ok, 200));
+            return { tr: b.style.transform, op: b.style.opacity, df: window.__mt.skyGL().frames - f };
+        });
+        assert.ok(hold.tr === 'translateX(-24px)' && hold.op === '' && hold.df === 0, `a arrastar: ${JSON.stringify(hold)}`);
+        await page.evaluate(() => document.querySelector('#mt-body').dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true })));
+        await page.waitForTimeout(260);
+        assert.equal(await page.evaluate(() => window.__mt.cfg.tab), 'agora', 'devagar e curto: volta ao sítio');
         // se a placa gráfica tirar o contexto, volta o céu em CSS (e a chuva no canvas 2D)
         await page.evaluate(() => document.querySelector('.now canvas.sky-gl').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
         await page.waitForFunction(() => !window.__mt.skyGL().on && !document.querySelector('.now .sky').classList.contains('gl'));
@@ -499,7 +510,16 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.evaluate(() => window.__mt.cfg.tab), 'agora');
     assert.equal(await page.evaluate(() => document.querySelector('#mt-body').style.transform), '');
     await swipe('#mt-body', LEFT);
+    // a troca segue o dedo, sempre para o mesmo lado: a página sai para a esquerda a partir de onde o dedo a largou
+    const kf = await page.evaluate(() => document.getAnimations().filter((a) => a.effect?.target?.id === 'mt-body').map((a) => a.effect.getKeyframes().map((k) => k.transform)));
+    assert.deepEqual(kf, [['translateX(-72px)', 'translateX(-195px)']]);
     await page.waitForSelector('#mt-nav [data-tab="dias"].on');
+    await page.waitForTimeout(300);
+    // se o browser já começou a deslizar a página na vertical (toque que não se cancela), o gesto desiste
+    await swipe('#mt-body', LEFT, { cancelable: false });
+    await page.waitForTimeout(150);
+    assert.equal(await page.evaluate(() => window.__mt.cfg.tab), 'dias');
+    assert.equal(await page.evaluate(() => document.querySelector('#mt-body').style.transform), '');
     console.log('✓ gestos: folha do dia (para os lados muda de dia, para baixo fecha), separadores para os lados');
     console.log('✓ Dias: 16 dias, folha do domingo com as horas, dia 11 sem horas, hoje com as próximas 12 horas');
 
