@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.14.0';
+const VERSION = '1.14.1';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -606,17 +606,22 @@ async function avaliacoes(env) {
     // as mais recentes e as que se atualizam sozinhas
     const feitas = idx.filter((x) => !x.rascunho);
     const escolha = [...feitas.slice(0, MAX_AVALIAR), ...feitas.filter((x) => x.renovar)].filter((x, i, a) => a.findIndex((y) => y.id === x.id) === i).slice(0, 14);
+    // só se escreve a playlist (e o índice) quando a avaliação mudou: a KV gratuita dá 1000 escritas por dia
     const out = [], docs = new Map();
+    const semData = (a) => JSON.stringify({ ...(a || {}), em: '' });
     for (const x of escolha) {
         const d = await env.KV.get('playlist:' + x.id, 'json');
         if (!d) continue;
-        d.avaliacao = await avaliar(env, d, fav, gostava, nasMixes);
-        await env.KV.put('playlist:' + d.id, JSON.stringify(d));
-        docs.set(d.id, d);
+        const nova = await avaliar(env, d, fav, gostava, nasMixes);
+        if (semData(nova) !== semData(d.avaliacao)) {
+            d.avaliacao = nova;
+            await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+            docs.set(d.id, d);
+        }
         out.push({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, renovadaEm: d.renovadaEm || null, renovar: !!d.renovar, por: d.por, pedido: d.pedido || '',
             opcoes: d.opcoes, faixas: d.faixas.length, tidal: d.tidal?.url || null, avaliacao: d.avaliacao });
     }
-    await env.KV.put('playlists', JSON.stringify(idx.map((x) => (docs.has(x.id) ? resumoDe(docs.get(x.id)) : x))));
+    if (docs.size) await env.KV.put('playlists', JSON.stringify(idx.map((x) => (docs.has(x.id) ? resumoDe(docs.get(x.id)) : x))));
     return { avaliadaEm: new Date().toISOString(), playlists: out };
 }
 async function avaliar(env, d, fav, gostava, nasMixes) {
