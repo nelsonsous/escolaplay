@@ -1098,7 +1098,7 @@
     // A Carteira (4.12) é toda da Onda (mercados/onda/ecra-carteira.onda): o simulador do plano e do objetivo, com o
     // valor por mês, a divisão e o fundo núcleo dos Ajustes. Sem o módulo (sem WebAssembly) diz só que não dá.
     function walletSnap() {
-        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, real: realSnap() };
+        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, real: realSnap() };
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
     const LH = {}, lhAt = {}, lhVai = new Set();
@@ -2171,6 +2171,14 @@
                 cfg.jid = v; cfg.jLast = ''; saveCfg(); JOURNAL = null; st.meAt = 0; toast('Diário recuperado'); loadJournal(); loadClaude(); render(); break;
             }
             case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); cfg.funds = DEFAULT_FUNDS.slice(); watchChanged(); break;
+            // Carteira: valor no futuro ou em euros de hoje; − e + nos controlos do simulador
+            case 'sim-hoje': cfg.simHoje = t.dataset.v === '1'; saveCfg(); render(); break;
+            case 'sim-step': {
+                const k = t.dataset.k, rg = t.parentElement && t.parentElement.querySelector('.sim-rg');
+                const v = (+cfg[k] || 0) + (+t.dataset.d || 0), mn = rg ? +rg.min : 0;
+                cfg[k] = k === 'simYears' ? Math.min(60, Math.max(1, Math.round(v || 20))) : Math.max(mn, v);
+                saveCfg(); render(); break;
+            }
         }
     });
 
@@ -2206,6 +2214,11 @@
         }
     });
     document.addEventListener('input', (ev) => {
+        // a barra do simulador: o número muda enquanto se arrasta; grava e redesenha ao largar (change)
+        if (ev.target.classList && ev.target.classList.contains('sim-rg')) {
+            const t = ev.target, v = +t.value, o = document.querySelector(`[data-out="${t.dataset.cfg}"]`);
+            if (o) o.textContent = t.dataset.fmt === '1' ? `${v} ${v === 1 ? 'ano' : 'anos'}` : t.dataset.fmt === '2' && v <= 0 ? 'sem objetivo' : fmtPx(v, { decimals: 0 }, 'EUR');
+        }
         if (ev.target.id === 'f-add') { clearTimeout(searchT); const v = ev.target.value.trim(); searchT = setTimeout(() => doSearch(v), 300); }
     });
     document.addEventListener('keydown', (ev) => {

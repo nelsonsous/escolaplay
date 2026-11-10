@@ -690,7 +690,9 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .sim-rng { color: var(--text); font-size: calc(.9rem * var(--k)); }
 .sim-split { color: var(--muted); font-size: calc(.8rem * var(--k)); margin-top: 3px; }
 .sim-g { display: block; width: 100%; height: auto; margin: 8px 0 2px; }
-.sim-band { fill: var(--up); opacity: .14; }
+.sim-band { fill: var(--up); opacity: .16; }
+.sim-otim { fill: none; stroke: #86efac; stroke-width: 1.6; stroke-dasharray: 5 3; }
+.sim-pess { fill: none; stroke: #f59e0b; stroke-width: 1.6; stroke-dasharray: 5 3; }
 .sim-base { fill: none; stroke: var(--up); stroke-width: 2.2; stroke-linejoin: round; }
 .sim-inv { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 4; }
 .sim-goal { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 3; }
@@ -702,7 +704,7 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .sim-t { fill: var(--muted); font-size: 9px; font-family: inherit; }
 .sim-leg { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: calc(.76rem * var(--k)); margin: 0 2px 12px; }
 .sim-leg i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
-.sim-leg .b { background: var(--up); } .sim-leg .f { background: var(--up); opacity: .3; height: 9px; } .sim-leg .v { border-top: 1.5px dashed var(--muted); height: 0; }
+.sim-leg .b { background: var(--up); } .sim-leg .o { background: #86efac; } .sim-leg .p { background: #f59e0b; } .sim-leg .v { border-top: 1.5px dashed var(--muted); height: 0; }
 .sim-st { margin-bottom: 14px; }
 .sim-meta p { margin: 6px 0 0; }
 .sim-tab { width: 100%; border-collapse: collapse; font-size: calc(.84rem * var(--k)); }
@@ -728,3 +730,16 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .cons-bar i { display: block; } .cons-bar .c0 { background: var(--up); } .cons-bar .c1 { background: var(--up); opacity: .6; }
 .cons-bar .c2 { background: var(--flat); opacity: .7; } .cons-bar .c3 { background: var(--down); opacity: .6; } .cons-bar .c4 { background: var(--down); }
 .cons-leg { display: flex; justify-content: space-between; color: var(--muted); font-size: calc(.74rem * var(--k)); margin-bottom: 6px; }
+
+/* simulador: controlos com barra e − / + (4.14) */
+.sim-ctl { display: grid; gap: 12px; margin: 4px 0 12px; }
+.sim-ch { display: flex; justify-content: space-between; align-items: baseline; }
+.sim-ch span { color: var(--muted); font-size: calc(.84rem * var(--k)); }
+.sim-ch b { font-size: calc(1.02rem * var(--k)); }
+.sim-cr { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.sim-pm { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 1.25rem; line-height: 1; cursor: pointer; }
+.sim-pm:active { background: var(--card2); }
+.sim-rg { flex: 1; min-width: 0; accent-color: var(--up); height: 28px; }
+.sim-seg { display: flex; width: 100%; margin: 2px 0 4px; }
+.sim-seg button { flex: 1; }
+.sim-infl { margin: 4px 2px 12px; }

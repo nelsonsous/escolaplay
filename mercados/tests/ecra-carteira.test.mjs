@@ -77,6 +77,18 @@ test('carteira: o simulador dá as contas certas', async () => {
             else assert.ok(p.startsWith(`Chegas lá em ${tempo(mb)} no cenário base`), p);
         } else assert.equal(d.temMeta, false);
     }
+    // em euros de hoje: tudo dividido pela inflação até à data
+    {
+        const c0 = { budget: 900, cp: 10, core: 'FTSE All-World', start: 5000, years: 15, goal: 250000, hoje: true };
+        const d = await ler(pg, AO.ecra.carteira(c0));
+        const n = 180, c = 0.1, df = (k) => 1.02 ** (k / 12);
+        const inv = (k) => { let e = 5000; for (let j = 1; j <= k; j++) e += 900 / df(j); return e; };
+        assert.equal(d.big, eur(valor(1, n, 900, c, 5000) / df(n)));
+        assert.equal(d.rng, `entre ${eur(valor(0, n, 900, c, 5000) / df(n))} e ${eur(valor(2, n, 900, c, 5000) / df(n))}`);
+        assert.deepEqual(d.st, [eur(inv(n)), eur(valor(1, n, 900, c, 5000) / df(n) - inv(n)), eur(valor(1, n, 900, c, 5000)), eur(imposto(n, 900, c, 5000) / df(n))]);
+        let i = 0; { const ra = mes(TX[1][0]), rb = mes(TX[1][1]); let a = 5000 * 0.9, b = 500; while (i < 1200 && (a + b) / df(i) < 250000) { a = a * (1 + ra) + 810; b = b * (1 + rb) + 90; i++; } }
+        assert.ok(d.meta.startsWith(`Chegas lá em ${tempo(i)} no cenário base`), d.meta);
+    }
     // sem plano nem investido: pede os números
     const vazio = await ler(pg, AO.ecra.carteira({ budget: 0, cp: 10, core: 'X', start: 0, years: 20, goal: 0 }));
     assert.match(vazio.vazio, /quanto investes por mês/);

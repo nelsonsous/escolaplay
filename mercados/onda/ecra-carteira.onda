@@ -17,11 +17,11 @@
   W < i n { = a + * a + 1.0 ra * m - 1.0 c = b + * b + 1.0 rb * m c = i + i 1 }
   + a b }
 # os meses até chegar ao objetivo g no cenário s (até 100 anos; -1 se não chega)
-: cs_meta iffff>i s m c st g {
+: cs_meta iiffff>i s h m c st g {
   = ra cs_mes cs_tx s 0 = rb cs_mes cs_tx s 1
   = a * st - 1.0 c = b * st c = i 0
-  W && < i 1200 < + a b g { = a + * a + 1.0 ra * m - 1.0 c = b + * b + 1.0 rb * m c = i + i 1 }
-  ? >= + a b g i -1 }
+  W && < i 1200 < / + a b cs_df h i g { = a + * a + 1.0 ra * m - 1.0 c = b + * b + 1.0 rb * m c = i + i 1 }
+  ? >= / + a b cs_df h i g i -1 }
 # o imposto se vender tudo ao fim de n meses, no cenário base: compra a compra (a de hoje e uma por mês)
 : cs_imp ifff>f n m c st {
   = ra cs_mes cs_tx 1 0 = rb cs_mes cs_tx 1 1 = t 0.0 = j 0
@@ -49,24 +49,32 @@
   0 }
 # um número do instantâneo (0 se não é um número finito e positivo)
 : cs_num i>f k { = v _ar_vnum sg k ? && _nu_fin v > v 0.0 v 0.0 }
-# o valor de um campo: o número, ou vazio
-: cs_campo i>i k { = v cs_num k ? > v 0.0 _nu_ps v 0 0 }
 : cs_x ii>f t y + 34.0 / * 296.0 F t F y
 : cs_y ff>f v vm - 186.0 / * 172.0 v vm
-
-# o gráfico: a faixa entre o pessimista e o otimista, o base, o que se investe e o objetivo
-: cs_graf iiffffff>i y n m c st g vm inv {
+# euros de hoje (h = 1): o que vale daqui a n meses dividido pela inflação de 2 % ao ano; h = 0, o valor do futuro
+: cs_df ii>f h n ? h Pw 1.02 / F n 12.0 1.0
+# o que foi investido ao fim de n meses (em euros de hoje: cada entrega pela inflação até ao seu mês)
+: cs_inv iiff>f h n m st { ? h { = e st = j 1 W <= j n { = e + e / m cs_df h j = j + j 1 } e } + st * m F n }
+# o valor no cenário s ao fim de n meses, como se mostra (h)
+: cs_vh iiifff>f s h n m c st / cs_val s n m c st cs_df h n
+# os pontos "x y L x y …" de um cenário (s = 3: o investido), ano a ano; r = 1 do fim para o início
+: cs_pts iiiiffff>i s h y r m c st vm {
+  = k 0
+  W <= k y {
+    = t ? r - y k k = n * t 12
+    = v ? == s 3 cs_inv h n m st cs_vh s h n m c st
+    ? k " L" 0 _nu_fixo cs_x t y 1 P 32 _nu_fixo cs_y v vm 1
+    = k + k 1 }
+  0 }
+# o gráfico: a faixa entre o pessimista e o otimista (com as duas linhas), o base, o que se investe e o objetivo
+: cs_graf iiiffff>i h y n m c st g {
+  = vm * 1.06 Mx Mx cs_vh 2 h n m c st g cs_inv h n m st
   "<svg class=\"sim-g\" viewBox=\"0 0 340 208\" role=\"img\" aria-label=\"Evolução do valor nos três cenários: arrasta para ver cada ano\">"
-  # a faixa: o otimista para a frente, o pessimista para trás
-  "<path class=\"sim-band\" d=\"M" = t 0
-  W <= t y { ? t " L" 0 _nu_fixo cs_x t y 1 P 32 _nu_fixo cs_y cs_val 2 * t 12 m c st vm 1 = t + t 1 }
-  = t y W >= t 0 { " L" _nu_fixo cs_x t y 1 P 32 _nu_fixo cs_y cs_val 0 * t 12 m c st vm 1 = t - t 1 }
-  " Z\"/>"
-  # o que se investe (tracejado) e o cenário base
-  "<path class=\"sim-inv\" d=\"M34 " _nu_fixo cs_y st vm 1 " L330 " _nu_fixo cs_y inv vm 1 "\"/>"
-  "<path class=\"sim-base\" d=\"M" = t 0
-  W <= t y { ? t " L" 0 _nu_fixo cs_x t y 1 P 32 _nu_fixo cs_y cs_val 1 * t 12 m c st vm 1 = t + t 1 }
-  "\"/>"
+  "<path class=\"sim-band\" d=\"M" cs_pts 2 h y 0 m c st vm " L" cs_pts 0 h y 1 m c st vm " Z\"/>"
+  "<path class=\"sim-otim\" d=\"M" cs_pts 2 h y 0 m c st vm "\"/>"
+  "<path class=\"sim-pess\" d=\"M" cs_pts 0 h y 0 m c st vm "\"/>"
+  "<path class=\"sim-inv\" d=\"M" cs_pts 3 h y 0 m c st vm "\"/>"
+  "<path class=\"sim-base\" d=\"M" cs_pts 1 h y 0 m c st vm "\"/>"
   ? > g 0.0 {
     = gy cs_y g vm
     "<line class=\"sim-goal\" x1=\"34\" x2=\"330\" y1=\"" _nu_fixo gy 1 "\" y2=\"" _nu_fixo gy 1 "\"/>"
@@ -83,15 +91,24 @@
     = x cs_x t y = n * t 12
     "<rect class=\"sim-hit\" x=\"" _nu_fixo - x / w 2.0 1 "\" y=\"0\" width=\"" _nu_fixo w 1 "\" height=\"208\" data-x=\"" _nu_fixo x 1 "\" data-tx=\""
     ? t { "Em " N t ? == t 1 " ano" " anos" 0 } "Hoje"
-    ": " cs_eur cs_val 1 n m c st " · entre " cs_mil cs_val 0 n m c st " e " cs_mil cs_val 2 n m c st " · investido " cs_eur + st * m F n "\"/>"
+    ": " cs_eur cs_vh 1 h n m c st " · entre " cs_mil cs_vh 0 h n m c st " e " cs_mil cs_vh 2 h n m c st " · investido " cs_eur cs_inv h n m st "\"/>"
     = t + t 1 }
   "</svg>" 0 }
 
 # uma linha da tabela: ao fim de t anos
-: cs_linha iffff>i t m c st s0 {
+: cs_linha iiffff>i t h m c st s0 {
   = n * t 12
-  "<tr><td>" N t ? == t 1 " ano" " anos" "</td><td class=\"num\">" cs_eur + st * m F n "</td><td class=\"num\"><b>"
-  cs_eur cs_val 1 n m c st "</b></td><td class=\"num sim-r\">" cs_mil cs_val 0 n m c st " – " cs_mil cs_val 2 n m c st "</td></tr>" 0 }
+  "<tr><td>" N t ? == t 1 " ano" " anos" "</td><td class=\"num\">" cs_eur cs_inv h n m st "</td><td class=\"num\"><b>"
+  cs_eur cs_vh 1 h n m c st "</b></td><td class=\"num sim-r\">" cs_mil cs_vh 0 h n m c st " – " cs_mil cs_vh 2 h n m c st "</td></tr>" 0 }
+
+# um controlo: o nome e o valor por cima; a barra com − e + (passo d) por baixo. k = a chave nos Ajustes (data-cfg);
+# f = 0 euros, 1 anos, 2 euros ou "sem objetivo" (o JS escreve o mesmo enquanto se arrasta: data-fmt)
+: cs_ctl iiffffi>i k nome v mn mx d f {
+  "<div class=\"sim-c\"><div class=\"sim-ch\"><span>" _tx_p nome "</span><b class=\"num\" data-out=\"" _tx_p k "\">"
+  ? == f 1 { N I v ? == I v 1 " ano" " anos" 0 } ? && == f 2 <= v 0.0 "sem objetivo" cs_eur v
+  "</b></div><div class=\"sim-cr\"><button type=\"button\" class=\"sim-pm\" data-act=\"sim-step\" data-k=\"" _tx_p k "\" data-d=\"-" _nu_ps d "\" aria-label=\"Menos\">−</button>"
+  "<input type=\"range\" class=\"sim-rg\" min=\"" _nu_ps mn "\" max=\"" _nu_ps mx "\" step=\"" _nu_ps d "\" value=\"" _nu_ps v "\" data-cfg=\"" _tx_p k "\" data-fmt=\"" N f "\" aria-label=\"" _tx_p nome "\">"
+  "<button type=\"button\" class=\"sim-pm\" data-act=\"sim-step\" data-k=\"" _tx_p k "\" data-d=\"" _nu_ps d "\" aria-label=\"Mais\">+</button></div></div>" 0 }
 
 # ===== o rendimento real (4.13): o que já investiu, pelo plano e pelas compras avulsas =====
 # Instantâneo real: now (s), desde (texto), loading, bench {name, px, h}, ativos [{k, name, px, h, b, plan, pm, pmDef}]:
@@ -249,44 +266,48 @@
 : ecra_carteira i>i s {
   ! 53 s
   = rl sg $"real" ? _ar_verd rl cr_real rl 0
-  = m cs_num $"budget" = st cs_num $"start" = g cs_num $"goal"
+  = m cs_num $"budget" = st cs_num $"start" = g cs_num $"goal" = h _ar_verd sg $"hoje"
   = c / Mn 100.0 cs_num $"cp" 100.0
   = y I cs_num $"years"
   ? < y 1 { = y 20 0 } 0
   ? > y 60 { = y 60 0 } 0
   = n * y 12
   "\n        <section class=\"sec sim\"><div class=\"sec-h\"><h2>Simulador</h2><span class=\"sub\">o teu plano daqui a uns anos</span></div>"
-  # os campos (gravam ao mudar: data-cfg)
-  "<div class=\"sim-in\">"
-  "<label><small>Por mês</small><input class=\"inp\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"50\" data-cfg=\"budget\" value=\"" cs_campo $"budget" "\" placeholder=\"900\"></label>"
-  "<label><small>Já investido</small><input class=\"inp\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"100\" data-cfg=\"simStart\" value=\"" cs_campo $"start" "\" placeholder=\"0\"></label>"
-  "<label><small>Anos</small><input class=\"inp\" type=\"number\" inputmode=\"numeric\" min=\"1\" max=\"60\" step=\"1\" data-cfg=\"simYears\" value=\"" N y "\"></label>"
-  "<label><small>Objetivo</small><input class=\"inp\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"1000\" data-cfg=\"simGoal\" value=\"" cs_campo $"goal" "\" placeholder=\"ex.: 300000\"></label>"
+  # os controlos (gravam ao largar: data-cfg; − e + num passo)
+  "<div class=\"sim-ctl\">"
+  cs_ctl $"budget" $"Por mês" m 0.0 Mx 3000.0 m 50.0 0
+  cs_ctl $"simStart" $"Já investido" st 0.0 Mx 200000.0 st 1000.0 0
+  cs_ctl $"simYears" $"Anos" F y 1.0 Mx 40.0 F y 1.0 1
+  cs_ctl $"simGoal" $"Objetivo" g 0.0 Mx 1000000.0 g 10000.0 2
   "</div>"
+  # o valor do futuro ou em euros de hoje
+  "<div class=\"seg sim-seg\" role=\"group\" aria-label=\"Como mostrar os valores\"><button type=\"button\" data-act=\"sim-hoje\" data-v=\"0\"" ? h 0 " class=\"on\"" ">Valor no futuro</button>"
+  "<button type=\"button\" data-act=\"sim-hoje\" data-v=\"1\"" ? h " class=\"on\"" 0 ">Em euros de hoje</button></div>"
+  "<p class=\"note sim-infl\">Com 2 % de inflação por ano, 1000 € daqui a " N y ? == y 1 " ano" " anos" " compram o mesmo que " cs_eur / 1000.0 Pw 1.02 F y " hoje.</p>"
   ? && == m 0.0 == st 0.0 {
-    "<div class=\"empty\">Escreve quanto investes por mês (ou quanto já tens investido) para ver onde chegas.</div></section>" 0 } {
-    = vb cs_val 1 n m c st = vp cs_val 0 n m c st = vo cs_val 2 n m c st
-    = inv + st * m F n
-    = vm * 1.06 Mx Mx vo g inv
-    "<div class=\"sim-big\"><small>Daqui a " N y ? == y 1 " ano" " anos" ", no cenário base</small><b class=\"num\">" cs_eur vb "</b>"
+    "<div class=\"empty\">Escolhe quanto investes por mês (ou quanto já tens investido) para ver onde chegas.</div></section>" 0 } {
+    = vb cs_vh 1 h n m c st = vp cs_vh 0 h n m c st = vo cs_vh 2 h n m c st
+    = inv cs_inv h n m st
+    "<div class=\"sim-big\"><small>Daqui a " N y ? == y 1 " ano" " anos" ", no cenário base" ? h ", em euros de hoje" 0 "</small><b class=\"num\">" cs_eur vb "</b>"
     "<div class=\"sim-rng\">entre " cs_eur vp " e " cs_eur vo "</div>"
     "<div class=\"sim-split\">" ? > m 0.0 { cs_eur m " por mês · " 0 } 0
     ? > c 0.0 { _nu_intl * 100.0 - 1.0 c 0 " % " _ar_ps sg $"core" 1 " · " _nu_intl * 100.0 c 0 " % cripto" 0 } { "100 % " _ar_ps sg $"core" 1 0 } "</div></div>"
-    cs_graf y n m c st g vm inv
+    cs_graf h y n m c st g
     "<div class=\"sim-tip\" id=\"sim-tip\">Arrasta o dedo no gráfico para ver cada ano.</div>"
-    "<div class=\"sim-leg\"><span><i class=\"b\"></i>base</span><span><i class=\"f\"></i>pessimista a otimista</span><span><i class=\"v\"></i>o que investes</span></div>"
-    # o resumo: investido, ganho, em euros de hoje, imposto no fim
-    = imp cs_imp n m c st
+    "<div class=\"sim-leg\"><span><i class=\"o\"></i>otimista</span><span><i class=\"b\"></i>base</span><span><i class=\"p\"></i>pessimista</span><span><i class=\"v\"></i>investido</span></div>"
+    # o resumo: investido, ganho, o outro valor (de hoje ou do futuro), imposto no fim
+    = imp / cs_imp n m c st cs_df h n
     "<div class=\"stats sim-st\">"
-    "<div><small>Investes</small><b class=\"num\">" cs_eur inv "</b></div>"
-    "<div><small>Ganho (base)</small><b class=\"num up-t\">" cs_eur - vb inv "</b></div>"
-    "<div><small>Em euros de hoje</small><b class=\"num\">" cs_eur / vb Pw 1.02 F y "</b></div>"
+    "<div><small>Investes" ? h ", em euros de hoje" 0 "</small><b class=\"num\">" cs_eur inv "</b></div>"
+    "<div><small>Ganho" ? h " real" " (base)" "</small><b class=\"num up-t\">" cs_eur - vb inv "</b></div>"
+    ? h { "<div><small>Valor no futuro</small><b class=\"num\">" cs_eur cs_val 1 n m c st "</b></div>" 0 }
+      { "<div><small>Em euros de hoje</small><b class=\"num\">" cs_eur / vb Pw 1.02 F y "</b></div>" 0 }
     "<div><small>Imposto se venderes tudo</small><b class=\"num\">" cs_eur imp "</b></div>"
     "</div>"
-    # o objetivo
+    # o objetivo (em euros de hoje, se é assim que se mostra)
     ? > g 0.0 {
-      = mb cs_meta 1 m c st g = mp cs_meta 0 m c st g = mo cs_meta 2 m c st g
-      "<div class=\"box sim-meta\"><h3>Objetivo: " cs_eur g "</h3>"
+      = mb cs_meta 1 h m c st g = mp cs_meta 0 h m c st g = mo cs_meta 2 h m c st g
+      "<div class=\"box sim-meta\"><h3>Objetivo: " cs_eur g ? h " de hoje" 0 "</h3>"
       ? < mb 0 "<p>Com este plano, não chegas lá em 100 anos no cenário base. Sobe o valor por mês ou o que já tens investido.</p>"
       { "<p>Chegas lá em <b>" cs_tempo mb "</b> no cenário base"
         ? && >= mo 0 >= mp 0 { " (entre " cs_tempo mo " e " cs_tempo mp ")" 0 } ? >= mo 0 { " (no otimista, em " cs_tempo mo ")" 0 } 0
@@ -294,18 +315,18 @@
         ? > mb n { "<p class=\"note\">Mais do que os " N y " anos simulados: o gráfico não chega lá.</p>" 0 } 0 0 }
       "</div>" 0 } 0
     # os marcos
-    "<div class=\"box\"><h3>Ao longo do tempo</h3><table class=\"sim-tab\"><thead><tr><th></th><th>Investido</th><th>Base</th><th>Intervalo</th></tr></thead><tbody>"
+    "<div class=\"box\"><h3>Ao longo do tempo" ? h " <small>em euros de hoje</small>" 0 "</h3><table class=\"sim-tab\"><thead><tr><th></th><th>Investido</th><th>Base</th><th>Intervalo</th></tr></thead><tbody>"
     = k 0 W < k 6 {
       = t ? == k 0 5 ? == k 1 10 ? == k 2 15 ? == k 3 20 ? == k 4 30 40
-      ? < t y cs_linha t m c st 0.0 0
+      ? < t y cs_linha t h m c st 0.0 0
       = k + k 1 }
-    cs_linha y m c st 0.0
+    cs_linha y h m c st 0.0
     "</tbody></table></div>"
     "<details class=\"how\"><summary>Como é feita a conta</summary><ul>"
     "<li>Mês a mês: o que já tens rende e entra o valor do plano, dividido como no plano do mês.</li>"
     "<li>Ações (o fundo núcleo): 3 % por ano no pessimista, 6 % no base e 9 % no otimista. As ações do mundo renderam cerca de 8 % por ano nos últimos 50 anos, antes da inflação.</li>"
     "<li>Cripto: 0 %, 10 % e 25 % por ano. Pode também cair muito mais.</li>"
-    "<li>Em euros de hoje: com inflação de 2 % por ano.</li>"
+    "<li>Em euros de hoje: tudo dividido pela inflação de 2 % por ano até à data — é o que esse dinheiro compra hoje.</li>"
     "<li>Imposto, se venderes tudo no fim: cada compra paga pela idade — 28 % até 2 anos, 25,2 % de 2 a 5, 22,4 % de 5 a 8 e 19,6 % com 8 ou mais; a cripto com 1 ano ou mais está isenta.</li>"
     "</ul></details></section>" 0 }
   0 }

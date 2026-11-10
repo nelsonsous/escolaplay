@@ -202,7 +202,7 @@ function proxyBody(u) {
     const orc0 = await page.evaluate(() => window.__mk.cfg.budget);
     await page.click('#mk-nav [data-tab="carteira"]');
     await page.waitForSelector('.sim');
-    const campo = async (k, v) => { await page.fill(`[data-cfg="${k}"]`, String(v)); await page.locator(`[data-cfg="${k}"]`).dispatchEvent('change'); };
+    const campo = async (k, v) => { await page.evaluate(([k, v]) => { const i = document.querySelector(`.sim [data-cfg="${k}"]`); i.value = String(v); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, v]); };
     await campo('budget', 900);
     await page.waitForSelector('.sim-big b');
     assert.match(await page.locator('.sim-big b').textContent(), /^\d{1,3}(\s\d{3})*\s€$/, 'o valor no fim, em euros');
@@ -212,6 +212,21 @@ function proxyBody(u) {
     assert.match(await page.locator('.sim-meta p').first().textContent(), /^Chegas lá em \d+ anos/);
     await campo('simYears', 10);
     assert.equal(await page.locator('.sim-tab tbody tr:last-child td').first().textContent(), '10 anos');
+    // − e +: 10 → 11 anos; e de volta
+    await page.click('.sim [data-act="sim-step"][data-k="simYears"][data-d="1"]');
+    assert.equal(await page.locator('.sim [data-out="simYears"]').textContent(), '11 anos');
+    await page.click('.sim [data-act="sim-step"][data-k="simYears"][data-d="-1"]');
+    assert.equal(await page.locator('.sim [data-out="simYears"]').textContent(), '10 anos');
+    // em euros de hoje: menos do que o valor no futuro
+    const futuro = await page.locator('.sim-big b').textContent();
+    await page.click('[data-act="sim-hoje"][data-v="1"]');
+    if (SHOTS) { await page.locator('.sim').scrollIntoViewIfNeeded(); await page.locator('.sim').screenshot({ path: path.join(SHOTS, '8d-carteira-hoje.png') }); }
+    const hoje = await page.locator('.sim-big b').textContent();
+    const n = (x) => +x.replace(/[^\d]/g, '');
+    assert.ok(n(hoje) < n(futuro) && Math.abs(n(hoje) * 1.02 ** 10 / n(futuro) - 1) < 0.001, `euros de hoje: ${hoje} vs ${futuro}`);
+    assert.match(await page.locator('.sim-big small').textContent(), /em euros de hoje/);
+    assert.match(await page.locator('.sim-infl').textContent(), /^Com 2 % de inflação por ano, 1000 € daqui a 10 anos compram o mesmo que 820\s€ hoje\.$/);
+    await page.click('[data-act="sim-hoje"][data-v="0"]');
     await page.locator('.sim svg.sim-g').scrollIntoViewIfNeeded();
     const gb = await page.locator('.sim svg.sim-g').boundingBox();
     await page.mouse.move(gb.x + gb.width * 0.55, gb.y + gb.height / 2);
