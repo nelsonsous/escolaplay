@@ -112,7 +112,7 @@
         arrasto = folha && !aFechar && e.touches.length === 1 && folha.scrollTop <= 0
             ? { folha, x0: e.touches[0].clientX, y0: e.touches[0].clientY, t0: Date.now(), dy: 0 } : null;
     }, { passive: true });
-    document.addEventListener('touchmove', (e) => {
+    const moverFolha = (e) => {
         if (!arrasto) return;
         const dy = e.touches[0].clientY - arrasto.y0, dx = e.touches[0].clientX - arrasto.x0;
         if (!arrasto.dy && (dy <= 0 || Math.abs(dx) > dy)) { arrasto = null; return; } // é para cima ou para o lado: deixa
@@ -120,7 +120,8 @@
         arrasto.dy = Math.max(0, dy);
         arrasto.folha.style.transition = 'none';
         arrasto.folha.style.transform = `translateY(${arrasto.dy}px)`;
-    }, { passive: false });
+    };
+    document.addEventListener('touchmove', moverFolha, { passive: false });
     const largar = () => {
         if (!arrasto) return;
         const { folha, dy, t0 } = arrasto;
@@ -148,54 +149,105 @@
     };
     document.addEventListener('touchend', largar);
     document.addEventListener('touchcancel', largar);
-    // arrastar um cartão da lista para a esquerda pede para o apagar: o cartão segue o dedo e mostra o vermelho
-    // «Apagar»; se for mais de um terço da largura (ou um gesto rápido), a Onda troca o cartão pela pergunta
+    // arrastar para os lados. Num elemento com data-esq (uma playlist, uma faixa, um pedido), para a esquerda: segue o
+    // dedo, mostra o vermelho (data-esq-rotulo) e, passado um terço da largura (ou com um gesto rápido), faz a ação
+    // (data-esq é o data-onda dela). Noutro sítio, ou a começar junto à borda do ecrã: muda de separador (para a
+    // esquerda o seguinte, para a direita o anterior), com o ecrã a seguir o dedo.
+    const NAO_ARRASTA = 'input, textarea, select, .mu-range, .mu-folha-topo';
     let lado = null;
+    const separadores = () => [...document.querySelectorAll('#mu-nav [data-onda^="ir"]')];
     document.addEventListener('touchstart', (e) => {
-        const c = e.target.closest && e.target.closest('.mu-pl');
-        lado = c && !c.classList.contains('aberta') && !c.classList.contains('mu-pl-apagar') && e.touches.length === 1
-            ? { c, x0: e.touches[0].clientX, y0: e.touches[0].clientY, t0: Date.now(), dx: 0, on: false } : null;
+        lado = null;
+        if (e.touches.length !== 1 || aFechar || !e.target.closest || e.target.closest(NAO_ARRASTA)) return;
+        const x0 = e.touches[0].clientX, y0 = e.touches[0].clientY;
+        const borda = x0 < 24 || x0 > innerWidth - 24;
+        const el = !borda && e.target.closest('[data-esq]');
+        if (el) { lado = { el, x0, y0, t0: Date.now(), dx: 0, on: false }; return; }
+        // mudar de separador: só na lista principal (com a folha aberta, não)
+        if (!document.querySelector('.mu-folha') && corpo && corpo.contains(e.target) || borda && !document.querySelector('.mu-folha'))
+            lado = { nav: true, x0, y0, t0: Date.now(), dx: 0, on: false };
     }, { passive: true });
-    document.addEventListener('touchmove', (e) => {
+    const moverLado = (e) => {
         if (!lado) return;
         const dx = e.touches[0].clientX - lado.x0, dy = e.touches[0].clientY - lado.y0;
         if (!lado.on) {
             if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { lado = null; return; } // é scroll
-            if (dx > -12) return;
+            if (lado.nav ? Math.abs(dx) < 14 : dx > -12) return;
+            if (lado.nav && Math.abs(dx) < Math.abs(dy) * 1.5) { lado = null; return; }
             lado.on = true;
-            lado.c.classList.add('a-deslizar');
+            if (!lado.nav) lado.el.classList.add('a-deslizar');
         }
         e.preventDefault();
-        lado.dx = Math.min(0, dx);
-        lado.c.style.transition = 'none';
-        lado.c.style.transform = `translateX(${lado.dx}px)`;
-    }, { passive: false });
+        if (lado.nav) {
+            lado.dx = dx;
+            corpo.style.transition = 'none';
+            corpo.style.transform = `translateX(${dx * 0.35}px)`;
+        } else {
+            lado.dx = Math.min(0, dx);
+            lado.el.style.transition = 'none';
+            lado.el.style.transform = `translateX(${lado.dx}px)`;
+        }
+    };
+    document.addEventListener('touchmove', moverLado, { passive: false });
+    const disparar = (valor) => {
+        const t = document.createElement('button');
+        t.type = 'button';
+        t.hidden = true;
+        t.dataset.onda = valor;
+        document.body.appendChild(t);
+        t.click();
+        t.remove();
+    };
     const soltarLado = () => {
         if (!lado) return;
-        const { c, dx, on, t0 } = lado;
+        const { el, nav, dx, on, t0 } = lado;
         lado = null;
         if (!on) return;
-        const id = ((c.querySelector('.mu-pl-a') || {}).dataset || {}).onda?.split('\t')[1];
-        if (id && (dx < -c.clientWidth / 3 || (dx < -50 && -dx / Math.max(1, Date.now() - t0) > 1))) {
-            c.style.transition = 'transform .18s cubic-bezier(.4, 0, 1, 1)';
-            c.style.transform = 'translateX(-35%)';
+        const rapido = Math.abs(dx) > 50 && Math.abs(dx) / Math.max(1, Date.now() - t0) > 1;
+        if (nav) {
+            const sep = separadores(), i = sep.findIndex((b) => b.getAttribute('aria-current') === 'page');
+            const alvo = (Math.abs(dx) > innerWidth / 4 || rapido) && i >= 0 ? sep[i + (dx < 0 ? 1 : -1)] : null;
+            corpo.style.transition = 'transform .2s cubic-bezier(.2, .8, .2, 1)';
+            corpo.style.transform = '';
+            if (alvo) {
+                corpo.style.transition = 'none';
+                corpo.classList.remove('entra-esq', 'entra-dir');
+                void corpo.offsetWidth;
+                corpo.classList.add(dx < 0 ? 'entra-dir' : 'entra-esq');
+                alvo.click();
+                setTimeout(() => corpo.classList.remove('entra-esq', 'entra-dir'), 300);
+            }
+            setTimeout(() => { corpo.style.transition = ''; }, 220);
+            return;
+        }
+        if (dx < -el.clientWidth / 3 || (dx < -50 && rapido)) {
+            el.style.transition = 'transform .18s cubic-bezier(.4, 0, 1, 1)';
+            el.style.transform = 'translateX(-35%)';
             setTimeout(() => {
-                const t = document.createElement('button');
-                t.type = 'button';
-                t.hidden = true;
-                t.dataset.onda = 'apagarl\t' + id;
-                document.body.appendChild(t);
-                t.click();
-                t.remove();
+                disparar(el.dataset.esq);
+                // se a Onda não redesenhar este elemento (ex.: ficou à espera da resposta), volta ao sítio
+                setTimeout(() => { if (el.isConnected) { el.style.transition = 'transform .2s'; el.style.transform = ''; el.classList.remove('a-deslizar'); } }, 400);
             }, 180);
         } else {
-            c.style.transition = 'transform .2s cubic-bezier(.2, .8, .2, 1)';
-            c.style.transform = '';
-            setTimeout(() => { c.style.transition = ''; c.classList.remove('a-deslizar'); }, 220);
+            el.style.transition = 'transform .2s cubic-bezier(.2, .8, .2, 1)';
+            el.style.transform = '';
+            setTimeout(() => { el.style.transition = ''; el.classList.remove('a-deslizar'); }, 220);
         }
     };
     document.addEventListener('touchend', soltarLado);
     document.addEventListener('touchcancel', soltarLado);
+    // se a Onda redesenhar o que está debaixo do dedo a meio do gesto (chegaram as faixas, a lista…), o iOS continua a
+    // enviar o gesto ao elemento antigo, que já não está na página e não o passa ao documento: liga-se a ele também
+    document.addEventListener('touchstart', (e) => {
+        const t = e.target;
+        if (!t || !t.addEventListener) return;
+        const so = (f) => (ev) => { if (!t.isConnected) f(ev); };
+        const mover = so((ev) => { moverFolha(ev); moverLado(ev); });
+        const fim = (ev) => { so((x) => { largar(x); soltarLado(x); })(ev); t.removeEventListener('touchmove', mover); t.removeEventListener('touchend', fim); t.removeEventListener('touchcancel', fim); };
+        t.addEventListener('touchmove', mover, { passive: false });
+        t.addEventListener('touchend', fim);
+        t.addEventListener('touchcancel', fim);
+    }, { passive: true });
     // a folha é um diálogo: ao abrir, o foco vai para o «fechar»; o Esc fecha; ao fechar, o foco volta ao cartão
     let folhaAberta = null;
     const seguirFolha = () => {
