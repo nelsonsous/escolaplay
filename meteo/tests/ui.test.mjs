@@ -498,6 +498,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.deepEqual(await page.locator('.today .an-sec:has(h4:text-is("O que vestir amanhã")) .an-per li b').allTextContents(), ['Manhã', 'Tarde', 'Noite']);
     assert.equal(await page.locator('.today .an-sec:has(h4:text-is("Amanhã")) .an-per li').count(), 3);
     if (SHOTS) await page.locator('.today').screenshot({ path: path.join(SHOTS, '06c-analise-periodos.png') });
+    if (SHOTS) { await page.click('#d-an > summary'); await page.waitForSelector('#d-an[open] .an-days'); await page.locator('#d-an .an-days').screenshot({ path: path.join(SHOTS, '06d-proximos-dias.png') }); await page.click('#d-an > summary'); }
     assert.equal(await page.locator('#d-an').getAttribute('open'), null);
     assert.equal(await page.locator('#d-tec').getAttribute('open'), null);
     await shot('06-analise-simples.png');

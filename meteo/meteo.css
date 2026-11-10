@@ -205,9 +205,12 @@ button.row:active { background: #0e0e10; }
 .an-sec h4 { margin: 0 0 3px; font-size: calc(.8rem * var(--k)); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .an-sec p { margin: 0; color: var(--soft); white-space: pre-line; }
 .an-days, .an-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
-.an-days li { display: grid; grid-template-columns: calc(4.4rem * var(--k)) 18px 1fr; gap: 6px; align-items: start; color: var(--soft); }
+/* o dia e o sinal de confiança numa linha; o texto por baixo, a toda a largura */
+.an-days { gap: 12px; }
+.an-days li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--soft); line-height: 1.45; }
+.an-days li > span { flex: 1 0 100%; }
 .an-days b { color: var(--text); }
-.an-days .i { width: 16px; height: 16px; color: var(--muted); margin-top: 2px; }
+.an-days .i { width: 16px; height: 16px; color: var(--muted); }
 .an-list li { position: relative; padding-left: 16px; color: var(--soft); }
 .an-list li::before { content: ''; position: absolute; left: 3px; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: #f0b49b; }
 .an-meta { margin-top: 12px; color: var(--muted); font-size: calc(.8rem * var(--k)); }
