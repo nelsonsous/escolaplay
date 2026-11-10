@@ -257,7 +257,7 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .mk-status { flex: 1 1 auto; overflow: hidden; }
 .mk-status > span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mk-sheet { overflow: hidden; }
-.mk-sheet-card { width: 100%; overflow-x: hidden; overscroll-behavior: contain; will-change: transform; }
+.mk-sheet-card { width: 100%; overflow-x: hidden; overscroll-behavior: none; will-change: transform; }
 .d-head > div:first-child { flex: 1; min-width: 0; }
 .d-head h2 { overflow-wrap: anywhere; }
 .d-head .d-sub { overflow-wrap: anywhere; }

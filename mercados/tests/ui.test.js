@@ -647,6 +647,35 @@ function proxyBody(u) {
     await puxa([g.y + 2, g.y + 40], [0, 30]);
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
     console.log('✓ puxão curto e devagar não fecha; curto e rápido fecha');
+    // em qualquer parte, como na TR: no gráfico (para baixo fecha; para o lado é o dedo), no fundo escuro por cima e,
+    // com o conteúdo descido, ao subir até ao topo e continuar a puxar no mesmo gesto
+    const gesto = async (x, ys, ms, xs) => {
+        const t0 = Date.now() / 1000, pt = (i) => [{ x: xs ? xs[i] : x, y: ys[i] }];
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(0), timestamp: t0 });
+        for (let i = 1; i < ys.length; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(i), timestamp: t0 + ms[i] / 1000 });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [], timestamp: t0 + ms[ms.length - 1] / 1000 + 0.01 });
+    };
+    const abreEth = async () => { await page.locator('.row[data-open="c:ETH"]').first().click(); await page.waitForSelector('#mk-sheet:not([hidden]) #d-cv'); await page.waitForTimeout(300); };
+    const desce = (y, n, passo) => Array.from({ length: n }, (_, i) => y + i * passo), tempos = (n) => Array.from({ length: n }, (_, i) => i * 30);
+    await abreEth();
+    let cvb = await page.locator('#d-cv').boundingBox();
+    await gesto(cvb.x + cvb.width / 2, desce(cvb.y + 20, 9, 8), tempos(9), desce(cvb.x + 40, 9, 30));
+    await page.waitForTimeout(400);
+    assert.equal(await page.locator('#mk-sheet').isHidden(), false, 'para o lado no gráfico não fecha');
+    await gesto(cvb.x + cvb.width / 2, desce(cvb.y + 20, 11, 25), tempos(11));
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
+    await abreEth();
+    const topo = await page.locator('#mk-sheet-card').boundingBox();
+    assert.ok(topo.y > 30, 'há fundo por cima da folha');
+    await gesto(200, desce(Math.max(8, topo.y - 30), 11, 25), tempos(11));
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
+    await abreEth();
+    await page.evaluate(() => { document.querySelector('#mk-sheet-card').scrollTop = 160; });
+    await page.waitForTimeout(100);
+    const meio = await page.locator('#mk-sheet-card').boundingBox();
+    await gesto(200, desce(meio.y + 120, 21, 25), tempos(21));
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden, null, { timeout: 2000 });
+    console.log('✓ puxar para fechar em qualquer parte: no gráfico, no fundo e a seguir a subir o conteúdo');
     // índice (referência): a leitura do Claude, sem conselho de compra nem impostos; o algoritmo fechado
     await page.click('#mk-nav [data-tab="painel"]');
     await page.click('details[data-fold="pn-idx"] > summary');
