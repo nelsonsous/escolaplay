@@ -616,6 +616,14 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
 @keyframes wx-fog { from { transform: translateX(-3px); } to { transform: translateX(3px); } }
 /* sem movimento (preferência do sistema ou Ajustes → Animações: Não): o céu não se mostra e os ícones ficam parados */
 @media (prefers-reduced-motion: reduce) { .sky { display: none; } }
+/* o mar (praia): água, ondas e UV lado a lado */
+.sea-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sea-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sea-t small { color: var(--muted); font-size: calc(.78rem * var(--k)); }
+.sea-t b { font-size: calc(1.6rem * var(--k)); font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+.sea-t em { font-style: normal; color: var(--soft); font-size: calc(.82rem * var(--k)); }
+.sea .note { margin: 10px 0 0; }
+.sea-d { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; min-height: 40px; align-items: center; }
 /* gráfico da chuva das próximas 2 horas em Onda (chuva.js): o canvas por baixo, o SVG (base, horas, mm) por cima */
 .nc-wrap { position: relative; margin-top: 4px; }
 .nc-wrap .nc-cv { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 320 / 88; display: block; pointer-events: none; }

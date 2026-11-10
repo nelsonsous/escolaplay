@@ -104,6 +104,13 @@ cd meteo/proxy && npx wrangler secret put OWNER_CODE
 
 Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
 
+## Mar (1.14)
+
+Num ponto na costa ou numa praia (célula de mar da Open-Meteo Marine a ≤ 12 km), o separador **Agora** mostra o cartão
+**Mar**: a **temperatura da água** (muito fria · fria · fresca · agradável · amena · quente), as **ondas** (altura, período e
+de onde vêm, com o estado do mar como nos avisos do IPMA) e o **UV** de hoje; em «Próximos dias», a água e as ondas dos 7
+dias seguintes. No interior não aparece. Fonte: `marine-api.open-meteo.com` (pelo conector, cache de 1 h); `lib/marine.js`.
+
 ## O tempo a mexer (1.9)
 
 O cartão **Agora** tem um céu animado por trás da temperatura (`sky.js`): chuva a cair (mais gotas com mais chuva, mais

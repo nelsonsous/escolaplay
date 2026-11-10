@@ -5,6 +5,7 @@ import { omQueries, climateQueries, OM, IPMA, ipmaAggregateUrl, inPortugal, inEu
 import { buildForecast, buildSummary, perModelTable, pickStation, nearStations, nearestIpmaLocal, terrainPoints, ipmaObsLatest, ipmaByPosition } from './engine.js';
 import { RAINVIEWER, radarFrames, radarTileUrl, coverageUrl, tileGeo, decodeFrame, coveredAt } from './radar.js';
 import { decodePng } from './png.js';
+import { marineSummary } from './marine.js';
 import { haversine } from './stats.js';
 
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -233,6 +234,7 @@ export async function loadForecast(o = {}) {
         det: settle(om('forecast', q.forecast, ctx, 20000)),
         ens: settle(om('ensemble', q.ensemble, ctx, 20000)),
         prev: settle(om('previous', q.previous, ctx)),
+        marine: settle(om('marine', q.marine, ctx)),
         metar: settle(request(`${B}/api/raw/metar?lat=${lat}&lon=${lon}`, { timeout: 10000 })),
         place: settle(reverseGeocode(lat, lon)),
         clim: settle(climate(lat, lon, ctx)),
@@ -301,6 +303,10 @@ export async function loadForecast(o = {}) {
     const memory = await memP;
     const fc = buildForecast(raw, { lat, lon, name: o.name, now: nowMs, memory });
     const status = Object.fromEntries(Object.entries(R).map(([k, r]) => [k, r.ok ? 'ok' : (r.e?.message || 'falhou')]));
+    // o mar perto do ponto (só na costa: célula de mar a ≤ 12 km)
+    const nowLocal = new Date(nowMs + (fc.location.utcOffsetSeconds || 0) * 1000).toISOString().slice(0, 16);
+    fc.marine = R.marine?.ok ? marineSummary(R.marine.v, { lat, lon, nowIso: nowLocal }) : null;
+    if (status.marine === 'ok' && !fc.marine) status.marine = 'mar longe do ponto (só na costa)';
     if (status.ipmaFc === 'ok' && !ipma?.forecast) status.ipmaFc = ofc?.reason || 'sem previsão';
     // o IPMA às vezes publica as horas sem valores (falha deles): diz desde quando, para não parecer que só há o METAR
     if (status.obs === 'ok') {

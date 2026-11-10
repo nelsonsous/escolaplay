@@ -22,7 +22,7 @@ const INSTANT_DAY_MAX = 20; // análises imediatas por dia (todas juntas)
 // próprio conector. Os pedidos da app levam a identidade do telemóvel (e do dono) em cabeçalhos próprios.
 const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'x-sat-layer, x-sat-bbox, x-cache' };
 const ALLOW_HEADERS = 'content-type, x-meteo-device, x-meteo-owner';
-const OM_TTL = { forecast: 900, ensemble: 3600, previous: 3600, archive: 2592000, elevation: 2592000, geocoding: 86400 };
+const OM_TTL = { forecast: 900, ensemble: 3600, previous: 3600, archive: 2592000, elevation: 2592000, geocoding: 86400, marine: 3600 };
 
 export default {
     async fetch(req, env, ctx) {
