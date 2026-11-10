@@ -55,8 +55,8 @@ export function buildAdvice(a, dados, uniRows = []) {
         // (entrar / ficar / sair), o Claude explica porquê discorda
         if (r && r.rule && FAM[r.rule] != null && FAM[o.key] != null) {
             o.alg = r.rule;
-            const w = str(x.algWhy, 200, `${p}.algWhy`);
-            if (FAM[o.key] !== FAM[r.rule] && !w.trim()) errs.push(`${p}: o teu veredicto (${o.action}) discorda do sinal automático (${r.ruleAction || ACTION_LABEL[r.rule]}): explica porquê em algWhy (até 200 caracteres)`);
+            const w = str(x.algWhy, 300, `${p}.algWhy`);
+            if (FAM[o.key] !== FAM[r.rule] && !w.trim()) errs.push(`${p}: o teu veredicto (${o.action}) discorda do sinal automático (${r.ruleAction || ACTION_LABEL[r.rule]}): explica porquê em algWhy (até 300 caracteres)`);
             if (w.trim()) o.algWhy = w;
         }
         out.actions.push(o);

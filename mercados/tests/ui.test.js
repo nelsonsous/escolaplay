@@ -518,7 +518,8 @@ function proxyBody(u) {
     assert.match(await page.locator(adv).textContent(), /Desconto de 22%[\s\S]*Plano:\s*Metade agora/);
     assert.match(await page.locator(adv + ' .adv-ev').textContent(), /Resultados daqui a 5 dias/);
     // segunda opinião: o sinal automático ao lado, a dizer se o Claude concorda
-    assert.match(await page.locator(adv + ' .adv-alg').textContent(), /^Algoritmo: .+ · o Claude (concorda|discorda)/);
+    const algTx = (await page.locator(adv + ' .adv-alg').textContent()).replace(/\s+/g, ' ').trim();
+    assert.match(algTx, /^Algoritmo: \S.+ — .+\(C\d+ · M\d+ · L\d+\) Claude: (concorda|discorda)/, 'a razão da regra, as pontuações e a do Claude: ' + algTx);
     const shAuto = '#mk-sheet details.sh-auto';
     assert.equal(await page.locator(shAuto + ':not([open])').count(), 1, 'sinais automáticos fechados na ficha');
     assert.equal(await page.locator(shAuto + ' .box:has-text("Análise técnica") .hzb').count(), 3, 'pontuações automáticas por prazo');
