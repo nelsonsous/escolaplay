@@ -291,6 +291,45 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const pedido = JSON.parse(await env.KV.get('pedidos'))[0];
     assert.equal(pedido.texto, 'Faixas bem gravadas para testar o som do carro');
     assert.equal(pedido.opcoes.limpa, true);
+
+    // 7) as ideias do Maestro (as do momento), as propostas para escolher, «não esta» e afinar com o Maestro
+    const agente7 = await env.KV.get('agente:chave');
+    const api7 = async (p, corpo) => (await worker.fetch(new Request(WORKER + p, { method: 'POST', headers: { authorization: `Bearer ${agente7}`, 'content-type': 'application/json' }, body: JSON.stringify(corpo) }), env, { waitUntil() {} })).json();
+    await api7('/api/ideias', { ideias: [{ texto: 'Ideia para qualquer hora', momento: 'sempre', opcoes: { arco: 'desce' } }, { texto: 'Ideia de dia', momento: 'dia' }, { texto: 'Ideia de noite', momento: 'noite' }] });
+    await nav(1);
+    await nav(3);
+    await page.getByRole('button', { name: 'Ideia para qualquer hora' }).click();
+    assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), 'Ideia para qualquer hora');
+    const dia = new Date().getUTCHours() >= 7 && new Date().getUTCHours() < 20;
+    assert.equal(await page.getByRole('button', { name: dia ? 'Ideia de dia' : 'Ideia de noite' }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: dia ? 'Ideia de noite' : 'Ideia de dia' }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Jazz para um domingo de manhã' }).count(), 0, 'com ideias do Maestro, as de sempre saem');
+    const bmw = JSON.parse(await env.KV.get('playlist:' + JSON.parse(await env.KV.get('playlists')).find((x) => x.nome === 'Som do BMW').id));
+    for (const v of ['Mais conhecida', 'Mais descoberta']) {
+        await api7('/api/playlists', { nome: `Noite · ${v}`, pedido: 'Para conduzir à noite', faixas: bmw.faixas, candidatas: bmw.candidatas, opcoes: bmw.opcoes, rascunho: true, grupo: 'qgrupo1', variante: v, tidal: true });
+    }
+    await nav(1);
+    await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
+    const grupo = page.locator('details.mu-grupo');
+    await grupo.getByText('«Para conduzir à noite»').waitFor();
+    assert.equal(await grupo.locator('.mu-pl').count(), 2);
+    await grupo.locator('.mu-pl-a', { hasText: 'Mais descoberta' }).click();
+    await page.getByText(/Proposta «Mais descoberta»/).waitFor();
+    const nCriadas = sim.criadas.length;
+    await page.getByRole('button', { name: 'Enviar para o Tidal' }).click();
+    await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
+    assert.equal(sim.criadas.length, nCriadas + 1);
+    await page.locator('#faixas .mu-faixa-a').first().click();
+    await page.getByRole('button', { name: 'Não esta' }).click();
+    await page.locator('#faixas .mu-faixa.fora').first().waitFor();
+    await page.locator('[data-onda="af-tx"]').fill('Mais vozes, menos jazz');
+    await page.getByRole('button', { name: 'Pedir para afinar' }).click();
+    await page.locator('#mu-aviso').getByText(/Pedido de afinação enviado/).waitFor();
+    const af = JSON.parse(await env.KV.get('pedidos'))[0];
+    assert.deepEqual([af.texto, af.afinar.rejeitadas.length], ['Mais vozes, menos jazz', 1]);
+    await nav(1);
+    await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
+    assert.equal(await page.locator('details.mu-grupo .mu-pl').count(), 1, 'a escolhida sai das propostas');
     await foto('5-pedir');
 
     // 7) voltar a abrir: a chave fica, a app abre ligada

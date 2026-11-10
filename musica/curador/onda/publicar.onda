@@ -16,7 +16,7 @@
 #   28 ordem (3 por faixa: encontrada, motivo, pontos)  29 quantas  30 custo  31 modelo (texto; 0 = sem)
 #   32..46 o gosto (pb_gosto)  47 48 e 53 54 os ids de artistas e generos para o motor  50 bytes do ultimo
 #   caracter lido  51 o Number() deu numero  55 a playlist gravada  56 posicao ao ver se e JSON  57 sem letras
-#   explicitas  58 a playlist a renovar (id, ou 0)
+#   explicitas  58 a playlist a renovar (id, ou 0)  52 a variante (proposta so na app; 0)  49 as ideias (texto JSON; 0)
 # Candidata (16): 0 artista 1 titulo 2 ano (-1) 3 album (0) 4 genero (0) 5 nota 6 energia 7 tendencia 8 bpm (-1)
 #   9 motivo (0) 10 isrc (0) 11 tidalId (0) 12 fixa 13 a faixa do Tidal (no; 0) 14 chave (artista|titulo)
 #   15 sinais (12: artista genero ano gosto qualidade tendencia claude novidade energia bpm tom fixa)
@@ -389,6 +389,7 @@
   ? == p 4 { ! 25 pb_resp t s pb_perfil 0 } 0
   ? == p 5 { pb_gravada pb_resp t s 0 } 0
   ? == p 6 { pb_resp t s pb_fim 0 } 0
+  ? == p 7 { pb_ideias pb_resp t s 0 } 0
   0 }
 
 # a chave do agente: a de MUSICA_CHAVE ou a da KV (pela API da Cloudflare; o token vem do proxy do ambiente)
@@ -405,7 +406,7 @@
   ? || == s 404 && == s 200 ~ cheio t { = m tx "Ainda não há chave do agente: o Tidal nunca foi ligado na app." O 0 falha m 0 } 0
   ? || < s 200 >= s 300 { = m tx "Cloudflare: HTTP " N s " a ler agente:chave" O 0 falha m 0 } 0
   ! 3 t pb_segue 0 }
-: pb_segue >i ? @ 5 { ! 6 2 pb_api 0 $"/api/pedidos" 0 } pb_resolve
+: pb_segue >i ? @ 49 { ! 6 7 pb_api $"POST" $"/api/ideias" @ 49 } ? @ 5 { ! 6 2 pb_api 0 $"/api/pedidos" 0 } pb_resolve
 : pb_pedidos i>i l {
   = c pb_l1 l = r 0
   W && c ~ r { = x jg c $"id" ? && == jtipo x 5 tigual jtxt x @ 5 { = r c 0 } 0 = c jprox c }
@@ -632,7 +633,9 @@
   ",\"custo\":" N @ 30
   ",\"candidatas\":[" = i 0 W < i @ 27 { ? i P ', 0 pb_guardada @ + @ 18 @ + @ 26 i = i + i 1 } "]"
   ? @ 31 { ",\"modelo\":" pb_js @ 31 0 } 0
-  ",\"tidal\":" ? pb_flag $"--sem-tidal" { "false" 0 } { "true" 0 } "}"
+  ",\"tidal\":" ? pb_flag $"--sem-tidal" { "false" 0 } { "true" 0 }
+  ? @ 52 { ",\"rascunho\":true,\"grupo\":" pb_js ? @ 5 @ 5 $"" ",\"variante\":" pb_js @ 52 0 } 0
+  "}"
   = b h_fecha
   = u ? @ 58 { = t tx "/api/playlists/" tpor @ 58 "/renovacoes" O 0 t } $"/api/playlists"
   ! 6 5 pb_api $"POST" u b }
@@ -644,7 +647,7 @@
   = f tx tpor @ 24 "/publicada.json" O 0
   h_abre f pb_jw d 2 0 h_fecha
   P 10 ? @ 58 { "Renovada" 0 } { "Publicada" 0 } ": «" pv jg d $"nome" "» (" pv jg d $"id" ")"
-  = t jg d $"tidal" ? jv t { " · no Tidal: " pv jg t $"url" 0 } { " · só na biblioteca da app" 0 }
+  = t jg d $"tidal" ? jv t { " · no Tidal: " pv jg t $"url" 0 } ? jv jg d $"rascunho" { " · proposta «" pv jg d $"variante" "», só na app (escolhe-se lá para o Tidal)" 0 } { " · só na biblioteca da app" 0 }
   ? @ 5 { " · pedido " tpor @ 5 " feito" 0 } 0
   P 10 h_sair 0 0 }
 
@@ -661,11 +664,29 @@
   = i pb_argi $"--pedido" = x ? >= i 0 h_arg i 0 ! 5 ? cheio x x 0
   = i pb_argi $"--modelo" ! 31 ? >= i 0 h_arg i $"claude"
   = i pb_argi $"--renovar" = x ? >= i 0 h_arg i 0 ! 58 ? cheio x x 0
+  = i pb_argi $"--variante" = x ? >= i 0 h_arg i 0 ! 52 ? cheio x x 0
   = w h_env $"MUSICA_WORKER" ! 2 ? cheio w w $"https://musica.mercados-proxy.workers.dev"
   ! 21 h_env $"MUSICA_DIR"
   ! 24 pb_pasta f
   ! 23 0
   pb_chave }
+
+# ---------- as ideias de pedidos (o Maestro escreve-as em cada corrida; a app mostra as do momento) ----------
+#   node musica/curador/ideias.mjs <dir>/ideias.json [--utilizador <pessoa>]   (o JSON: { "ideias": [{ "texto", "momento", "opcoes" }] })
+: ideias_main >i {
+  = f h_arg 1
+  ? || ~ cheio f tcomeca f $"--" { h_fd 2 "uso: ideias.mjs /tmp/musica/<pessoa>/ideias.json [--utilizador <pessoa>]" P 10 h_volta h_sair 2 0 } 0
+  ! 1 f
+  = t h_ler f
+  = p ? t pb_jok t 0
+  ? ~ p { h_fd 2 "JSON inválido em " tpor f ": " ? t { "o texto não é JSON válido" 0 } tpor pb_erro P 10 h_volta h_sair 1 0 } 0
+  ! 49 t
+  = i pb_argi $"--utilizador" = u ? >= i 0 h_arg i 0
+  ! 4 ? && cheio u ~ tigual u $"dono" u 0
+  = w h_env $"MUSICA_WORKER" ! 2 ? cheio w w $"https://musica.mercados-proxy.workers.dev"
+  ! 21 h_env $"MUSICA_DIR"
+  pb_chave }
+: pb_ideias i>i r { "Ideias guardadas: " pv jg r $"n" " (de dia " pv jg r $"dia" ", de noite " pv jg r $"noite" ")" P 10 h_sair 0 0 }
 
 # para os testes de paridade: [normal(), chave(), toLowerCase()] de cada argumento, em JSON
 : pb_textos >i { = i 1 W h_arg i { = t h_arg i P '[ pb_js pb_normal t 1 P ', pb_js pb_normal t 0 P ', pb_js pb_lowt t P '] P 10 = i + i 1 } h_sair 0 0 }

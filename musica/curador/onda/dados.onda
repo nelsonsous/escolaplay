@@ -370,6 +370,7 @@
         ? pr 0 P 10 = pr 0
         = o jg c k_opcoes
         "- `" pv jg c k_id "` — «" pv jg c k_texto "» · " pv jg o k_faixas " faixas, máx. " pv jg o k_maxArtista " por artista, estilo " pv jg o k_estilo ", arco " pv jg o k_arco ? jv jg o $"limpa" { ", sem letras explícitas" 0 } 0 " · pedido a " plisboa iso_ms jgt c k_criadoEm
+        = af jg c $"afinar" ? af { " · **afinar a playlist «" pv jg af k_nome "» (`" pv jg af $"playlist" "`)**" = rj jg af $"rejeitadas" ? > jn rj 0 { " — tira: " plista rj 100 0 } 0 0 } 0
         0 } 0
       = c jprox c }
     0 } "- nenhum"
