@@ -405,7 +405,7 @@
   ? ? _ar_verd ac ~ an_jconta ac 1 {
       "<div class=\"note\">A app guarda as sugestões de cada dia em que a abres (" ? _ar_verd dy _ar_ps dy 0 P '0 " dia" ? an_um dy 0 "s"
       " até agora). Os primeiros resultados aparecem a partir de amanhã; ao fim de 1–3 meses ficam significativos.</div>" 0 } {
-    "<table class=\"tt\"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>"
+    "<div class=\"tt-w\"><table class=\"tt\"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>"
     = j 0 W < j 7 {
       = a _ar_get ac ka_o j
       ? _ar_verd a {
@@ -414,7 +414,7 @@
           ? || || == j 0 == j 1 == j 6 an_pc 0 / _ar_vnum _ar_get a ka_h _ar_vnum _ar_get a ka_n "—"
           "</td><td class=\"num " an_tn ~ q y "-t\">" an_pc ~ q y "</td></tr>" 0 } 0
       = j + j 1 }
-    "</tbody></table><p class=\"note\">Desde " _ar_ps _ar_get ev ka_since 1 " · " _ar_ps dy 0 " dia" ? an_um dy 0 "s" " guardado" ? an_um dy 0 "s" ".</p>\n                "
+    "</tbody></table></div><p class=\"note\">Desde " _ar_ps _ar_get ev ka_since 1 " · " _ar_ps dy 0 " dia" ? an_um dy 0 "s" " guardado" ? an_um dy 0 "s" ".</p>\n                "
     ? < _ar_vnum dy 20. { "<p class=\"adv-ev\">Ainda é cedo (" _ar_ps dy 0 " dia" ? an_um dy 0 "s" "): diferenças de décimas não querem dizer nada. A tabela começa a valer ao fim de 1 a 3 meses.</p>" 0 } 0
     "\n                <details class=\"how in\"><summary>Como ler esta tabela</summary><ul>\n                    <li>Todos os dias a app guarda o que as regras automáticas sugeriam para cada ativo e o preço desse dia.</li>\n                    <li><b>Casos</b>: quantas vezes a regra sugeriu isto (um ativo num dia conta 1).</li>\n                    <li><b>Desde então</b>: quanto esses ativos subiram ou desceram, em média, desde o dia da sugestão até agora.</li>\n                    <li><b>Acerto</b>: em \"Comprar\", a % de vezes em que o preço subiu depois; em \"Evitar\", a % em que desceu. 80% = acertou 4 em 5.</li>\n                    <li><b>vs VWCE</b>: o mesmo resultado menos o que o VWCE fez no mesmo tempo. Positivo = teria sido melhor do que pôr o dinheiro no VWCE; negativo = pior.</li>\n                    <li>Uma regra só vale a pena se \"Comprar\" ficar acima do VWCE e \"Evitar\" abaixo, durante meses.</li></ul></details>" 0 } }
 # os nomes do BT.worst / BT.best ([nameOf(x.k), x.a])
@@ -432,14 +432,14 @@
   0 }
 : an_btsum i>i b {
   = su _ar_get b ka_sum
-  "<table class=\"tt\"><thead><tr><th>Sugestão</th><th>Casos</th><th>3 meses</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>"
+  "<div class=\"tt-w\"><table class=\"tt\"><thead><tr><th>Sugestão</th><th>Casos</th><th>3 meses</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>"
   = j 0 W < j 7 {
     = a _ar_get su ka_o j
     ? _ar_verd a { "<tr><td>" an_act j "</td><td class=\"num\">" _ar_ps _ar_get a ka_n63 0 "</td><td class=\"num " an_tnv _ar_get a ka_avg63 "-t\">" an_pcv _ar_get a ka_avg63 "</td><td class=\"num\">"
         ? || || == j 0 == j 1 == j 6 an_pcv _ar_get a ka_hit63 "—"
         "</td><td class=\"num " an_tnv _ar_get a ka_ex63 "-t\">" an_pcv _ar_get a ka_ex63 "</td></tr>" 0 } 0
     = j + j 1 }
-  "</tbody></table>\n                "
+  "</tbody></table></div>\n                "
   = bk _ar_get b ka_byKind
   ? an_nk bk { "<p class=\"note\">Em média, face ao VWCE a 3 meses: " an_kinds bk ".</p>" 0 } 0
   "\n                "
