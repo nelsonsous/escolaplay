@@ -13,7 +13,7 @@ import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.6.2';
+const VERSION = '1.6.3';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -326,6 +326,17 @@ async function addPlace(req, env, url) {
     if (on) return json(placeView(me, on), 200);
     const off = near.find((p) => p.off) || null;
     const nowIso = new Date().toISOString();
+    // O dono a ligar uma cidade onde outro telemóvel já tem análise diária (≤ 5 km): não se cria outra — o local passa a
+    // ser do dono (sem pausas nem limites) e quem o ligou junta-se a ele (continua a vê-lo, com a mesma análise e lições)
+    if (me.owner && !off) {
+        const dk = (p) => distKm(p.lat, p.lon, lat, lon);
+        const g = places.filter((p) => !p.off && !isOwnerPlace(p) && dk(p) <= SHARE_KM).sort((a, b) => dk(a) - dk(b))[0];
+        if (g) {
+            const next = { ...g, owner: OWNER, members: [...new Set([...placeMembers(g), placeOwner(g)])], adoptedAt: nowIso };
+            await savePlaces(env, places.map((p) => (p.id === g.id ? next : p)));
+            return json(placeView(me, next, { adopted: true }), 200);
+        }
+    }
     // Na mesma cidade (≤ 5 km) já há uma análise diária (de preferência a do dono): este telemóvel junta-se a ela em vez
     // de criar outra. Acompanha só essa (sai de outra a que se tinha juntado; o seu local, se tiver, fica desligado).
     if (!me.owner) {
