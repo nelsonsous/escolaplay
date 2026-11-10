@@ -238,3 +238,6 @@ button.mu-chip { cursor: pointer; }
 .mu-interruptor b { display: block; font-size: 15px; }
 .mu-interruptor .mu-nota { display: block; margin-top: 2px; }
 .mu-interruptor .mu-btn[aria-pressed="true"] { background: var(--fg); color: #000; }
+
+/* pedir: o botão logo a seguir ao texto; as ideias por baixo */
+.mu-ideias { margin: 18px 2px 8px; color: var(--mut); font-size: 13px; font-weight: 600; }

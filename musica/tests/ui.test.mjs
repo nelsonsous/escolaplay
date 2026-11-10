@@ -253,6 +253,21 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
 
     // 6) um pedido ao Maestro
     await nav(3);
+    // o botão logo a seguir ao texto, antes das ideias: com o teclado do iPhone aberto fica à vista
+    await page.locator('[data-onda="sug\t0"]').waitFor();
+    await page.waitForLoadState('networkidle');
+    const [fimTexto, botao, ideia] = await page.evaluate(() => [document.querySelector('[data-onda="ptx"]').getBoundingClientRect().bottom,
+        document.querySelector('[data-onda="pedir"]').getBoundingClientRect().top, document.querySelector('[data-onda="sug\t0"]').getBoundingClientRect().top]);
+    assert.ok(botao > fimTexto && botao - fimTexto < 40, `o botão está a ${botao - fimTexto}px do texto`);
+    assert.ok(ideia > botao, 'as ideias vêm depois do botão');
+    if (SHOTS) {
+        await page.setViewportSize({ width: 390, height: 420 }); // o que fica à vista com o teclado aberto
+        await page.locator('[data-onda="ptx"]').focus();
+        await page.evaluate(() => document.querySelector('[data-onda="ptx"]').scrollIntoView({ block: 'start' }));
+        await page.evaluate(() => window.scrollBy(0, -70));
+        await page.screenshot({ path: path.join(SHOTS, 'pedir-teclado.png') });
+        await page.setViewportSize({ width: 390, height: 844 });
+    }
     await page.locator('[data-onda="sug\t0"]').click();
     assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), 'Faixas bem gravadas para testar o som do carro');
     // sem letras explícitas (para os mais novos): nas opções
