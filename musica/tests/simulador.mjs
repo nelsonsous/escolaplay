@@ -112,6 +112,11 @@ function tidalSimulado(sim, u, init = {}) {
         return resp({ data: { id: 'uuid-nova', type: 'playlists', attributes: b.data.attributes } }, 201);
     }
     const del = /^\/playlists\/([^/]+)$/.exec(p);
+    if (del && metodo === 'PATCH') {
+        if (del[1] !== 'uuid-nova') return resp({ errors: [{ status: '404', detail: 'Playlist not found' }] }, 404);
+        (sim.renomeadas ||= []).push({ id: del[1], ...JSON.parse(init.body).data.attributes });
+        return resp(null, 204);
+    }
     if (del && metodo === 'DELETE') {
         if (del[1] !== 'uuid-nova') return resp({ errors: [{ status: '404', detail: 'Playlist not found' }] }, 404);
         sim.apagadas.push(del[1]);

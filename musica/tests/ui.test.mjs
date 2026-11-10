@@ -215,6 +215,16 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.getByRole('button', { name: 'Ligado' }).waitFor();
     await page.locator('#mu-aviso').getByText('Passa a atualizar-se sozinha').waitFor();
     assert.equal(JSON.parse(await env.KV.get('playlist:' + JSON.parse(await env.KV.get('playlists'))[0].id)).renovar, true);
+    // mudar o nome: na app e no Tidal (o mesmo link)
+    await page.getByRole('button', { name: 'Mudar o nome' }).click();
+    await page.locator('[data-onda="rn-nome"]').fill('Som do BMW');
+    await page.locator('[data-onda="rn-desc"]').fill('Para testar o carro.');
+    await page.getByRole('button', { name: 'Guardar' }).click();
+    await page.locator('#mu-aviso').getByText(/Nome mudado/).waitFor();
+    await page.getByRole('heading', { name: 'Som do BMW' }).waitFor();
+    const renomeada = JSON.parse(await env.KV.get('playlist:' + JSON.parse(await env.KV.get('playlists'))[0].id));
+    assert.deepEqual([renomeada.nome, renomeada.descricao], ['Som do BMW', 'Para testar o carro.']);
+    if (renomeada.tidal) assert.equal(sim.renomeadas.at(-1).name, 'Som do BMW');
     await nav(1);
     await page.locator('.mu-pl').first().getByText('↻ atualiza-se').waitFor();
     // mais como esta: toca-se numa faixa e cria-se logo no Tidal uma playlist de parecidas

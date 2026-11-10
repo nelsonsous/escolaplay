@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.8.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.9.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -535,4 +535,21 @@ test('como correu: guardadas nas favoritas, tiradas e juntadas no Tidal, eco nas
     assert.deepEqual([ap.etiqueta, ap.nota], ['apagaste', 5]);
     assert.equal((await post(`/api/playlists/${doc.id}/renovar`, { ativo: false }, chave)).status, 200);
     assert.equal('renovar' in (await (await get('/api/playlists', chave)).json())[0], false);
+});
+
+test('mudar o nome: na app e no Tidal (o mesmo link); sem nome, não; a renovação mantém o nome', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const res = await (await post('/api/resolver', { faixas: [{ titulo: 'So What' }, { titulo: 'Teardrop' }] }, chave)).json();
+    const doc = await (await post('/api/playlists', { nome: 'Nome do Maestro', descricao: 'A do Maestro.', faixas: res.faixas, tidal: true }, agente)).json();
+    assert.equal((await post(`/api/playlists/${doc.id}/nome`, { nome: '   ' }, chave)).status, 400);
+    const r = await (await post(`/api/playlists/${doc.id}/nome`, { nome: '  Jazz  do   carro ', descricao: 'Para o BMW.' }, chave)).json();
+    assert.deepEqual([r.nome, r.descricao, r.tidal.id], ['Jazz do carro', 'Para o BMW.', doc.tidal.id]);
+    assert.deepEqual(sim.renomeadas, [{ id: doc.tidal.id, name: 'Jazz do carro', description: 'Para o BMW.', accessType: undefined }].map(({ accessType, ...x }) => x));
+    assert.equal((await (await get('/api/playlists', chave)).json())[0].nome, 'Jazz do carro');
+    // só o nome: a descrição fica
+    assert.equal((await (await post(`/api/playlists/${doc.id}/nome`, { nome: 'Jazz do carro 2' }, chave)).json()).descricao, 'Para o BMW.');
+    // o Maestro renova-a: o nome que a pessoa deu fica
+    const ren = await (await post(`/api/playlists/${doc.id}/renovacoes`, { nome: 'Outro nome do Maestro', faixas: res.faixas, tidal: true }, agente)).json();
+    assert.equal(ren.nome, 'Jazz do carro 2');
 });
