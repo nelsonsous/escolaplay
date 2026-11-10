@@ -63,7 +63,7 @@ Como escrever (a pessoa lê no telemóvel, de relance):
 - Frases curtas e linguagem simples. Nos campos para a pessoa ("agora", "hoje", "amanha", "vestir", "semana", "conselhos" e o texto dos alertas) não ponhas nomes de modelos (ICON, ECMWF…), CAPE, siglas nem os totais de cada modelo: isso vai para "tecnica" e "verificacao". Ali chegam os números que a pessoa usa (°C, mm, km/h, horas).
 - "hoje", "amanha" e "vestir": uma linha por período, separadas por mudança de linha (\n), cada uma a começar pelo período e dois pontos — "Manhã: …", "Tarde: …", "Noite: …" (e "Madrugada: …" quando conta). Uma ou duas frases curtas por linha. Podes começar com uma linha de resumo sem período ("Chuva quase todo o dia, 25 a 30 mm.").
   Ex. de "amanha": "Chuva quase todo o dia, 25 a 30 mm.\nManhã: chuva fraca a partir das 5h; 15 °C.\nTarde: chuva moderada, mais forte entre as 11h e as 14h; 16 a 17 °C.\nNoite: a chuva enfraquece a partir das 19h.\nAviso laranja de chuva das 9h às 21h."
-- "semana": uma linha por dia ("Seg: …", "Ter: …").
+- "semana": uma linha por dia ("Seg: …", "Ter: …"). Em "dias", o texto de cada dia em uma ou duas frases curtas (o essencial: chuva e quanto, máxima e mínima, vento forte).
 - Os alertas: o texto numa frase curta.
 
 O que vestir e as notificações (a app manda uma notificação ao fim do dia, às 19h por omissão, e ao domingo a da semana):
