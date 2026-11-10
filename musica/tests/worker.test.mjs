@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.13.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.14.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -601,7 +601,9 @@ test('ouvir 30 s e capas: a pré-escuta e a capa do Deezer (pelo ISRC ou pela pe
     const res = (await (await post('/api/resolver', { faixas: [{ titulo: 'So What' }, { titulo: 'Feeling Good' }, { titulo: 'Barco Negro' }, { titulo: 'Teardrop' }] }, chave)).json()).faixas;
     const doc = await (await post('/api/playlists', { nome: 'Ouvir', faixas: res.map((f, i) => ({ ...f, genero: i < 3 ? 'jazz' : 'trip-hop' })) }, chave)).json();
     assert.equal(doc.faixas[0].isrc, 'USAAA0000101', 'a faixa guarda o ISRC');
+    const e0 = env.KV.escritas;
     const p = (await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).previas;
+    assert.ok(env.KV.escritas - e0 <= 3, `poucas escritas na KV (a 1.ª vez: as pré-escutas, a playlist e o índice): ${env.KV.escritas - e0}`);
     assert.deepEqual(Object.keys(p).sort(), ['101', '102', '106']);
     assert.match(p[101], /^https:\/\/cdn\.deezer\.example\/So%20What\.mp3\?hdnea=exp=\d+/);
     assert.match(p[102], /feeling-good\.mp3/, 'pelo ISRC');
@@ -618,7 +620,15 @@ test('ouvir 30 s e capas: a pré-escuta e a capa do Deezer (pelo ISRC ou pela pe
     assert.match(c[106], /^https:\/\/cdn-images\.dzcdn\.net\/images\/cover\/[0-9a-f]{32}\/120x120-000000-80-0-0\.jpg$/, 'reserva: o Deezer');
     assert.deepEqual((await (await get('/api/playlists', chave)).json())[0].capas,
         [c[101].replace('160x160', '80x80'), c[102].replace('160x160', '80x80'), c[105].replace('160x160', '80x80'), c[106].replace('/120x120-', '/56x56-')]);
-    const antes2 = sim.chamadas.length;
+    const antes2 = sim.chamadas.length, e1 = env.KV.escritas;
     assert.deepEqual((await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).capas, c);
     assert.equal(sim.chamadas.slice(antes2).filter((x) => /deezer|\/albums|\/tracks/.test(x)).length, 0);
+    assert.equal(env.KV.escritas - e1, 0, 'abrir outra vez não escreve nada');
+    // com a KV cheia (limite do dia), responde na mesma
+    const doc2 = await (await post('/api/playlists', { nome: 'Cheia', faixas: res }, chave)).json();
+    env.KV.cheia = true;
+    const r2 = await get(`/api/playlists/${doc2.id}/previas`, chave);
+    env.KV.cheia = false;
+    assert.equal(r2.status, 200);
+    assert.deepEqual(Object.keys((await r2.json()).previas).sort(), ['101', '102', '106']);
 });
