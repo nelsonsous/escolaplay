@@ -710,3 +710,13 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .sim-tab td { padding: 6px 4px; border-top: 1px solid var(--line); text-align: right; white-space: nowrap; }
 .sim-tab td:first-child { text-align: left; color: var(--muted); }
 .sim-tab .sim-r { color: var(--muted); }
+
+/* Carteira: o rendimento real (4.13) */
+.real-a { fill: var(--up); opacity: .12; }
+.real-v { fill: none; stroke: var(--up); stroke-width: 2.2; stroke-linejoin: round; }
+.real-l { margin: 4px 0 12px; }
+.real-in { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.real-in b { grid-column: 1 / -1; font-size: calc(.9rem * var(--k)); }
+.real-in label { display: flex; flex-direction: column; gap: 3px; }
+.real-in small { color: var(--muted); font-size: calc(.76rem * var(--k)); }
+.real-in .inp { width: 100%; }

@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.12.0';
+    const VERSION = '4.13.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -531,7 +531,7 @@
         return t.exempt ? `${t.exempt}/${t.n} isentas · próxima em ${t.next.days} d` : `isenta em ${t.next.days} d`;
     }
     function setLots(k, L) {
-        if (!L.plan && !(L.buys || []).length) delete cfg.lots[k]; else cfg.lots[k] = L;
+        if (!L.plan && !(L.buys || []).length && !(+L.pm > 0)) delete cfg.lots[k]; else cfg.lots[k] = L;
         saveCfg();
         if (cfg.proxy) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {});
         if (sheetKey === k) renderSheet();
@@ -1098,7 +1098,54 @@
     // A Carteira (4.12) é toda da Onda (mercados/onda/ecra-carteira.onda): o simulador do plano e do objetivo, com o
     // valor por mês, a divisão e o fundo núcleo dos Ajustes. Sem o módulo (sem WebAssembly) diz só que não dá.
     function walletSnap() {
-        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0 };
+        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, real: realSnap() };
+    }
+    // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
+    const LH = {}, lhAt = {}, lhVai = new Set();
+    // o valor por mês do plano de cada ativo, pela divisão dos Ajustes (o fundo núcleo e a cripto)
+    function pmDefault(k) {
+        const b = +cfg.budget || 0, cp = etfCrypto() ? (+cfg.cryptoPct || 0) / 100 : 0;
+        if (k === cfg.coreFund) return Math.round(b * (1 - cp));
+        if (k === 'c:BTC') return Math.round(b * cp * (cfg.cryptoMix === 'btceth' ? 0.7 : 1));
+        if (k === 'c:ETH' && cfg.cryptoMix === 'btceth') return Math.round(b * cp * 0.3);
+        return 0;
+    }
+    const isoT = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10), 12) / 1000;
+    function buysOf(k) {
+        const L = lotOf(k), pm = +L.pm > 0 ? +L.pm : pmDefault(k), n = Math.max(1, (cfg.saveDays || []).length);
+        const plan = pm > 0 ? A.planLots(L.plan, cfg.saveDays, todayLocal()).map((x) => [isoT(x.d), pm / n]) : [];
+        return plan.concat((L.buys || []).filter((x) => +x.e > 0 && /^\d{4}-\d\d-\d\d$/.test(x.d || '')).map((x) => [isoT(x.d), +x.e])).sort((a, b) => a[0] - b[0]);
+    }
+    // os preços em euros: os semanais antes do primeiro dia do ano diário, e o diário
+    function histOf(k) {
+        const w = LH[k] || [], d = D[k] || [], f = qv(k).fx || 1;
+        const cut = d.length ? d[0][0] : Infinity;
+        return w.filter((p) => p[0] < cut).concat(d).filter((p) => fin(p[1]) && p[1] > 0).map(([t, v]) => [t, v * f]);
+    }
+    async function loadLong(keys) {
+        // uma vez a cada 6 h por ativo (também quando falha: sem pedidos repetidos a cada desenho)
+        const novos = keys.filter((k) => REG[k] && !lhVai.has(k) && now() - (lhAt[k] || 0) > 6 * 3600 * 1000 && (REG[k].kind === 'crypto' || cfg.proxy));
+        if (!novos.length) return;
+        await Promise.all(novos.map(async (k) => {
+            lhAt[k] = now(); lhVai.add(k);
+            try {
+                if (REG[k].kind === 'crypto') LH[k] = await klines(REG[k].sym, '5y');
+                else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=5y`, 20000); const q = r.quotes && r.quotes[0]; if (q && q.series) LH[k] = q.series; }
+            } catch { /* fica o histórico de 1 ano */ }
+            lhVai.delete(k);
+        }));
+        if (cfg.tab === 'carteira') scheduleRender();
+    }
+    function realSnap() {
+        const keys = cfg.holdings.filter((k) => REG[k]);
+        const comp = keys.filter((k) => buysOf(k).length);
+        if (comp.length) loadLong(comp.concat([cfg.coreFund]));
+        const t0 = comp.length ? Math.min(...comp.map((k) => buysOf(k)[0][0])) : 0;
+        return {
+            now: now() / 1000, desde: t0 ? dmy(new Date(t0 * 1000).toISOString().slice(0, 10)) : null, loading: lhVai.size > 0,
+            bench: { name: nameOf(cfg.coreFund), px: qv(cfg.coreFund).price, h: histOf(cfg.coreFund) },
+            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: qv(k).price, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k) }; }),
+        };
     }
     function walletHtml() {
         if (aoOk && AO.ecra && AO.ecra.carteira) try { return AO.ecra.carteira(walletSnap()); } catch (e) { console.error('ecrã Onda:', e); }
@@ -2109,12 +2156,18 @@
         for (const r of g.querySelectorAll('.sim-hit')) { const d = Math.abs(+r.dataset.x - x); if (d < bd) { bd = d; best = r; } }
         if (!best) return;
         const c = g.querySelector('.sim-cur'); c.setAttribute('x1', best.dataset.x); c.setAttribute('x2', best.dataset.x);
-        const tip = $('#sim-tip'); if (tip) { tip.textContent = best.dataset.tx; tip.classList.add('on'); }
+        const sec = g.closest('section'), tip = sec && sec.querySelector('.sim-tip'); if (tip) { tip.textContent = best.dataset.tx; tip.classList.add('on'); }
     }
     document.addEventListener('pointerdown', simDedo);
     document.addEventListener('pointermove', (ev) => { if (ev.buttons || ev.pointerType !== 'touch') simDedo(ev); });
     document.addEventListener('change', (ev) => {
         const t = ev.target;
+        if (t.dataset && t.dataset.lot && t.dataset.k && REG[t.dataset.k]) {
+            const k = t.dataset.k, L = { ...lotOf(k) };
+            if (t.dataset.lot === 'plan') L.plan = /^\d{4}-\d\d-\d\d$/.test(t.value) && t.value <= todayLocal() ? t.value : '';
+            else L.pm = Math.max(0, +t.value || 0) || undefined;
+            setLots(k, L); return;
+        }
         if (t.dataset && t.dataset.cfg) {
             cfg[t.dataset.cfg] = ['alertPct', 'budget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
             saveCfg();

@@ -211,7 +211,8 @@ function proxyBody(u) {
     assert.match(await page.locator('.sim-meta p').first().textContent(), /^Chegas lá em \d+ anos/);
     await campo('simYears', 10);
     assert.equal(await page.locator('.sim-tab tbody tr:last-child td').first().textContent(), '10 anos');
-    const gb = await page.locator('svg.sim-g').boundingBox();
+    await page.locator('.sim svg.sim-g').scrollIntoViewIfNeeded();
+    const gb = await page.locator('.sim svg.sim-g').boundingBox();
     await page.mouse.move(gb.x + gb.width * 0.55, gb.y + gb.height / 2);
     assert.match(await page.locator('#sim-tip').textContent(), /^Em [56] anos: [\d\s]+€ · entre .+ · investido [\d\s]+€$/, 'o dedo no gráfico mostra o ano');
     await page.mouse.move(gb.x + gb.width * 0.99, gb.y + gb.height / 2);
@@ -219,8 +220,20 @@ function proxyBody(u) {
     if (SHOTS) { await page.mouse.move(gb.x + gb.width * 0.7, gb.y + gb.height / 2); await page.locator('.sim').screenshot({ path: path.join(SHOTS, '8b-carteira-dedo.png') }); }
     assert.equal(await page.locator('#mk-nav [data-tab="carteira"].on').count(), 1);
     console.log('✓ carteira:', (await page.locator('.sim-big').textContent()).replace(/\s+/g, ' ').trim(), '|', await page.locator('.sim-meta p').first().textContent());
+    // o rendimento real (4.13): desde quando compra pelo plano
+    // (o BTC já traz compras do teste das datas da cripto; o fundo ainda não)
+    const desde = (k, iso) => page.evaluate(([k, iso]) => { const i = document.querySelector(`[data-lot="plan"][data-k="${k}"]`); i.value = iso; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, iso]);
+    const isoAtras = (dias) => new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
+    await desde('VWCE.DE', isoAtras(300));
+    await page.waitForSelector('.real .sim-big b', { timeout: 10000 });
+    assert.match(await page.locator('.real .sim-big b').textContent(), /^\d[\d\s]*\s€$/, 'vale hoje (o pt-PT só agrupa a partir de 10 000)');
+    assert.ok((await page.locator('.real .real-l .row').evaluateAll((rs) => rs.map((r) => r.dataset.open))).includes('VWCE.DE'), 'o fundo entra');
+    assert.match(await page.locator('.real .sim-st div:first-child b').textContent(), /€$/, 'investido');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.lots['VWCE.DE'].plan), isoAtras(300), 'fica guardado');
+    if (SHOTS) await page.locator('.real').screenshot({ path: path.join(SHOTS, '8c-carteira-real.png') });
+    console.log('✓ carteira real:', (await page.locator('.real .sim-big').textContent()).replace(/\s+/g, ' ').trim());
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '8-carteira.png'), fullPage: true });
-    await page.evaluate((b) => { Object.assign(window.__mk.cfg, { budget: b, simGoal: 0, simYears: 20 }); }, orc0);
+    await page.evaluate((b) => { Object.assign(window.__mk.cfg, { budget: b, simGoal: 0, simYears: 20 }); delete window.__mk.cfg.lots['VWCE.DE']; }, orc0);
     await page.click('#mk-nav [data-tab="ajustes"]');
     const firstW = await page.evaluate(() => window.__mk.cfg.watch[0]), secondW = await page.evaluate(() => window.__mk.cfg.watch[1]);
     await page.click(`[data-mv="${secondW}"][data-dir="top"]`);

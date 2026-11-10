@@ -83,3 +83,60 @@ test('carteira: o simulador dá as contas certas', async () => {
     assert.equal(vazio.big, null);
     } finally { await br.close(); }
 });
+
+// ---- o rendimento real (4.13) ----
+const ANO = 31557600;
+const pxEm = (h, t) => { if (t < h[0][0]) return h[0][1]; let r = h[0][1]; for (const [ti, p] of h) if (ti <= t) r = p; return r; };
+const unid = (a) => a.b.reduce((u, [t, e]) => u + e / pxEm(a.h, t), 0);
+function tir(as, V, T) {
+    const fv = (r) => as.reduce((s, a) => s + a.b.reduce((x, [t, e]) => x + e * (1 + r) ** ((T - t) / ANO), 0), 0);
+    let lo = -0.95, hi = 5;
+    for (let k = 0; k < 90; k++) { const md = 0.5 * (lo + hi); if (fv(md) > V) hi = md; else lo = md; }
+    return 0.5 * (lo + hi);
+}
+const pc = (x) => (x >= 0 ? '+' : '−') + new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(x) * 100) + ' %';
+const sg = (x) => (x >= 0 ? '+' : '−') + eur(Math.abs(x));
+
+test('carteira: o rendimento real dá as contas certas', async () => {
+    await AO.ready;
+    const T = Date.UTC(2026, 10, 10) / 1000, DIA = 86400;
+    // preços semanais de 3 anos: o fundo a subir devagar, a cripto aos saltos
+    const sem = (f) => Array.from({ length: 160 }, (_, i) => [T - (159 - i) * 7 * DIA, f(i)]);
+    const hF = sem((i) => 100 * (1 + 0.0012 * i) + 3 * Math.sin(i / 5)), hC = sem((i) => 30000 * (1 + 0.006 * i) + 6000 * Math.sin(i / 7));
+    const mensal = (desde, e) => { const out = []; for (let t = desde; t <= T; t += 30.4 * DIA) out.push([Math.round(t), e]); return out; };
+    const fundo = { k: 'VWCE.DE', name: 'FTSE All-World', px: hF[hF.length - 1][1] * 1.01, h: hF, b: mensal(T - 2.5 * 365 * DIA, 810), plan: '2024-05-02', pm: 0, pmDef: 810 };
+    const cripto = { k: 'c:BTC', name: 'Bitcoin', px: hC[hC.length - 1][1], h: hC, b: mensal(T - 200 * DIA, 90).concat([[T - 40 * DIA, 500]]), plan: '2026-04-24', pm: 90, pmDef: 90 };
+    const vazio = { k: 'c:ETH', name: 'Ether', px: 3000, h: [], b: [], plan: '', pm: 0, pmDef: 0 };
+    const real = { now: T, desde: '02/05/2024', loading: false, bench: { name: 'FTSE All-World', px: fundo.px, h: hF }, ativos: [fundo, cripto, vazio] };
+    const br = await chromium.launch(), pg = await br.newPage();
+    try {
+        await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'FTSE All-World', start: 0, years: 20, goal: 0, real })}</body>`);
+        const d = await pg.evaluate(() => {
+            const r = document.querySelector('.real'), t = (e) => (e ? e.textContent.trim() : null);
+            return { big: t(r.querySelector('.sim-big b')), rng: t(r.querySelector('.sim-rng')), sub: t(r.querySelector('.sec-h .sub')),
+                st: [...r.querySelectorAll('.sim-st b')].map((b) => b.textContent), rows: [...r.querySelectorAll('.real-l .row')].map((x) => [x.dataset.open, t(x.querySelector('.px')), t(x.querySelector('.chg')), t(x.querySelector('.r-sub'))]),
+                hits: r.querySelectorAll('.sim-hit').length, ult: (r.querySelectorAll('.sim-hit')[59] || {}).dataset, ed: [...r.querySelectorAll('[data-lot="pm"]')].map((i) => [i.dataset.k, i.value, i.placeholder]),
+                sim: !!document.querySelector('.sim .sim-big') };
+        });
+        const as = [fundo, cripto];
+        const vF = unid(fundo) * fundo.px, vC = unid(cripto) * cripto.px, V = vF + vC;
+        const E = as.reduce((s, a) => s + a.b.reduce((x, b) => x + b[1], 0), 0);
+        assert.equal(d.big, eur(V), 'vale hoje');
+        assert.equal(d.rng, `${sg(V - E)} (${pc(V / E - 1)}) · ${pc(tir(as, V, T))} por ano`);
+        assert.equal(d.sub, 'desde 02/05/2024');
+        const vb = as.reduce((s, a) => s + a.b.reduce((x, [t, e]) => x + e / pxEm(hF, t), 0), 0) * fundo.px;
+        assert.deepEqual(d.st, [eur(E), sg(V - E), pc(tir(as, V, T)), eur(vb)], 'investido, ganho, por ano, tudo no fundo');
+        const eC = cripto.b.reduce((x, b) => x + b[1], 0);
+        assert.deepEqual(d.rows.map((x) => x[0]), ['VWCE.DE', 'c:BTC'], 'só os ativos com compras');
+        assert.deepEqual(d.rows[1].slice(1), [eur(vC), pc(vC / eC - 1), `investido ${eur(eC)}`], 'a cripto: menos de 1 ano, sem o por ano');
+        assert.ok(d.rows[0][3].endsWith(`${pc(tir([fundo], vF, T))} por ano`), d.rows[0][3]);
+        assert.equal(d.hits, 60, 'o dedo: 60 pontos');
+        assert.ok(d.ult.tx.startsWith(`Hoje: ${eur(V)} · investido ${eur(E)}`), d.ult.tx);
+        assert.deepEqual(d.ed, [['VWCE.DE', '', '810'], ['c:BTC', '90', '90'], ['c:ETH', '', '0']], 'o editor com todos os ativos');
+        assert.ok(d.sim, 'o simulador continua por baixo');
+        // sem compras: pede as datas, com o editor aberto
+        await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'X', start: 0, years: 20, goal: 0, real: { ...real, desde: null, ativos: [vazio] } })}</body>`);
+        assert.match(await pg.textContent('.real .empty'), /Diz desde quando compras/);
+        assert.equal(await pg.getAttribute('.real details.real-ed', 'open'), '');
+    } finally { await br.close(); }
+});
