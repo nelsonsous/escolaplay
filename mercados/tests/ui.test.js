@@ -211,6 +211,12 @@ function proxyBody(u) {
     assert.match(await page.locator('.sim-meta p').first().textContent(), /^Chegas lá em \d+ anos/);
     await campo('simYears', 10);
     assert.equal(await page.locator('.sim-tab tbody tr:last-child td').first().textContent(), '10 anos');
+    const gb = await page.locator('svg.sim-g').boundingBox();
+    await page.mouse.move(gb.x + gb.width * 0.55, gb.y + gb.height / 2);
+    assert.match(await page.locator('#sim-tip').textContent(), /^Em [56] anos: [\d\s]+€ · entre .+ · investido [\d\s]+€$/, 'o dedo no gráfico mostra o ano');
+    await page.mouse.move(gb.x + gb.width * 0.99, gb.y + gb.height / 2);
+    assert.match(await page.locator('#sim-tip').textContent(), /^Em 10 anos: /);
+    if (SHOTS) { await page.mouse.move(gb.x + gb.width * 0.7, gb.y + gb.height / 2); await page.locator('.sim').screenshot({ path: path.join(SHOTS, '8b-carteira-dedo.png') }); }
     assert.equal(await page.locator('#mk-nav [data-tab="carteira"].on').count(), 1);
     console.log('✓ carteira:', (await page.locator('.sim-big').textContent()).replace(/\s+/g, ' ').trim(), '|', await page.locator('.sim-meta p').first().textContent());
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '8-carteira.png'), fullPage: true });
@@ -292,7 +298,7 @@ function proxyBody(u) {
     await page.locator('.row[data-open="VWCE.DE"]').first().click();
     await page.waitForFunction(() => document.querySelector('#d-load') && document.querySelector('#d-load').hidden);
     // a ficha refaz o HTML quando chega a análise: espera pela dica do desenho novo
-    await page.waitForFunction(() => document.querySelector('#d-tip') && document.querySelector('#d-tip').textContent.length > 0);
+    await page.waitForFunction(() => /Último preço/.test((document.querySelector('#d-tip') || {}).textContent || ''), null, { timeout: 5000 }).catch(() => {});
     assert.match(await page.locator('#d-tip').textContent(), /Último preço (de ontem )?às \d\d:\d\d/, 'ficha: hora do último preço');
     // gráfico do dia dos fundos: Xetra (denso) + Munique depois do fecho da Xetra
     const md = await page.evaluate(() => { const t0 = Math.floor(new Date().setHours(9, 0, 0, 0) / 1000); const x = Array.from({ length: 10 }, (_, i) => [t0 + i * 300, 160 + i]); const g = [[t0 + 600, 161], [t0 + 9 * 3600, 170], [t0 + 12 * 3600, 171]]; return window.__mk.mergeDay(x, g).map((p) => p[1]); });

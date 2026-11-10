@@ -52,11 +52,11 @@
 # o valor de um campo: o número, ou vazio
 : cs_campo i>i k { = v cs_num k ? > v 0.0 _nu_ps v 0 0 }
 : cs_x ii>f t y + 34.0 / * 296.0 F t F y
-: cs_y ff>f v vm - 146.0 / * 132.0 v vm
+: cs_y ff>f v vm - 186.0 / * 172.0 v vm
 
 # o gráfico: a faixa entre o pessimista e o otimista, o base, o que se investe e o objetivo
 : cs_graf iiffffff>i y n m c st g vm inv {
-  "<svg class=\"sim-g\" viewBox=\"0 0 340 168\" role=\"img\" aria-label=\"Evolução do valor nos três cenários\">"
+  "<svg class=\"sim-g\" viewBox=\"0 0 340 208\" role=\"img\" aria-label=\"Evolução do valor nos três cenários: arrasta para ver cada ano\">"
   # a faixa: o otimista para a frente, o pessimista para trás
   "<path class=\"sim-band\" d=\"M" = t 0
   W <= t y { ? t " L" 0 _nu_fixo cs_x t y 1 P 32 _nu_fixo cs_y cs_val 2 * t 12 m c st vm 1 = t + t 1 }
@@ -72,9 +72,20 @@
     "<line class=\"sim-goal\" x1=\"34\" x2=\"330\" y1=\"" _nu_fixo gy 1 "\" y2=\"" _nu_fixo gy 1 "\"/>"
     "<text class=\"sim-t\" x=\"36\" y=\"" _nu_fixo - gy 4.0 1 "\">objetivo</text>" 0 } 0
   "<text class=\"sim-t\" x=\"30\" y=\"18\" text-anchor=\"end\">" _nu_compacto vm "</text>"
-  "<text class=\"sim-t\" x=\"30\" y=\"149\" text-anchor=\"end\">0</text>"
-  "<text class=\"sim-t\" x=\"34\" y=\"163\">hoje</text>"
-  "<text class=\"sim-t\" x=\"330\" y=\"163\" text-anchor=\"end\">" N y ? == y 1 " ano" " anos" "</text></svg>" 0 }
+  "<text class=\"sim-t\" x=\"30\" y=\"189\" text-anchor=\"end\">0</text>"
+  "<text class=\"sim-t\" x=\"34\" y=\"203\">hoje</text>"
+  ? > y 3 { "<text class=\"sim-t\" x=\"" _nu_fixo cs_x / y 2 y 1 "\" y=\"203\" text-anchor=\"middle\">" N / y 2 " anos</text>" 0 } 0
+  "<text class=\"sim-t\" x=\"330\" y=\"203\" text-anchor=\"end\">" N y ? == y 1 " ano" " anos" "</text>"
+  # o dedo: uma faixa invisível por ano, com o texto desse ano (a casca mostra-o e põe a linha lá)
+  "<line class=\"sim-cur\" x1=\"-9\" x2=\"-9\" y1=\"10\" y2=\"186\"/>"
+  = w / 296.0 F y = t 0
+  W <= t y {
+    = x cs_x t y = n * t 12
+    "<rect class=\"sim-hit\" x=\"" _nu_fixo - x / w 2.0 1 "\" y=\"0\" width=\"" _nu_fixo w 1 "\" height=\"208\" data-x=\"" _nu_fixo x 1 "\" data-tx=\""
+    ? t { "Em " N t ? == t 1 " ano" " anos" 0 } "Hoje"
+    ": " cs_eur cs_val 1 n m c st " · entre " cs_mil cs_val 0 n m c st " e " cs_mil cs_val 2 n m c st " · investido " cs_eur + st * m F n "\"/>"
+    = t + t 1 }
+  "</svg>" 0 }
 
 # uma linha da tabela: ao fim de t anos
 : cs_linha iffff>i t m c st s0 {
@@ -108,6 +119,7 @@
     "<div class=\"sim-split\">" ? > m 0.0 { cs_eur m " por mês · " 0 } 0
     ? > c 0.0 { _nu_intl * 100.0 - 1.0 c 0 " % " _ar_ps sg $"core" 1 " · " _nu_intl * 100.0 c 0 " % cripto" 0 } { "100 % " _ar_ps sg $"core" 1 0 } "</div></div>"
     cs_graf y n m c st g vm inv
+    "<div class=\"sim-tip\" id=\"sim-tip\">Arrasta o dedo no gráfico para ver cada ano.</div>"
     "<div class=\"sim-leg\"><span><i class=\"b\"></i>base</span><span><i class=\"f\"></i>pessimista a otimista</span><span><i class=\"v\"></i>o que investes</span></div>"
     # o resumo: investido, ganho, em euros de hoje, imposto no fim
     = imp cs_imp n m c st

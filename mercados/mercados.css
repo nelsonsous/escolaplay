@@ -694,6 +694,11 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .sim-base { fill: none; stroke: var(--up); stroke-width: 2.2; stroke-linejoin: round; }
 .sim-inv { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 4; }
 .sim-goal { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 3; }
+.sim-g { touch-action: pan-y; cursor: crosshair; }
+.sim-hit { fill: transparent; }
+.sim-cur { stroke: var(--text); stroke-width: 1; opacity: .55; }
+.sim-tip { min-height: 1.4em; color: var(--muted); font-size: calc(.84rem * var(--k)); margin: 0 2px 4px; font-variant-numeric: tabular-nums; }
+.sim-tip.on { color: var(--text); }
 .sim-t { fill: var(--muted); font-size: 9px; font-family: inherit; }
 .sim-leg { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: calc(.76rem * var(--k)); margin: 0 2px 12px; }
 .sim-leg i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }

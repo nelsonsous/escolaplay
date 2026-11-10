@@ -2098,6 +2098,21 @@
         }
     });
 
+    // Carteira: o dedo no gráfico do simulador mostra o ano por baixo dele (o texto vem feito da Onda, em data-tx)
+    function simDedo(ev) {
+        const g = ev.target.closest && ev.target.closest('svg.sim-g');
+        if (!g) return;
+        const pt = g.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+        const m = g.getScreenCTM(); if (!m) return;
+        const x = pt.matrixTransform(m.inverse()).x;
+        let best = null, bd = Infinity;
+        for (const r of g.querySelectorAll('.sim-hit')) { const d = Math.abs(+r.dataset.x - x); if (d < bd) { bd = d; best = r; } }
+        if (!best) return;
+        const c = g.querySelector('.sim-cur'); c.setAttribute('x1', best.dataset.x); c.setAttribute('x2', best.dataset.x);
+        const tip = $('#sim-tip'); if (tip) { tip.textContent = best.dataset.tx; tip.classList.add('on'); }
+    }
+    document.addEventListener('pointerdown', simDedo);
+    document.addEventListener('pointermove', (ev) => { if (ev.buttons || ev.pointerType !== 'touch') simDedo(ev); });
     document.addEventListener('change', (ev) => {
         const t = ev.target;
         if (t.dataset && t.dataset.cfg) {
