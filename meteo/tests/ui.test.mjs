@@ -228,6 +228,15 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     page.on('dialog', (d) => { errors.push('dialog (XSS?): ' + d.message()); d.dismiss(); });
     const shot = async (name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, name), fullPage: true }); } };
     const noOverflow = async (where) => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `sem scroll horizontal em ${where}`);
+    // um dedo a deslizar (TouchEvents sintéticos, como no iPhone): começa no 1.º ponto, passa pelos outros e larga no último
+    const swipe = (sel, pts, { lift = true } = {}) => page.evaluate(({ sel, pts, lift }) => {
+        const el = document.querySelector(sel);
+        const t = ([x, y]) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+        el.dispatchEvent(new TouchEvent('touchstart', { touches: [t(pts[0])], changedTouches: [t(pts[0])], bubbles: true, cancelable: true }));
+        for (const p of pts.slice(1)) el.dispatchEvent(new TouchEvent('touchmove', { touches: [t(p)], changedTouches: [t(p)], bubbles: true, cancelable: true }));
+        if (lift) el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(pts.at(-1))], bubbles: true }));
+    }, { sel, pts, lift });
+    const LEFT = [[300, 400], [288, 401], [200, 404], [120, 405]], RIGHT = [[90, 400], [102, 401], [200, 404], [290, 405]];
     const tab = async (t) => { await page.click(`#mt-nav [data-tab="${t}"]`); await page.waitForFunction((x) => document.querySelector(`#mt-nav [data-tab="${x}"]`).classList.contains('on'), t); };
     const toastIs = async (re) => { await page.waitForFunction((s) => new RegExp(s).test(document.querySelector('#mt-toast').textContent) && document.querySelector('#mt-toast').classList.contains('show'), re.source); };
 
@@ -414,6 +423,41 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     if (SHOTS) await page.locator('#mt-sheet-card').screenshot({ path: path.join(SHOTS, '04b-hoje.png') });
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    // gestos na folha do dia: para os lados muda de dia; puxar para baixo fecha (mesmo começando em cima do gráfico)
+    await page.click('.row.day[data-day="2"]');
+    await page.waitForSelector('#mt-sheet:not([hidden]) #d-chart svg');
+    await swipe('#mt-sheet-title', LEFT);
+    await page.waitForFunction(() => /9 nov/.test(document.querySelector('#mt-sheet-title').textContent));
+    assert.equal(await page.evaluate(() => window.__mt.st.sheet.arg), 3);
+    await swipe('#mt-sheet-title', RIGHT);
+    await page.waitForFunction(() => /Domingo, 8 nov/.test(document.querySelector('#mt-sheet-title').textContent));
+    await swipe('#mt-sheet-title', [[200, 300], [200, 312], [200, 322]]); // pouco: volta ao sítio
+    await page.waitForTimeout(260);
+    assert.equal(await page.evaluate(() => document.querySelector('#mt-sheet').hidden), false, 'um puxão curto não fecha');
+    assert.equal(await page.evaluate(() => document.querySelector('#mt-sheet-card').style.transform), '');
+    const scrolls = await page.evaluate(() => { const c = document.querySelector('#mt-sheet-card'); c.scrollTop = 120; return c.scrollTop > 0; });
+    if (scrolls) {
+        await swipe('#mt-sheet-title', [[200, 300], [200, 330], [200, 500]]);
+        await page.waitForTimeout(260);
+        assert.equal(await page.evaluate(() => document.querySelector('#mt-sheet').hidden), false, 'a meio da folha, puxar para baixo só sobe o conteúdo');
+        await page.evaluate(() => { document.querySelector('#mt-sheet-card').scrollTop = 0; });
+    }
+    assert.ok(await page.evaluate(() => { const c = document.querySelector('#d-chart .chart-scroll'); return c.scrollWidth > c.clientWidth; }), 'o gráfico desliza para os lados');
+    await swipe('#d-chart .chart-scroll', LEFT); // em cima do gráfico, para os lados é o gráfico (não muda de dia)
+    assert.equal(await page.evaluate(() => window.__mt.st.sheet.arg), 2);
+    await swipe('#d-chart .chart-scroll', [[200, 500], [202, 514], [204, 600], [205, 700]]);
+    await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    // deslizar para os lados muda de separador: Dias → Agora; no primeiro, para a direita fica; um toque curto não muda
+    await swipe('#mt-body', RIGHT);
+    await page.waitForSelector('#mt-nav [data-tab="agora"].on');
+    await swipe('#mt-body', RIGHT);
+    await swipe('#mt-body', [[300, 400], [288, 401], [270, 402]]);
+    await page.waitForTimeout(260);
+    assert.equal(await page.evaluate(() => window.__mt.cfg.tab), 'agora');
+    assert.equal(await page.evaluate(() => document.querySelector('#mt-body').style.transform), '');
+    await swipe('#mt-body', LEFT);
+    await page.waitForSelector('#mt-nav [data-tab="dias"].on');
+    console.log('✓ gestos: folha do dia (para os lados muda de dia, para baixo fecha), separadores para os lados');
     console.log('✓ Dias: 16 dias, folha do domingo com as horas, dia 11 sem horas, hoje com as próximas 12 horas');
 
     // 4) Satélite e incêndios
@@ -737,6 +781,27 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(await page.locator('#mt-sheet-title').textContent(), /Os meus locais/);
     assert.match(locs, /Porto.*a ver agora/s);
     assert.match(locs, /^Porto a ver agora✕\S.*✦ análise do Claude/s, 'o outro local (com análise diária) marcado com ✦');
+    // arrastar uma linha para a esquerda apaga-a (com «Desfazer»); o vermelho «Apagar» aparece por trás
+    const row0 = '#mt-sheet .locs .wl-i:first-child .wl-go';
+    const rowState = () => page.evaluate(() => { const r = document.querySelector('#mt-sheet .locs .wl-i:first-child'); return [r.classList.contains('swp'), r.classList.contains('arm'), r.dataset.sw || '']; });
+    const lift = () => page.evaluate((s) => document.querySelector(s).dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true })), row0);
+    await swipe(row0, [[300, 300], [288, 301], [262, 302]], { lift: false });
+    assert.deepEqual(await rowState(), [true, false, 'Apagar']);
+    await lift(); // larga antes do limite: volta ao sítio
+    await page.waitForTimeout(260);
+    assert.equal(await page.evaluate(() => window.__mt.cfg.favs[0]?.name), 'Porto', 'curto demais: não apaga');
+    assert.deepEqual(await rowState(), [false, false, 'Apagar']);
+    await swipe(row0, [[340, 300], [328, 301], [200, 302], [100, 303]], { lift: false });
+    assert.deepEqual(await rowState(), [true, true, 'Apagar'], 'passou o limite: fica vermelho');
+    await lift();
+    await toastIs(/Porto apagado dos teus locais/);
+    assert.ok(!(await page.evaluate(() => window.__mt.cfg.favs.some((f) => f.name === 'Porto'))));
+    assert.doesNotMatch(await page.locator('#mt-sheet .locs').textContent(), /^Porto/);
+    await page.click('#mt-toast .t-undo');
+    await page.waitForFunction(() => window.__mt.cfg.favs[0]?.name === 'Porto');
+    assert.match(await page.locator('#mt-sheet .locs').textContent(), /^Porto a ver agora✕/);
+    assert.equal(await page.evaluate(() => document.querySelector('#mt-sheet').hidden), false, 'a folha continua aberta');
+    console.log('✓ gestos: arrastar para a esquerda apaga um local, com «Desfazer»');
     if (SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(SHOTS, '08-os-meus-locais.png') }); }
     await page.click('#mt-sheet [data-act="close"]');
     await page.waitForSelector('#mt-sheet', { state: 'hidden' });
