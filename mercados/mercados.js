@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.18.0';
+    const VERSION = '4.18.4';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1105,10 +1105,13 @@
     // A Carteira (4.12) é toda da Onda (mercados/onda/ecra-carteira.onda): o simulador do plano e do objetivo, com o
     // valor por mês, a divisão e o fundo núcleo dos Ajustes. Sem o módulo (sem WebAssembly) diz só que não dá.
     // o que se tem hoje, pelas quantidades da Carteira: o valor e a parte em cripto (o ponto de partida do simulador)
+    // a carteira conta sempre em euros (o preço médio da TR é em euros), também com «Moeda local» nos Ajustes
+    const fxPara = (q) => (q.currency && q.currency !== 'EUR' ? fxFactor(q.currency) || NaN : 1);
+    const pxEur = (k) => { const q = qv(k); return q.price * fxPara(q); };
     function carteiraHoje() {
         let v = 0, vc = 0;
         for (const k of cfg.holdings) {
-            const L = lotOf(k), p = qv(k).price;
+            const L = lotOf(k), p = pxEur(k);
             if (!REG[k] || !temHoje(L) || !fin(p) || p <= 0) continue;
             const x = +L.qty * p; v += x; if (REG[k].kind === 'crypto') vc += x;
         }
@@ -1134,7 +1137,11 @@
     const numPt = (t) => { t = String(t).replace(/\s/g, ''); if (t.includes(',') && t.includes('.')) t = t.replace(/\./g, ''); return +t.replace(',', '.'); };
     function importLots(txt) {
         let ok = 0; const bad = [];
-        for (let linha of String(txt).split(/\n+/).map((x) => x.trim()).filter(Boolean)) {
+        // o símbolo sem a bolsa (VWCE → VWCE.DE): primeiro nos ativos que já tem
+        const semBolsa = (x) => x.replace(/\.[A-Z]{1,3}$/i, '').toUpperCase();
+        const chaves = [...new Set([...cfg.holdings, ...Object.keys(REG)])].filter((x) => REG[x]);
+        // como vem da TR ou de uma folha de cálculo: «€», «EUR», «@», «;», tabulações e espaços duros contam como espaço
+        for (let linha of String(txt).split(/\n+/).map((x) => x.replace(/[€@;|]|\bEUR\b/gi, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean)) {
             // a data no fim, opcional: 02/11/2026 ou 2026-11-02 (desde quando o tem: o gráfico e o rendimento por ano)
             let qd = '';
             const dm = linha.match(/\s+(?:(\d{1,2})\/(\d{1,2})\/(\d{4})|(\d{4})-(\d{2})-(\d{2}))$/);
@@ -1145,7 +1152,7 @@
             }
             const m = linha.match(/^(\S+(?:\s+\S+)*?)\s+([\d.,]+)\s+([\d][\d.,\s]*)$/);
             const tok = m ? m[1].trim() : '', T = tok.toUpperCase();
-            const k = m && (REG[tok] ? tok : REG['c:' + T] ? 'c:' + T : Object.keys(REG).find((x) => (REG[x].sym || '').toUpperCase() === T || nameOf(x).toUpperCase() === T));
+            const k = m && (REG[tok] ? tok : REG['c:' + T] ? 'c:' + T : chaves.find((x) => (REG[x].sym || '').toUpperCase() === T || nameOf(x).toUpperCase() === T) || chaves.find((x) => semBolsa(x) === T));
             const q = m ? numPt(m[2]) : NaN, a = m ? numPt(m[3]) : NaN;
             if (!k || !(q > 0) || !(a > 0)) { bad.push(tok || linha.slice(0, 12)); continue; }
             cfg.lots[k] = { ...lotOf(k), qty: q, avg: a, cost: Math.round(q * a * 100) / 100, ...(qd ? { qd } : {}) };
@@ -1166,7 +1173,8 @@
     }
     // os preços em euros: os semanais antes do primeiro dia do ano diário, e o diário
     function histOf(k) {
-        const w = LH[k] || [], d = D[k] || [], f = qv(k).fx || 1;
+        const q = qv(k), w = LH[k] || [], d = D[k] || [], f = (q.fx || 1) * fxPara(q);
+        if (!fin(f)) return [];
         const cut = d.length ? d[0][0] : Infinity;
         return w.filter((p) => p[0] < cut).concat(d).filter((p) => fin(p[1]) && p[1] > 0).map(([t, v]) => [t, v * f]);
     }
@@ -1192,8 +1200,8 @@
         const t0 = ts.length === comp.length && ts.length ? Math.min(...ts) : 0;
         return {
             edOpen: !!st.fold['real-ed'], now: now() / 1000, desde: t0 ? dmy(new Date(t0 * 1000).toISOString().slice(0, 10)) : null, loading: lhVai.size > 0,
-            bench: { name: nameOf(cfg.coreFund), px: qv(cfg.coreFund).price, h: histOf(cfg.coreFund) },
-            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: qv(k).price, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: +L.qty || 0, cost: +L.cost || 0, avg: +L.avg || (+L.qty > 0 && +L.cost > 0 ? Math.round((+L.cost / +L.qty) * 1e4) / 1e4 : 0), qd: L.qd || '' }; }),
+            bench: { name: nameOf(cfg.coreFund), px: pxEur(cfg.coreFund), h: histOf(cfg.coreFund) },
+            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: +L.qty || 0, cost: +L.cost || 0, avg: +L.avg || (+L.qty > 0 && +L.cost > 0 ? Math.round((+L.cost / +L.qty) * 1e4) / 1e4 : 0), qd: L.qd || '' }; }),
         };
     }
     function walletHtml() {
@@ -1719,37 +1727,44 @@
     }
     // puxar a folha para baixo para fechar (como nas apps de bolsa); a velocidade conta pelo tempo dos próprios toques
     // (e.timeStamp), não pelo relógio de quando o browser os trata (com o telemóvel ocupado chegam todos de seguida)
+    // Em qualquer parte, como na TR: no gráfico (para baixo puxa; para o lado é o dedo nos preços), no fundo escuro e,
+    // com o conteúdo descido, ao subir até ao topo e continuar a puxar no mesmo gesto.
     (function swipeToClose() {
-        const c = $('#mk-sheet-card'), bg = $('.mk-sheet-bg');
-        let y0 = null, dy = 0, t0 = 0, drag = false;
-        c.addEventListener('touchstart', (e) => {
-            if (e.touches.length !== 1 || e.target.closest('#d-cv')) { y0 = null; return; }
-            y0 = e.touches[0].clientY; dy = 0; t0 = e.timeStamp; drag = false;
+        const sh = $('#mk-sheet'), c = $('#mk-sheet-card'), bg = $('.mk-sheet-bg');
+        // o gesto: null (ainda não se sabe), 'x' (para o lado), 'ler' (a deslizar o conteúdo) ou 'puxa'
+        let y0 = null, x0 = 0, yAnt = 0, dy = 0, t0 = 0, modo = null, naFolha = true;
+        sh.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) { y0 = null; return; }
+            y0 = yAnt = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; t0 = e.timeStamp; modo = null; naFolha = c.contains(e.target);
         }, { passive: true });
-        c.addEventListener('touchmove', (e) => {
+        sh.addEventListener('touchmove', (e) => {
             if (y0 == null) return;
-            dy = e.touches[0].clientY - y0;
-            if (!drag) {
-                if (dy > 6 && c.scrollTop <= 0) drag = true;
-                else if (dy < -6 || c.scrollTop > 0) { y0 = null; return; }
-                else return;
+            const y = e.touches[0].clientY, mx = e.touches[0].clientX - x0, desce = y > yAnt;
+            yAnt = y; dy = y - y0;
+            if (modo == null) {
+                if (Math.abs(dy) < 7 && Math.abs(mx) < 7) return;
+                modo = Math.abs(mx) > Math.abs(dy) ? 'x' : dy > 0 && (!naFolha || c.scrollTop <= 0) ? 'puxa' : 'ler';
             }
-            e.preventDefault();
+            if (modo === 'x') return;
+            // a subir o conteúdo até ao topo e a continuar a puxar: passa a fechar, a contar daqui
+            if (modo === 'ler') { if (!(desce && c.scrollTop <= 0)) return; modo = 'puxa'; y0 = y; t0 = e.timeStamp; dy = 0; }
+            st.puxaFolha = true;
+            if (e.cancelable) e.preventDefault();
             const d = Math.max(0, dy);
             c.style.transition = 'none'; c.style.transform = `translateY(${d}px)`;
             bg.style.transition = 'none'; bg.style.opacity = String(Math.max(0.15, 1 - d / 500));
         }, { passive: false });
         const end = (e) => {
             if (y0 == null) return;
-            const was = drag; y0 = null; drag = false;
-            if (!was) return;
+            const era = modo === 'puxa'; y0 = null; modo = null; st.puxaFolha = false;
+            if (!era) return;
             const v = dy / Math.max(1, e.timeStamp - t0);
             if (dy > 110 || (dy > 30 && v > 0.5)) { closeSheet(true); return; }
             c.style.transition = 'transform .2s ease-out'; c.style.transform = '';
             bg.style.transition = 'opacity .2s'; bg.style.opacity = '';
         };
-        c.addEventListener('touchend', end);
-        c.addEventListener('touchcancel', end);
+        sh.addEventListener('touchend', end);
+        sh.addEventListener('touchcancel', end);
     })();
     function analyseOne(k) {
         const c = closesFor(k);
@@ -1969,7 +1984,7 @@
         const cv = $('#d-cv');
         if (!cv) return;
         const at = (ev) => {
-            if (!sheetPts || sheetPts.length < 2 || !sheetDraw) return;
+            if (st.puxaFolha || !sheetPts || sheetPts.length < 2 || !sheetDraw) return;
             const x = ev.clientX - cv.getBoundingClientRect().left;
             let best = 0, bd = Infinity;
             for (let i = 0; i < sheetPts.length; i++) { const d = Math.abs(sheetDraw.X(i) - x); if (d < bd) { bd = d; best = i; } }

@@ -419,6 +419,7 @@ div.claude { cursor: auto; }
 .mt-nav button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0; color: var(--muted); font-size: calc(.72rem * var(--k)); cursor: pointer; border-radius: 10px; min-height: 48px; }
 .mt-nav svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .mt-nav button.on { color: #fff; }
+.mt-nav button.peek { color: var(--soft); background: var(--card2); }
 
 /* ---------- folha de detalhe ---------- */
 .mt-sheet { position: fixed; inset: 0; z-index: 40; overflow: hidden; }
@@ -492,6 +493,13 @@ div.claude { cursor: auto; }
 .cl-opt .cl-on { width: 100%; margin-top: 12px; white-space: normal; text-align: center; line-height: 1.3; }
 .cl-opt .cl-on .i { color: currentColor; width: 1.1em; height: 1.1em; flex: none; }
 .wl-i.off b, .wl-i.off small { opacity: .6; }
+/* arrastar para a esquerda para apagar: a linha desliza e o vermelho aparece por trás */
+.swp { position: relative; overflow: hidden; touch-action: pan-y; }
+.swp > * { transform: translateX(var(--sx, 0px)); }
+.swp.snap > * { transition: transform .2s ease-out; }
+.swp::after { content: attr(data-sw); position: absolute; top: 0; bottom: 0; right: 0; width: max(0px, calc(-1 * var(--sx, 0px))); box-sizing: border-box; display: flex; align-items: center; justify-content: flex-end; padding-right: 16px; overflow: hidden; white-space: nowrap; background: var(--down-bg); color: var(--down); font-weight: 650; }
+.swp.arm::after { background: var(--down); color: #fff; }
+.swp.snap::after { transition: width .2s ease-out, background .15s; }
 .own-note { margin: 0; }
 /* painel "Utilização" */
 .use-st { margin-bottom: 0; }

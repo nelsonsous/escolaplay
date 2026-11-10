@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.16.7';
+const VERSION = '1.17.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -1320,67 +1320,170 @@ function renderSheet() {
         if (hours.length) renderHourly($('#d-chart'), hours, { todayIso: today });
     }
 }
-// puxar a folha para baixo para fechar (como na Mercados)
-(function swipeToClose() {
-    const c = $('#mt-sheet-card'), bg = $('.mt-sheet-bg');
-    let y0 = null, dy = 0, t0 = 0, drag = false;
-    c.addEventListener('touchstart', (e) => {
-        if (e.touches.length !== 1 || e.target.closest('.chart-scroll, input')) { y0 = null; return; }
-        y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); drag = false;
-    }, { passive: true });
-    c.addEventListener('touchmove', (e) => {
-        if (y0 == null) return;
-        dy = e.touches[0].clientY - y0;
-        if (!drag) {
-            if (dy > 6 && c.scrollTop <= 0) drag = true;
-            else if (dy < -6 || c.scrollTop > 0) { y0 = null; return; }
-            else return;
+// ---------- gestos de toque ----------
+// Um só motor decide o gesto no primeiro movimento, para não se atropelarem:
+// • folha aberta: puxar para baixo fecha-a (de qualquer ponto, se estiver no topo); na folha do dia, para os lados muda de dia;
+// • linha com ✕ (locais, aviso de instalar): arrastar para a esquerda apaga, como no Mail do iPhone;
+// • página: para os lados muda de separador (Agora ⇄ Dias ⇄ Satélite ⇄ Análise ⇄ Ajustes); no topo, para baixo atualiza.
+// O que já desliza sozinho para os lados (gráfico das horas, tabelas, botões a mais) e as caixas de texto ficam de fora.
+const TABS = ['agora', 'dias', 'satelite', 'analise', 'ajustes'];
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const slideIn = (el, dir) => { if (dir && !calm() && el.animate) el.animate([{ transform: `translateX(${dir * 56}px)`, opacity: 0.25 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'cubic-bezier(.2, .8, .2, 1)' }); };
+function goTab(tab, dir = 0) {
+    if (!TABS.includes(tab)) return;
+    cfg.tab = tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render();
+    if (tab === 'ajustes') loadStatus();
+    slideIn($('#mt-body'), dir);
+}
+function goDay(i, dir = 0) {
+    if (st.sheet?.kind !== 'day' || !st.fc?.daily?.[i]) return false;
+    openSheet('day', i);
+    slideIn($('#mt-sheet-card'), dir);
+    return true;
+}
+const SWIPE_LABEL = (x) => (x.dataset.rmfav != null ? 'Apagar' : x.dataset.rmplace ? 'Desligar' : 'Fechar');
+// depois de um gesto, o dedo a sair não conta como toque no que estava debaixo dele (os cliques do próprio código passam)
+let noClick = { until: 0, el: null, x: 0, y: 0 };
+document.addEventListener('click', (e) => {
+    const n = noClick.el;
+    if (e.isTrusted && n && Date.now() < noClick.until && Math.abs(e.clientX - noClick.x) < 30 && Math.abs(e.clientY - noClick.y) < 30
+        && (n.contains(e.target) || e.target.contains(n))) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+(function gestures() {
+    const body = $('#mt-body'), ptr = $('#mt-ptr'), sheet = $('#mt-sheet'), card = $('#mt-sheet-card'), bg = $('.mt-sheet-bg'), PTR = 70;
+    let g = null, busy = false;
+    const hScroll = (el, stop) => {
+        for (; el && el !== stop && el !== document.body; el = el.parentElement) {
+            if (el.scrollWidth > el.clientWidth + 2 && /auto|scroll/.test(getComputedStyle(el).overflowX)) return el;
         }
-        e.preventDefault();
-        const d = Math.max(0, dy);
-        c.style.transition = 'none'; c.style.transform = `translateY(${d}px)`;
-        bg.style.transition = 'none'; bg.style.opacity = String(Math.max(0.15, 1 - d / 500));
-    }, { passive: false });
-    const end = () => {
-        if (y0 == null) return;
-        const was = drag; y0 = null; drag = false;
-        if (!was) return;
-        const v = dy / Math.max(1, Date.now() - t0);
-        if (dy > 110 || (dy > 30 && v > 0.5)) { closeSheet(true); return; }
-        c.style.transition = 'transform .2s ease-out'; c.style.transform = '';
-        bg.style.transition = 'opacity .2s'; bg.style.opacity = '';
+        return null;
     };
-    c.addEventListener('touchend', end);
-    c.addEventListener('touchcancel', end);
-})();
-
-// puxar para baixo no topo da página → atualizar
-(() => {
-    const ptr = $('#mt-ptr'), body = $('#mt-body'), TH = 70;
-    let y0 = null, x0 = 0, dy = 0, busy = false;
-    const set = (h, txt) => { ptr.style.height = h + 'px'; ptr.firstChild.textContent = txt; body.style.transform = h ? `translateY(${h}px)` : ''; };
+    const swRow = (t) => { const r = t.closest('.wl-i, .banner'), x = r?.querySelector(':scope > .xbtn'); return x ? { r, x } : null; };
+    const ptrSet = (h, txt) => { ptr.style.height = h + 'px'; ptr.firstChild.textContent = txt; body.style.transform = h ? `translateY(${h}px)` : ''; };
+    const fast = (G, d) => Math.abs(d) / Math.max(1, Date.now() - G.t0) > 0.5;
+    const rowMin = (w) => Math.max(90, w * 0.35);
+    const peek = (tab) => $$('#mt-nav button').forEach((b) => b.classList.toggle('peek', b.dataset.tab === tab));
+    const pick = (G, ax, ay) => {
+        if (G.field) return '';
+        const horiz = ax > ay * 1.3;
+        if (G.inSheet) {
+            if (!horiz) return G.dy > 0 && G.top && card.scrollTop <= 0 ? 'sheet' : '';
+            if (G.hs) return '';
+            if (G.row && G.dx < 0) return 'row';
+            return st.sheet?.kind === 'day' ? 'day' : '';
+        }
+        if (horiz) {
+            if (G.hs || st.pulling) return '';
+            if (G.row && G.dx < 0) return 'row';
+            // no Safari (fora da app instalada) o bordo esquerdo é o «voltar» do próprio browser
+            if (G.x0 < 20 && G.dx > 0 && !isStandalone()) return '';
+            return 'tab';
+        }
+        return G.dy > 0 && G.top && window.scrollY <= 0 && !busy ? 'ptr' : '';
+    };
+    const move = {
+        sheet(G) {
+            const d = Math.max(0, G.dy);
+            card.style.transition = 'none'; card.style.transform = `translateY(${d}px)`;
+            bg.style.transition = 'none'; bg.style.opacity = String(Math.max(0.15, 1 - d / 500));
+        },
+        day(G) {
+            const has = !!st.fc?.daily?.[st.sheet.arg + (G.dx < 0 ? 1 : -1)];
+            card.style.transition = 'none'; card.style.transform = `translateX(${G.dx * (has ? 0.45 : 0.12)}px)`;
+        },
+        tab(G) {
+            const next = TABS[TABS.indexOf(cfg.tab) + (G.dx < 0 ? 1 : -1)];
+            body.style.transition = 'none'; body.style.transform = `translateX(${G.dx * (next ? 0.4 : 0.12)}px)`;
+            body.style.opacity = next ? String(1 - Math.min(0.45, Math.abs(G.dx) / 600)) : '';
+            peek(next && Math.abs(G.dx) > 80 ? next : '');
+        },
+        row(G) {
+            const { r } = G.row, w = r.offsetWidth, d = Math.min(0, G.dx), lim = w * 0.7;
+            r.classList.add('swp'); r.classList.remove('snap');
+            r.dataset.sw = SWIPE_LABEL(G.row.x);
+            r.style.setProperty('--sx', `${d < -lim ? -lim + (d + lim) * 0.25 : d}px`);
+            r.classList.toggle('arm', -d > rowMin(w));
+        },
+        ptr(G) {
+            if (G.dy <= 0) { if (st.pulling) { st.pulling = false; ptrSet(0, ''); } return; }
+            st.pulling = true; G.h = Math.min(120, G.dy * 0.5);
+            body.style.transition = 'none'; ptr.style.transition = 'none';
+            ptrSet(G.h, G.h > PTR * 0.7 ? 'Larga para atualizar' : 'Puxa para atualizar');
+        },
+    };
+    const done = {
+        sheet(G, ok) {
+            if (ok && (G.dy > 110 || (G.dy > 30 && fast(G, G.dy)))) { closeSheet(true); return; }
+            card.style.transition = 'transform .2s ease-out'; card.style.transform = '';
+            bg.style.transition = 'opacity .2s'; bg.style.opacity = '';
+        },
+        day(G, ok) {
+            const dir = G.dx < 0 ? 1 : -1;
+            card.style.transition = 'transform .2s ease-out'; card.style.transform = '';
+            if (ok && (Math.abs(G.dx) > 80 || (Math.abs(G.dx) > 40 && fast(G, G.dx)))) { card.style.transition = ''; goDay(st.sheet.arg + dir, dir); }
+        },
+        tab(G, ok) {
+            const dir = G.dx < 0 ? 1 : -1, next = TABS[TABS.indexOf(cfg.tab) + dir];
+            peek('');
+            body.style.transition = 'transform .2s ease-out, opacity .2s'; body.style.transform = ''; body.style.opacity = '';
+            setTimeout(() => { body.style.transition = ''; }, 220);
+            if (ok && next && (Math.abs(G.dx) > 80 || (Math.abs(G.dx) > 40 && fast(G, G.dx)))) { body.style.transition = ''; goTab(next, dir); }
+        },
+        row(G, ok) {
+            const { r, x } = G.row, w = r.offsetWidth, d = -Math.min(0, G.dx);
+            r.classList.add('snap');
+            if (ok && (d > rowMin(w) || (d > 50 && fast(G, d)))) {
+                r.style.setProperty('--sx', `${-w}px`);
+                setTimeout(() => { x.click(); if (r.isConnected) { r.style.setProperty('--sx', '0px'); setTimeout(() => r.classList.remove('swp', 'snap', 'arm'), 220); } }, 170);
+                return;
+            }
+            r.style.setProperty('--sx', '0px'); r.classList.remove('arm');
+            setTimeout(() => r.classList.remove('swp', 'snap'), 220);
+        },
+        ptr() {
+            if (!st.pulling) return;
+            body.style.transition = ''; ptr.style.transition = '';
+            if (st.pullH > PTR * 0.7 && cfg.loc) {
+                busy = true; ptrSet(44, 'A atualizar…');
+                Promise.all([refresh(), loadStatus()]).finally(() => { busy = false; st.pulling = false; ptrSet(0, ''); scheduleRender(); });
+            } else { st.pulling = false; ptrSet(0, ''); }
+        },
+    };
+    const end = (ok) => {
+        if (!g) return;
+        const G = g; g = null;
+        if (!G.mode) return;
+        if (G.mode !== 'ptr') noClick = { until: Date.now() + 400, el: G.t, x: G.x0 + G.dx, y: G.y0 + G.dy };
+        st.pullH = G.h || 0;
+        done[G.mode](G, ok);
+    };
     document.addEventListener('touchstart', (e) => {
-        if (busy || window.scrollY > 0 || !$('#mt-sheet').hidden || e.target.closest('input, .chart-scroll, .chips')) { y0 = null; return; }
-        y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0;
+        if (e.touches.length !== 1 || g?.mode) { end(false); if (e.touches.length !== 1) return; }
+        const t = e.target, p = e.touches[0], inSheet = !sheet.hidden && card.contains(t);
+        if (busy || (!sheet.hidden && !inSheet)) { g = null; return; }
+        g = { x0: p.clientX, y0: p.clientY, t0: Date.now(), dx: 0, dy: 0, mode: '', t, inSheet, row: swRow(t),
+            hs: hScroll(t, inSheet ? card : null), field: !!t.closest('input, textarea, select'),
+            top: inSheet ? card.scrollTop <= 0 : window.scrollY <= 0 };
     }, { passive: true });
     document.addEventListener('touchmove', (e) => {
-        if (y0 == null) return;
-        const my = e.touches[0].clientY - y0, mx = e.touches[0].clientX - x0;
-        if (my <= 0 || Math.abs(mx) > my) { if (st.pulling) { st.pulling = false; set(0, ''); } return; }
-        st.pulling = true; dy = Math.min(120, my * 0.5);
-        body.style.transition = 'none'; ptr.style.transition = 'none';
-        set(dy, dy > TH * 0.7 ? 'Larga para atualizar' : 'Puxa para atualizar');
-    }, { passive: true });
-    document.addEventListener('touchend', () => {
-        if (y0 == null) return;
-        y0 = null;
-        if (!st.pulling) return;
-        body.style.transition = ''; ptr.style.transition = '';
-        if (dy > TH * 0.7 && cfg.loc) {
-            busy = true; set(44, 'A atualizar…');
-            Promise.all([refresh(), loadStatus()]).finally(() => { busy = false; st.pulling = false; set(0, ''); scheduleRender(); });
-        } else { st.pulling = false; set(0, ''); }
-    }, { passive: true });
+        if (!g) return;
+        const p = e.touches[0];
+        g.dx = p.clientX - g.x0; g.dy = p.clientY - g.y0;
+        if (!g.mode) {
+            const ax = Math.abs(g.dx), ay = Math.abs(g.dy);
+            if (ax < 8 && ay < 8) {
+                // na folha, no topo e a descer: segura já (no iPhone o deslizar nativo começa cedo e já não se trava)
+                if (g.inSheet && g.top && !g.hs && !g.field && g.dy > 0 && ay >= ax && e.cancelable) e.preventDefault();
+                return;
+            }
+            g.mode = pick(g, ax, ay);
+            if (!g.mode) { g = null; return; }
+        }
+        if (g.mode !== 'ptr' && e.cancelable) e.preventDefault();
+        move[g.mode](g);
+    }, { passive: false });
+    document.addEventListener('touchend', () => end(true), { passive: true });
+    document.addEventListener('touchcancel', () => end(false), { passive: true });
 })();
 
 // ---------- pesquisa de locais ----------
@@ -1564,7 +1667,7 @@ document.addEventListener('click', (ev) => {
     const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-onplace],[data-others],[data-report],[data-lv],[data-ll]');
     if (!t) return;
     const d = t.dataset;
-    if (d.tab) { cfg.tab = d.tab; saveCfg(); closeSheet(); window.scrollTo(0, 0); render(); if (d.tab === 'ajustes') loadStatus(); return; }
+    if (d.tab) { goTab(d.tab); return; }
     if (d.day != null) { openSheet('day', +d.day); return; }
     if (d.layer) { stopRadar(); cfg.layer = d.layer; saveCfg(); render(); return; }
     if (d.km) { cfg.km = +d.km; saveCfg(); render(); return; }
@@ -1583,7 +1686,14 @@ document.addEventListener('click', (ev) => {
         return;
     }
     if (d.fav != null) { const f = cfg.favs[+d.fav]; if (f) { closeSheet(); setLocation(f); } return; }
-    if (d.rmfav != null) { const f = cfg.favs[+d.rmfav]; cfg.favs.splice(+d.rmfav, 1); saveCfg(); render(); if (st.sheet?.kind === 'place') openSheet('place'); if (f) toast(`${f.name} tirado dos teus locais`); return; }
+    if (d.rmfav != null) {
+        const i = +d.rmfav, f = cfg.favs[i];
+        if (!f) return;
+        const again = () => { render(); if (st.sheet?.kind === 'place') { const y = $('#mt-sheet-card').scrollTop; renderSheet(); $('#mt-sheet-card').scrollTop = y; } };
+        cfg.favs.splice(i, 1); saveCfg(); again();
+        toast(`${f.name} apagado dos teus locais`, () => { if (!cfg.favs.some((x) => near(x, f))) { cfg.favs.splice(Math.min(i, cfg.favs.length), 0, f); saveCfg(); } again(); });
+        return;
+    }
     if (d.goplace) { const p = st.places.find((x) => x.id === d.goplace); if (p) { closeSheet(); setLocation({ lat: p.lat, lon: p.lon, name: p.name }); } return; }
     if (d.rmplace) { if (st.places.some((x) => x.id === d.rmplace)) openSheet('off', { id: d.rmplace }); return; }
     if (d.onplace) { const p = st.places.find((x) => x.id === d.onplace); if (p) placeBack(p); return; }
