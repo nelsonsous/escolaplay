@@ -13,7 +13,7 @@
     // estar pronta (ou se o browser não tiver WebAssembly) não há pontuações; o resto da app funciona e o ecrã volta a
     // desenhar-se quando o motor fica pronto.
     const AO = window.AnaliseOnda || null;
-    let aoOk = false;
+    let aoOk = false, aoFalhou = false;
     // A: as funções da análise que o ecrã usa; antes de o motor estar pronto respondem "sem dados" (null, [] ou false)
     // em vez de falharem. As notícias e os avisos esperam pelo motor; o teste no passado usa o AO diretamente.
     const A = {
@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.11.0';
+    const VERSION = '4.12.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -91,7 +91,7 @@
     const KEY = 'mercados:v1', SNAP = 'mercados:snap';
     // conector do autor: uma instalação nova já vem ligada (no iPhone, a app do ecrã principal não vê o que o Safari guardou)
     const DEFAULT_PROXY = 'https://mercados-proxy.mercados-proxy.workers.dev';
-    const DEFAULTS = { proxy: DEFAULT_PROXY, claude: false, owner: false, fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, fs: 'n', quiet: true, hidden: [], per: '1d', alertScope: 'mineAdded' };
+    const DEFAULTS = { proxy: DEFAULT_PROXY, claude: false, owner: false, fiat: 'EUR', watch: DEFAULT_WATCH, funds: DEFAULT_FUNDS, eur: true, alertPct: 4, notify: false, distrito: '', municipio: '', sort: 'chg', tab: 'painel', filter: 'all', hz: 'mid', budget: 0, profile: 'bal', brief: true, saveDays: [2], jid: '', jLast: '', strategy: 'etfcrypto', cryptoPct: 10, cryptoMix: 'btc', coreFund: 'VWCE.DE', holdings: ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'], lots: {}, simStart: 0, simYears: 20, simGoal: 0, fs: 'n', quiet: true, hidden: [], per: '1d', alertScope: 'mineAdded' };
     const store = {
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
@@ -1048,7 +1048,7 @@
         const act = document.activeElement;
         if (act && body.contains(act) && act.matches('input, select')) { renderStatus(); return; }
         if (st.pulling) return;
-        const html = cfg.tab === 'destaques' ? highlightsHtml() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'ajustes' ? settingsHtml() : panelHtml();
+        const html = cfg.tab === 'destaques' ? highlightsHtml() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'carteira' ? walletHtml() : cfg.tab === 'ajustes' ? settingsHtml() : panelHtml();
         const title = { destaques: 'Destaques', analise: 'Análise', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
         body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
         renderStatus();
@@ -1095,6 +1095,15 @@
     // referência desta vista. Os eventos, os gestos (arrastar para retirar, puxar para atualizar) e os preços ao vivo
     // (patchLive) continuam aqui, e os gráficos pequenos desenha-os o drawSparks depois. Até o módulo estar pronto fica o
     // aviso "A calcular…" (as pontuações, o plano automático e os avisos também são da Onda).
+    // A Carteira (4.12) é toda da Onda (mercados/onda/ecra-carteira.onda): o simulador do plano e do objetivo, com o
+    // valor por mês, a divisão e o fundo núcleo dos Ajustes. Sem o módulo (sem WebAssembly) diz só que não dá.
+    function walletSnap() {
+        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0 };
+    }
+    function walletHtml() {
+        if (aoOk && AO.ecra && AO.ecra.carteira) try { return AO.ecra.carteira(walletSnap()); } catch (e) { console.error('ecrã Onda:', e); }
+        return `<div class="empty">${aoFalhou || !AO ? 'O simulador precisa de WebAssembly, que este browser não tem.' : 'A carregar…'}</div>`;
+    }
     function panelHtml() {
         const top = cfg.proxy ? '' : setupBanner();
         if (aoOk && AO.ecra) try { return top + AO.ecra.painel(panelSnap()); } catch (e) { console.error('ecrã Onda:', e); }
@@ -2092,7 +2101,7 @@
     document.addEventListener('change', (ev) => {
         const t = ev.target;
         if (t.dataset && t.dataset.cfg) {
-            cfg[t.dataset.cfg] = ['alertPct', 'budget'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.value;
+            cfg[t.dataset.cfg] = ['alertPct', 'budget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
             saveCfg();
             if (t.dataset.cfg === 'distrito') { cfg.municipio = ''; saveCfg(); FUEL = null; loadFuel(); render(); }
             if (t.dataset.cfg === 'municipio') { FUEL = null; loadFuel(); }
@@ -2193,7 +2202,7 @@
     async function boot() {
         // como a Música: ao abrir outra vez, começa no topo (o iOS repunha o scroll e o título ficava por baixo das horas)
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-        if (AO) AO.ready.then(() => { aoOk = true; analyseAll(); scheduleRender(); }).catch((e) => console.error('motor Onda:', e));
+        if (AO) AO.ready.then(() => { aoOk = true; analyseAll(); scheduleRender(); }).catch((e) => { aoFalhou = true; scheduleRender(); console.error('motor Onda:', e); });
         cfg.tab = 'painel';
         applyFs();
         colors();
