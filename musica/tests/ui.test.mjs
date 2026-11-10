@@ -131,10 +131,17 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await nav(1);
     await page.locator('.mu-pl').getByText('Som para o carro').waitFor();
     // o cartão abre-se ali mesmo: as faixas, ouvir 30 s (as que têm pré-escuta), «não esta» e afinar; «Abrir» leva à playlist
+    assert.ok(await page.locator('.mu-pl .chev').first().isVisible(), 'a seta mostra que o cartão abre');
     await page.locator('.mu-pl-a').click();
-    await page.locator('.mu-pl.aberta .mu-xf li').first().waitFor();
+    // o cartão abre logo com o tamanho certo; as faixas e as pré-escutas chegam depois só para dentro dele (não treme,
+    // e quem já está a escrever na caixa de afinar não perde o teclado)
+    const caixa = await page.locator('.mu-pl.aberta [placeholder^="Ex.: menos eletrónica"]').elementHandle();
+    await caixa.focus();
+    await page.locator('.mu-pl.aberta .mu-xf li:not(.sk)').first().waitFor();
     assert.equal(await page.locator('.mu-pl.aberta .mu-xf li').count(), doc.faixas.length);
     await page.locator('.mu-pl.aberta [data-previa]').first().waitFor();
+    assert.ok(await caixa.evaluate((el) => el.isConnected && document.activeElement === el), 'a caixa de afinar ficou (com o foco)');
+    assert.equal(await page.getAttribute('.mu-pl.aberta .mu-pl-a', 'aria-expanded'), 'true');
     const previa = await page.locator('.mu-pl.aberta [data-previa]').first().getAttribute('data-previa');
     assert.match(previa, /^https:\/\/(audio|cdn\.deezer)\.example\//);
     await page.evaluate(() => { window.musicaLeitor.play = () => Promise.resolve(); }); // (sem ir à rede no teste)

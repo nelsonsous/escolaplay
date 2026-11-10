@@ -262,6 +262,15 @@ button.mu-chip { cursor: pointer; }
 .mu-pl-a { padding: 14px 58px 14px 72px; min-height: 72px; }
 .mu-pl .mu-tocar { top: 16px; margin-top: 0; right: 12px; }
 .mu-pl.aberta { box-shadow: inset 0 0 0 1px var(--line2); }
+/* a seta diz que o cartão abre; aponta para cima quando está aberto. Ao tocar, o fundo acende (sem piscar a opacidade) */
+.mu-pl-a:active { opacity: 1; background-color: rgba(255, 255, 255, .05); }
+.mu-pl:not(.tidal) .mu-pl-a { padding-right: 46px; }
+.mu-pl.tidal .mu-pl-a { padding-right: 92px; }
+.mu-pl .chev { position: absolute; top: 26px; right: 16px; width: 20px; height: 20px; fill: none; stroke: var(--mut); stroke-width: 2.2;
+    stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.mu-pl.tidal .chev { right: 62px; }
+.mu-pl.aberta .chev { transform: rotate(180deg); stroke: var(--fg); }
+.mu-cx-fora { color: var(--mut); font-size: 13px; margin: -4px 0 12px; }
 .mu-cx { padding: 0 14px 14px; }
 .mu-cx > .mu-nota { margin: 0 0 10px; }
 .mu-xf { list-style: none; margin: 0 0 12px; padding: 0; border-top: 1px solid var(--line); }
@@ -270,6 +279,9 @@ button.mu-chip { cursor: pointer; }
 .mu-xf .tx b { display: block; font-size: 14.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mu-xf .tx span { display: block; color: var(--mut); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mu-xf li.fora .tx { opacity: .4; text-decoration: line-through; }
+/* enquanto as faixas chegam: linhas cinzentas com a altura das verdadeiras */
+.mu-xf li.sk .tx b, .mu-xf li.sk .tx span { color: transparent; background: linear-gradient(var(--panel3), var(--panel3)) 0 50% / 62% 9px no-repeat; }
+.mu-xf li.sk .tx span { background-size: 38% 8px; }
 .mu-ouvir { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--panel3); color: var(--fg); cursor: pointer; padding: 0; }
 .mu-ouvir svg { width: 13px; height: 13px; margin-left: 2px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .mu-ouvir.vazio { background: none; cursor: default; }
