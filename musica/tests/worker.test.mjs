@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.9.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.10.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -552,4 +552,46 @@ test('mudar o nome: na app e no Tidal (o mesmo link); sem nome, não; a renovaç
     // o Maestro renova-a: o nome que a pessoa deu fica
     const ren = await (await post(`/api/playlists/${doc.id}/renovacoes`, { nome: 'Outro nome do Maestro', faixas: res.faixas, tidal: true }, agente)).json();
     assert.equal(ren.nome, 'Jazz do carro 2');
+});
+
+test('propostas, ideias e afinar: várias versões só na app, escolher uma para o Tidal, «não esta» e o pedido de afinação', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const ped = await (await post('/api/pedidos', { texto: 'Para o carro, de noite', opcoes: { faixas: 5 } }, chave)).json();
+    const res = (await (await post('/api/resolver', { faixas: [{ titulo: 'So What' }, { titulo: 'Teardrop' }, { titulo: 'Barco Negro' }] }, chave)).json()).faixas;
+    // duas propostas para o mesmo pedido: só na app, agrupadas pelo pedido
+    const a = await (await post('/api/playlists', { nome: 'Noite A', pedido: ped.texto, faixas: res, tidal: true, rascunho: true, grupo: ped.id, variante: 'Mais conhecida' }, agente)).json();
+    const b = await (await post('/api/playlists', { nome: 'Noite B', pedido: ped.texto, faixas: res.slice(1), tidal: true, rascunho: true, grupo: ped.id, variante: 'Mais descoberta' }, agente)).json();
+    assert.equal(a.tidal, null);
+    assert.equal(sim.criadas.length, 0, 'as propostas não vão para o Tidal');
+    await call(`/api/pedidos/${ped.id}?playlist=${a.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${agente}` } });
+    await call(`/api/pedidos/${ped.id}?playlist=${b.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${agente}` } });
+    const pf = (await (await get('/api/pedidos', chave)).json()).find((x) => x.id === ped.id);
+    assert.deepEqual([pf.estado, pf.playlist, pf.playlists], ['feito', a.id, [a.id, b.id]]);
+    const idx = await (await get('/api/playlists', chave)).json();
+    assert.deepEqual(idx.slice(0, 2).map((x) => [x.variante, x.grupo, x.rascunho, x.pedido]), [['Mais descoberta', ped.id, true, ped.texto], ['Mais conhecida', ped.id, true, ped.texto]]);
+    assert.equal((await (await get('/api/avaliacoes', agente)).json()).playlists.length, 0, 'as propostas por escolher não se avaliam');
+    // escolher uma: vai para o Tidal e deixa de ser proposta
+    const e = await (await post(`/api/playlists/${a.id}/tidal`, {}, chave)).json();
+    assert.equal(e.tidal.id, 'uuid-nova');
+    assert.equal(e.rascunho, undefined);
+    assert.equal((await (await get('/api/playlists', chave)).json()).find((x) => x.id === a.id).rascunho, undefined);
+    // não esta + afinar: um pedido ligado à playlist, com as rejeitadas
+    assert.equal((await post(`/api/playlists/${a.id}/afinar`, { texto: '' }, chave)).status, 400);
+    assert.deepEqual((await (await post(`/api/playlists/${a.id}/rejeitar`, { faixa: '106' }, chave)).json()).rejeitadas, ['106']);
+    assert.deepEqual((await (await post(`/api/playlists/${a.id}/rejeitar`, { faixa: '105' }, chave)).json()).rejeitadas, ['106', '105']);
+    assert.deepEqual((await (await post(`/api/playlists/${a.id}/rejeitar`, { faixa: '105', fora: false }, chave)).json()).rejeitadas, ['106']);
+    assert.equal((await post(`/api/playlists/${a.id}/rejeitar`, { faixa: '999' }, chave)).status, 400);
+    const af = await (await post(`/api/playlists/${a.id}/afinar`, { texto: 'menos eletrónica' }, chave)).json();
+    assert.deepEqual([af.texto, af.estado, af.afinar.playlist, af.afinar.rejeitadas.map((x) => x.titulo)], ['menos eletrónica', 'pendente', a.id, ['Teardrop']]);
+    // o Maestro refá-la no mesmo sítio: as rejeitadas ficam aplicadas; a proposta B continua só na app
+    const ren = await (await post(`/api/playlists/${a.id}/renovacoes`, { faixas: res.filter((f) => f.id !== '106'), tidal: true }, agente)).json();
+    assert.equal(ren.rejeitadas, undefined);
+    assert.equal((await (await post(`/api/playlists/${b.id}/renovacoes`, { faixas: res, tidal: true }, agente)).json()).tidal, null);
+    // as ideias: só o Maestro as escreve
+    assert.deepEqual(await (await get('/api/ideias', chave)).json(), { ideias: [] });
+    assert.equal((await post('/api/ideias', { ideias: [{ texto: 'x x x' }] }, chave)).status, 403);
+    const id = await (await post('/api/ideias', { ideias: [{ texto: 'Estrada ao sol', momento: 'dia', opcoes: { arco: 'sobe' } }, { texto: 'Condução à noite', momento: 'noite', opcoes: { estilo: 'audiofilo' } }, { texto: 'ok' }, { texto: 'Sempre bom', momento: 'tarde' }] }, agente)).json();
+    assert.deepEqual([id.n, id.dia, id.noite], [3, 1, 1]);
+    assert.deepEqual((await (await get('/api/ideias', chave)).json()).ideias, [{ texto: 'Estrada ao sol', momento: 'dia', arco: 'sobe' }, { texto: 'Condução à noite', momento: 'noite', estilo: 'audiofilo' }, { texto: 'Sempre bom', momento: 'sempre' }]);
 });

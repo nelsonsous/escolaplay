@@ -33,8 +33,20 @@ nesta tarefa.
    Tidal na app).
 
 2. **Decide o que fazer nesta corrida**:
-   - **Pedidos à espera** (feitos na app): trata até **2** por corrida, os mais antigos primeiro — uma playlist por
-     pedido, a respeitar o texto e as opções do pedido.
+   - **Ideias** (sempre, para cada pessoa, sem pesquisa extra): escreve **6 ideias de pedidos** — 3 para o dia e 3 para a
+     noite — a partir das tendências, do gosto e de *Como correram as playlists*, em
+     `/tmp/musica/<id>/ideias.json` (`{ "ideias": [{ "texto": "até 120 caracteres", "momento": "dia|noite",
+     "opcoes": { "estilo", "arco" } }] }`) e guarda-as com
+     `NODE_USE_ENV_PROXY=1 node musica/curador/ideias.mjs /tmp/musica/<id>/ideias.json --utilizador <id>`. São o que a
+     app mostra no Pedir: concretas e variadas, em português de Portugal, sem repetir as da corrida anterior.
+   - **Pedidos à espera** (feitos na app): trata até **2** por corrida, os mais antigos primeiro. Para cada pedido faz
+     **2 ou 3 propostas** com ângulos diferentes (ex.: «Mais conhecida», «Mais descoberta», «Mais calma» ou «Com mais
+     energia»), cada uma no seu ficheiro e publicada com `--pedido <id> --variante "<nome curto>"`: ficam só na app,
+     agrupadas pelo pedido, e a pessoa escolhe a que vai para o Tidal. As propostas podem partilhar algumas faixas, mas
+     não mais de metade.
+   - **Pedidos de afinação** (a linha do pedido diz *"afinar a playlist «…» (`<id>`)"*): uma só versão, publicada com
+     `--renovar <id da playlist> --pedido <id do pedido>` (no mesmo sítio e no mesmo link do Tidal). Tira as faixas da
+     lista *"tira"*, segue o que o texto pede e mantém o resto que encaixe.
    - **Playlist da semana**: se o `dados.md` disser *"está na altura de uma nova"* (ou que ainda não há nenhuma) e for
      a corrida da **manhã**, cria a **«Onda da semana · dd/mm»**.
    - **Novidades dos teus artistas**: se o `dados.md` disser *"É sexta de manhã: cria a playlist «Novidades dos teus
@@ -44,7 +56,7 @@ nesta tarefa.
      altura de a renovar"*, até **2** por corrida, com o mesmo critério (o pedido e as opções que lá estão). Mantém as
      que a pessoa guardou (põe-nas com o `tidalId` e `"fixa": true`), não voltes a pôr as que ela tirou, e troca pelo
      menos metade das outras por faixas novas. Publica com `--renovar <id>` (passo 6).
-   - Se não houver nada disto, **termina aqui** (sem pesquisar nada).
+   - Se não houver nada disto (além das ideias), **termina aqui** (sem pesquisar nada).
    - **As tuas mixes do Tidal** (secção do `dados.md`): são faixas que o Tidal escolheu para o teu gosto. Quando
      encaixarem num pedido ou na playlist da semana, usa-as como candidatas, com o `tidalId` (não contam como
      pesquisa: junta-lhes sempre outras que tenhas encontrado na web).

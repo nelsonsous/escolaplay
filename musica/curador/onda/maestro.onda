@@ -1,3 +1,3 @@
 # Maestro em Onda — o main dos scripts da tarefa agendada: o 1.º argumento diz qual (o correr.mjs passa-o).
-#   dados (dados.onda) · publicar (publicar.onda) · textos (para os testes: o normal(), a chave() e o toLowerCase)
-: main >i ? tigual h_arg 0 $"publicar" publicar ? tigual h_arg 0 $"textos" pb_textos dados_main
+#   dados (dados.onda) · publicar e ideias (publicar.onda) · textos (para os testes: o normal(), a chave() e o toLowerCase)
+: main >i ? tigual h_arg 0 $"publicar" publicar ? tigual h_arg 0 $"ideias" ideias_main ? tigual h_arg 0 $"textos" pb_textos dados_main

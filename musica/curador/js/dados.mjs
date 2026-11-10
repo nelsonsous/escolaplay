@@ -83,7 +83,8 @@ ${tend.paraTi.map((x) => `- ${nome(x)} · ${x.fonte} n.º ${x.pos}${x.estado ? `
 Conta Tidal: **${perfil.utilizador || '?'}** (${perfil.pais}) · ${perfil.favoritas.length} favoritas lidas (as mais recentes) · ${perfil.artistas.length} artistas seguidos · ${perfil.playlists.length} playlists tuas.
 
 ## Pedidos à espera (${pend.length})
-${pend.length ? pend.map((p) => `- \`${p.id}\` — «${p.texto}» · ${p.opcoes.faixas} faixas, máx. ${p.opcoes.maxArtista} por artista, estilo ${p.opcoes.estilo}, arco ${p.opcoes.arco}${p.opcoes.limpa ? ', sem letras explícitas' : ''} · pedido a ${lisboa(new Date(p.criadoEm))}`).join('\n') : '- nenhum'}
+${pend.length ? pend.map((p) => `- \`${p.id}\` — «${p.texto}» · ${p.opcoes.faixas} faixas, máx. ${p.opcoes.maxArtista} por artista, estilo ${p.opcoes.estilo}, arco ${p.opcoes.arco}${p.opcoes.limpa ? ', sem letras explícitas' : ''} · pedido a ${lisboa(new Date(p.criadoEm))}` +
+    `${p.afinar ? ` · **afinar a playlist «${p.afinar.nome}» (\`${p.afinar.playlist}\`)**${p.afinar.rejeitadas.length ? ` — tira: ${p.afinar.rejeitadas.map((x) => `${x.artista} — ${x.titulo}`).join('; ')}` : ''}` : ''}`).join('\n') : '- nenhum'}
 
 ## Playlist da semana
 ${ultimaSemanal ? `A última foi «${ultimaSemanal.nome}» há ${diasSemanal} dia(s)${diasSemanal >= 7 ? ' — **está na altura de uma nova**.' : '.'}` : 'Ainda não há nenhuma — **cria a primeira**.'}
