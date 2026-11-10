@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.10.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.11.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -594,4 +594,20 @@ test('propostas, ideias e afinar: várias versões só na app, escolher uma para
     const id = await (await post('/api/ideias', { ideias: [{ texto: 'Estrada ao sol', momento: 'dia', opcoes: { arco: 'sobe' } }, { texto: 'Condução à noite', momento: 'noite', opcoes: { estilo: 'audiofilo' } }, { texto: 'ok' }, { texto: 'Sempre bom', momento: 'tarde' }] }, agente)).json();
     assert.deepEqual([id.n, id.dia, id.noite], [3, 1, 1]);
     assert.deepEqual((await (await get('/api/ideias', chave)).json()).ideias, [{ texto: 'Estrada ao sol', momento: 'dia', arco: 'sobe' }, { texto: 'Condução à noite', momento: 'noite', estilo: 'audiofilo' }, { texto: 'Sempre bom', momento: 'sempre' }]);
+});
+
+test('ouvir 30 s: a pré-escuta do Deezer (pelo ISRC ou pela pesquisa), guardada até caducar; o género para agrupar', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const res = (await (await post('/api/resolver', { faixas: [{ titulo: 'So What' }, { titulo: 'Feeling Good' }, { titulo: 'Barco Negro' }, { titulo: 'Teardrop' }] }, chave)).json()).faixas;
+    const doc = await (await post('/api/playlists', { nome: 'Ouvir', faixas: res.map((f, i) => ({ ...f, genero: i < 3 ? 'jazz' : 'trip-hop' })) }, chave)).json();
+    assert.equal(doc.faixas[0].isrc, 'USAAA0000101', 'a faixa guarda o ISRC');
+    const p = (await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).previas;
+    assert.deepEqual(Object.keys(p).sort(), ['101', '102', '106']);
+    assert.match(p[101], /^https:\/\/cdn\.deezer\.example\/So%20What\.mp3\?hdnea=exp=\d+/);
+    assert.match(p[102], /feeling-good\.mp3/, 'pelo ISRC');
+    // a segunda vez vem tudo da KV (também o «não há» da «Barco Negro»)
+    const antes = sim.chamadas.length;
+    assert.deepEqual((await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).previas, p);
+    assert.equal(sim.chamadas.slice(antes).filter((x) => /deezer/.test(x)).length, 0);
+    assert.equal((await (await get('/api/playlists', chave)).json())[0].genero, 'jazz');
 });

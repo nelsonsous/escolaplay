@@ -3,7 +3,8 @@
 // porta:
 //   - o regresso do login do Tidal (#chave=, #ligado=, #erro=) e o link de ligação (?ligar=), antes de a app arrancar;
 //   - o "buscar" da porta 102: põe a chave do aparelho nos pedidos ao conector e aceita, além de "caminho" (GET),
-//     "MÉTODO caminho" + nova linha + corpo JSON (POST, DELETE) e "IR url" (sair para o login do Tidal).
+//     "MÉTODO caminho" + nova linha + corpo JSON (POST, DELETE) e "IR url" (sair para o login do Tidal);
+//   - tocar 30 s de uma faixa (o ▶ com data-previa).
 // O armazém da app (portas 105/106) usa o prefixo "musica:" — as mesmas chaves que a versão 1 guardava.
 (function () {
     'use strict';
@@ -49,6 +50,25 @@
         .catch((e) => {
             document.getElementById('mu-body').innerHTML = '<p class="mu-erro">Não consegui abrir a app: ' + String(e && e.message || e).replace(/[<&]/g, '') + '</p>';
         });
+    // ouvir 30 s de uma faixa: o ▶ das faixas na lista (data-previa = a pré-escuta do Deezer que o conector
+    // encontrou). Um só leitor para a app toda; tocar outra vez pára. A Onda volta a desenhar o ecrã, por isso a marca de
+    // «a tocar» repõe-se depois de cada mudança. (O som não é uma porta da Onda: fica aqui, na casca.)
+    const leitor = new Audio();
+    leitor.preload = 'none';
+    const marcar = () => document.querySelectorAll('[data-previa]').forEach((b) => b.classList.toggle('a-tocar', !leitor.paused && b.dataset.previa === leitor.dataset.src));
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('[data-previa]');
+        if (!b) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!leitor.paused && leitor.dataset.src === b.dataset.previa) leitor.pause();
+        else { leitor.dataset.src = b.dataset.previa; leitor.src = b.dataset.previa; leitor.play().catch(() => {}); }
+        marcar();
+    }, true);
+    for (const ev of ['play', 'pause', 'ended']) leitor.addEventListener(ev, marcar);
+    const corpo = document.getElementById('mu-body');
+    if (corpo) new MutationObserver(marcar).observe(corpo, { childList: true, subtree: true });
+    window.musicaLeitor = leitor; // (para os testes)
     // no iOS, o :active (o botão a afundar quando se toca) só funciona com um touchstart registado
     document.addEventListener('touchstart', () => {}, { passive: true });
     // ao abrir outra vez, começa no topo (o iOS repunha o scroll e o título ficava por baixo das horas)

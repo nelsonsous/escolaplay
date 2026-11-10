@@ -253,3 +253,34 @@ button.mu-chip { cursor: pointer; }
 .mu-proposta p { margin: 0; }
 .mu-faixa.fora .t, .mu-faixa.fora .a { text-decoration: line-through; opacity: .45; }
 .mu-faixa-mais { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* a lista: cartões que se abrem (as faixas, ouvir 30 s, «não esta», afinar) e agrupar por */
+.mu-lista-pl { gap: 10px; }
+.mu-pl { background: var(--panel); border-radius: 16px; border-bottom: 0; overflow: hidden; }
+.mu-pl:last-child { border-bottom: 0; }
+.mu-pl::before { top: 12px; margin-top: 0; left: 12px; width: 48px; height: 48px; }
+.mu-pl-a { padding: 14px 58px 14px 72px; min-height: 72px; }
+.mu-pl .mu-tocar { top: 16px; margin-top: 0; right: 12px; }
+.mu-pl.aberta { box-shadow: inset 0 0 0 1px var(--line2); }
+.mu-cx { padding: 0 14px 14px; }
+.mu-cx > .mu-nota { margin: 0 0 10px; }
+.mu-xf { list-style: none; margin: 0 0 12px; padding: 0; border-top: 1px solid var(--line); }
+.mu-xf li { display: grid; grid-template-columns: 20px minmax(0, 1fr) 34px 30px; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.mu-xf .n { color: var(--dim); font: 600 12px/1 var(--mono); text-align: right; }
+.mu-xf .tx b { display: block; font-size: 14.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-xf .tx span { display: block; color: var(--mut); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-xf li.fora .tx { opacity: .4; text-decoration: line-through; }
+.mu-ouvir { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--panel3); color: var(--fg); cursor: pointer; padding: 0; }
+.mu-ouvir svg { width: 13px; height: 13px; margin-left: 2px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.mu-ouvir.vazio { background: none; cursor: default; }
+.mu-ouvir.a-tocar { background: var(--fg); color: #000; }
+.mu-nao { width: 30px; height: 30px; border: 0; background: none; color: var(--dim); font-size: 14px; cursor: pointer; border-radius: 50%; padding: 0; }
+.mu-nao[aria-pressed="true"] { color: #ff6b6b; background: rgba(255, 107, 107, .12); }
+.mu-cx .mu-acoes { margin-top: 0; }
+.mu-cx-afinar { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
+.mu-cx-afinar .mu-campo { flex: 1; margin: 0; }
+.mu-cx-afinar textarea { min-height: 44px; }
+.mu-agrupar { display: flex; flex-direction: column; gap: 6px; margin: 20px 2px 0; }
+.mu-agrupar > span { color: var(--mut); font-size: 13px; font-weight: 600; }
+.mu-agrupar .mu-seg button { padding: 7px 4px; font-size: 13px; }
+.mu-grp h2 span { color: var(--mut); font-weight: 600; font-size: 15px; }
