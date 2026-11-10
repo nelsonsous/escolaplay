@@ -699,16 +699,22 @@ function proxyBody(u) {
     // e com a letra "Muito grande"
     await page.click('#mk-nav [data-tab="ajustes"]'); await page.click('[data-fs="xl"]');
     assert.equal(await page.evaluate(() => document.documentElement.dataset.fs), 'xl');
-    for (const tab of ['painel', 'destaques', 'analise', 'ajustes']) {
+    const foraDoEcra = (sel) => page.evaluate((sel) => [...document.querySelectorAll(sel)].filter((e) => { const r = e.getBoundingClientRect(); if (!(r.width > 0 && r.height > 0 && (r.right > innerWidth + 0.5 || r.left < -0.5))) return false; for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) { const o = getComputedStyle(a).overflowX; if (o !== 'visible') { const ar = a.getBoundingClientRect(); if (ar.right <= innerWidth + 0.5 && ar.left >= -0.5) return false; } } return true; }).slice(0, 4).map((e) => e.tagName + '.' + e.className + ' ' + Math.round(e.getBoundingClientRect().right) + ' ' + (() => { const z = []; for (let a = e; a && a !== document.body; a = a.parentElement) z.push(a.tagName + '.' + a.className + ':' + Math.round(a.getBoundingClientRect().right) + ':' + getComputedStyle(a).display); return z.join(' < '); })()), sel);
+    for (const tab of ['painel', 'destaques', 'analise', 'carteira', 'ajustes']) {
         await page.click(`#mk-nav [data-tab="${tab}"]`); await page.waitForTimeout(250);
+        if (tab === 'carteira') await page.evaluate(() => document.querySelectorAll('#mk-body details').forEach((d) => { d.open = true; }));
         const wide = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
         assert.ok(wide <= 0, `${tab}: página mais larga que o ecrã (${wide}px)`);
+        // e nada visível sai do ecrã (o que tem overflow escondido também conta)
+        const fora = await foraDoEcra('#mk-body *');
+        assert.deepEqual(fora, [], `${tab}: elementos fora do ecrã`);
     }
     await page.click('#mk-nav [data-tab="painel"]');
     await page.locator('.row[data-open="c:BTC"]').first().click();
     await page.waitForSelector('#mk-sheet:not([hidden]) .news li');
     const sheetOver = await page.evaluate(() => { const c = document.querySelector('#mk-sheet-card').getBoundingClientRect(); const x = document.querySelector('#mk-sheet-card [data-act="close"]').getBoundingClientRect(); return { c: c.right - innerWidth, x: x.right - innerWidth }; });
     assert.ok(sheetOver.c <= 0 && sheetOver.x <= 0, 'folha e botão fechar dentro do ecrã ' + JSON.stringify(sheetOver));
+    assert.deepEqual(await foraDoEcra('#mk-sheet-card *'), [], 'folha: elementos fora do ecrã');
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     await page.click('#mk-nav [data-tab="ajustes"]'); await page.click('[data-fs="n"]');
