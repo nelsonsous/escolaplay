@@ -99,9 +99,10 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     page.on('console', (m) => { if (m.type() === 'error') erros.push(m.text()); });
     page.on('pageerror', (e) => erros.push(String(e)));
     if (process.env.MUSICA_DEBUG) { page.on('console', (m) => m.text() && console.log('consola:', m.type(), m.text().slice(0, 300))); page.on('pageerror', (e) => console.log('pageerror:', String(e).slice(0, 400))); }
-    // as capas vêm do CDN do Deezer: no teste, uma imagem de 1 px (sem ir à rede)
+    // as capas vêm do Tidal e do Deezer: no teste, uma imagem de 1 px (sem ir à rede)
     const PIXEL = Buffer.from('R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=', 'base64');
     await page.route('https://cdn-images.dzcdn.net/**', (route) => route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL }));
+    await page.route('https://resources.tidal.com/**', (route) => route.fulfill({ status: 200, contentType: 'image/gif', body: PIXEL }));
     await page.route('https://login.tidal.com/**', (route) => {
         const u = new URL(route.request().url());
         assert.equal(u.searchParams.get('client_id'), 'ClienteTidal123');
@@ -150,8 +151,10 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.evaluate(() => { window.musicaLeitor.play = () => Promise.resolve(); }); // (sem ir à rede no teste)
     await page.locator('.mu-pl.aberta [data-previa]').first().click();
     assert.equal(await page.evaluate(() => window.musicaLeitor.dataset.src), previa, 'toca a pré-escuta');
-    // as capas dos álbuns nas faixas (só as que o Deezer tem; as outras ficam com o quadrado cinzento)
-    assert.match(await page.locator('.mu-pl.aberta .mu-xf .cp img').first().getAttribute('src'), /^https:\/\/cdn-images\.dzcdn\.net\/images\/cover\/[0-9a-f]{32}\/120x120-/);
+    // as capas dos álbuns nas faixas: do Tidal, e do Deezer quando o Tidal não tem (as outras ficam com o quadrado cinzento)
+    const srcs = await page.locator('.mu-pl.aberta .mu-xf .cp img').evaluateAll((l) => l.map((i) => i.getAttribute('src')));
+    assert.ok(srcs.some((u) => /^https:\/\/resources\.tidal\.com\/images\/[0-9a-f/]+\/160x160\.jpg$/.test(u)), 'capas do Tidal');
+    assert.ok(srcs.every((u) => /^https:\/\/(resources\.tidal\.com|cdn-images\.dzcdn\.net)\//.test(u)));
     assert.equal(await page.locator('.mu-pl.aberta .mu-xf .cp').count(), doc.faixas.length);
     await page.locator('.mu-pl.aberta [placeholder^="Ex.: menos eletrónica"]').waitFor();
     await page.locator('.mu-pl-a').click();
@@ -234,7 +237,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.deepEqual(await page.locator('.mu-pl .nm').allTextContents(), ['Som para o carro']);
     // depois de aberta uma vez, a playlist tem capa: o mosaico de 4 capas pequenas
     assert.equal(await page.locator('.mu-pl .mu-pl-capa.m4 img').count(), 4);
-    assert.match(await page.locator('.mu-pl .mu-pl-capa img').first().getAttribute('src'), /\/56x56-/);
+    assert.match(await page.locator('.mu-pl .mu-pl-capa img').first().getAttribute('src'), /\/80x80\.jpg$|\/56x56-/);
     // como correu (o conector avalia-a: ainda é cedo) e atualizar sozinha (liga-se aqui; o Maestro renova-a)
     const agente = await env.KV.get('agente:chave');
     assert.equal((await worker.fetch(new Request(WORKER + '/api/avaliacoes', { headers: { authorization: `Bearer ${agente}` } }), env, { waitUntil() {} })).status, 200);
@@ -327,11 +330,12 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     // 7) as ideias do Maestro (as do momento), as propostas para escolher, «não esta» e afinar com o Maestro
     const agente7 = await env.KV.get('agente:chave');
     const api7 = async (p, corpo) => (await worker.fetch(new Request(WORKER + p, { method: 'POST', headers: { authorization: `Bearer ${agente7}`, 'content-type': 'application/json' }, body: JSON.stringify(corpo) }), env, { waitUntil() {} })).json();
-    await api7('/api/ideias', { ideias: [{ texto: 'Ideia para qualquer hora', momento: 'sempre', opcoes: { arco: 'desce' } }, { texto: 'Ideia de dia', momento: 'dia' }, { texto: 'Ideia de noite', momento: 'noite' }] });
+    await api7('/api/ideias', { ideias: [{ texto: 'Ideia para qualquer hora', momento: 'sempre', porque: 'Porque o fim do dia pede calma', opcoes: { arco: 'desce' } }, { texto: 'Ideia de dia', momento: 'dia' }, { texto: 'Ideia de noite', momento: 'noite' }] });
     await nav(1);
     await nav(3);
     await page.getByRole('button', { name: 'Ideia para qualquer hora' }).click();
-    assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), 'Ideia para qualquer hora');
+    assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), 'Ideia para qualquer hora', 'o porquê não vai para o pedido');
+    assert.equal(await page.locator('.mu-chip.ideia span').first().textContent(), 'Porque o fim do dia pede calma', 'o porquê aparece por baixo da ideia');
     const dia = new Date().getUTCHours() >= 7 && new Date().getUTCHours() < 20;
     assert.equal(await page.getByRole('button', { name: dia ? 'Ideia de dia' : 'Ideia de noite' }).count(), 1);
     assert.equal(await page.getByRole('button', { name: dia ? 'Ideia de noite' : 'Ideia de dia' }).count(), 0);

@@ -731,7 +731,7 @@
   "<div class=\"mu-ideias\"><span>Ideias</span></div>"
   # as ideias que o Maestro escreveu (as de dia de dia, as de noite à noite); sem elas, as de sempre
   "<div class=\"mu-chips\">" = n 0
-  ? @ 48 { = c jprim jg @ 48 $"ideias" = q 0 W && c < n 7 { = mo jgt c $"momento" ? || tigual mo $"sempre" tigual mo ? e_dia $"dia" $"noite" { "<button type=\"button\" class=\"mu-chip\" data-onda=\"idea&#9;" N q "\">" pjt jg c $"texto" "</button>" = n + n 1 0 } 0 = c jprox c = q + q 1 } 0 } 0
+  ? @ 48 { = c jprim jg @ 48 $"ideias" = q 0 W && c < n 7 { = mo jgt c $"momento" ? || tigual mo $"sempre" tigual mo ? e_dia $"dia" $"noite" { = pq jgt c $"porque" "<button type=\"button\" class=\"mu-chip" ? && pq tlen pq { " ideia\" data-onda=\"idea&#9;" N q "\"><b>" pjt jg c $"texto" "</b><span>" pt pq "</span>" 0 } { "\" data-onda=\"idea&#9;" N q "\">" pjt jg c $"texto" 0 } "</button>" = n + n 1 0 } 0 = c jprox c = q + q 1 } 0 } 0
   ? ~ n { = q 0 W < q 7 { "<button type=\"button\" class=\"mu-chip\" data-onda=\"sug&#9;" N q "\">" sugestao q "</button>" = q + q 1 } 0 } 0
   "</div></div>"
   ? jn @ 5 { "<h2 class=\"mu-sec\">Os teus pedidos</h2><div class=\"mu-card\">" lista_pedidos @ 5 "</div>" 0 } 0
@@ -889,7 +889,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.15.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.16.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====

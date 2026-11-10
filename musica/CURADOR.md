@@ -34,11 +34,14 @@ nesta tarefa.
 
 2. **Decide o que fazer nesta corrida**:
    - **Ideias** (sempre, para cada pessoa, sem pesquisa extra): escreve **6 ideias de pedidos** — 3 para o dia e 3 para a
-     noite — a partir das tendências, do gosto e de *Como correram as playlists*, em
-     `/tmp/musica/<id>/ideias.json` (`{ "ideias": [{ "texto": "até 120 caracteres", "momento": "dia|noite",
-     "opcoes": { "estilo", "arco" } }] }`) e guarda-as com
+     noite — em `/tmp/musica/<id>/ideias.json` (`{ "ideias": [{ "texto": "até 120 caracteres", "porque": "até 90
+     caracteres", "momento": "dia|noite", "opcoes": { "estilo", "arco" } }] }`) e guarda-as com
      `NODE_USE_ENV_PROXY=1 node musica/curador/ideias.mjs /tmp/musica/<id>/ideias.json --utilizador <id>`. São o que a
-     app mostra no Pedir: concretas e variadas, em português de Portugal, sem repetir as da corrida anterior.
+     app mostra no Pedir: concretas e variadas, em português de Portugal, sem repetir as da corrida anterior. Pensa-as
+     para **este momento**: o dia da semana (sexta à tarde, domingo de manhã, segunda de regresso), a estação e o tempo
+     típico (verão, chuva de novembro, Natal), a hora da corrida, as tendências e *Como correram as playlists* (puxa
+     pelo que resultou, evita o que não resultou). O `porque` diz numa frase a razão, ligada ao gosto ou ao momento
+     (ex.: «Sexta à tarde, e a Som do carro resultou: mais funk para a estrada»).
    - **Pedidos à espera** (feitos na app): trata até **2** por corrida, os mais antigos primeiro. Para cada pedido faz
      **2 ou 3 propostas** com ângulos diferentes (ex.: «Mais conhecida», «Mais descoberta», «Mais calma» ou «Com mais
      energia»), cada uma no seu ficheiro e publicada com `--pedido <id> --variante "<nome curto>"`: ficam só na app,
@@ -74,6 +77,17 @@ nesta tarefa.
      reedições e remasterizações de referência, aniversários de discos marcantes, e gravações conhecidas pela qualidade
      do som (ex.: *Records to Die For* da Stereophile). Cruza com o gosto do `dados.md`.
    - **Pedido** — pesquisa o que o pedido pede (género, época, ambiente, artistas), com o mesmo cuidado com a qualidade.
+   - **A nota apoia-se na crítica**: para cada candidata (ou o disco de onde vem), confirma o que a crítica e os
+     ouvintes dizem — Pitchfork, AllMusic, Album of the Year, Rate Your Music, Metacritic, The Guardian, e as
+     especializadas (DownBeat/JazzTimes no jazz, Gramophone na clássica, Resident Advisor na eletrónica, Blitz e Rimas e
+     Batidas na música portuguesa). Um disco consagrado ou muito bem avaliado sobe a nota; um disco fraco ou uma faixa
+     de enchimento desce-a. Para a gravação, procura o que se sabe do som (masterização, edição de referência,
+     *Records to Die For*). Não inventes notas da crítica: se não encontrares nada, a nota é o teu juízo, mais prudente.
+   - **Aprende com o gosto**: parte das faixas que a pessoa **guardou**, das playlists que **resultaram** e das
+     favoritas mais recentes, e procura os **vizinhos** delas — o mesmo produtor ou engenheiro de som, a mesma editora,
+     os músicos que tocaram nesses discos, a mesma cena e época, quem os influenciou e quem eles influenciaram. Uns 20%
+     das candidatas devem ser vizinhos destes, com o elo no `motivo` (ex.: «produzido por Rudy Van Gelder, como o So
+     What que guardaste»).
    - Guarda as tendências que usares (o quê e onde se viu) para o campo `tendencias`.
 
 4. **Escreve a proposta** em `/tmp/musica/proposta.json` (formato em `musica/lib/playlist.js`):
@@ -95,8 +109,10 @@ nesta tarefa.
    Regras:
    - **Só gravações reais e publicadas**, com artista e título como aparecem nos serviços de streaming (versão de
      estúdio original, salvo pedido em contrário). Nada inventado.
-   - **Entre 1,5× e 2× o número de faixas** em candidatas: o motor Onda escolhe e ordena, e algumas podem não estar no
-     Tidal. Vários artistas — o motor respeita o máximo por artista.
+   - **Entre 2,5× e 3× o número de faixas** em candidatas: o motor Onda escolhe e ordena, e algumas podem não estar no
+     Tidal. Vários artistas — o motor respeita o máximo por artista. **Só entram candidatas com nota 80 ou mais**
+     (exceto a playlist *Novidades dos teus artistas*, que é o que saiu): se faltarem, pesquisa mais em vez de baixar a
+     fasquia.
    - Em cada candidata: `ano` = ano **original** da gravação (não o da remasterização); `genero` = uma etiqueta curta,
      sempre a mesma para o mesmo género dentro da proposta (o motor usa-a para espalhar os géneros); `nota` 0–100 =
      quão boa e adequada é (composição, interpretação, **gravação**, encaixe no pedido); `energia` 0–100 (calma ~20,
@@ -126,6 +142,21 @@ nesta tarefa.
    Se faltarem muitas (lista "não encontradas"), troca-as por outras (ou corrige o título/artista) e repete. Se o motor
    disser que **só conseguiu X de Y** faixas, acrescenta candidatas de outros artistas. Vê a mistura de géneros,
    décadas e qualidade no fim — se estiver desequilibrada face às regras, ajusta a proposta.
+
+   **Revisão antes de publicar** (sempre, em cada playlist e em cada proposta): lê a lista final do ensaio, pela ordem
+   do motor, como um crítico exigente que a vai ouvir no carro, e pergunta de cada faixa:
+   - **É a melhor escolha para este lugar?** Encaixa no pedido e no ambiente; não é enchimento; há outra do mesmo artista
+     ou do mesmo estilo claramente melhor?
+   - **É a melhor versão?** A gravação de estúdio original ou a edição de referência (não ao vivo, não compilação, não
+     regravação), em Hi-Res ou sem perdas quando existe.
+   - **Soa bem?** Gravação e masterização à altura (nada de masterizações esmagadas quando há outra edição).
+   - **Liga bem com a anterior e a seguinte?** Sem saltos bruscos de energia, de andamento ou de ambiente que não
+     sirvam o arco.
+   - **O conjunto**: géneros e décadas como as regras pedem, sem dois temas parecidos seguidos, sem repetir as últimas
+     playlists nem o *"Não voltes a propor"*.
+
+   Troca as **~20% mais fracas** (pelo menos 3) por candidatas melhores e volta a fazer o ensaio; no máximo 2 voltas.
+   No `resumo`, diz em uma frase o que a revisão mudou e porque é esta a melhor proposta.
 
 6. **Publica** (cria a playlist no Tidal, pela ordem do motor, e guarda-a na biblioteca da app):
 

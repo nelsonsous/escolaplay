@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.12.0';
+const VERSION = '1.13.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -648,8 +648,9 @@ async function avaliar(env, d, fav, gostava, nasMixes) {
 // ---------- ouvir 30 s: a pré-escuta pública do Deezer (pelo ISRC, ou pela pesquisa do artista e do título). A da Apple
 // não serve daqui: o iTunes limita o IP partilhado do Cloudflare (HTTP 429). O endereço do Deezer é assinado e caduca
 // (exp=…): fica na KV até pouco antes disso; o «não há» fica um dia. ----------
-const MAX_PREVIAS = 45; // pedidos externos por chamada (o plano gratuito deixa 50)
-// ouvir 30 s e a capa: o Deezer dá as duas na mesma resposta. A pré-escuta guarda-se até o link caducar; a capa, 30 dias.
+const MAX_PREVIAS = 40; // pedidos ao Deezer por chamada (o plano gratuito deixa 50; o Tidal leva até 6)
+// ouvir 30 s e a capa. A capa vem do Tidal (a edição exata que está na playlist); o Deezer, que dá a pré-escuta e uma capa
+// na mesma resposta, fica de reserva. A pré-escuta guarda-se até o link caducar; as capas, 30 dias.
 // A playlist guarda as primeiras capas para o mosaico da lista (4 pequenas, ou 1 se não houver 4 álbuns diferentes).
 async function previas(env, id) {
     const d = await obter(env, id);
@@ -657,6 +658,7 @@ async function previas(env, id) {
     const agora = Math.floor(Date.now() / 1000);
     let pedidos = 0;
     const fx = d.faixas.slice(0, 100);
+    const doTidal = await capasTidal(env, fx).catch(() => ({}));
     for (let i = 0; i < fx.length; i += 10) {
         await Promise.all(fx.slice(i, i + 10).map(async (f) => {
             const kp = 'previa:d:' + f.id, kc = 'capa:d:' + f.id;
@@ -672,11 +674,11 @@ async function previas(env, id) {
                 }
             }
             if (url) out[f.id] = url;
-            if (capa) capas[f.id] = capa;
+            if (doTidal[f.id] || capa) capas[f.id] = doTidal[f.id] || capa;
         }));
     }
     const albuns = [...new Set(fx.map((f) => capas[f.id]).filter(Boolean))];
-    const mosaico = albuns.length >= 4 ? albuns.slice(0, 4).map((u) => u.replace('/120x120-', '/56x56-')) : albuns.slice(0, 1);
+    const mosaico = albuns.length >= 4 ? albuns.slice(0, 4).map(capaPequena) : albuns.slice(0, 1);
     if (mosaico.length && JSON.stringify(mosaico) !== JSON.stringify(d.capas || [])) {
         d.capas = mosaico;
         await env.KV.put('playlist:' + d.id, JSON.stringify(d));
@@ -684,7 +686,48 @@ async function previas(env, id) {
     }
     return { previas: out, capas };
 }
-// a capa pequena do álbum (120 px, uns 5 KB), só do CDN de imagens do Deezer
+// as capas do Tidal: as faixas dão o álbum, o álbum dá a capa (160 px). Até 6 pedidos; o que não se souber fica para a próxima
+const MAX_IDS_CAPAS = 20;
+async function capasTidal(env, fx) {
+    const out = {}, falta = [];
+    await Promise.all(fx.map(async (f) => { const c = await env.KV.get('capa:t:' + f.id); if (c === null) falta.push(f.id); else if (c) out[f.id] = c; }));
+    if (!falta.length) return out;
+    const t = await acesso(env);
+    const pais = t.pais || 'PT';
+    const albumDe = {}, arte = {}, vistas = new Set(), vistos = new Set();
+    let pedidos = 0;
+    for (let i = 0; i < falta.length && pedidos < 3; i += MAX_IDS_CAPAS, pedidos++) {
+        const lote = falta.slice(i, i + MAX_IDS_CAPAS);
+        const doc = await tidal(env, '/tracks', { query: { 'filter[id]': lote, include: ['artists', 'albums', 'genres'], countryCode: pais } });
+        lote.forEach((id) => vistas.add(id));
+        for (const x of doc?.data || []) { const a = x?.relationships?.albums?.data?.[0]?.id; if (a) albumDe[String(x.id)] = String(a); }
+    }
+    const albuns = [...new Set(Object.values(albumDe))];
+    for (let i = 0; i < albuns.length && pedidos < 6; i += MAX_IDS_CAPAS, pedidos++) {
+        const lote = albuns.slice(i, i + MAX_IDS_CAPAS);
+        const doc = await tidal(env, '/albums', { query: { 'filter[id]': lote, include: 'coverArt', countryCode: pais } });
+        lote.forEach((a) => vistos.add(a));
+        const obras = new Map((doc?.included || []).filter((x) => x.type === 'artworks').map((x) => [String(x.id), x]));
+        for (const a of doc?.data || []) { const u = ficheiroCapa(obras.get(String(a?.relationships?.coverArt?.data?.[0]?.id))); if (u) arte[String(a.id)] = u; }
+    }
+    // guarda só o que se ficou a saber: a capa, ou '' (sem capa no Tidal) por um dia
+    await Promise.all(falta.filter((id) => vistas.has(id) && (!albumDe[id] || vistos.has(albumDe[id]))).map(async (id) => {
+        const u = arte[albumDe[id]] || '';
+        await env.KV.put('capa:t:' + id, u, { expirationTtl: u ? 30 * 86400 : 86400 });
+        if (u) out[id] = u;
+    }));
+    return out;
+}
+// o ficheiro de 160 px da capa (ou o mais pequeno acima disso), só do servidor de imagens do Tidal
+function ficheiroCapa(obra) {
+    const fs = (obra?.attributes?.files || []).filter((f) => /^https:\/\/resources\.tidal\.com\/images\/[0-9a-f/-]+\/\d+x\d+\.jpg$/.test(f?.href || ''));
+    const w = (f) => Number(f?.meta?.width) || Number((/\/(\d+)x\d+\.jpg$/.exec(f.href) || [])[1]) || 0;
+    const ord = fs.sort((a, b) => w(a) - w(b));
+    return (ord.find((f) => w(f) >= 160) || ord[ord.length - 1])?.href || '';
+}
+// a versão pequena de uma capa, para o mosaico da playlist
+const capaPequena = (u) => (/resources\.tidal\.com/.test(u) ? u.replace(/\/\d+x\d+\.jpg$/, '/80x80.jpg') : u.replace('/120x120-', '/56x56-'));
+// a capa pequena do álbum no Deezer (120 px, uns 5 KB), só do CDN de imagens do Deezer (reserva)
 const capaDeezer = (y) => {
     const u = String(y?.album?.cover_small || '');
     return /^https:\/\/[a-z0-9-]+\.dzcdn\.net\/images\/cover\/[0-9a-f]{32}\/\d+x\d+-[0-9a-z-]+\.jpg$/.test(u) ? u.replace(/\/\d+x\d+-/, '/120x120-') : '';
@@ -788,7 +831,8 @@ async function guardarIdeias(env, c) {
         const texto = txt(x?.texto, 120);
         if (texto.length < 3) return null;
         const o = normalizarOpcoes(x.opcoes || {});
-        return { texto, momento: ['dia', 'noite'].includes(x.momento) ? x.momento : 'sempre',
+        const porque = txt(x?.porque, 90);
+        return { texto, momento: ['dia', 'noite'].includes(x.momento) ? x.momento : 'sempre', ...(porque ? { porque } : {}),
             ...(x.opcoes?.estilo ? { estilo: o.estilo } : {}), ...(x.opcoes?.arco ? { arco: o.arco } : {}) };
     }).filter(Boolean).slice(0, 12);
     if (!ideias.length) throw new Erro(400, 'sem_ideias', 'Indica "ideias": [{ "texto", "momento": "dia|noite|sempre" }].');

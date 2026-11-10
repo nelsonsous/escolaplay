@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.12.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.13.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -591,9 +591,9 @@ test('propostas, ideias e afinar: várias versões só na app, escolher uma para
     // as ideias: só o Maestro as escreve
     assert.deepEqual(await (await get('/api/ideias', chave)).json(), { ideias: [] });
     assert.equal((await post('/api/ideias', { ideias: [{ texto: 'x x x' }] }, chave)).status, 403);
-    const id = await (await post('/api/ideias', { ideias: [{ texto: 'Estrada ao sol', momento: 'dia', opcoes: { arco: 'sobe' } }, { texto: 'Condução à noite', momento: 'noite', opcoes: { estilo: 'audiofilo' } }, { texto: 'ok' }, { texto: 'Sempre bom', momento: 'tarde' }] }, agente)).json();
+    const id = await (await post('/api/ideias', { ideias: [{ texto: 'Estrada ao sol', momento: 'dia', porque: 'Sexta à tarde e o Get Lucky resultou: mais funk para a estrada', opcoes: { arco: 'sobe' } }, { texto: 'Condução à noite', momento: 'noite', opcoes: { estilo: 'audiofilo' } }, { texto: 'ok' }, { texto: 'Sempre bom', momento: 'tarde' }] }, agente)).json();
     assert.deepEqual([id.n, id.dia, id.noite], [3, 1, 1]);
-    assert.deepEqual((await (await get('/api/ideias', chave)).json()).ideias, [{ texto: 'Estrada ao sol', momento: 'dia', arco: 'sobe' }, { texto: 'Condução à noite', momento: 'noite', estilo: 'audiofilo' }, { texto: 'Sempre bom', momento: 'sempre' }]);
+    assert.deepEqual((await (await get('/api/ideias', chave)).json()).ideias, [{ texto: 'Estrada ao sol', momento: 'dia', porque: 'Sexta à tarde e o Get Lucky resultou: mais funk para a estrada', arco: 'sobe' }, { texto: 'Condução à noite', momento: 'noite', estilo: 'audiofilo' }, { texto: 'Sempre bom', momento: 'sempre' }]);
 });
 
 test('ouvir 30 s e capas: a pré-escuta e a capa do Deezer (pelo ISRC ou pela pesquisa), guardadas; o género e a capa da playlist no índice', async () => {
@@ -610,9 +610,15 @@ test('ouvir 30 s e capas: a pré-escuta e a capa do Deezer (pelo ISRC ou pela pe
     assert.deepEqual((await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).previas, p);
     assert.equal(sim.chamadas.slice(antes).filter((x) => /deezer/.test(x)).length, 0);
     assert.equal((await (await get('/api/playlists', chave)).json())[0].genero, 'jazz');
-    // a capa de cada faixa (pequena: 120 px) e, para a lista, a capa da playlist (1, porque não há 4 álbuns diferentes)
+    // a capa de cada faixa vem do Tidal (160 px, a edição que está na playlist); a «Teardrop», sem capa no Tidal, vem do
+    // Deezer (120 px). Para a lista, o mosaico de 4 em pequeno. A segunda vez, nada vai ao Tidal nem ao Deezer
     const c = (await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).capas;
-    assert.deepEqual(Object.keys(c).sort(), ['101', '102', '106']);
-    assert.match(c[102], /^https:\/\/cdn-images\.dzcdn\.net\/images\/cover\/[0-9a-f]{32}\/120x120-000000-80-0-0\.jpg$/);
-    assert.deepEqual((await (await get('/api/playlists', chave)).json())[0].capas, [c[101]]);
+    assert.deepEqual(Object.keys(c).sort(), ['101', '102', '105', '106']);
+    assert.match(c[101], /^https:\/\/resources\.tidal\.com\/images\/[0-9a-f/]+\/160x160\.jpg$/);
+    assert.match(c[106], /^https:\/\/cdn-images\.dzcdn\.net\/images\/cover\/[0-9a-f]{32}\/120x120-000000-80-0-0\.jpg$/, 'reserva: o Deezer');
+    assert.deepEqual((await (await get('/api/playlists', chave)).json())[0].capas,
+        [c[101].replace('160x160', '80x80'), c[102].replace('160x160', '80x80'), c[105].replace('160x160', '80x80'), c[106].replace('/120x120-', '/56x56-')]);
+    const antes2 = sim.chamadas.length;
+    assert.deepEqual((await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).capas, c);
+    assert.equal(sim.chamadas.slice(antes2).filter((x) => /deezer|\/albums|\/tracks/.test(x)).length, 0);
 });

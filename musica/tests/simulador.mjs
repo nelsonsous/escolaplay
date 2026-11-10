@@ -168,6 +168,18 @@ function tidalSimulado(sim, u, init = {}) {
         const lista = alb[1] === 'a2' ? [{ id: 'al-novo', title: 'Disco novo', releaseDate: dia(3) }, { id: 'al-novo-x', title: 'Disco novo', releaseDate: dia(3) }, { id: 'al2', title: 'Pastel Blues', releaseDate: '1965-01-01' }] : [];
         return resp({ data: lista.map((x) => ({ id: x.id, type: 'albums' })), included: lista.map((x) => ({ id: x.id, type: 'albums', attributes: { title: x.title, releaseDate: x.releaseDate } })), links: { self: '/x' } });
     }
+    // as capas: os álbuns com a capa (artworks com ficheiros de 80 a 1280 px); o da «Teardrop» não tem capa no Tidal
+    if (p === '/albums') {
+        const ids = url.searchParams.getAll('filter[id]');
+        assert.ok(ids.length <= 20, 'no máximo 20 álbuns por pedido');
+        assert.equal(url.searchParams.get('include'), 'coverArt');
+        sim.chamadas.push(`GET /albums ${ids.join(',')}`);
+        const COM = ['al1', 'al2', 'al3', 'al5'];
+        const uuid = (id) => [...id].map((c) => c.charCodeAt(0).toString(16)).join('').padEnd(32, '0').slice(0, 32).replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1/$2/$3/$4/$5');
+        return resp({ data: ids.map((id) => ({ id, type: 'albums', relationships: { coverArt: { data: COM.includes(id) ? [{ id: 'art-' + id, type: 'artworks' }] : [] } } })),
+            included: ids.filter((id) => COM.includes(id)).map((id) => ({ id: 'art-' + id, type: 'artworks', attributes: { mediaType: 'IMAGE',
+                files: [1280, 640, 320, 160, 80].map((w) => ({ href: `https://resources.tidal.com/images/${uuid(id)}/${w}x${w}.jpg`, meta: { width: w, height: w } })) } })), links: { self: '/x' } });
+    }
     const ai = /^\/albums\/([^/]+)\/relationships\/items$/.exec(p);
     if (ai) return resp({ data: (ai[1] === 'al-novo' ? ['102', '201'] : []).map((id) => ({ id, type: 'tracks' })), links: { self: '/x' } });
     return resp({ errors: [{ title: 'not found ' + p }] }, 404);
