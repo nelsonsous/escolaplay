@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.17.4';
+    const VERSION = '4.18.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1104,8 +1104,20 @@
     // aviso "A calcular…" (as pontuações, o plano automático e os avisos também são da Onda).
     // A Carteira (4.12) é toda da Onda (mercados/onda/ecra-carteira.onda): o simulador do plano e do objetivo, com o
     // valor por mês, a divisão e o fundo núcleo dos Ajustes. Sem o módulo (sem WebAssembly) diz só que não dá.
+    // o que se tem hoje, pelas quantidades da Carteira: o valor e a parte em cripto (o ponto de partida do simulador)
+    function carteiraHoje() {
+        let v = 0, vc = 0;
+        for (const k of cfg.holdings) {
+            const L = lotOf(k), p = qv(k).price;
+            if (!REG[k] || !temHoje(L) || !fin(p) || p <= 0) continue;
+            const x = +L.qty * p; v += x; if (REG[k].kind === 'crypto') vc += x;
+        }
+        return { v, cp: v > 0 ? vc / v : 0 };
+    }
     function walletSnap() {
-        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund), start: +cfg.simStart || 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap() };
+        const ch = carteiraHoje(), real = ch.v > 0 && !cfg.simStartManual;
+        return { budget: +cfg.budget || 0, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund),
+            start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap() };
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
     const LH = {}, lhAt = {}, lhVai = new Set();
@@ -2236,9 +2248,12 @@
                 break;
             }
             case 'sim-hoje': cfg.simHoje = t.dataset.v === '1'; saveCfg(); render(); break;
+            case 'sim-carteira': cfg.simStartManual = false; saveCfg(); render(); break;
             case 'sim-step': {
-                const k = t.dataset.k, rg = t.parentElement && t.parentElement.querySelector('.sim-rg');
-                const v = (+cfg[k] || 0) + (+t.dataset.d || 0), mn = rg ? +rg.min : 0;
+                const k = t.dataset.k, d = +t.dataset.d || 0, rg = t.parentElement && t.parentElement.querySelector('.sim-rg'), mn = rg ? +rg.min : 0;
+                // o «Já tens» parte do valor da carteira; mexer nele passa a valor à mão
+                if (k === 'simStart' && !cfg.simStartManual) { cfg.simStart = Math.round(carteiraHoje().v) || +cfg.simStart || 0; cfg.simStartManual = true; }
+                const v = (+cfg[k] || 0) + d;
                 cfg[k] = k === 'simYears' ? Math.min(60, Math.max(1, Math.round(v || 20))) : Math.max(mn, v);
                 saveCfg(); render(); break;
             }
@@ -2274,6 +2289,7 @@
             setLots(k, L); return;
         }
         if (t.dataset && t.dataset.cfg) {
+            if (t.dataset.cfg === 'simStart') cfg.simStartManual = true; // mexeu à mão: deixa de seguir a carteira
             cfg[t.dataset.cfg] = ['alertPct', 'budget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
             saveCfg();
             if (t.dataset.cfg === 'distrito') { cfg.municipio = ''; saveCfg(); FUEL = null; loadFuel(); render(); }

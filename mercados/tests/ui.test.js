@@ -262,6 +262,16 @@ function proxyBody(u) {
     assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.lots['VWCE.DE'].qd, window.__mk.cfg.lots['c:BTC'].qd, window.__mk.cfg.lots['c:SOL'].qd]), ['2026-11-02', '2026-10-08', undefined], 'a data no fim, nos dois formatos');
     assert.match(await page.locator('#mk-toast').textContent(), /3 posições importadas · não percebi: xpto/);
     await page.evaluate(() => { for (const k of ['c:BTC', 'c:SOL']) { delete window.__mk.cfg.lots[k].qty; delete window.__mk.cfg.lots[k].avg; delete window.__mk.cfg.lots[k].cost; delete window.__mk.cfg.lots[k].qd; } delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.render(); });
+    // o simulador parte da carteira (com quantidades): «Já tens (a tua carteira)»; o − passa a valor à mão
+    await page.fill('#lot-imp', 'VWCE.DE 2 150');
+    await page.click('[data-act="lot-import"]');
+    await page.evaluate(() => window.__mk.render());
+    assert.match(await page.locator('.sim [data-out="simStart"]').evaluate((e) => e.previousElementSibling.textContent), /Já tens \(a tua carteira\)/);
+    await page.click('.sim [data-act="sim-step"][data-k="simStart"][data-d="-1000"]');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.simStartManual), true);
+    await page.click('[data-act="sim-carteira"]');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.simStartManual), false, 'volta a seguir a carteira');
+    await page.evaluate(() => { delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.cfg.simStart = 0; window.__mk.render(); });
     // o que tem hoje, sem plano: o Ether com quantidade e investido (sem data)
     const lot = (k, campo, v) => page.evaluate(([k, campo, v]) => { const i = document.querySelector(`[data-lot="${campo}"][data-k="${k}"]`); i.value = v; i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, campo, v]);
     await lot('c:ETH', 'qty', '0,5'); await lot('c:ETH', 'avg', '2 400');
