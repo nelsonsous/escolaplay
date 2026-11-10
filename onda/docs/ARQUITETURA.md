@@ -75,6 +75,7 @@ de cima, com o estado dentro da Onda.
 | `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 1 948 linhas, módulo de 363 KB |
 | `mercados/proto/` | gráficos vivos e o mapa do mercado (o guia: `docs/CAMPOS.md`) | 265 linhas, módulo de 27 KB |
 | `musica/onda/` | o motor e o curador da Música (de outra sessão; usa ainda o `lib/app.onda`) | 231 linhas |
+| `meteo/onda/` | os campos da Meteo: o gráfico da chuva das próximas 2 horas (WebAssembly) e o céu do cartão «Agora» (GLSL) | 91 + 169 linhas, 11 KB de WASM e 32 KB de GLSL |
 
 ## Estado de cada app
 
@@ -85,6 +86,7 @@ de cima, com o estado dentro da Onda.
 | Mercados — tarefa do Claude | tudo | lançadores de uma linha |
 | Mercados — app | a análise toda e os separadores Painel, Destaques, Análise e Ajustes (pela ponte) | a ficha do ativo e os gráficos, os dados ao vivo, o estado e os gestos (`mercados.js`, 2 168 linhas) |
 | Mercados — conector (Cloudflare) | nada | tudo |
+| Meteo — app | o gráfico da chuva e o céu animado do cartão «Agora» (campos) | o resto da app, o conector e a tarefa do Claude |
 
 O HTML, o CSS e o service worker ficam sempre fora: os dois primeiros não são linguagens de programação e o browser
 exige o terceiro em JavaScript.

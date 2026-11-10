@@ -327,7 +327,50 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const apiIds = ids.filter((x) => /^\/api\/(status|analysis|places|reports)/.test(x.p));
     assert.ok(apiIds.length >= 5 && apiIds.every((x) => x.dev === `${dev.id}.${dev.token}` && !x.own), 'x-meteo-device em todos os pedidos da app');
     assert.ok(ids.filter((x) => /^\/api\/(raw|obs-history)/.test(x.p)).every((x) => !x.dev), 'as fontes em bruto não precisam dela');
-    // chuva no cartão (canvas): continua a cair depois de a página se redesenhar (antes parava ao fim de 1 s)
+    // o céu do cartão é um campo da Onda na placa gráfica (onda/ceu.onda → GLSL): chuva fraca de dia, nublado
+    {
+        const s0 = await page.evaluate(() => { const s = window.__mt.skyGL(); return { on: s.on, err: s.err, p: s.p }; });
+        assert.ok(s0.on, `o céu da Onda está ligado (${s0.err})`);
+        assert.equal(await page.locator('.now .sky.gl > canvas.sky-gl').count(), 1);
+        assert.ok(Math.abs(s0.p[0] - 0.413) < 0.002 && s0.p[1] === 0 && s0.p[2] === 1 && (s0.p[4] & 1) === 1 && !(s0.p[4] & 64), `chuva fraca, encoberto, de dia: ${s0.p}`);
+        const frames = () => page.evaluate(() => window.__mt.skyGL().frames);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(200);
+        const f0 = await frames();
+        for (let k = 0; k < 3; k++) { await page.evaluate(() => window.__mt.render()); await page.waitForTimeout(120); }
+        const f1 = await frames();
+        await page.waitForTimeout(500);
+        const f2 = await frames();
+        assert.ok(f1 > f0 && f2 - f1 >= 8, `o céu continua depois de redesenhar (o mesmo canvas): ${f0} → ${f1} → ${f2}`);
+        assert.equal(await page.locator('canvas.sky-gl').count(), 1, 'um só canvas WebGL na página');
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(300);
+        const g0 = await frames();
+        await page.waitForTimeout(400);
+        const g1 = await frames();
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(400);
+        const g2 = await frames();
+        assert.ok(g1 - g0 <= 1 && g2 - g1 >= 8, `pára fora do ecrã e volta: ${g0} → ${g1} → ${g2}`);
+        // os píxeis, lidos da placa gráfica: gotas azuis, mais em cima (à volta da temperatura) do que por trás do texto de baixo
+        const px = await page.evaluate(() => {
+            const { w, h, px } = window.__mt.skyGL(12.3);
+            let blue = 0, up = 0, low = 0, lit = 0;
+            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4, r = px[i], g = px[i + 1], b = px[i + 2];
+                if (r + g + b > 30) lit++;
+                if (b > 70 && b > r + 30) { blue++; if (y > h * 0.6) up++; else if (y < h * 0.4) low++; } // readPixels: de baixo para cima
+            }
+            return { blue: blue / (w * h), up, low, lit: lit / (w * h) };
+        });
+        assert.ok(px.blue > 0.002 && px.up > px.low * 1.5, `gotas azuis, mais em cima: ${JSON.stringify(px)}`);
+        assert.ok(px.lit > 0.2, `nuvens por todo o lado (encoberto): ${JSON.stringify(px)}`);
+        // se a placa gráfica tirar o contexto, volta o céu em CSS (e a chuva no canvas 2D)
+        await page.evaluate(() => document.querySelector('.now canvas.sky-gl').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
+        await page.waitForFunction(() => !window.__mt.skyGL().on && !document.querySelector('.now .sky').classList.contains('gl'));
+        assert.match(await page.evaluate(() => window.__mt.skyGL().err), /contexto perdido/);
+    }
+    // chuva em CSS (sem WebGL2): continua a cair depois de a página se redesenhar (antes parava ao fim de 1 s)
     assert.equal(await page.locator('.now .sky-rain').count(), 1, 'chuva fraca: a chuva do cartão no canvas');
     {
         await page.evaluate(() => window.scrollTo(0, 0)); // fora do ecrã a chuva pára (de propósito)

@@ -613,6 +613,11 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
     /* forte em cima (à volta da temperatura e do ícone), suave por trás do texto de baixo: a leitura vem primeiro */
     -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 46%, rgba(0, 0, 0, .28) 66%, rgba(0, 0, 0, .22) 100%);
     mask-image: linear-gradient(to bottom, #000 0, #000 46%, rgba(0, 0, 0, .28) 66%, rgba(0, 0, 0, .22) 100%); }
+/* 1.18: o céu é um campo da Onda na placa gráfica (sky.js: startSky); sai preto onde não há nada e entra no cartão em
+   modo «screen» (só acrescenta luz). As peças em CSS ficam para os telemóveis sem WebGL2. */
+.sky.gl { mix-blend-mode: screen; }
+.sky.gl > :not(.sky-gl) { display: none; }
+.sky .sky-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* relâmpago: dois clarões curtos de 9 em 9 s */
 .sky-fl { inset: 0; background: radial-gradient(120% 90% at 70% 0, rgba(215, 205, 255, .55), transparent 70%); opacity: 0; animation-name: sky-flash; animation-duration: 9s; }
 @keyframes sky-flash { 0%, 90%, 100% { opacity: 0; } 91% { opacity: .85; } 92.2% { opacity: .1; } 93.4% { opacity: .6; } 96% { opacity: 0; } }
