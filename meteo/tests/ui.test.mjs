@@ -356,18 +356,20 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         await page.waitForTimeout(400);
         const g2 = await frames();
         assert.ok(g1 - g0 <= 1 && g2 - g1 >= 8, `pára fora do ecrã e volta: ${g0} → ${g1} → ${g2}`);
-        // os píxeis, lidos da placa gráfica: gotas azuis, mais em cima (à volta da temperatura) do que por trás do texto de baixo
+        // os píxeis, lidos da placa gráfica: gotas azuis discretas, e nenhuma por cima do ícone do tempo (o sinal principal)
         const px = await page.evaluate(() => {
             const { w, h, px } = window.__mt.skyGL(12.3);
-            let blue = 0, up = 0, low = 0, lit = 0;
-            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-                const i = (y * w + x) * 4, r = px[i], g = px[i + 1], b = px[i + 2];
+            const cv = document.querySelector('.now canvas.sky-gl').getBoundingClientRect(), ic = document.querySelector('.now .now-i').getBoundingClientRect();
+            const k = w / cv.width, cx = (ic.left + ic.width / 2 - cv.left) * k, cy = (ic.top + ic.height / 2 - cv.top) * k, R = (ic.width / 2) * k;
+            let blue = 0, icon = 0, lit = 0;
+            for (let row = 0; row < h; row++) for (let x = 0; x < w; x++) {
+                const i = (row * w + x) * 4, r = px[i], g = px[i + 1], b = px[i + 2], y = h - 1 - row; // readPixels: de baixo para cima
                 if (r + g + b > 30) lit++;
-                if (b > 70 && b > r + 30) { blue++; if (y > h * 0.6) up++; else if (y < h * 0.4) low++; } // readPixels: de baixo para cima
+                if (b > 60 && b > r + 30) { blue++; if (Math.hypot(x - cx, y - cy) < R) icon++; }
             }
-            return { blue: blue / (w * h), up, low, lit: lit / (w * h) };
+            return { blue: blue / (w * h), icon, lit: lit / (w * h) };
         });
-        assert.ok(px.blue > 0.002 && px.up > px.low * 1.5, `gotas azuis, mais em cima: ${JSON.stringify(px)}`);
+        assert.ok(px.blue > 0.0005 && px.icon === 0, `gotas discretas, nenhuma no ícone: ${JSON.stringify(px)}`);
         assert.ok(px.lit > 0.2, `nuvens por todo o lado (encoberto): ${JSON.stringify(px)}`);
         // a arrastar para o lado: a página anda com o dedo sem ficar transparente e o céu fica parado (antes tremia)
         await swipe('#mt-body', [[300, 400], [288, 401], [240, 402]], { lift: false });

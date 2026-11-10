@@ -609,7 +609,7 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
 @keyframes sky-snow { from { transform: translate3d(0, -6%, 0); } to { transform: translate3d(0, 106%, 0); } }
 @keyframes sky-sway { from { transform: translate3d(-7px, 0, 0); } to { transform: translate3d(7px, 0, 0); } }
 /* chuva no canvas (sky.js: startRain) */
-.sky .sky-rain { position: absolute; inset: 0; width: 100%; height: 100%; display: block; animation: none;
+.sky .sky-rain { position: absolute; inset: 0; width: 100%; height: 100%; display: block; animation: none; opacity: .55;
     /* forte em cima (à volta da temperatura e do ícone), suave por trás do texto de baixo: a leitura vem primeiro */
     -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 46%, rgba(0, 0, 0, .28) 66%, rgba(0, 0, 0, .22) 100%);
     mask-image: linear-gradient(to bottom, #000 0, #000 46%, rgba(0, 0, 0, .28) 66%, rgba(0, 0, 0, .22) 100%); }

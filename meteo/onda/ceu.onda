@@ -7,7 +7,10 @@
 # Monta-se com: node meteo/onda/build.mjs (gera onda/ceu-glsl.js; os testes usam a mesma funcao em WebAssembly).
 # Na placa grafica: x y = pixel (y para baixo); u[0] = t (s), u[1] = w, u[2] = h (pixeis do canvas) e u[3..7] =
 # chuva (0..1), neve (0..1), nuvens (0..1), vento (0..1) e modo (bits: 1 dia, 2 brilho, 4 nevoeiro, 8 relampago,
-# 16 granizo, 32 ceu escuro de trovoada, 64 morrinha). Cor de saida: R*65536 + G*256 + B.
+# 16 granizo, 32 ceu escuro de trovoada, 64 morrinha; e, de 128 para cima, os pixeis do canvas por ponto do ecra
+# vezes 4). Cor de saida: R*65536 + G*256 + B.
+# Desde a 1.18.3 a chuva e a neve do fundo sao discretas (o icone do tempo e o sinal principal) e nao caem por
+# cima do icone, no canto de cima a direita.
 # Sem acaso verdadeiro: o mesmo tempo e o mesmo t dao sempre a mesma imagem (redesenhar a pagina nao faz saltar).
 
 # ---------- utilitarios ----------
@@ -47,13 +50,13 @@
   = ocupa ? < h2 + li 5.0 * 31.0 lz dens 1.0 0.0
   = v * * h + 0.85 * 0.75 lz + 0.9 * 0.2 hs
   = per * * h + 0.55 * 0.35 hs ? > dz 0.5 0.22 - 1.2 * 0.8 dens
-  = dl * sc ? > dz 0.5 + 3.0 * 3.0 lz + 7.0 * 17.0 lz
+  = dl * sc ? > dz 0.5 + 3.0 * 3.0 lz + 6.0 * 12.0 lz
   = lx * + + li 0.5 * 0.4 - hs 0.5 pw
-  = lw * + 0.55 * 0.55 lz sc
+  = lw * + 0.5 * 0.35 lz sc
   = linha lim - + lw 0.5 Ab - xl lx 0.0 1.0
   = s * per frac / - + y * hs * 3.0 per * v t per
   = cauda ? < s dl / s dl 0.0
-  * * * ocupa linha cauda + 0.5 * 0.4 lz }
+  * * * ocupa linha cauda + 0.32 * 0.2 lz }
 
 # ---------- neve (ou granizo, gr = 1): uma camada ----------
 # cada floco vive numa celula que desce com o tempo; a neve balanca para os lados, o granizo cai a direito e depressa.
@@ -72,11 +75,13 @@
   = d Sq + * dx dx * dy dy
   = r * sc ? > gr 0.5 1.4 + + 1.1 * 1.1 lz * 1.2 hs
   = a lim / - r d * 0.8 sc 0.0 1.0
-  ? < hs dens * a + 0.5 * 0.35 lz 0.0 }
+  ? < hs dens * a + 0.4 * 0.25 lz 0.0 }
 
 # ---------- o ceu ----------
 : ceu ffffffffff>i x y t w h chuva neve nuvens vento modo {
-  = sc Mx 1.0 / w 360.0
+  # pixeis do canvas por ponto do ecra (a casca passa-o no modo); sem ele, pela largura de um telemovel
+  = kk / Fl / modo 128.0 4.0
+  = sc ? > kk 0.0 kk Mx 1.0 / w 360.0
   = px / x w
   = py / y h
   = dia bit modo 1.0
@@ -136,11 +141,15 @@
     = g + g * f 0.82
     = b + b * f 0.86
     0 } 0
-  # o que cai e forte em cima (a volta da temperatura e do icone) e suave por tras do texto de baixo
-  = fade + 0.24 * 0.76 lim / - 0.66 py 0.20 0.0 1.0
+  # o que cai e discreto e nao passa por cima do icone do tempo (96 pontos, no canto de cima a direita do cartao):
+  # a volta dele fica limpo; por tras do texto de baixo, ainda mais suave
+  = ix - x - w * 62.0 sc
+  = iy - y * 63.0 sc
+  = livre suave * 50.0 sc * 88.0 sc Sq + * ix ix * iy iy
+  = fade * livre + 0.5 * 0.3 lim / - 0.8 py 0.3 0.0 1.0
   ? > chuva 0.0 {
     = incl + 0.08 * 0.34 vento
-    = a * fade + gotas x y t h sc * chuva 0.45 incl 0.0 dz gotas x y t h sc * chuva 0.62 incl 1.0 dz
+    = a * fade + gotas x y t h sc * chuva 0.42 incl 0.0 dz gotas x y t h sc * chuva 0.36 incl 1.0 dz
     = r + r * a 0.43
     = g + g * a 0.69
     = b + b a

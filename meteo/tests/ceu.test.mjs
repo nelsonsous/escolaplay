@@ -66,7 +66,7 @@ function campo() {
     };
 }
 const conta = (img, f, y0 = 0, y1 = img.H) => { let n = 0; for (let y = y0; y < y1; y++) for (let x = 0; x < img.W; x++) if (f(img.at(x, y))) n++; return n; };
-const azul = ([r, g, b]) => b > 90 && b > r + 45; // as gotas (o brilho da lua é azulado, mas fraco)
+const azul = ([r, g, b]) => b > 60 && b > r + 30; // as gotas (o brilho da lua é azulado, mas fraco)
 const soma = ([r, g, b]) => r + g + b;
 
 test('céu da Onda na CPU: cada cena desenha o que deve, só com luz (preto onde não há nada)', { skip: semOndac }, () => {
@@ -83,10 +83,24 @@ test('céu da Onda na CPU: cada cena desenha o que deve, só com luz (preto onde
     const estrelas = conta(noite, ([r, g, b]) => r > 120 && g > 120 && b > 120, 0, 150);
     assert.ok(estrelas >= 8, `estrelas: ${estrelas}`);
     assert.equal(conta(noite, azul), 0);
-    // chuva forte: gotas azuis, mais em cima do que por trás do texto de baixo; com vento, inclinada
+    // chuva forte: gotas azuis discretas (o ícone do tempo é o sinal principal), nenhuma por cima do ícone (canto de
+    // cima à direita) e mais suaves por trás do texto de baixo
     const chuva = ceu([1, 0, 1, 0.5, 1], 3, 360, 240);
     const cima = conta(chuva, azul, 0, 110), baixo = conta(chuva, azul, 170, 240);
-    assert.ok(cima > 150 && cima > baixo * 2, `gotas: ${cima} em cima, ${baixo} em baixo`);
+    assert.ok(cima > 50 && cima > baixo, `gotas: ${cima} em cima, ${baixo} em baixo`);
+    let noIcone = 0, maxAzul = 0;
+    for (let y = 0; y < 240; y++) for (let x = 0; x < 360; x++) {
+        const c = chuva.at(x, y);
+        maxAzul = Math.max(maxAzul, c[2]);
+        if (azul(c) && Math.hypot(x - (360 - 62), y - 63) < 50) noIcone++;
+    }
+    assert.equal(noIcone, 0, 'à volta do ícone não chove');
+    assert.ok(maxAzul < 180, `discretas: azul no máximo ${maxAzul}`);
+    // o modo leva também os píxeis por ponto (×4, de 128 para cima): com 2 píxeis por ponto, o ícone fica no dobro
+    const dobro = ceu([1, 0, 1, 0.5, 1 + 128 * 8], 3, 720, 480);
+    let perto = 0;
+    for (let y = 0; y < 480; y++) for (let x = 0; x < 720; x++) if (azul(dobro.at(x, y)) && Math.hypot(x - (720 - 124), y - 126) < 100) perto++;
+    assert.equal(perto, 0);
     // a chuva cai: noutro instante, as gotas estão noutro sítio; no mesmo instante, a mesma imagem
     const chuva2 = ceu([1, 0, 1, 0.5, 1], 3.2, 360, 240);
     assert.deepEqual(ceu([1, 0, 1, 0.5, 1], 3, 360, 240).px, chuva.px);
