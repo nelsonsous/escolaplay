@@ -255,7 +255,8 @@ function proxyBody(u) {
     assert.match(await page.locator('.real .sim-st div:first-child b').textContent(), /€$/, 'investido');
     assert.equal(await page.evaluate(() => window.__mk.cfg.lots['VWCE.DE'].plan), isoAtras(300), 'fica guardado');
     // colar de uma vez: uma linha por ativo (símbolo, quantidade, preço médio)
-    await page.fill('#lot-imp', 'VWCE.DE 5,486463 169,86 02/11/2026\nBTC 0,044679 73722,55 2026-10-08\nSolana 3,488363 102,03\nxpto 1 2');
+    // como vem da TR ou de uma folha de cálculo: com €, espaços duros, «@», «;» e o símbolo sem a bolsa (VWCE)
+    await page.fill('#lot-imp', 'VWCE 5,486463 @ 169,86 € 02/11/2026\nBTC 0,044679 73\u00a0722,55\u00a0€ 2026-10-08\nSolana;3,488363;102,03\nxpto 1 2');
     await page.click('[data-act="lot-import"]');
     assert.deepEqual(await page.evaluate(() => ['VWCE.DE', 'c:BTC', 'c:SOL'].map((k) => [window.__mk.cfg.lots[k].qty, window.__mk.cfg.lots[k].avg, window.__mk.cfg.lots[k].cost])),
         [[5.486463, 169.86, 931.93], [0.044679, 73722.55, 3293.85], [3.488363, 102.03, 355.92]], 'importadas, com o investido calculado');
