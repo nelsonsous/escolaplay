@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.14.1';
+const VERSION = '1.15.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -357,13 +357,13 @@ function renderStatus() {
         const when = g ? `${F.dayDiff(g.slice(0, 10), today) === 0 ? '' : F.dayLabel(g.slice(0, 10), today).toLowerCase() + ' '}${F.hhmm(g)}` : '';
         const old = Date.now() - st.savedAt > 45 * 60e3;
         a = st.offline ? `<span><span class="dot off"></span>Sem ligação · dados de ${esc(when)}</span>`
-            : `<span><span class="dot ${old ? 'warn' : 'on'}"></span>${old ? 'Dados de' : 'Atualizado às'} <b>${esc(when)}</b></span>`;
+            : `<span><span class="dot ${old ? 'busy' : 'on'}"></span>${old ? 'Dados de' : 'Atualizado às'} <b>${esc(when)}</b></span>`;
     }
     const L = fc?.location;
     let b = `${F.num(cfg.loc.lat, 4)}, ${F.num(cfg.loc.lon, 4)}`;
     if (F.isNum(L?.elevation)) b += ` · ${F.num(L.elevation)} m`;
     if (cfg.loc.gps && F.isNum(cfg.loc.acc)) b += ` · GPS ±${F.num(cfg.loc.acc)} m`;
-    el.innerHTML = `${a}<span class="num">${esc(b)}</span>`;
+    el.innerHTML = `${a}<span class="num">${esc(b)}</span>${nearPlace() ? '<span class="cl-on">✦ análise do Claude</span>' : ''}`;
 }
 // o céu animado pára quando o cartão sai do ecrã (poupa bateria)
 let skyWatch = null;
@@ -883,7 +883,22 @@ function obsHtml(fc) {
         <p class="note">Cada estação é levada à altitude do ponto (0,65° por 100 m) e pesa pela distância, pela altitude parecida e por ser recente; as muito diferentes das outras ficam de fora. Juntas dão ${esc(F.deg(o.temp, 1))} a ${esc(F.km(o.distanceKm))} em média${F.isNum(o.repr) ? ` · confiança ${esc(F.pct(o.repr * 100))}` : ''}.</p></section>`;
 }
 // o local deste telemóvel com a análise diária ligada aqui (≤ 2 km do ponto selecionado)
-const nearPlace = () => (cfg.loc ? onPlaces().find((p) => haversineKm(p.lat, p.lon, cfg.loc.lat, cfg.loc.lon) <= (p.shared ? SHARE_KM : FAR_KM)) : null);
+const claudeAt = (loc) => (loc ? onPlaces().find((p) => haversineKm(p.lat, p.lon, loc.lat, loc.lon) <= (p.shared ? SHARE_KM : FAR_KM)) : null);
+const nearPlace = () => claudeAt(cfg.loc);
+// «Os meus locais»: os guardados (até 12) e os que têm análise diária do Claude (mesmo que não estejam guardados);
+// o atual marcado, ✦ nos analisados pelo Claude, ✕ para tirar um guardado
+function locsHtml({ remove = true } = {}) {
+    const L = cfg.loc;
+    const rows = cfg.favs.map((f, i) => ({ f, i, p: claudeAt(f) }));
+    for (const p of onPlaces()) if (!rows.some((r) => r.p === p || near(r.f, p, 2))) rows.push({ f: { lat: p.lat, lon: p.lon, name: p.name }, i: -1, p });
+    if (!rows.length) return '<div class="hint">Ainda não guardaste locais. Pesquisa um abaixo: fica logo aqui.</div>';
+    return `<div class="wl locs">${rows.map(({ f, i, p }) => {
+        const here = L && near(f, L);
+        const sub = [here ? 'a ver agora' : '', p ? '✦ análise do Claude' : '', !here && !p ? `${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}` : ''].filter(Boolean).join(' · ');
+        const go = i >= 0 ? `data-fav="${i}"` : `data-goplace="${esc(p.id)}"`;
+        return `<div class="wl-i${here ? ' here' : ''}"><button type="button" class="wl-go" ${go}><b>${esc(f.name)}${here ? ` ${ui('check')}` : ''}</b><small class="num${p ? ' cl' : ''}">${esc(sub)}</small></button>${remove && i >= 0 ? `<button type="button" class="xbtn" data-rmfav="${i}" aria-label="${esc('Tirar ' + f.name)}">✕</button>` : ''}</div>`;
+    }).join('')}</div>`;
+}
 function reliabilityHtml(fc) {
     const ind = fc.indicators || {}, ver = fc.verification, learnBest = fc.learning?.best?.t?.[1] || null;
     const byId = Object.fromEntries((fc.models || []).map((m) => [m.id, m]));
@@ -974,8 +989,8 @@ function viewSettings() {
         ${L ? `<div class="sw"><span><b>${esc(placeName())}</b><br><small class="hint num">${esc(`${F.num(L.lat, 4)}, ${F.num(L.lon, 4)}${L.gps ? ' · GPS' : ''}`)}</small></span><button type="button" class="btn sm" data-act="place">Mudar</button></div>` : ''}
         ${L && st.fc ? more('d-prec', 'Precisão para este ponto', `<ul class="prec" aria-label="Precisão para este ponto">${precisionLines(st.fc).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`) : ''}
         <button type="button" class="btn blk" data-act="gps">${ui('gps')}Usar a minha localização exata</button>
-        <div><label>Favoritos</label><div class="wl">${cfg.favs.length ? cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button><button type="button" class="xbtn" data-rmfav="${i}" aria-label="${esc('Retirar ' + f.name)}">✕</button></div>`).join('') : '<div class="hint">Ainda sem favoritos.</div>'}</div>
-            ${L ? `<button type="button" class="btn sm" data-act="fav" style="margin-top:8px">${ui('star')}${cfg.favs.some((f) => near(f, L)) ? 'Retirar este local' : 'Guardar este local'}</button>` : ''}</div>
+        <div><label>Os meus locais</label>${locsHtml()}
+            ${L ? `<button type="button" class="btn sm" data-act="fav" style="margin-top:8px">${ui(cfg.favs.some((f) => near(f, L)) ? 'trash' : 'plus')}${cfg.favs.some((f) => near(f, L)) ? 'Tirar este local' : 'Guardar este local'}</button>` : ''}</div>
     </div></section>`;
     h += notifHtml();
     h += placesSettingsHtml();
@@ -1216,11 +1231,13 @@ function renderSheet() {
     const s = st.sheet;
     if (!s) return;
     if (s.kind === 'place') {
-        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Escolher local</h2><div class="d-sub">A previsão é calculada para o ponto exato que escolheres.</div></div>${closeBtn}</div>
-            <button type="button" class="btn pri blk" data-act="gps">${ui('gps')}Usar a minha localização exata</button>
-            <div style="margin-top:12px"><label class="sr-only" for="f-q">Pesquisar local</label><input id="f-q" class="inp" type="search" placeholder="Cidade, vila ou freguesia" autocomplete="off" autocapitalize="words" enterkeyhint="search"><div class="res" id="f-res" aria-live="polite"></div></div>
-            ${cfg.favs.length ? `<div class="grp-h" style="margin-top:18px">Favoritos</div><div class="wl">${cfg.favs.map((f, i) => `<div class="wl-i"><button type="button" class="wl-go" data-fav="${i}"><b>${esc(f.name)}</b><small class="num">${esc(`${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}
-            ${onPlaces().length ? `<div class="grp-h" style="margin-top:18px">Com análise diária</div><div class="wl">${onPlaces().map((p) => `<div class="wl-i"><button type="button" class="wl-go" data-goplace="${esc(p.id)}"><b>${esc(p.name)}</b><small class="num">${esc(`${F.num(p.lat, 3)}, ${F.num(p.lon, 3)}`)}</small></button></div>`).join('')}</div>` : ''}`;
+        const L = cfg.loc, saved = L && cfg.favs.some((f) => near(f, L));
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Os meus locais</h2><div class="d-sub">Toca num local para o ver. ✦ = o Claude analisa-o todos os dias.</div></div>${closeBtn}</div>
+            ${locsHtml()}
+            ${L && !saved ? `<button type="button" class="btn blk" data-act="fav" style="margin-top:10px">${ui('plus')}Guardar ${esc(placeName())} nos meus locais</button>` : ''}
+            <div class="grp-h" style="margin-top:20px">Adicionar um local</div>
+            <div><label class="sr-only" for="f-q">Pesquisar local</label><input id="f-q" class="inp" type="search" placeholder="Cidade, vila, freguesia ou praia" autocomplete="off" autocapitalize="words" enterkeyhint="search"><div class="res" id="f-res" aria-live="polite"></div></div>
+            <button type="button" class="btn blk" data-act="gps" style="margin-top:10px">${ui('gps')}Usar a minha localização exata</button>`;
         return;
     }
     if (s.kind === 'nome') {
@@ -1538,9 +1555,16 @@ document.addEventListener('click', (ev) => {
     if (d.act === 'anim-on' || d.act === 'anim-off') { cfg.anim = d.act === 'anim-on'; saveCfg(); render(); return; }
     if (d.lv) { cfg.lv = d.lv; saveCfg(); render(); return; }
     if (d.ll != null) { cfg.ll = +d.ll; saveCfg(); render(); return; }
-    if (d.pick != null) { const r = lastRes[+d.pick]; if (r) { closeSheet(); setLocation({ lat: r.lat, lon: r.lon, name: r.name }); } return; }
+    if (d.pick != null) {
+        const r = lastRes[+d.pick];
+        if (!r) return;
+        closeSheet();
+        if (!cfg.favs.some((f) => near(f, r))) { cfg.favs.unshift({ lat: api.r4(r.lat), lon: api.r4(r.lon), name: r.name }); cfg.favs = cfg.favs.slice(0, 12); toast(`${r.name} guardado nos teus locais.`); }
+        setLocation({ lat: r.lat, lon: r.lon, name: r.name });
+        return;
+    }
     if (d.fav != null) { const f = cfg.favs[+d.fav]; if (f) { closeSheet(); setLocation(f); } return; }
-    if (d.rmfav != null) { const f = cfg.favs[+d.rmfav]; cfg.favs.splice(+d.rmfav, 1); saveCfg(); render(); if (f) toast(`${f.name} retirado dos favoritos`); return; }
+    if (d.rmfav != null) { const f = cfg.favs[+d.rmfav]; cfg.favs.splice(+d.rmfav, 1); saveCfg(); render(); if (st.sheet?.kind === 'place') openSheet('place'); if (f) toast(`${f.name} tirado dos teus locais`); return; }
     if (d.goplace) { const p = st.places.find((x) => x.id === d.goplace); if (p) { closeSheet(); setLocation({ lat: p.lat, lon: p.lon, name: p.name }); } return; }
     if (d.rmplace) { if (st.places.some((x) => x.id === d.rmplace)) openSheet('off', { id: d.rmplace }); return; }
     if (d.onplace) { const p = st.places.find((x) => x.id === d.onplace); if (p) placeBack(p); return; }
@@ -1573,8 +1597,8 @@ document.addEventListener('click', (ev) => {
         case 'push-test': pushTest(); break;
         case 'fav': {
             const i = cfg.favs.findIndex((f) => near(f, cfg.loc));
-            if (i >= 0) { cfg.favs.splice(i, 1); toast('Retirado dos favoritos'); }
-            else { cfg.favs.unshift({ lat: cfg.loc.lat, lon: cfg.loc.lon, name: placeName() }); cfg.favs = cfg.favs.slice(0, 10); toast('Guardado nos favoritos'); }
+            if (i >= 0) { cfg.favs.splice(i, 1); toast('Tirado dos teus locais'); }
+            else { cfg.favs.unshift({ lat: cfg.loc.lat, lon: cfg.loc.lon, name: placeName() }); cfg.favs = cfg.favs.slice(0, 12); toast('Guardado nos teus locais'); }
             saveCfg(); render(); break;
         }
         case 'install': { const e = st.installEvt; st.installEvt = null; render(); e?.prompt(); break; }

@@ -723,6 +723,18 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await tab('agora');
     await page.waitForFunction(() => document.querySelector('h1.pg-t').textContent.trim() === 'Porto' && document.querySelector('.now'));
     await page.waitForFunction(() => !window.__mt.st.loading);
+    // o local pesquisado fica nos «meus locais»; a lista marca o atual e o que o Claude analisa (✦)
+    await toastIs(/Porto guardado nos teus locais/);
+    assert.ok(await page.evaluate(() => window.__mt.cfg.favs.some((f) => f.name === 'Porto')));
+    await page.click('h1.pg-t [data-act="place"]');
+    await page.waitForSelector('#mt-sheet .locs');
+    const locs = await page.locator('#mt-sheet .locs').textContent();
+    assert.match(await page.locator('#mt-sheet-title').textContent(), /Os meus locais/);
+    assert.match(locs, /Porto.*a ver agora/s);
+    assert.match(locs, /^Porto a ver agora✕\S.*✦ análise do Claude/s, 'o outro local (com análise diária) marcado com ✦');
+    if (SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(SHOTS, '08-os-meus-locais.png') }); }
+    await page.click('#mt-sheet [data-act="close"]');
+    await page.waitForSelector('#mt-sheet', { state: 'hidden' });
     // cada telemóvel tem 1 local: ligar aqui muda-o para aqui (PATCH, o mesmo id), com "Desfazer"
     await page.waitForFunction(() => /a tua análise diária passa de Lisboa para aqui/.test(document.querySelector('#cl-teaser')?.textContent || ''));
     await page.click('#cl-teaser [data-act="place-on"]');
