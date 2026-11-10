@@ -400,7 +400,7 @@
       = cv jgt jg @ 52 $"capas" id
       "<li" ? fora { " class=\"fora\"" 0 } 0 " data-esq=\"naoesta&#9;" pt id "\" data-esq-rotulo=\"" ? fora "Afinal fica" "Não esta" "\"><span class=\"cp\">" ? cv { "<img src=\"" pt cv "\" alt=\"\" loading=\"lazy\" decoding=\"async\">" 0 } 0 "</span><div class=\"tx\"><b>" pjt jg f k_titulo "</b><span>" partistas jg f k_artistas "</span></div>"
       = u jgt jg @ 52 $"previas" id
-      ? u { "<button type=\"button\" class=\"mu-ouvir\" data-previa=\"" pt u "\" aria-label=\"Ouvir 30 segundos de «" pjt jg f k_titulo "»\">" ic 4 "</button>" 0 } { "<span class=\"mu-ouvir vazio\"></span>" 0 }
+      ? u { = tc tigual u @ 55 "<button type=\"button\" class=\"mu-ouvir" ? tc " a-tocar" 0 "\" data-onda=\"ouvir&#9;" pt u "\" aria-pressed=\"" ? tc "true" "false" "\" aria-label=\"" ? tc "Parar" "Ouvir 30 segundos de" " «" pjt jg f k_titulo "»\">" ic 4 "</button>" 0 } { "<span class=\"mu-ouvir vazio\"></span>" 0 }
       "<button type=\"button\" class=\"mu-nao\" data-onda=\"naoesta&#9;" pt id "\" aria-pressed=\"" ? fora "true" "false" "\" aria-label=\"" ? fora "Afinal fica" "Não esta" "\">✕</button></li>"
       = f jprox f = p + p 1 }
     "</ol>"
@@ -705,6 +705,7 @@
       busca r k_c_escrita 0 } }
 : desligar_enviar >i ? ocupado 0 { ! 31 1 ! 34 8 = r abre "POST /api/desligar" P 10 "{}" O 0 busca r k_c_escrita 0 }
 : lido_escrita ii>i t s {
+  Y 115 0 0
   = modo @ 34 ! 34 0 ! 31 0
   = r json t
   ? || == s 200 == s 201 {
@@ -836,9 +837,16 @@
 : exp_alternar i>i b {
   ! 51 0 ! 52 0
   ? tigual b @ 50 { tvazio @ 50 render 0 } {
-    tcopia @ 50 b 70 tcopia @ 30 b 70 render
-    = u abre "/api/playlists/" purl b O 0 busca u $"lido_exp"
-    = v abre "/api/playlists/" purl b "/previas" O 0 busca v $"lido_prev" 0 } }
+    tcopia @ 50 b 70 tcopia @ 30 b 70 tcopia @ 57 b 70 render
+    # as faixas e as pré-escutas ficam 10 minutos na memória do anfitrião: abrir outra vez não vai à rede
+    = u abre "/api/playlists/" purl b O 0
+    = cu Y 114 u 600000 ? cu { exp_doc cu 1 0 } { busca u $"lido_exp" 0 }
+    = v abre "/api/playlists/" purl b "/previas" O 0
+    = cv Y 114 v 600000 ? cv { exp_prev cv 1 0 } { busca v $"lido_prev" 0 } 0 } }
+# ouvir 30 s: um só leitor (o do anfitrião); tocar outra vez a que está a tocar pára-a
+: ouvir i>i u { ? Y 111 u 0 { tcopia @ 55 u 900 0 } { tvazio @ 55 0 } ? tlen @ 50 render_cx 0 0 }
+# o som parou sem ser pela app (acabou, erro): a app volta a saber o que está a tocar
+: som_fim i>i z { = a Y 116 0 0 ? a { tcopia @ 55 a 900 0 } { tvazio @ 55 0 } ? tlen @ 50 render_cx 0 0 }
 : naoesta_enviar i>i b ? ocupado 0 { ! 31 1 ! 34 17 = r abre "POST /api/playlists/" purl @ 30 "/rejeitar" P 10 "{\"faixa\":" pjs b ",\"fora\":" ? rej_tem b "false" "true" "}" O 0 busca r k_c_escrita 0 }
 : afinar_maestro >i ? ocupado 0 { ! 31 1 ! 34 18 = r tnovo + 400 * 7 tlen @ 49 O r "POST /api/playlists/" purl @ 30 "/afinar" P 10 "{\"texto\":" pjs @ 49 "}" O 0 busca r k_c_escrita 0 }
 : renomear_enviar >i ? ocupado 0 {
@@ -920,7 +928,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.19.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.20.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====
@@ -971,8 +979,10 @@
     ? == s 200 { = d json t ? tigual jgt d k_id @ 30 { ! 4 d render 0 } 0 0 }
       { erro_ped t s ? == s 404 ir 1 0 0 } } 0
 : lido_perfil ii>i t s ? == @ 1 4 { ? == s 200 { ! 4 json t render 0 } { erro_ped t s 0 } } 0
-: lido_exp ii>i t s ? && == @ 1 1 == s 200 { = d json t ? tigual jgt d k_id @ 50 { ! 51 d render_cx 0 } 0 0 } 0
-: lido_prev ii>i t s ? && == @ 1 1 == s 200 { ! 52 json t render_cx 0 } 0
+: exp_doc ii>i t mem { = d json t ? tigual jgt d k_id @ 50 { ? ~ mem { = k abre "/api/playlists/" purl @ 50 O 0 Y 113 k t 0 } 0 ! 51 d render_cx 0 } 0 }
+: exp_prev ii>i t mem ? tigual @ 57 @ 50 { ? ~ mem { = k abre "/api/playlists/" purl @ 50 "/previas" O 0 Y 113 k t 0 } 0 ! 52 json t render_cx 0 } 0
+: lido_exp ii>i t s ? && == @ 1 1 == s 200 { exp_doc t 0 0 } 0
+: lido_prev ii>i t s ? && == @ 1 1 == s 200 { exp_prev t 0 0 } 0
 : lido_ideias ii>i t s ? && == @ 1 3 == s 200 { ! 48 json t render 0 } 0
 : lido_tend ii>i t s ? && == @ 1 4 == s 200 { ! 11 json t render 0 } 0
 : lido_pesq ii>i t s ? && == @ 1 2 @ 6 { ? == s 200 { ! 19 json t render 0 } { erro_ped t s 0 } } 0
@@ -1012,6 +1022,8 @@
   ? tigual a $"renomear_sim" { renomear_enviar 0 }
   ? tigual a $"naoesta" { naoesta_enviar b 0 }
   ? tigual a $"exp" { tvazio @ 54 exp_alternar b 0 }
+  ? tigual a $"ouvir" { ouvir b 0 }
+  ? tigual a $"recarregar" { Y 115 0 0 carregar_vista 0 }
   ? tigual a $"apagarl" { tcopia @ 54 b 70 tvazio @ 50 ! 51 0 ! 52 0 render 0 }
   ? tigual a $"apagarl_n" { tvazio @ 54 render 0 }
   ? tigual a $"apagarl_s" { tcopia @ 30 b 70 apagar_pl 0 0 }
@@ -1210,13 +1222,14 @@
   ! + w 10 150 ! + w 11 150 ! + w 12 500 ! + w 13 250 ! + w 14 150
   ! + w 15 550 ! + w 16 150 ! + w 17 50 ! + w 18 200 ! + w 19 0
   ! + w 20 150 ! + w 21 500 ! + w 22 50 ! + w 23 300 ! + w 24 100
-  ! 20 tnovo 2000 ! 21 tnovo 120 ! 22 tnovo 400 ! 23 tnovo 300 ! 30 tnovo 80 ! 38 tnovo 100 ! 41 tnovo 220 ! 42 tnovo 900 ! 43 tnovo 40 ! 44 tnovo 600 ! 46 tnovo 260 ! 47 tnovo 1300 ! 49 tnovo 2000 ! 50 tnovo 80 ! 54 tnovo 80
+  ! 20 tnovo 2000 ! 21 tnovo 120 ! 22 tnovo 400 ! 23 tnovo 300 ! 30 tnovo 80 ! 38 tnovo 100 ! 41 tnovo 220 ! 42 tnovo 900 ! 43 tnovo 40 ! 44 tnovo 600 ! 46 tnovo 260 ! 47 tnovo 1300 ! 49 tnovo 2000 ! 50 tnovo 80 ! 54 tnovo 80 ! 55 tnovo 1000 ! 57 tnovo 80
   = ag Y 105 $"agrupar" 0 ! 53 ? ag Mn 4 Mx 0 tint ag 0
   ! 24 30 ! 25 2 ! 26 0 ! 27 0
   = px Y 105 k_g_proxy 0
   ? px { tcopia @ 22 px 390 0 } { tcopia @ 22 k_t_proxy 390 0 }
   Y 101 k_ev_click k_c_clique
   Y 101 k_ev_input k_c_campo
+  Y 112 $"som_fim" 0
   = av Y 105 k_g_aviso 0
   ! 2 marca
   ir 1

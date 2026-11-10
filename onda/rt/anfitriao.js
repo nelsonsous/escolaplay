@@ -16,6 +16,12 @@
 //   108 agora    0 0      → milissegundos desde 1970 (Date.now)
 //   109 aleat    n 0      → inteiro aleatório em [0, n)
 //   110 titulo   t 0      → document.title
+//   111 som      url 0    → toca a url (um só leitor para a app); se já é ela a tocar, pára        → 1 a tocar, 0 parado
+//   112 somfim   fn 0     → chama fn(0) quando o som pára sem ser pela app (acabou, erro, o sistema parou-o)
+//   113 guardar  chave t  → guarda t na memória do anfitrião (some ao fechar a app), com a hora
+//   114 lembrar  chave ms → o texto guardado há menos de ms milissegundos, ou 0
+//   115 esquecer 0 0      → apaga tudo o que se guardou com 113
+//   116 soma     0 0      → a url que está a tocar (texto), ou 0
 // Os nomes de funções (fn) são textos com o nome de uma função da Onda (ex.: "clique").
 // Memória: cada texto que o anfitrião entrega é reservado com o alocador do runtime (_oa). Para não crescer sem fim,
 // a app marca o monte antes de um evento e solta-o no fim (ver `marca`/`solta` em lib/app.onda).
@@ -92,6 +98,19 @@
         };
         const relogios = new Map();
         let nr = 0;
+        // o som (111/112/116): um leitor só, criado ao primeiro uso (ou o das opções, p. ex. num teste)
+        let leitor = opcoes.som || null, somFim = '';
+        const som = () => {
+            if (!leitor && typeof Audio !== 'undefined') leitor = new Audio();
+            if (leitor && !leitor.__onda) {
+                leitor.__onda = true;
+                if ('preload' in leitor) leitor.preload = 'none';
+                if (leitor.addEventListener) for (const ev of ['ended', 'pause', 'error']) leitor.addEventListener(ev, () => { if (somFim) chamar(somFim, 0n); });
+            }
+            return leitor;
+        };
+        const aTocar = () => (leitor && !leitor.paused && leitor.__url ? leitor.__url : '');
+        const memoria = new Map(); // 113/114/115
         const sys = (c, a, b) => {
             switch (Number(c)) {
                 case 0: saida.push(dec.decode(bytesDe(Number(a), Number(b)))); return 0n;
@@ -128,6 +147,20 @@
                 case 108: return BigInt(Date.now());
                 case 109: return BigInt(Math.floor(Math.random() * Math.max(1, Number(a))));
                 case 110: if (doc) doc.title = ler(a); return 0n;
+                case 111: {
+                    const url = ler(a), s = som();
+                    if (!s || !url) return 0n;
+                    if (aTocar() === url) { s.pause(); return 0n; }
+                    s.__url = url; s.src = url;
+                    const p = s.play && s.play();
+                    if (p && p.catch) p.catch(() => { if (somFim) chamar(somFim, 0n); });
+                    return 1n;
+                }
+                case 112: somFim = ler(a); return 0n;
+                case 113: memoria.set(ler(a), { t: ler(b), em: Date.now() }); return 0n;
+                case 114: { const m = memoria.get(ler(a)); return m && Date.now() - m.em < Number(b) ? escrever(m.t) : 0n; }
+                case 115: memoria.clear(); return 0n;
+                case 116: { const u = aTocar(); return u ? escrever(u) : 0n; }
             }
             return 0n;
         };
@@ -137,7 +170,7 @@
         const inst = new WebAssembly.Instance(mod, { env: { sys, m1, m2 } });
         ex = inst.exports; mem = ex.memory;
         chamar('_start');
-        return { exports: ex, chamar, ler, escrever, parar: () => { for (const t of relogios.values()) clearInterval(t); relogios.clear(); } };
+        return { exports: ex, chamar, ler, escrever, get som() { return som(); }, parar: () => { for (const t of relogios.values()) clearInterval(t); relogios.clear(); } };
     }
 
     const api = { criar, cfmt };

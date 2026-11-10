@@ -161,14 +161,20 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await caixa.focus();
     await page.locator('.mu-pl.aberta .mu-xf li:not(.sk)').first().waitFor();
     assert.equal(await page.locator('.mu-pl.aberta .mu-xf li').count(), doc.faixas.length);
-    await page.locator('.mu-pl.aberta [data-previa]').first().waitFor();
+    await page.locator('.mu-pl.aberta [data-onda^="ouvir"]').first().waitFor();
     assert.ok(await caixa.evaluate((el) => el.isConnected && document.activeElement === el), 'a caixa de afinar ficou (com o foco)');
     assert.equal(await page.getAttribute('.mu-pl.aberta .mu-pl-a', 'aria-expanded'), 'true');
-    const previa = await page.locator('.mu-pl.aberta [data-previa]').first().getAttribute('data-previa');
+    const previa = (await page.locator('.mu-pl.aberta [data-onda^="ouvir"]').first().getAttribute('data-onda')).split('\t')[1];
     assert.match(previa, /^https:\/\/(audio|cdn\.deezer)\.example\//);
     await page.evaluate(() => { window.musicaLeitor.play = () => Promise.resolve(); }); // (sem ir à rede no teste)
-    await page.locator('.mu-pl.aberta [data-previa]').first().click();
-    assert.equal(await page.evaluate(() => window.musicaLeitor.dataset.src), previa, 'toca a pré-escuta');
+    await page.locator('.mu-pl.aberta [data-onda^="ouvir"]').first().click();
+    assert.equal(await page.evaluate(() => window.musicaLeitor.src), previa, 'toca a pré-escuta (o leitor do anfitrião da Onda)');
+    // a Onda sabe o que está a tocar: o ▶ dessa faixa fica marcado
+    await page.locator('.mu-pl.aberta .mu-ouvir.a-tocar[aria-pressed="true"]').waitFor();
+    assert.equal(await page.locator('.mu-pl.aberta .mu-ouvir.a-tocar').count(), 1);
+    // quando o som acaba, a Onda sabe-o (porta 112) e o ▶ desmarca-se
+    await page.evaluate(() => window.musicaLeitor.dispatchEvent(new Event('ended')));
+    await page.locator('.mu-pl.aberta .mu-ouvir.a-tocar').waitFor({ state: 'detached' });
     // as capas dos álbuns nas faixas: do Tidal, e do Deezer quando o Tidal não tem (as outras ficam com o quadrado cinzento)
     const srcs = await page.locator('.mu-pl.aberta .mu-xf .cp img').evaluateAll((l) => l.map((i) => i.getAttribute('src')));
     assert.ok(srcs.some((u) => /^https:\/\/resources\.tidal\.com\/images\/[0-9a-f/]+\/160x160\.jpg$/.test(u)), 'capas do Tidal');
@@ -187,7 +193,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const pedidos = [];
     page.on('request', (r) => { if (r.url().includes('/api/playlists/')) pedidos.push(r.url()); });
     await page.locator('.mu-pl-a').click();
-    await page.locator('.mu-pl.aberta .mu-xf [data-previa]').first().waitFor();
+    await page.locator('.mu-pl.aberta .mu-xf [data-onda^="ouvir"]').first().waitFor();
     assert.deepEqual(pedidos, [], 'abrir outra vez não vai à rede');
     // o Esc fecha, e o foco volta ao cartão
     await page.keyboard.press('Escape');
@@ -197,17 +203,18 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-pl-a').click();
     await page.locator('.mu-folha').waitFor();
     await page.waitForTimeout(400); // (o fim da animação de subir)
-    const arrastar = (ate) => page.evaluate(async (ate) => {
+    // (devagar: o motor de gestos conta a rapidez — um puxão curto mas rápido também fecha)
+    const arrastar = (ate, ms = 120) => page.evaluate(async ([ate, ms]) => {
         const f = document.querySelector('.mu-folha');
         const toque = (y) => new Touch({ identifier: 1, target: f, clientX: 200, clientY: y });
         f.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(150)], bubbles: true, cancelable: true }));
         for (const y of [170, (150 + ate) / 2, ate]) f.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(y)], bubbles: true, cancelable: true }));
         const durante = f.style.transform;
-        await new Promise((ok) => setTimeout(ok, 120));
+        await new Promise((ok) => setTimeout(ok, ms));
         f.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
         return durante;
-    }, ate);
-    assert.equal(await arrastar(230), 'translateY(80px)', 'a folha segue o dedo');
+    }, [ate, ms]);
+    assert.equal(await arrastar(230, 500), 'translateY(80px)', 'a folha segue o dedo');
     await page.waitForTimeout(300);
     assert.equal(await page.locator('.mu-pl.aberta').count(), 1, 'arrastar pouco não fecha');
     assert.equal(await page.evaluate(() => document.querySelector('.mu-folha').style.transform), '');
@@ -415,6 +422,20 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await deslizarEm('.mu-pedido[data-esq]', 330, 60);
     await page.locator('.mu-pedido[data-esq]').waitFor({ state: 'detached' });
     assert.equal(JSON.parse(await env.KV.get('pedidos')).some((x) => x.id === pedido.id), false, 'o pedido foi cancelado');
+    // no topo da página, puxar para baixo atualiza (o motor de gestos decide; a Onda volta a pedir os dados)
+    await page.waitForLoadState('networkidle');
+    const atualizou = page.waitForRequest((r) => r.url().includes('/api/pedidos'));
+    await page.evaluate(async () => {
+        const el = document.querySelector('#mu-body h1');
+        const toque = (y) => new Touch({ identifier: 5, target: el, clientX: 200, clientY: y });
+        el.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(120)], bubbles: true, cancelable: true }));
+        for (const y of [140, 220, 300]) el.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(y)], bubbles: true, cancelable: true }));
+        await new Promise((ok) => setTimeout(ok, 300));
+        el.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
+    });
+    assert.equal(await page.locator('#mu-ptr').textContent(), 'A atualizar…');
+    await atualizou;
+    await page.waitForFunction(() => document.querySelector('#mu-ptr').textContent === '');
 
     // 7) as ideias do Maestro (as do momento), as propostas para escolher, «não esta» e afinar com o Maestro
     const agente7 = await env.KV.get('agente:chave');

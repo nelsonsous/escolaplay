@@ -3,9 +3,9 @@
 // O domínio é partilhado com a EscolaPlay, a Mercados e a Meteo (/escolaplay/): este SW só mexe nas
 // caches "musica-*" e só trata pedidos dentro da sua pasta (/escolaplay/musica/) e o anfitrião das apps Onda.
 // O conector e o Tidal (outros domínios) nunca passam por aqui.
-const CACHE = 'musica-v29'; // 2.19.0 — arrastar: faixas («não esta»), pedidos (cancelar) e mudar de separador
+const CACHE = 'musica-v30'; // 2.20.0 — a casca só é ponte: leitor, memória e gestos na Onda (motor de gestos comum)
 const ASSETS = [
-    './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js',
+    './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js', '../onda/rt/gestos-onda.js',
     './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png',
 ];
 
@@ -30,8 +30,8 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
     const url = new URL(req.url);
     const scope = new URL(self.registration.scope);
-    const anfitriao = new URL('../onda/rt/anfitriao.js', scope).pathname;
-    if (url.origin !== scope.origin || !(url.pathname.startsWith(scope.pathname) || url.pathname === anfitriao)) return;
+    const onda = ['../onda/rt/anfitriao.js', '../onda/rt/gestos-onda.js'].map((f) => new URL(f, scope).pathname);
+    if (url.origin !== scope.origin || !(url.pathname.startsWith(scope.pathname) || onda.includes(url.pathname))) return;
     if (req.mode === 'navigate') {
         event.respondWith((async () => {
             const cache = await caches.open(CACHE);
