@@ -6,7 +6,7 @@
 //     "MÉTODO caminho" + nova linha + corpo JSON (POST, DELETE) e "IR url" (sair para o login do Tidal);
 //   - tocar 30 s de uma faixa (o ▶ com data-previa);
 //   - guardar 10 min em memória as faixas e as pré-escutas de cada playlist; a folha: fechar com animação, arrastar
-//     para baixo para fechar, foco e Esc.
+//     para baixo para fechar, foco e Esc; arrastar um cartão para a esquerda para o apagar.
 // O armazém da app (portas 105/106) usa o prefixo "musica:" — as mesmas chaves que a versão 1 guardava.
 (function () {
     'use strict';
@@ -148,6 +148,54 @@
     };
     document.addEventListener('touchend', largar);
     document.addEventListener('touchcancel', largar);
+    // arrastar um cartão da lista para a esquerda pede para o apagar: o cartão segue o dedo e mostra o vermelho
+    // «Apagar»; se for mais de um terço da largura (ou um gesto rápido), a Onda troca o cartão pela pergunta
+    let lado = null;
+    document.addEventListener('touchstart', (e) => {
+        const c = e.target.closest && e.target.closest('.mu-pl');
+        lado = c && !c.classList.contains('aberta') && !c.classList.contains('mu-pl-apagar') && e.touches.length === 1
+            ? { c, x0: e.touches[0].clientX, y0: e.touches[0].clientY, t0: Date.now(), dx: 0, on: false } : null;
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+        if (!lado) return;
+        const dx = e.touches[0].clientX - lado.x0, dy = e.touches[0].clientY - lado.y0;
+        if (!lado.on) {
+            if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { lado = null; return; } // é scroll
+            if (dx > -12) return;
+            lado.on = true;
+            lado.c.classList.add('a-deslizar');
+        }
+        e.preventDefault();
+        lado.dx = Math.min(0, dx);
+        lado.c.style.transition = 'none';
+        lado.c.style.transform = `translateX(${lado.dx}px)`;
+    }, { passive: false });
+    const soltarLado = () => {
+        if (!lado) return;
+        const { c, dx, on, t0 } = lado;
+        lado = null;
+        if (!on) return;
+        const id = ((c.querySelector('.mu-pl-a') || {}).dataset || {}).onda?.split('\t')[1];
+        if (id && (dx < -c.clientWidth / 3 || (dx < -50 && -dx / Math.max(1, Date.now() - t0) > 1))) {
+            c.style.transition = 'transform .18s cubic-bezier(.4, 0, 1, 1)';
+            c.style.transform = 'translateX(-35%)';
+            setTimeout(() => {
+                const t = document.createElement('button');
+                t.type = 'button';
+                t.hidden = true;
+                t.dataset.onda = 'apagarl\t' + id;
+                document.body.appendChild(t);
+                t.click();
+                t.remove();
+            }, 180);
+        } else {
+            c.style.transition = 'transform .2s cubic-bezier(.2, .8, .2, 1)';
+            c.style.transform = '';
+            setTimeout(() => { c.style.transition = ''; c.classList.remove('a-deslizar'); }, 220);
+        }
+    };
+    document.addEventListener('touchend', soltarLado);
+    document.addEventListener('touchcancel', soltarLado);
     // a folha é um diálogo: ao abrir, o foco vai para o «fechar»; o Esc fecha; ao fechar, o foco volta ao cartão
     let folhaAberta = null;
     const seguirFolha = () => {
