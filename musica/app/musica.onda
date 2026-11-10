@@ -342,9 +342,13 @@
   ? jgt c k_tidal { "<a class=\"mu-tocar\" href=\"" pjt jg c k_tidal "\" target=\"_blank\" rel=\"noopener\" aria-label=\"Ouvir «" pjt jg c k_nome "» no Tidal\">" ic 4 "</a>" 0 } 0
   ? ab { cx_aberta c 0 } 0
   "</div>" 0 }
-# o cartao aberto: as faixas (ouvir 30 s, «nao esta»), o Tidal, abrir tudo e afinar com o Maestro. Tudo menos as faixas
-# vem do indice, para o cartao ter logo o tamanho certo; as faixas chegam depois so para dentro de .mu-cx-xf (render_cx)
+# o cartao aberto: uma folha que ocupa o ecra (sobe de baixo; ao fechar desce e a lista fica onde estava), com a capa
+# grande, as faixas (ouvir 30 s, «nao esta»), o Tidal, abrir tudo e afinar com o Maestro. Tudo menos as faixas e a capa
+# vem do indice, para a folha ter logo o tamanho certo; as faixas e as capas chegam depois so para dentro (render_cx)
 : cx_aberta i>i c {
+  "<div class=\"mu-folha\" role=\"dialog\" aria-modal=\"true\" aria-label=\"" pjt jg c k_nome "\">"
+  "<div class=\"mu-folha-topo\"><button type=\"button\" class=\"mu-fechar\" data-onda=\"exp&#9;" pjt jg c k_id "\" aria-label=\"Fechar\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></button></div>"
+  "<div class=\"mu-folha-cab\"><div class=\"mu-folha-cv\">" cx_capa c "</div><div class=\"tx\"><h2>" ? pl_rasc c { pjt jg c $"variante" " · " 0 } 0 pjt jg c k_nome "</h2><p>" N jgi c k_faixas " faixas · " pmin jgi c k_duracao "</p></div></div>"
   "<div class=\"mu-cx\">"
   ? pl_rasc c { "<p class=\"mu-nota\">Proposta — ainda não está no Tidal. Ouve um bocado de cada faixa (▶) e envia-a se gostares.</p>" 0 } 0
   "<div class=\"mu-cx-xf\">" cx_xf c "</div><div class=\"mu-acoes\">"
@@ -354,7 +358,22 @@
       { "<button type=\"button\" class=\"mu-btn peq\" data-onda=\"enviar\">" ic 3 "Enviar para o Tidal</button>" 0 } }
   "<button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"abrir&#9;" pjt jg c k_id "\">Abrir</button></div>"
   "<div class=\"mu-cx-afinar\"><label class=\"mu-campo\"><span>Afinar com o Maestro</span><textarea data-onda=\"af-tx\" maxlength=\"500\" rows=\"2\" placeholder=\"Ex.: menos eletrónica, mais vozes femininas\">" pt @ 49 "</textarea></label><button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"afinar_pedir\">" ic 2 "Afinar</button></div>"
-  "</div>" 0 }
+  "</div></div>" 0 }
+# a capa grande da folha: as 4 primeiras capas diferentes das faixas (160 px), ou 1; enquanto nao chegam, as do indice
+: cx_img i>i u { "<img src=\"" pt u "\" alt=\"\" decoding=\"async\">" 0 }
+: cx_capa i>i c {
+  = d @ 51 = cs jg @ 52 $"capas" = a 0 = b 0 = e 0 = g 0 = n 0
+  ? && d cs { = f jprim jg d k_faixas W && f < n 4 {
+      = u jgt cs jgt f k_id
+      ? u { = rep 0
+        ? a { ? tigual u a { = rep 1 0 } 0 } 0 ? b { ? tigual u b { = rep 1 0 } 0 } 0 ? e { ? tigual u e { = rep 1 0 } 0 } 0
+        ? ~ rep { ? == n 0 { = a u 0 } { ? == n 1 { = b u 0 } { ? == n 2 { = e u 0 } { = g u 0 } } } = n + n 1 0 } 0 0 } 0
+      = f jprox f } 0 } 0
+  ? >= n 4 { "<div class=\"mu-folha-capa m4\">" cx_img a cx_img b cx_img e cx_img g "</div>" 0 }
+    { ? n { "<div class=\"mu-folha-capa\">" cx_img a "</div>" 0 }
+      { = ci jg c $"capas" = nc jn ci
+        "<div class=\"mu-folha-capa" ? >= nc 4 " m4" 0 "\">" = f jprim ci = q 0 W && f < q 4 { "<img src=\"" pjt f "\" alt=\"\" decoding=\"async\">" = f jprox f = q + q 1 } "</div>" 0 } }
+  0 }
 # as faixas do cartao aberto: enquanto chegam, linhas cinzentas do mesmo tamanho (o cartao nao salta)
 : cx_xf i>i c {
   = d @ 51
@@ -383,7 +402,8 @@
 # redesenha so as faixas do cartao aberto: a pagina nao treme e a caixa de afinar nao perde o teclado
 : render_cx >i {
   = c pl_aberta
-  ? c { = m marca = h tnovo 250000 O h cx_xf c O 0 ? Y 100 $".mu-pl.aberta .mu-cx-xf" h 0 render solta m 0 } render }
+  ? c { = m marca = h tnovo 250000 O h cx_xf c O 0 = g tnovo 4000 O g cx_capa c O 0
+    ? Y 100 $".mu-pl.aberta .mu-cx-xf" h { Y 100 $".mu-pl.aberta .mu-folha-cv" g 0 } render solta m 0 } render }
 # agrupar a lista: 0 data, 1 tipo, 2 genero, 3 Tidal, 4 avaliacao
 : nome_grp i>i q ? == q 1 "Tipo" ? == q 2 "Género" ? == q 3 "Tidal" ? == q 4 "Avaliação" "Data"
 : dnum iii>i t i n { = v 0 = j 0 W < j n { = v + * v 10 - tbyte t + i j '0 = j + j 1 } v }
@@ -889,7 +909,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.16.2 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.17.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====
