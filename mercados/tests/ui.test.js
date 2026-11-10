@@ -272,6 +272,45 @@ function proxyBody(u) {
         [[5.486463, 169.86, 931.93], [0.044679, 73722.55, 3293.85], [3.488363, 102.03, 355.92]], 'importadas, com o investido calculado');
     assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.lots['VWCE.DE'].qd, window.__mk.cfg.lots['c:BTC'].qd, window.__mk.cfg.lots['c:SOL'].qd]), ['2026-11-02', '2026-10-08', undefined], 'a data no fim, nos dois formatos');
     assert.match(await page.locator('#mk-toast').textContent(), /3 posições importadas · não percebi: xpto/);
+    // registar (4.20): uma compra só com os euros (a data e o preço do dia vêm feitos) e o acerto com a TR (cashback)
+    const btcL = () => page.evaluate(() => window.__mk.cfg.lots['c:BTC']);
+    assert.equal((await btcL()).at, isoAtras(0), 'colar marca o dia do ponto de partida');
+    await page.waitForSelector('.reg select[data-reg="k"]');
+    await page.selectOption('.reg select[data-reg="k"]', 'c:BTC');
+    await page.fill('.reg [data-reg="e"]', '90');
+    await page.evaluate(() => window.__mk.render()); // um redesenho (preços novos) não perde o que se escreveu
+    assert.equal(await page.locator('.reg [data-reg="e"]').inputValue(), '90');
+    const pxBtc = await page.evaluate(() => window.__mk.Q['c:BTC'].price);
+    await page.click('[data-act="reg-compra"]');
+    let bL = await btcL();
+    assert.equal(bL.compras.length, 1, 'compra juntada');
+    assert.deepEqual([bL.compras[0].d, bL.compras[0].e], [isoAtras(0), 90]);
+    assert.ok(Math.abs(bL.compras[0].q * pxBtc / 90 - 1) < 0.01, 'as unidades pelo preço de hoje');
+    assert.match(await page.locator('#mk-toast').textContent(), /Compra juntada: 90,00\s€ de Bitcoin.*Desfazer/);
+    assert.equal(await page.locator('.reg [data-reg="e"]').inputValue(), '', 'o campo fica limpo');
+    assert.equal(await page.locator('.reg-i').count(), 1, 'aparece na lista');
+    assert.match(await page.locator('.real-l .row[data-open="c:BTC"] .r-sub').textContent(), /investido 3384\s€/, '3293,85 + 90');
+    // a TR mostra mais 0,001 (arredondamentos e cashback): escreve-se a quantidade da TR e a app junta a diferença
+    const qTr = 0.044679 + bL.compras[0].q + 0.001;
+    await page.fill('.reg [data-reg="q"]', qTr.toFixed(8).replace('.', ','));
+    await page.click('[data-act="reg-acerto"]');
+    bL = await btcL();
+    assert.equal(bL.compras.length, 2, 'acerto juntado');
+    assert.ok(Math.abs(bL.compras[1].q - 0.001) < 1e-8 && bL.compras[1].cb === 1, 'a diferença, marcada como acerto');
+    assert.match(await page.locator('#mk-toast').textContent(), /Acertado com a TR: \+0,001 de Bitcoin/);
+    await page.click('.reg-i [data-act="reg-rm"][data-i="1"]');
+    assert.equal((await btcL()).compras.length, 1, '✕ apaga o registo');
+    // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
+    await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
+    await page.waitForSelector('.reg-i:has-text("plano (estimado)")');
+    const nPlano = await page.locator('.reg-i:has-text("plano (estimado)")').count();
+    assert.ok(nPlano >= 2 && nPlano <= 3, 'execuções do plano em 70 dias: ' + nPlano);
+    if (SHOTS) { await page.locator('.reg').scrollIntoViewIfNeeded(); await page.locator('.reg').screenshot({ path: path.join(SHOTS, '8f-carteira-registar.png') }); }
+    // mudar a quantidade à mão: é o novo ponto de partida (o que se juntou fica lá dentro)
+    await page.evaluate(() => { const i = document.querySelector('[data-lot="qty"][data-k="c:BTC"]'); i.value = '0,05'; i.dispatchEvent(new Event('change', { bubbles: true })); });
+    bL = await btcL();
+    assert.deepEqual([bL.qty, bL.compras.length, bL.at], [0.05, 0, isoAtras(0)], 'a quantidade nova manda e recomeça hoje');
+    console.log('✓ registar: compra só com os euros, acerto com a TR, ✕, o plano sozinho e a quantidade nova como ponto de partida');
     await page.evaluate(() => { for (const k of ['c:BTC', 'c:SOL']) { delete window.__mk.cfg.lots[k].qty; delete window.__mk.cfg.lots[k].avg; delete window.__mk.cfg.lots[k].cost; delete window.__mk.cfg.lots[k].qd; } delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.render(); });
     // o simulador parte da carteira (com quantidades): «Já tens (a tua carteira)»; o − passa a valor à mão
     await page.fill('#lot-imp', 'VWCE.DE 2 150');

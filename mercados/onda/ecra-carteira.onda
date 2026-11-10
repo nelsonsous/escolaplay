@@ -156,7 +156,7 @@
   tb }
 : cr_p ii>i tb j + + tb 1 * 8 j
 # as unidades da compra i: as que vieram, ou o valor pelo preço desse dia
-: cr_ub ii>f p i { = bv @ + p 2 = nb @ bv = u @f + + + bv 1 * 2 nb i ? > u 0.0 u / @f + + + bv 1 nb i cr_px @ + p 1 @f + + bv 1 i }
+: cr_ub ii>f p i { = bv @ + p 2 = nb @ bv = u @f + + + bv 1 * 2 nb i ? != u 0.0 u / @f + + + bv 1 nb i cr_px @ + p 1 @f + + bv 1 i }
 # o valor do ativo (a linha p da tabela) no instante t (agora: com o preço de agora), e o que tinha investido até lá
 : cr_vt if>f p t ? >= t @f + p 6 * @f + p 3 @f + p 4 {
   = bv @ + p 2 = nb @ bv = u 0.0 = i 0
@@ -249,13 +249,45 @@
     "<label><small>Quantidade</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"any\" data-lot=\"qty\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"q" 0 "\"></label>"
     "<label><small>Preço médio de compra (€)</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" data-lot=\"avg\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"avg" 0 "\"></label>"
     "<label><small>Desde (opcional)</small>" cr_data c k $"qd" "</label></div>"
-    "<small class=\"real-gt\">Ou o plano mensal</small><div class=\"real-g2\">"
+    "<small class=\"real-gt\">O plano mensal</small><div class=\"real-g2\">"
     "<label><small>Desde</small>" cr_data c k $"plan" "</label>"
     "<label><small>€ por mês</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"10\" data-lot=\"pm\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"pm" 0
     "\" placeholder=\"" = pd _ar_vnum _ar_get c $"pmDef" ? && _nu_fin pd > pd 0.0 _nu_ps pd 0 "\"></label></div></div>"
     = c _ar_prox c }
   "<p class=\"note\">Copia da Trade Republic, na posição de cada ativo, os «Ativos» (a quantidade) e o «Preço médio de compra»: a app calcula o investido. Com eles, conta o que tens hoje (a TR já inclui as compras do plano); a data, se a puseres, entra no gráfico e no rendimento por ano. Sem eles, conta o plano: nos dias de execução dos Ajustes, com o valor do mês dividido por eles, mais as compras avulsas da cripto (na ficha).</p></details>" 0 }
 
+# registar (4.20) sem escrever tudo outra vez: uma compra (só os euros; a data e o preço do dia vêm feitos) e o acerto
+# com a TR (escreve-se a quantidade que a TR mostra: a diferença são os arredondamentos e o cashback). Depois, a lista.
+: cr_reg i>i g {
+  = ka _ar_get g $"k"
+  "<div class=\"reg\"><div class=\"reg-h\"><b>Registar</b><small>o plano mensal junta-se sozinho</small></div>"
+  "<label><small>Ativo</small><select class=\"inp\" data-reg=\"k\">"
+  = c _ar_prim _ar_get g $"ks"
+  W c { = k _ar_get c $"k" "<option value=\"" _ar_ps k 1 "\"" ? _ar_igual k ka " selected" 0 ">" _ar_ps _ar_get c $"name" 1 "</option>" = c _ar_prox c }
+  "</select></label>"
+  "<small class=\"real-gt\">Uma compra</small><div class=\"real-g2\">"
+  "<label><small>€ investidos</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" data-reg=\"e\" value=\"" _ar_ps _ar_get g $"e" 1
+  "\" placeholder=\"" = pm _ar_vnum _ar_get g $"pm" ? && _nu_fin pm > pm 0.0 _nu_ps pm 0 0 "\"></label>"
+  "<label><small>Data</small><input class=\"inp\" type=\"date\" data-reg=\"d\" max=\"" _ar_ps _ar_get g $"hoje" 1 "\" value=\"" _ar_ps _ar_get g $"d" 1 "\"></label></div>"
+  "<button type=\"button\" class=\"btn sm reg-bt\" data-act=\"reg-compra\">+ Juntar compra</button>"
+  "<small class=\"real-gt\">Acertar com a TR (arredondamentos e cashback)</small><div class=\"real-g2\">"
+  "<label><small>Quantidade na TR</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" data-reg=\"q\" value=\"" _ar_ps _ar_get g $"q" 1
+  "\" placeholder=\"" = qa _ar_vnum _ar_get g $"qApp" ? && _nu_fin qa > qa 0.0 _nu_intlm qa 6 0 "\"></label>"
+  "<button type=\"button\" class=\"btn sm reg-bt reg-ac\" data-act=\"reg-acerto\">Acertar</button></div>"
+  "<p class=\"note\">A compra entra ao preço de fecho desse dia. No acerto, a diferença para a app entra hoje, ao preço de hoje.</p>"
+  = l _ar_get g $"lista"
+  ? > _ar_n l 0 {
+    "<div class=\"reg-l\">"
+    = c _ar_prim l
+    W c {
+      = tp I _ar_vnum _ar_get c $"t" = q _ar_vnum _ar_get c $"q"
+      "<div class=\"reg-i\"><span>" _ar_ps _ar_get c $"d" 1 " · " _ar_ps _ar_get c $"name" 1 "<small>"
+      ? == tp 0 "plano (estimado)" ? == tp 1 "compra" "acerto com a TR"
+      "</small></span><span class=\"num\">" cr_eursg _ar_vnum _ar_get c $"e" "<small>" ? > q 0.0 "+" 0 _nu_intlm q 6 "</small></span>"
+      ? > tp 0 { "<button type=\"button\" class=\"xbtn\" data-act=\"reg-rm\" data-k=\"" _ar_ps _ar_get c $"k" 1 "\" data-i=\"" _nu_ps _ar_vnum _ar_get c $"i" 0 "\" aria-label=\"Apagar\">✕</button>" 0 } 0
+      "</div>" = c _ar_prox c }
+    "</div>" 0 } 0
+  "</div>" 0 }
 : cr_real i>i r {
   = l _ar_get r $"ativos"
   "\n        <section class=\"sec real\"><div class=\"sec-h\"><h2>A tua carteira</h2><button type=\"button\" class=\"lnk real-edit\" data-act=\"real-ed\">Editar o que tenho</button>"
@@ -296,6 +328,7 @@
       "</div></div><div class=\"r-px num\"><span class=\"px\">" cs_eur v "</span><span class=\"chg " ? >= v e "up" "down" "\">" cr_pc - / v e 1.0 "</span></div></button>"
       = j + j 1 }
     "</div>"
+    = rg _ar_get r $"reg" ? _ar_verd rg cr_reg rg 0
     ? sd "<p class=\"note\">Põe a data em «Desde» nos ativos que tens para veres o gráfico e o rendimento por ano.</p>"
       ? ~ umano "<p class=\"note\">O rendimento por ano aparece quando a primeira compra fizer 1 ano.</p>" 0
     cr_editor l _ar_verd _ar_get r $"edOpen" "</section>" 0 }

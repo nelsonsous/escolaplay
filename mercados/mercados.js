@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.19.2';
+    const VERSION = '4.20.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -517,7 +517,7 @@
         const keys = Object.keys(AN).filter((k) => investable(k) && AN[k].advice && fin(qv(k).price));
         if (keys.length < 5) return;
         const items = keys.map((k) => { const r = AN[k]; return { s: k, p: +qv(k).price.toPrecision(8), a: r.advice.key, l: r.horizons.long ? r.horizons.long.score : null, m: r.horizons.mid.score, sh: r.horizons.short.score, o: r.discount && r.discount.opp ? 1 : 0 }; });
-        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: cfg.lots, saveDays: cfg.saveDays, claude: !!cfg.claude, my: myList() }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
+        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: lotsEnvio(), saveDays: cfg.saveDays, claude: !!cfg.claude, my: myList() }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
     }
     // ---------- datas de compra de cripto (isenção de IRS aos 365 dias) ----------
     const lotOf = (k) => cfg.lots[k] || { plan: '', buys: [] };
@@ -535,7 +535,7 @@
     let lotsT = 0;
     function postLotsSoon() {
         clearTimeout(lotsT);
-        lotsT = setTimeout(() => { if (cfg.proxy && cfg.jid) pxPost('/journal', { id: cfg.jid, lots: cfg.lots, saveDays: cfg.saveDays }).catch(() => {}); }, 4000);
+        lotsT = setTimeout(() => { if (cfg.proxy && cfg.jid) pxPost('/journal', { id: cfg.jid, lots: lotsEnvio(), saveDays: cfg.saveDays }).catch(() => {}); }, 4000);
     }
     function setLots(k, L) {
         if (!L.plan && !(L.buys || []).length && !(+L.pm > 0) && !(+L.qty > 0) && !(+L.cost > 0) && !(+L.avg > 0) && !L.qd) delete cfg.lots[k]; else cfg.lots[k] = L;
@@ -1113,7 +1113,7 @@
         for (const k of cfg.holdings) {
             const L = lotOf(k), p = pxEur(k);
             if (!REG[k] || !temHoje(L) || !fin(p) || p <= 0) continue;
-            const x = +L.qty * p; v += x; if (REG[k].kind === 'crypto') vc += x;
+            const x = posOf(k).q * p; v += x; if (REG[k].kind === 'crypto') vc += x;
         }
         return { v, cp: v > 0 ? vc / v : 0 };
     }
@@ -1158,7 +1158,7 @@
             const k = m && (REG[tok] ? tok : REG['c:' + T] ? 'c:' + T : chaves.find((x) => (REG[x].sym || '').toUpperCase() === T || nameOf(x).toUpperCase() === T) || chaves.find((x) => semBolsa(x) === T));
             const q = m ? numPt(m[2]) : NaN, a = m ? numPt(m[3]) : NaN;
             if (!k || !(q > 0) || !(a > 0)) { bad.push(tok || linha.slice(0, 12)); continue; }
-            cfg.lots[k] = { ...lotOf(k), qty: q, avg: a, cost: Math.round(q * a * 100) / 100, ...(qd ? { qd } : {}) };
+            cfg.lots[k] = { ...lotOf(k), qty: q, avg: a, cost: Math.round(q * a * 100) / 100, at: todayLocal(), compras: [], ...(qd ? { qd } : {}) };
             if (!cfg.holdings.includes(k)) cfg.holdings = cfg.holdings.concat(k);
             ok++;
         }
@@ -1167,9 +1167,42 @@
     }
     // o que tem hoje (quantidade e investido, como na TR): manda sobre o plano; com a data, é uma compra só nesse dia
     const temHoje = (L) => +L.qty > 0 && +L.cost > 0;
+    // ---- o que veio depois do que copiaste da TR (4.20) ----
+    // L.at é o dia em que puseste a quantidade. Depois dele, o plano mensal junta-se sozinho nos dias de execução (ao
+    // preço de fecho de cada dia, estimado) e juntam-se as compras e os acertos que registas (L.compras: {d, e, q, cb}).
+    const isoMais = (iso, n) => new Date(Date.parse(iso + 'T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+    const ISO_D = /^\d{4}-\d\d-\d\d$/;
+    const pmOf = (k) => { const L = lotOf(k); return +L.pm > 0 ? +L.pm : pmDefault(k); };
+    // o preço em euros nesse dia (o último fecho até lá; hoje, o de agora)
+    function pxEm(k, iso) {
+        if (iso >= todayLocal()) return pxEur(k);
+        const t = isoT(iso) + 43200; let p = NaN;
+        for (const [tt, v] of histOf(k)) { if (tt <= t) p = v; else break; }
+        return fin(p) && p > 0 ? p : pxEur(k);
+    }
+    function extrasOf(k) {
+        const L = lotOf(k), out = [];
+        if (!temHoje(L) || !ISO_D.test(L.at || '')) return out;
+        const pm = pmOf(k), n = Math.max(1, (cfg.saveDays || []).length);
+        if (pm > 0) for (const x of A.planLots(isoMais(L.at, 1), cfg.saveDays, todayLocal())) { const p = pxEm(k, x.d); if (fin(p) && p > 0) out.push({ d: x.d, e: pm / n, q: pm / n / p, t: 0 }); }
+        (L.compras || []).forEach((c, i) => { if (fin(+c.q) && +c.q !== 0 && ISO_D.test(c.d || '')) out.push({ d: c.d, e: +c.e || 0, q: +c.q, t: c.cb ? 2 : 1, i }); });
+        return out.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+    }
+    // a posição de hoje: o que copiaste da TR mais o que veio depois
+    function posOf(k) {
+        const L = lotOf(k); let q = +L.qty || 0, c = +L.cost || 0;
+        for (const x of extrasOf(k)) { q += x.q; c += x.e; }
+        return { q, c, avg: q > 0 ? c / q : 0 };
+    }
+    // o que vai para o conector (e daí para a análise do Claude): a posição de hoje
+    const lotsEnvio = () => Object.fromEntries(Object.entries(cfg.lots).map(([k, L]) => {
+        if (!REG[k] || !temHoje(L)) return [k, L];
+        const P = posOf(k); return [k, { ...L, qty: Math.round(P.q * 1e8) / 1e8, cost: Math.round(P.c * 100) / 100 }];
+    }));
+    const fmtQ = (x) => x.toLocaleString('pt-PT', { maximumFractionDigits: 6 });
     function buysOf(k) {
         const L = lotOf(k);
-        if (temHoje(L)) return /^\d{4}-\d\d-\d\d$/.test(L.qd || '') ? [[isoT(L.qd), +L.cost, +L.qty]] : [];
+        if (temHoje(L)) return ISO_D.test(L.qd || '') ? [[isoT(L.qd), +L.cost, +L.qty]].concat(extrasOf(k).map((x) => [isoT(x.d), x.e, x.q])) : [];
         const pm = +L.pm > 0 ? +L.pm : pmDefault(k), n = Math.max(1, (cfg.saveDays || []).length);
         const plan = pm > 0 ? A.planLots(L.plan, cfg.saveDays, todayLocal()).map((x) => [isoT(x.d), pm / n]) : [];
         return plan.concat((L.buys || []).filter((x) => +x.e > 0 && /^\d{4}-\d\d-\d\d$/.test(x.d || '')).map((x) => [isoT(x.d), +x.e])).sort((a, b) => a[0] - b[0]);
@@ -1204,8 +1237,24 @@
         return {
             edOpen: !!st.fold['real-ed'], now: now() / 1000, desde: t0 ? dmy(new Date(t0 * 1000).toISOString().slice(0, 10)) : null, loading: lhVai.size > 0,
             bench: { name: nameOf(cfg.coreFund), px: pxEur(cfg.coreFund), h: histOf(cfg.coreFund) },
-            ativos: keys.map((k) => { const L = lotOf(k); return { k, name: nameOf(k), px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: +L.qty || 0, cost: +L.cost || 0, avg: +L.avg || (+L.qty > 0 && +L.cost > 0 ? Math.round((+L.cost / +L.qty) * 1e4) / 1e4 : 0), qd: L.qd || '' }; }),
+            ativos: keys.map((k) => {
+                const L = lotOf(k), P = posOf(k), mais = extrasOf(k).length > 0;
+                return { k, name: nameOf(k), px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: P.q, cost: P.c,
+                    avg: mais ? Math.round(P.avg * 1e4) / 1e4 : +L.avg || (+L.qty > 0 && +L.cost > 0 ? Math.round((+L.cost / +L.qty) * 1e4) / 1e4 : 0), qd: L.qd || '' };
+            }),
+            reg: regSnap(),
         };
+    }
+    // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
+    function regSnap() {
+        st.reg = st.reg || {};
+        const ks = cfg.holdings.filter((k) => REG[k] && temHoje(lotOf(k)));
+        if (!ks.length) return null;
+        const k = ks.includes(st.reg.k) ? st.reg.k : ks.includes(cfg.coreFund) ? cfg.coreFund : ks[0];
+        st.reg.k = k;
+        const lista = ks.flatMap((x) => extrasOf(x).map((e) => ({ ...e, k: x }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)).slice(0, 8)
+            .map((e) => ({ k: e.k, name: nameOf(e.k), d: dmy(e.d), e: Math.round(e.e * 100) / 100, q: e.q, t: e.t, i: e.i ?? -1 }));
+        return { ks: ks.map((x) => ({ k: x, name: nameOf(x) })), k, e: st.reg.e || '', d: st.reg.d || todayLocal(), q: st.reg.q || '', hoje: todayLocal(), pm: pmOf(k), qApp: posOf(k).q, lista };
     }
     function walletHtml() {
         if (aoOk && AO.ecra && AO.ecra.carteira) try { return AO.ecra.carteira(walletSnap()); } catch (e) { console.error('ecrã Onda:', e); }
@@ -2356,6 +2405,42 @@
             case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); cfg.funds = DEFAULT_FUNDS.slice(); watchChanged(); break;
             // Carteira: valor no futuro ou em euros de hoje; − e + nos controlos do simulador
             // Carteira: abre «O que tens e as tuas compras» e leva-o à vista
+            case 'reg-compra': {
+                st.reg = st.reg || {};
+                const k = st.reg.k, L0 = lotOf(k), e = numPt(st.reg.e || '');
+                let dia = st.reg.d || todayLocal(); if (!ISO_D.test(dia) || dia > todayLocal()) dia = todayLocal();
+                if (!REG[k] || !temHoje(L0)) break;
+                if (!(e > 0)) { toast('Escreve quantos euros investiste.'); break; }
+                const p = pxEm(k, dia);
+                if (!fin(p) || p <= 0) { toast('Ainda sem o preço desse dia: tenta daqui a pouco.'); break; }
+                const antes = L0.compras || [];
+                st.reg.e = ''; st.reg.d = ''; { const i = $('.reg [data-reg="e"]'); if (i) i.value = ''; }
+                setLots(k, { ...L0, compras: antes.concat({ d: dia, e: Math.round(e * 100) / 100, q: e / p }) });
+                toast(`Compra juntada: ${fmtPx(e, { decimals: 2 }, 'EUR')} de ${nameOf(k)} (${fmtQ(e / p)})`, () => setLots(k, { ...lotOf(k), compras: antes }));
+                break;
+            }
+            case 'reg-acerto': {
+                st.reg = st.reg || {};
+                const k = st.reg.k, L0 = lotOf(k), txt = String(st.reg.q || '').trim(), qt = numPt(txt);
+                if (!REG[k] || !temHoje(L0)) break;
+                if (!txt || !(qt >= 0)) { toast('Escreve a quantidade que a TR mostra.'); break; }
+                const P = posOf(k), dq = qt - P.q, p = pxEur(k);
+                if (Math.abs(dq) < 1e-9) { toast('Já está igual à TR.'); break; }
+                if (dq > 0 && !(fin(p) && p > 0)) { toast('Ainda sem o preço de hoje: tenta daqui a pouco.'); break; }
+                // o que entrou a mais (arredondamentos, cashback) conta ao preço de hoje, como a TR faz; a menos sai ao preço médio
+                const e = dq > 0 ? dq * p : dq * P.avg, antes = L0.compras || [];
+                st.reg.q = ''; { const i = $('.reg [data-reg="q"]'); if (i) i.value = ''; }
+                setLots(k, { ...L0, compras: antes.concat({ d: todayLocal(), e: Math.round(e * 100) / 100, q: dq, cb: 1 }) });
+                toast(`Acertado com a TR: ${dq > 0 ? '+' : '−'}${fmtQ(Math.abs(dq))} de ${nameOf(k)} (${fmtPx(Math.abs(e), { decimals: 2 }, 'EUR')})`, () => setLots(k, { ...lotOf(k), compras: antes }));
+                break;
+            }
+            case 'reg-rm': {
+                const L0 = lotOf(d.k), antes = L0.compras || [], i = +d.i;
+                if (!REG[d.k] || !(i >= 0) || !antes[i]) break;
+                setLots(d.k, { ...L0, compras: antes.filter((_, j) => j !== i) });
+                toast('Registo apagado', () => setLots(d.k, { ...lotOf(d.k), compras: antes }));
+                break;
+            }
             case 'lot-clear': {
                 const L = { ...lotOf(d.k) }; if (d.f === 'plan') L.plan = ''; else delete L.qd;
                 const i = t.closest('.dt') && t.closest('.dt').querySelector('input'); if (i) i.value = '';
@@ -2399,9 +2484,14 @@
     document.addEventListener('pointermove', (ev) => { if (ev.buttons || ev.pointerType !== 'touch') simDedo(ev); });
     document.addEventListener('change', (ev) => {
         const t = ev.target;
+        if (t.dataset && t.dataset.reg) { st.reg = st.reg || {}; st.reg[t.dataset.reg] = t.value; if (t.dataset.reg === 'k') render(); return; }
         if (t.dataset && t.dataset.lot && t.dataset.k && REG[t.dataset.k]) {
             const k = t.dataset.k, L = { ...lotOf(k) };
             const data = /^\d{4}-\d\d-\d\d$/.test(t.value) && t.value <= todayLocal() ? t.value : '';
+            if (['qty', 'avg'].includes(t.dataset.lot)) {
+                if (extrasOf(k).length) { const P = posOf(k); L.qty = P.q; L.cost = Math.round(P.c * 100) / 100; L.avg = Math.round(P.avg * 1e4) / 1e4; }
+                L.at = todayLocal(); L.compras = [];
+            }
             if (t.dataset.lot === 'plan') L.plan = data;
             else if (t.dataset.lot === 'qd') L.qd = data || undefined;
             // o teclado do iPhone em português escreve a vírgula: 0,0412 → 0.0412 (e tira os espaços dos milhares)
@@ -2420,6 +2510,7 @@
         }
     });
     document.addEventListener('input', (ev) => {
+        if (ev.target.dataset && ev.target.dataset.reg) { st.reg = st.reg || {}; st.reg[ev.target.dataset.reg] = ev.target.value; }
         // a barra do simulador: o número muda enquanto se arrasta; grava e redesenha ao largar (change)
         if (ev.target.classList && ev.target.classList.contains('sim-rg')) {
             const t = ev.target, v = +t.value, o = document.querySelector(`[data-out="${t.dataset.cfg}"]`);
@@ -2516,6 +2607,7 @@
     })();
 
     async function boot() {
+        { let mudou = false; for (const [k, L] of Object.entries(cfg.lots)) if (temHoje(L) && !ISO_D.test(L.at || '')) { L.at = todayLocal(); mudou = true; void k; } if (mudou) saveCfg(); }
         // como a Música: ao abrir outra vez, começa no topo (o iOS repunha o scroll e o título ficava por baixo das horas)
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         if (AO) AO.ready.then(() => { aoOk = true; analyseAll(); scheduleRender(); }).catch((e) => { aoFalhou = true; scheduleRender(); console.error('motor Onda:', e); });
