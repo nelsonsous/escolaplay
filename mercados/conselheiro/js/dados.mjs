@@ -270,6 +270,17 @@ async function main() {
         if (!t.n) { L.push(`- ${k}: data de compra por indicar na app → perguntar ao investidor antes de falar em vender`); continue; }
         L.push(`- ${k}: ${t.n} compras desde ${t.first}${t.plan ? ` (plano mensal desde ${t.plan})` : ''}; ${t.exempt} isentas${t.eur ? ` (${Math.round(t.eurExempt)} € de ${Math.round(t.eur)} €)` : ''}${t.next ? `; próxima isenta a ${t.next.free} (faltam ${t.next.days} dias)` : '; todas isentas'}`);
     }
+    // o que tem, com as quantidades e o investido que ele pôs na Carteira da app: o peso de cada um no total
+    const pos = [];
+    for (const j of journals) for (const [k, lt] of Object.entries(j.lots || {})) if (lt && +lt.qty > 0 && +lt.cost > 0) pos.push([k, +lt.qty, +lt.cost]);
+    L.push('## O que tens: quantidades e pesos (Carteira da app)');
+    if (!pos.length) L.push('- (sem quantidades: ele ainda não as pôs na app — Carteira → Editar o que tenho)');
+    else {
+        const val = pos.map(([k, q, c]) => { const r = rows.find((x) => x.s === k), p = r ? +r.priceEur : NaN; return Number.isFinite(p) && p > 0 ? q * p : c; });
+        const tot = val.reduce((a, b) => a + b, 0);
+        pos.forEach(([k, q, c], i) => { const g = (val[i] / c - 1) * 100; L.push(`- ${k}: ${q} unidades · investido ${Math.round(c)} € · vale ${Math.round(val[i])} € (${((val[i] / tot) * 100).toFixed(1)}% do total) · ${g >= 0 ? '+' : ''}${g.toFixed(1)}%`); });
+        L.push(`- Total: ${Math.round(tot)} € (investido ${Math.round(pos.reduce((a, x) => a + x[2], 0))} €)`);
+    }
     L.push('## Lições guardadas', ...lessons.map((l) => `- ${l}`));
     if (warn.length) L.push('## Avisos', ...warn.map((w) => `- ${w}`));
     writeFileSync(path.join(OUT, 'dados.md'), L.join('\n'));
