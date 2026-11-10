@@ -54,9 +54,10 @@ a { color: var(--accent2); }
 .dot.busy { background: var(--accent); }
 /* a análise por períodos: «Manhã · Tarde · Noite» numa coluna, o texto ao lado */
 .an-per { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
-.an-per li { display: grid; grid-template-columns: 4.4em minmax(0, 1fr); gap: 8px; line-height: 1.45; }
-.an-per li b { font-weight: 650; color: var(--text); }
-.an-per li span { color: var(--soft); }
+.an-per li { line-height: 1.45; }
+/* o período a negrito no início da linha; o texto continua ao lado e usa a largura toda */
+.an-per li b, .an-p1 b { font-weight: 650; color: var(--text); margin-right: 6px; }
+.an-per li span, .an-p1 span { color: var(--soft); }
 .an-sec p + .an-per { margin-top: 8px; }
 /* «Os meus locais»: o atual realçado; ✦ nos analisados pelo Claude */
 .locs .wl-i.here { background: var(--card2); border-radius: 12px; padding-left: 12px; }

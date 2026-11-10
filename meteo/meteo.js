@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.16.0';
+const VERSION = '1.16.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -806,6 +806,8 @@ function richText(x) {
         else { flush(); out.push(`<p>${esc(l)}</p>`); }
     }
     flush();
+    // uma só linha com período (as análises antigas: «Quarta: …» num bloco) não é lista: parágrafo com o período a negrito
+    if (out.length === 1 && out[0].startsWith('<ul') && (out[0].match(/<li>/g) || []).length === 1) return out[0].replace(/^<ul class="an-per"><li>/, '<p class="an-p1">').replace(/<\/li><\/ul>$/, '</p>');
     return out.join('');
 }
 function viewAnalysis() {
