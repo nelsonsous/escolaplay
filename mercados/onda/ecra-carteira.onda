@@ -287,7 +287,7 @@
     "</div>"
     ? sd "<p class=\"note\">Põe a data em «Desde» nos ativos que tens para veres o gráfico e o rendimento por ano.</p>"
       ? ~ umano "<p class=\"note\">O rendimento por ano aparece quando a primeira compra fizer 1 ano.</p>" 0
-    cr_editor l 0 "</section>" 0 }
+    cr_editor l _ar_verd _ar_get r $"edOpen" "</section>" 0 }
   0 }
 
 : ecra_carteira i>i s {
@@ -349,7 +349,7 @@
       = k + k 1 }
     cs_linha y h m c st 0.0
     "</tbody></table></div>"
-    "<details class=\"how\"><summary>Como é feita a conta</summary><ul>"
+    "<details class=\"how\" data-fold=\"sim-how\"" ? _ar_verd sg $"howOpen" " open" 0 "><summary>Como é feita a conta</summary><ul>"
     "<li>Mês a mês: o que já tens rende e entra o valor do plano, dividido como no plano do mês.</li>"
     "<li>Ações (o fundo núcleo): 3 % por ano no pessimista, 6 % no base e 9 % no otimista. As ações do mundo renderam cerca de 8 % por ano nos últimos 50 anos, antes da inflação.</li>"
     "<li>Cripto: 0 %, 10 % e 25 % por ano. Pode também cair muito mais.</li>"
