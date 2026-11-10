@@ -239,7 +239,7 @@ div.claude { cursor: auto; }
 .cap { stroke: var(--muted); stroke-width: 1.5; stroke-linecap: round; }
 /* intensidade da chuva: linhas tracejadas onde começa a moderada e a forte; a sombra clara é o modelo mais chuvoso */
 .guide { stroke: rgba(100, 168, 255, .35); stroke-width: 1; stroke-dasharray: 3 4; }
-.guide-l { fill: rgba(140, 190, 255, .75); font-size: calc(10px * var(--k)); font-weight: 600; letter-spacing: .02em; }
+.guide-l { fill: rgba(140, 190, 255, .8); font-size: calc(10px * var(--k)); font-weight: 600; letter-spacing: .02em; paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; } /* contorno da cor do fundo: lê-se por cima das barras */
 .bar.ghost { fill: var(--pop-1); opacity: .2; }
 .nc-sum { margin: 6px 2px 0; color: var(--soft); font-size: calc(.88rem * var(--k)); line-height: 1.4; }
 .nc-sum b { color: var(--text); font-weight: 650; }
