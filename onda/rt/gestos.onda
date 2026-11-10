@@ -32,10 +32,11 @@
         ? && && > dy 0.0 gbit c 2 && gbit c 128 ~ gbit c 1024 5 -1 } }
 
 # d: o deslocamento que conta no modo (dy na folha e no puxar, dx nos outros); w: a largura da linha;
-# tem: 1 se há página ou separador para esse lado
+# tem: 1 se há página ou separador para esse lado (o separador segue o dedo quase todo: a troca é fluida; sem separador
+# para esse lado, só resiste)
 : gsegue iffi>f m d w tem
   ? == m 1 Mx 0.0 d
-  ? || == m 2 == m 3 * d ? tem ? == m 2 0.45 0.4 0.12
+  ? || == m 2 == m 3 * d ? tem ? == m 2 0.45 0.85 0.12
   ? == m 4 { = x Mn 0.0 d = lim * w 0.7 ? < x - 0.0 lim - * + x lim 0.25 lim x }
   ? == m 5 Mn 120.0 * Mx 0.0 d 0.5
   0.0
