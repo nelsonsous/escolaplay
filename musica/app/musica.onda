@@ -186,6 +186,9 @@
 : pt i>i t thtml t
 : pjt i>i n thtml jtxt n
 : busca ii>i u f Y 102 u f
+# busca com memória: o anfitrião dá já a resposta guardada há menos de ms (sem ir à rede, sem «A carregar…» a piscar)
+# e guarda a nova; qualquer escrita esquece tudo (Y 115 no lido_escrita)
+: buscam iii>i u f ms { = t abre tpor u P 9 N ms O 0 Y 117 t f }
 : tvazio i>i d { ! d + d 1 0 }
 : tcopia iii>i d s mx { ! d + d 1 O d = n Mn tlen s mx = j 0 W < j n { P tbyte s j = j + j 1 } O 0 0 }
 : hexd i>i h P ? < h 10 + 48 h + 87 h
@@ -278,7 +281,7 @@
   "<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>"
   "</svg>" 0 }
 : pill >i ? ligado { "<button type=\"button\" class=\"mu-pill on\" data-onda=\"ir&#9;5\">" pjt jg @ 3 k_utilizador "</button>" 0 } { "<button type=\"button\" class=\"mu-pill off\" data-onda=\"ir&#9;5\">Tidal desligado</button>" 0 }
-: carregar >i ? @ 3 "<p class=\"mu-nota\">A carregar…</p>" "<p class=\"mu-nota\">A ligar ao conector…</p>"
+: carregar >i ? @ 3 "<p class=\"mu-nota mu-a-carregar\">A carregar…</p>" "<p class=\"mu-nota mu-a-carregar\">A ligar ao conector…</p>"
 # qualidade do som pelas etiquetas do Tidal
 : pqual i>i l { = c jprim l = h 0 = q 0 W c { = t jtxt c ? tigual t k_v_hires { = h 1 0 } ? tigual t k_v_lossless { = q 1 0 } 0 = c jprox c }
   ? h "<span class=\"mu-chip hires\">Hi-Res</span>" ? q "<span class=\"mu-chip lossless\">Sem perdas</span>" 0
@@ -928,7 +931,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.21.2 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.22.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====
@@ -954,21 +957,23 @@
   solta m }
 # muda de vista: solta tudo o que a vista anterior reservou e pede o estado (e depois os dados)
 : ir i>i v {
+  # tocar outra vez no separador em que se está atualiza (esquece o que estava em memória)
+  ? == v @ 1 { Y 115 0 0 0 } 0
   solta @ 2
   = q 3 W <= q 19 { ! q 0 = q + q 1 }
   ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 tvazio @ 50 tvazio @ 54
   ! 1 v
   render
-  busca k_p_estado k_c_estado
+  buscam k_p_estado k_c_estado 60000
   0 }
 : abrir i>i b { tcopia @ 30 b 70 ir 2 }
 : carregar_vista >i {
   = v @ 1
   ? acesso {
-    ? == v 1 { busca k_p_playlists k_c_pl busca k_p_pedidos k_c_ped 0 }
+    ? == v 1 { buscam k_p_playlists k_c_pl 30000 buscam k_p_pedidos k_c_ped 30000 0 }
     ? == v 2 { = u abre "/api/playlists/" purl @ 30 O 0 busca u k_c_doc 0 }
-    ? == v 3 { busca k_p_pedidos k_c_ped busca $"/api/ideias" $"lido_ideias" 0 }
-    ? == v 4 { busca k_p_perfil k_c_perfil busca $"/api/tendencias" $"lido_tend" 0 } 0 } 0
+    ? == v 3 { buscam k_p_pedidos k_c_ped 30000 buscam $"/api/ideias" $"lido_ideias" 300000 0 }
+    ? == v 4 { buscam k_p_perfil k_c_perfil 300000 buscam $"/api/tendencias" $"lido_tend" 300000 0 } 0 } 0
   0 }
 
 # ===== respostas do conector =====
