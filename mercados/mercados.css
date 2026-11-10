@@ -743,3 +743,7 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .sim-seg { display: flex; width: 100%; margin: 2px 0 4px; }
 .sim-seg button { flex: 1; }
 .sim-infl { margin: 4px 2px 12px; }
+
+/* ficha: a razão do algoritmo e a do Claude (4.15) */
+.adv-alg > div + div { margin-top: 4px; }
+.adv-alg .alg-pts { color: var(--muted); font-size: calc(.78rem * var(--k)); }

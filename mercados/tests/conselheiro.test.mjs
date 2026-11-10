@@ -199,6 +199,6 @@ test('publicar: segunda opinião — discordar do sinal automático exige o porq
     assert.match(nv.algWhy, /resultados/);
     assert.equal(r.out.actions.find((x) => x.s === 'VWCE.DE').alg, 'wait');
     assert.equal(r.out.actions.find((x) => x.s === 'BZ=F').alg, undefined, 'a referência não tem regra');
-    a.actions.find((x) => x.s === 'NVDA').algWhy = 'x'.repeat(201);
-    assert.match(buildAdvice(a, D2).errs.join(' '), /algWhy com mais de 200/);
+    a.actions.find((x) => x.s === 'NVDA').algWhy = 'x'.repeat(301);
+    assert.match(buildAdvice(a, D2).errs.join(' '), /algWhy com mais de 300/);
 });

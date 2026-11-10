@@ -95,10 +95,10 @@
         ? && && != r 1 _js_v ru && != pu_fam ru 1 != pu_fam _js_get v k_key 1 {
             _js_oset v k_alg ru
             _an_abre 0 _tx_p p ".algWhy" = nm _an_fecha
-            = w cs_str _js_get x k_algWhy 200 nm 0
+            = w cs_str _js_get x k_algWhy 300 nm 0
             ? && ~ _js_eq pu_fam _js_get v k_key pu_fam ru _tx_branco w {
                 = ra _js_get r k_ruleAction = ra ? _js_v ra ra cs_alabel _js_str ru
-                cs_eini _tx_p p ": o teu veredicto (" _js_ps _js_get v k_action ") discorda do sinal automático (" _js_ps ra "): explica porquê em algWhy (até 200 caracteres)" cs_efim } 0
+                cs_eini _tx_p p ": o teu veredicto (" _js_ps _js_get v k_action ") discorda do sinal automático (" _js_ps ra "): explica porquê em algWhy (até 300 caracteres)" cs_efim } 0
             ? ~ _tx_branco w _js_oset v k_algWhy w 0 0 } 0
         _js_push acts v 0 } }
     = j + j 1 }

@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.14.0';
+    const VERSION = '4.15.0';
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
@@ -1303,8 +1303,12 @@
     function algLine(k, c) {
         const a = AN[k] && AN[k].advice;
         if (!a || !buyable(k) || FAM[c.key] == null) return '';
-        const diff = algDiff(k, c);
-        return `<div class="adv-alg${diff ? ' diff' : ''}"><b>Algoritmo:</b> ${esc(rotulo(a.key, owns(k)) || a.action)} · ${diff ? `<b>o Claude discorda</b>${c.algWhy ? ` — ${esc(c.algWhy)}` : ''}` : 'o Claude concorda'}</div>`;
+        const diff = algDiff(k, c), h = AN[k] && AN[k].horizons;
+        // as pontuações da regra (curto, médio, longo): o que ela vê, em números
+        const pts = h ? ['short', 'mid', 'long'].map((z, i) => (h[z] && fin(h[z].score) ? `${'CML'[i]}${Math.round(h[z].score)}` : '')).filter(Boolean).join(' · ') : '';
+        return `<div class="adv-alg${diff ? ' diff' : ''}">
+            <div><b>Algoritmo:</b> ${esc(rotulo(a.key, owns(k)) || a.action)}${a.text ? ` — ${esc(a.text)}` : ''}${pts ? ` <span class="alg-pts num">(${pts})</span>` : ''}</div>
+            <div><b>Claude:</b> ${diff ? `<b>discorda</b>${c.algWhy ? ` — ${esc(c.algWhy)}` : ''}` : 'concorda'}</div></div>`;
     }
     function claudeBox(k, q) {
         const c = claudeFor(k);
