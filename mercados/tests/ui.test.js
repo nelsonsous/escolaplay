@@ -37,7 +37,7 @@ function quote(sym, range) {
     const price = BASE[sym] || s[s.length - 1][1];
     if (!daily) { const k = price / s[s.length - 1][1]; s.forEach((p) => { p[1] = +(p[1] * k).toFixed(4); }); }
     const prev = +(price / (1 + chgPct / 100)).toFixed(4);
-    return { symbol: sym, name: sym + ' Name', currency: /\.LS$|\.DE$|\.PA$|\.AS$|\.MU$/.test(sym) ? 'EUR' : /\.CO$/.test(sym) ? 'DKK' : 'USD', exchange: 'Test', price, prevClose: prev,
+    return { symbol: sym, name: sym + ' Name', currency: /\.LS$|\.DE$|\.PA$|\.AS$|\.MU$|\.DU$/.test(sym) ? 'EUR' : /\.CO$/.test(sym) ? 'DKK' : 'USD', exchange: 'Test', price, prevClose: prev,
         change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : 1762300000, open: true, series: s };
 }
 // análise do Claude do dono: o formato antigo (até à 3.x: o veredicto de alguns ativos) e o da 4.0, feito no arranque
@@ -276,6 +276,46 @@ function proxyBody(u) {
         [[5.486463, 169.86, 931.93], [0.044679, 73722.55, 3293.85], [3.488363, 102.03, 355.92]], 'importadas, com o investido calculado');
     assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.lots['VWCE.DE'].qd, window.__mk.cfg.lots['c:BTC'].qd, window.__mk.cfg.lots['c:SOL'].qd]), ['2026-11-02', '2026-10-08', undefined], 'a data no fim, nos dois formatos');
     assert.match(await page.locator('#mk-toast').textContent(), /3 posições importadas · não percebi: xpto/);
+    // registar (4.20): uma compra só com os euros (a data e o preço do dia vêm feitos) e o acerto com a TR (cashback)
+    const btcL = () => page.evaluate(() => window.__mk.cfg.lots['c:BTC']);
+    assert.equal((await btcL()).at, isoAtras(0), 'colar marca o dia do ponto de partida');
+    await page.waitForSelector('.reg select[data-reg="k"]');
+    await page.selectOption('.reg select[data-reg="k"]', 'c:BTC');
+    await page.fill('.reg [data-reg="e"]', '90');
+    await page.evaluate(() => window.__mk.render()); // um redesenho (preços novos) não perde o que se escreveu
+    assert.equal(await page.locator('.reg [data-reg="e"]').inputValue(), '90');
+    const pxBtc = await page.evaluate(() => window.__mk.Q['c:BTC'].price);
+    await page.click('[data-act="reg-compra"]');
+    let bL = await btcL();
+    assert.equal(bL.compras.length, 1, 'compra juntada');
+    assert.deepEqual([bL.compras[0].d, bL.compras[0].e], [isoAtras(0), 90]);
+    assert.ok(Math.abs(bL.compras[0].q * pxBtc / 90 - 1) < 0.01, 'as unidades pelo preço de hoje');
+    assert.match(await page.locator('#mk-toast').textContent(), /Compra juntada: 90,00\s€ de Bitcoin.*Desfazer/);
+    assert.equal(await page.locator('.reg [data-reg="e"]').inputValue(), '', 'o campo fica limpo');
+    await page.waitForSelector('.reg-i', { timeout: 3000 }); // o redesenho vem logo a seguir
+    assert.equal(await page.locator('.reg-i').count(), 1, 'aparece na lista');
+    await page.waitForFunction(() => /investido 3384\s€/.test(document.querySelector('.real-l .row[data-open="c:BTC"] .r-sub').textContent), null, { timeout: 3000 });
+    // a TR mostra mais 0,001 (arredondamentos e cashback): escreve-se a quantidade da TR e a app junta a diferença
+    const qTr = 0.044679 + bL.compras[0].q + 0.001;
+    await page.fill('.reg [data-reg="q"]', qTr.toFixed(8).replace('.', ','));
+    await page.click('[data-act="reg-acerto"]');
+    bL = await btcL();
+    assert.equal(bL.compras.length, 2, 'acerto juntado');
+    assert.ok(Math.abs(bL.compras[1].q - 0.001) < 1e-8 && bL.compras[1].cb === 1, 'a diferença, marcada como acerto');
+    assert.match(await page.locator('#mk-toast').textContent(), /Acertado com a TR: \+0,001 de Bitcoin/);
+    await page.click('.reg-i [data-act="reg-rm"][data-i="1"]');
+    assert.equal((await btcL()).compras.length, 1, '✕ apaga o registo');
+    // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
+    await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
+    await page.waitForSelector('.reg-i:has-text("plano (estimado)")');
+    const nPlano = await page.locator('.reg-i:has-text("plano (estimado)")').count();
+    assert.ok(nPlano >= 2 && nPlano <= 3, 'execuções do plano em 70 dias: ' + nPlano);
+    if (SHOTS) { await page.locator('.reg').scrollIntoViewIfNeeded(); await page.locator('.reg').screenshot({ path: path.join(SHOTS, '8f-carteira-registar.png') }); }
+    // mudar a quantidade à mão: é o novo ponto de partida (o que se juntou fica lá dentro)
+    await page.evaluate(() => { const i = document.querySelector('[data-lot="qty"][data-k="c:BTC"]'); i.value = '0,05'; i.dispatchEvent(new Event('change', { bubbles: true })); });
+    bL = await btcL();
+    assert.deepEqual([bL.qty, bL.compras.length, bL.at], [0.05, 0, isoAtras(0)], 'a quantidade nova manda e recomeça hoje');
+    console.log('✓ registar: compra só com os euros, acerto com a TR, ✕, o plano sozinho e a quantidade nova como ponto de partida');
     await page.evaluate(() => { for (const k of ['c:BTC', 'c:SOL']) { delete window.__mk.cfg.lots[k].qty; delete window.__mk.cfg.lots[k].avg; delete window.__mk.cfg.lots[k].cost; delete window.__mk.cfg.lots[k].qd; } delete window.__mk.cfg.lots['VWCE.DE']; window.__mk.render(); });
     // o simulador parte da carteira (com quantidades): «Já tens (a tua carteira)»; o − passa a valor à mão
     await page.fill('#lot-imp', 'VWCE.DE 2 150');
@@ -390,7 +430,13 @@ function proxyBody(u) {
     assert.deepEqual(narrow, [], 'nome com espaço suficiente nas linhas: ' + JSON.stringify(narrow));
     const fund = await page.locator('.row[data-key="VWCE.DE"] .px').first().textContent();
     assert.match(fund, /163,80\s*€/, 'fundo com o preço da noite (Munique): ' + fund);
-    assert.match(await page.locator('.row[data-key="VWCE.DE"] .chg').first().textContent(), /−3,90%/, "variação face ao fecho de Munique (como a TR)");
+    // a variação é face ao fecho da Xetra (165,98 € a −2,28 % → 169,85 €): o «fecho anterior» de Munique no Yahoo não é de fiar
+    assert.match(await page.locator('.row[data-key="VWCE.DE"] .chg').first().textContent(), /−3,56%/, 'variação face ao fecho da Xetra');
+    // mais tarde, Düsseldorf (aberta até às 22 h) tem o negócio mais recente: o preço passa a ser o dela
+    await page.evaluate(() => { const Q = window.__mk.Q, m = Q['VWCE.MU']; Q['VWCE.DU'] = { ...m, symbol: 'VWCE.DU', price: 164.5, prevClose: 170.9, time: m.time + 600, series: m.series.concat([[m.time + 600, 164.5]]) }; window.__mk.render(); });
+    assert.match(await page.locator('.row[data-key="VWCE.DE"] .px').first().textContent(), /164,50\s*€/, 'o negócio mais recente (Düsseldorf)');
+    assert.match(await page.locator('.row[data-key="VWCE.DE"] .chg').first().textContent(), /−3,15%/, 'continua face ao fecho da Xetra');
+    await page.evaluate(() => { delete window.__mk.Q['VWCE.DU']; window.__mk.render(); });
     // ficha do VWCE: gráfico do dia = o do Painel (Munique), e no mês o "no período" bate com o número de cima
     await page.locator('.row[data-open="VWCE.DE"]').first().click();
     await page.waitForFunction(() => document.querySelector('#d-load') && document.querySelector('#d-load').hidden);
@@ -445,7 +491,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('.row[data-key="TSLA"] .hl-w.cl').count(), 1);
     assert.match(await page.locator('.row[data-key="ALV.DE"] .hl-w').getAttribute('class'), /^hl-w (up|down|flat)$/);
     assert.match(await page.locator('.row[data-key="VWCE.DE"] .px').textContent(), /^163,80\s€$/, 'o preço da noite (Munique), como no Painel');
-    assert.equal(await page.locator('.row[data-key="VWCE.DE"] .chg').textContent(), '−3,90%', 'e a variação do dia face ao fecho de Munique');
+    assert.equal(await page.locator('.row[data-key="VWCE.DE"] .chg').textContent(), '−3,56%', 'e a variação do dia face ao fecho da Xetra');
     assert.equal(await page.evaluate(() => [...document.querySelectorAll('#mk-body .note')].filter((e) => !e.closest('details')).length), 0, 'sem parágrafos a explicar');
     // em cima o sentimento do mercado, com os índices do dia; no fim, fechados: o mercado dos EUA e a cripto hoje
     assert.match(await page.locator('details.hl-mood > summary').textContent(), /^Sentimento do mercadoS&P 500 [−+]?\d+,\d\d% · Nasdaq [−+]?\d+,\d\d% · Euro Stoxx [−+]?\d+,\d\d%(Otimista|Pessimista|Misto)$/);

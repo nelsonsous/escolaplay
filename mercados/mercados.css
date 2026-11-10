@@ -774,3 +774,18 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .real-in .inp { min-height: calc(1.4em + 20px); }
 .real-in .dt:has(.dt-x) .inp { padding-right: 40px; }
 .dt-x { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--line); color: var(--muted); font-size: calc(.8rem * var(--k)); line-height: 1; cursor: pointer; }
+
+/* Carteira: registar uma compra e acertar com a TR (4.20) */
+.reg { background: var(--card); border-radius: var(--r); padding: 12px 14px; margin: 12px 0; display: grid; gap: 6px; }
+.reg-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.reg-h small, .reg label small { color: var(--muted); font-size: calc(.76rem * var(--k)); }
+.reg label { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.reg .inp { display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; text-align: left; min-height: calc(1.4em + 20px); }
+.reg .real-g2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.reg-bt { justify-self: start; }
+.reg-ac { align-self: end; justify-self: stretch; justify-content: center; min-height: calc(1.4em + 20px); }
+.reg-l { display: grid; margin-top: 4px; }
+.reg-i { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: calc(.85rem * var(--k)); }
+.reg-i > span:first-child { flex: 1; min-width: 0; }
+.reg-i small { display: block; color: var(--muted); }
+.reg-i .num { text-align: right; }
