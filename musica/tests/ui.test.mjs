@@ -139,6 +139,8 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-pl-a').click();
     // o cartão abre logo com o tamanho certo; as faixas e as pré-escutas chegam depois só para dentro dele (não treme,
     // e quem já está a escrever na caixa de afinar não perde o teclado)
+    await page.locator('.mu-folha').waitFor();
+    assert.ok(await page.evaluate(() => document.activeElement.classList.contains('mu-fechar')), 'ao abrir, o foco vai para o «fechar»');
     const caixa = await page.locator('.mu-pl.aberta [placeholder^="Ex.: menos eletrónica"]').elementHandle();
     await caixa.focus();
     await page.locator('.mu-pl.aberta .mu-xf li:not(.sk)').first().waitFor();
@@ -171,6 +173,11 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-pl-a').click();
     await page.locator('.mu-pl.aberta .mu-xf [data-previa]').first().waitFor();
     assert.deepEqual(pedidos, [], 'abrir outra vez não vai à rede');
+    // o Esc fecha, e o foco volta ao cartão
+    await page.keyboard.press('Escape');
+    await page.locator('.mu-pl.aberta').waitFor({ state: 'detached' });
+    assert.ok(await page.evaluate(() => document.activeElement.classList.contains('mu-pl-a')), 'ao fechar, o foco volta ao cartão');
+    await page.locator('.mu-pl-a').click();
     await page.getByRole('button', { name: 'Abrir' }).click();
     await page.getByRole('heading', { name: 'Som para o carro' }).waitFor();
     assert.equal(await page.locator('#faixas .mu-faixa').count(), doc.faixas.length);

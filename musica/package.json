@@ -1,6 +1,6 @@
 {
   "name": "musica",
-  "version": "2.17.0",
+  "version": "2.17.1",
   "private": true,
   "type": "module",
   "description": "Música — curador de playlists para o Tidal; a app e o motor de curadoria são escritos na Onda",
