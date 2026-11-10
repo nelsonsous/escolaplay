@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.8.0';
+const VERSION = '1.9.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -77,11 +77,12 @@ async function route(req, env, url) {
     if (p === '/api/playlists' && m === 'GET') return json((await ue.KV.get('playlists', 'json')) || []);
     if (p === '/api/playlists' && m === 'POST') return json(await guardar(ue, await corpo(req), quem), 201);
     if (p === '/api/avaliacoes' && m === 'GET') return json(await avaliacoes(ue));
-    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes)?$/.exec(p);
+    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
     if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(ue, pl[1], await corpo(req), quem), 201);
+    if (pl && pl[2] === '/nome' && m === 'POST') return json(await renomear(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovar' && m === 'POST') return json(await renovar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovacoes' && m === 'POST') return json(await renovacao(ue, pl[1], await corpo(req)), 201);
     if (p === '/api/mais' && m === 'POST') return json(await maisComoEsta(ue, await corpo(req), quem), 201);
@@ -619,6 +620,22 @@ async function avaliar(env, d, fav, gostava, nasMixes) {
     const etiqueta = apagada ? 'apagaste' : !sinais ? ((Date.now() - Date.parse(desde)) / 864e5 < 3 ? 'ainda cedo' : 'sem sinais')
         : nota >= 75 ? 'resultou' : nota >= 55 ? 'boa' : nota >= 40 ? 'morna' : 'não resultou';
     return { nota, etiqueta, guardadas, tiradas: tiradas.slice(0, 30), juntadas, eco, apagada, em: new Date().toISOString() };
+}
+
+// ---------- mudar o nome (e a descrição): na app e no Tidal, no mesmo link; a renovação semanal mantém-no ----------
+async function renomear(env, id, c) {
+    const d = await obter(env, id);
+    const nome = txt(c?.nome, 60);
+    if (!nome) throw new Erro(400, 'sem_nome', 'Escreve um nome para a playlist.');
+    const descricao = c?.descricao === undefined ? d.descricao : txt(c.descricao, 300);
+    if (d.tidal?.id) {
+        await tidal(env, `/playlists/${encodeURIComponent(d.tidal.id)}`, { method: 'PATCH', body: { data: { id: d.tidal.id, type: 'playlists',
+            attributes: { name: nome, description: descricao || 'Criada pelo Maestro da app Música.' } } } }).catch((e) => { if (e.status !== 404) throw e; });
+    }
+    Object.assign(d, { nome, descricao });
+    await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+    await atualizarIndice(env, d);
+    return d;
 }
 
 // ---------- atualizar sozinha: liga-se na app; o Maestro renova-a com o mesmo critério, no mesmo link do Tidal ----------

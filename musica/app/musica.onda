@@ -9,7 +9,8 @@
 #   fixos (criados no main): 0 textos fixos, 1 vista (1 playlists, 2 playlist, 3 pedir, 4 gosto, 5 ajustes),
 #     2 base do monte (navegar solta tudo o que veio depois), 20 texto do pedido, 21 client id, 22 conector,
 #     23 pesquisa, 24..27 pedido: faixas, max por artista, estilo, arco, 29 relogio do aviso, 30 id da playlist,
-#     36 pesos dos estilos, 38 codigo de ligacao (colado), 45 pedido sem letras explicitas
+#     36 pesos dos estilos, 38 codigo de ligacao (colado), 45 pedido sem letras explicitas, 46 47 nome e descricao
+#     a mudar
 #   da vista (a zero ao navegar): 3 estado, 4 dados da vista, 5 pedidos, 6 afinar ligado, 7 faixas, 8 max por
 #     artista, 9 estilo, 10 arco, 11 candidatas, 12 faixas das candidatas, 13 ordem, 14 m, 15 motivos,
 #     16 custo, 17 fixas, 18 tiradas, 19 pesquisa, 28 a confirmar, 31 ocupado, 32 pontos, 33 ms do motor,
@@ -426,7 +427,8 @@
   = d @ 4
   ? ~ d { ? && @ 3 ~ acesso boas_vindas carregar 0 } {
     = fx jg d k_faixas
-    "<header class=\"mu-head\"><div><h1>" pjt jg d k_nome "</h1><div class=\"sub\">" N jn fx " faixas · " pmin soma_dur fx " · " pdia jgt d k_criadaEm " · " ? tigual jgt d k_por k_v_curador "✦ Maestro" "por ti" ? == jtipo jg jg d k_opcoes $"limpa" 3 { " · sem letras explícitas" 0 } 0 "</div></div><button type=\"button\" class=\"mu-btn perigo peq\" data-onda=\"apagar\">" ic 9 "Apagar</button></header>"
+    "<header class=\"mu-head\"><div><h1>" pjt jg d k_nome "</h1><div class=\"sub\">" N jn fx " faixas · " pmin soma_dur fx " · " pdia jgt d k_criadaEm " · " ? tigual jgt d k_por k_v_curador "✦ Maestro" "por ti" ? == jtipo jg jg d k_opcoes $"limpa" 3 { " · sem letras explícitas" 0 } 0 "</div></div><div class=\"mu-head-acoes\"><button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"renomear\">Mudar o nome</button><button type=\"button\" class=\"mu-btn perigo peq\" data-onda=\"apagar\">" ic 9 "Apagar</button></div></header>"
+    ? == @ 28 2 { "<div class=\"mu-card mu-renomear\"><h3>Mudar o nome</h3><label class=\"mu-campo\"><span>Nome</span><input data-onda=\"rn-nome\" maxlength=\"60\" value=\"" pt @ 46 "\"></label><label class=\"mu-campo\"><span>Descrição (opcional)</span><textarea data-onda=\"rn-desc\" maxlength=\"300\">" pt @ 47 "</textarea></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"renomear_sim\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Cancelar</button></div><p class=\"mu-nota\">Muda na app e, se lá estiver, no Tidal (o link fica o mesmo). Quando se atualiza sozinha, o nome que deres fica.</p></div>" 0 } 0
     ? == @ 28 1 { "<div class=\"mu-card mu-confirma\"><h3>Apagar esta playlist?</h3>"
         ? == jtipo jg d k_tidal 7 { "<p>Também está no teu Tidal.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn perigo forte\" data-onda=\"apagar_tidal\">" ic 9 "Apagar no Tidal e na app</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"apagar_sim\">Só na app</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button></div>" 0 }
           { "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn perigo forte\" data-onda=\"apagar_sim\">" ic 9 "Sim, apagar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"nao\">Não</button></div>" 0 }
@@ -585,6 +587,7 @@
     ? || == modo 4 == modo 9 { ! 4 r tcopia @ 30 jgt r k_id 70 ! 6 0 ! 28 0 render = a abre ? == modo 9 "Guardada no Tidal." "Guardada na app." O 0 aviso a 0 }
     ? == modo 14 { = c jgt r k_g_codigo ? c { tcopia @ 43 c 40 = w abre "Abre a Música (na app do ecrã principal, se a usares) e cola este código em «Código de ligação»: " tpor c " — serve uma vez, durante 24 h." O 0 = x abre purl w O 0 tcopia @ 44 x 580 render = a abre "Código criado: usa-o no outro aparelho." O 0 aviso a 0 } 0 0 }
     ? == modo 13 { = l jgt r k_url ? l { tcopia @ 41 l 200 = w abre "Experimenta a Música: playlists de qualidade no teu Tidal, feitas pelo Claude. Abre este link no iPhone (serve uma vez): " tpor l O 0 = x abre purl w O 0 tcopia @ 42 x 880 render = a abre "Convite criado: envia o link." O 0 aviso a 0 } 0 0 }
+    ? == modo 16 { ! 4 r ! 28 0 render = a abre ? == jtipo jg r k_tidal 7 "Nome mudado na app e no Tidal." "Nome mudado." O 0 aviso a 0 }
     ? == modo 15 { ! 4 r render = a abre ? == jtipo jg r $"renovar" 3 "Passa a atualizar-se sozinha toda a semana." "Deixa de se atualizar sozinha." O 0 aviso a 0 }
     ? == modo 12 { tcopia @ 30 jgt r k_id 70 ir 2 = a abre "Criada no Tidal — já a podes ouvir." O 0 aviso a 0 }
     ? == modo 5 { ir 1 = a abre "Apagada da app." O 0 aviso a 0 }
@@ -693,6 +696,12 @@
       "</span></div><button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"renovar\" aria-pressed=\"" ? rv "true" "false" "\">" ? rv "Ligado" "Desligado" "</button></div>" 0 } 0
     "</div>" 0 } 0
   0 }
+: renomear_enviar >i ? ocupado 0 {
+    ? < tlen @ 46 1 { = a abre "Escreve um nome para a playlist." O 0 aviso a 0 } {
+      ! 31 1 ! 34 16
+      = r tnovo + 400 * 7 + tlen @ 46 tlen @ 47
+      O r "POST /api/playlists/" purl @ 30 "/nome" P 10 "{\"nome\":" pjs @ 46 ",\"descricao\":" pjs @ 47 "}" O 0
+      busca r k_c_escrita 0 } }
 : renovar_pedir >i ? ocupado 0 { ! 31 1 ! 34 15 = r abre "POST /api/playlists/" purl @ 30 "/renovar" P 10 "{\"ativo\":" ? == jtipo jg @ 4 $"renovar" 3 "false" "true" "}" O 0 busca r k_c_escrita 0 }
 
 # ===== Tendencias: o que se esta a ouvir (as tabelas que o conector recolhe todos os dias) =====
@@ -766,7 +775,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.11.1 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.12.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====
@@ -851,6 +860,8 @@
   ? tigual a k_a_pdar { ! 27 tint b render 0 }
   ? tigual a $"pd-lp" { ! 45 tint b render 0 }
   ? tigual a $"renovar" { renovar_pedir 0 }
+  ? tigual a $"renomear" { tcopia @ 46 jgt @ 4 k_nome 250 tcopia @ 47 jgt @ 4 k_descricao 1250 ! 28 2 render 0 }
+  ? tigual a $"renomear_sim" { renomear_enviar 0 }
   ? tigual a k_a_pedir { pedir_enviar 0 }
   ? tigual a k_a_cancelar { cancelar_ped b 0 }
   ? tigual a k_a_ligar { ligar_enviar 0 }
@@ -872,6 +883,8 @@
   ? tigual a k_f_q { tcopia @ 23 b 290 0 }
   ? tigual a k_f_px { tcopia @ 22 b 390 0 }
   ? tigual a k_f_cod { tcopia @ 38 b 90 0 }
+  ? tigual a $"rn-nome" { tcopia @ 46 b 250 0 }
+  ? tigual a $"rn-desc" { tcopia @ 47 b 1250 0 }
   ? tigual a k_f_afn { ? @ 6 { ! 7 tint b afinar_correr parcial_afinar 0 } 0 }
   ? tigual a k_f_pdn { ! 24 tint b = h tnovo 8 O h N @ 24 O 0 Y 100 k_s_pdnv h 0 } 0
   solta t }
@@ -1039,7 +1052,7 @@
   ! + w 10 150 ! + w 11 150 ! + w 12 500 ! + w 13 250 ! + w 14 150
   ! + w 15 550 ! + w 16 150 ! + w 17 50 ! + w 18 200 ! + w 19 0
   ! + w 20 150 ! + w 21 500 ! + w 22 50 ! + w 23 300 ! + w 24 100
-  ! 20 tnovo 2000 ! 21 tnovo 120 ! 22 tnovo 400 ! 23 tnovo 300 ! 30 tnovo 80 ! 38 tnovo 100 ! 41 tnovo 220 ! 42 tnovo 900 ! 43 tnovo 40 ! 44 tnovo 600
+  ! 20 tnovo 2000 ! 21 tnovo 120 ! 22 tnovo 400 ! 23 tnovo 300 ! 30 tnovo 80 ! 38 tnovo 100 ! 41 tnovo 220 ! 42 tnovo 900 ! 43 tnovo 40 ! 44 tnovo 600 ! 46 tnovo 260 ! 47 tnovo 1300
   ! 24 30 ! 25 2 ! 26 0 ! 27 0
   = px Y 105 k_g_proxy 0
   ? px { tcopia @ 22 px 390 0 } { tcopia @ 22 k_t_proxy 390 0 }

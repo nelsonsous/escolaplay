@@ -241,3 +241,6 @@ button.mu-chip { cursor: pointer; }
 
 /* pedir: o botão logo a seguir ao texto; as ideias por baixo */
 .mu-ideias { margin: 18px 2px 8px; color: var(--mut); font-size: 13px; font-weight: 600; }
+
+/* mudar o nome */
+.mu-head-acoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
