@@ -136,6 +136,10 @@ h2.mu-sec { font: 700 20px/1.2 var(--sans); letter-spacing: -.01em; color: var(-
 .mu-chip.lossless { color: var(--green); }
 .mu-chip.tidal { color: var(--acc); }
 button.mu-chip { cursor: pointer; }
+/* uma ideia do Maestro com o porquê: o pedido e, por baixo, a razão (o dia, a estação, o que resultou) */
+.mu-chip.ideia { flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border-radius: 14px; padding: 8px 12px; max-width: 100%; }
+.mu-chip.ideia b { color: var(--fg); font-size: 13px; font-weight: 650; }
+.mu-chip.ideia span { color: var(--mut); font-size: 12px; font-weight: 500; }
 .mu-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
 .mu-chips button.mu-chip { min-height: 40px; padding: 8px 14px; font-size: 13.5px; font-weight: 600; color: var(--fg); text-align: left; background: var(--panel3); }
 .mu-chips button.mu-chip:active { background: var(--line2); }
