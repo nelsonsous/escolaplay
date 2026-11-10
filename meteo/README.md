@@ -104,6 +104,13 @@ cd meteo/proxy && npx wrangler secret put OWNER_CODE
 
 Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
 
+## Os meus locais (1.15)
+
+Tocar no nome do local (no topo) abre **Os meus locais**: os locais guardados (até 12) e os que o Claude analisa todos os
+dias, marcados com **✦**; o local que estás a ver aparece realçado. Um local pesquisado (ex.: Mindelo) fica logo guardado;
+✕ tira-o. No topo, por baixo do nome, «✦ análise do Claude» diz quando o local que estás a ver tem análise diária (ligar
+ou desligar: separador Análise → «Análise diária para este local»; o dono não tem limite de locais).
+
 ## Mar (1.14)
 
 Num ponto na costa ou numa praia (célula de mar da Open-Meteo Marine a ≤ 12 km), o separador **Agora** mostra o cartão

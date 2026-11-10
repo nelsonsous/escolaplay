@@ -51,7 +51,12 @@ a { color: var(--accent2); }
 .pg-st span + span::before { content: '·'; margin-right: 6px; color: var(--faint); }
 .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; background: var(--faint); }
 .dot.on { background: var(--up); box-shadow: 0 0 0 0 rgba(48, 209, 88, .6); animation: pulse 2s infinite; }
-.dot.busy { background: var(--accent); } /* não «warn»: essa é a classe das caixas de aviso */
+.dot.busy { background: var(--accent); }
+/* «Os meus locais»: o atual realçado; ✦ nos analisados pelo Claude */
+.locs .wl-i.here { background: var(--card2); border-radius: 12px; padding-left: 12px; }
+.locs .wl-go b .i { width: 1em; height: 1em; vertical-align: -2px; color: var(--up); }
+.locs small.cl { color: #c9b8ff; }
+.pg-st .cl-on { color: #c9b8ff; font-weight: 600; } /* não «warn»: essa é a classe das caixas de aviso */
 .dot.off { background: var(--down); }
 @keyframes pulse { 70% { box-shadow: 0 0 0 6px rgba(48, 209, 88, 0); } 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); } }
 .mt-ptr { position: fixed; top: var(--safe-t); left: 0; right: 0; height: 0; overflow: hidden; display: grid; place-items: center; z-index: 15; color: var(--muted); font-size: calc(.82rem * var(--k)); transition: height .25s ease; pointer-events: none; }
