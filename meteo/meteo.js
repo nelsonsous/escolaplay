@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.18.1';
+const VERSION = '1.18.2';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -1362,7 +1362,7 @@ document.addEventListener('click', (e) => {
         && (n.contains(e.target) || e.target.contains(n))) { e.preventDefault(); e.stopPropagation(); }
 }, true);
 (function gestures() {
-    const body = $('#mt-body'), ptr = $('#mt-ptr'), sheet = $('#mt-sheet'), card = $('#mt-sheet-card'), bg = $('.mt-sheet-bg'), PTR = 70;
+    const body = $('#mt-body'), ptr = $('#mt-ptr'), sheet = $('#mt-sheet'), card = $('#mt-sheet-card'), bg = $('.mt-sheet-bg');
     let g = null, busy = false;
     const hScroll = (el, stop) => {
         for (; el && el !== stop && el !== document.body; el = el.parentElement) {
@@ -1372,79 +1372,84 @@ document.addEventListener('click', (e) => {
     };
     const swRow = (t) => { const r = t.closest('.wl-i, .banner'), x = r?.querySelector(':scope > .xbtn'); return x ? { r, x } : null; };
     const ptrSet = (h, txt) => { ptr.style.height = h + 'px'; ptr.firstChild.textContent = txt; body.style.transform = h ? `translateY(${h}px)` : ''; };
-    const fast = (G, d) => Math.abs(d) / Math.max(1, performance.now() - G.t0) > 0.5;
-    const rowMin = (w) => Math.max(90, w * 0.35);
+    // as decisões (que gesto é, quanto segue o dedo, se se confirma) são do motor de gestos comum às apps, em Onda
+    // (../onda/rt/gestos-onda.js); aqui fica o que a Meteo faz no ecrã
+    const OG = window.OndaGestos, ms = (G) => performance.now() - G.t0;
+    const MODOS = { 1: 'sheet', 2: 'day', 3: 'tab', 4: 'row', 5: 'ptr' };
     const peek = (tab) => $$('#mt-nav button').forEach((b) => b.classList.toggle('peek', b.dataset.tab === tab));
-    const pick = (G, ax, ay) => {
-        if (G.field) return '';
-        const horiz = ax > ay * 1.3;
+    const pick = (G) => {
+        if (!OG || !OG.ok) return '';
+        let c = 0;
+        if (G.field) c |= OG.CAMPO;
+        if (G.hs) c |= OG.DESLIZA;
+        if (G.row) c |= OG.LINHA;
         if (G.inSheet) {
-            if (!horiz) return G.dy > 0 && G.top && card.scrollTop <= 0 ? 'sheet' : '';
-            if (G.hs) return '';
-            if (G.row && G.dx < 0) return 'row';
-            return st.sheet?.kind === 'day' ? 'day' : '';
+            c |= OG.FOLHA;
+            if (G.top && card.scrollTop <= 0) c |= OG.TOPO;
+            if (st.sheet?.kind === 'day') c |= OG.PAGINAS;
+        } else {
+            if (!swapping) c |= OG.SEPARADORES; // a meio de uma troca de separador, espera
+            c |= OG.ATUALIZA;
+            if (G.top && window.scrollY <= 0) c |= OG.TOPO;
         }
-        if (horiz) {
-            if (G.hs || st.pulling) return '';
-            if (G.row && G.dx < 0) return 'row';
-            // no Safari (fora da app instalada) o bordo esquerdo é o «voltar» do próprio browser
-            if (G.x0 < 20 && G.dx > 0 && !isStandalone()) return '';
-            return swapping ? '' : 'tab';
-        }
-        return G.dy > 0 && G.top && window.scrollY <= 0 && !busy ? 'ptr' : '';
+        // no Safari (fora da app instalada) o bordo esquerdo é o «voltar» do próprio browser
+        if (G.x0 < 20 && !isStandalone()) c |= OG.BORDA;
+        if (st.pulling) c |= OG.A_PUXAR;
+        if (busy) c |= OG.A_ATUALIZAR;
+        return MODOS[OG.modo(c, G.dx, G.dy)] || '';
     };
     const move = {
         sheet(G) {
-            const d = Math.max(0, G.dy);
+            const d = OG.segue(OG.FECHAR, G.dy);
             card.style.transition = 'none'; card.style.transform = `translateY(${d}px)`;
-            bg.style.transition = 'none'; bg.style.opacity = String(Math.max(0.15, 1 - d / 500));
+            bg.style.transition = 'none'; bg.style.opacity = String(OG.opac(d));
         },
         day(G) {
             const has = !!st.fc?.daily?.[st.sheet.arg + (G.dx < 0 ? 1 : -1)];
-            card.style.transition = 'none'; card.style.transform = `translateX(${G.dx * (has ? 0.45 : 0.12)}px)`;
+            card.style.transition = 'none'; card.style.transform = `translateX(${OG.segue(OG.PAGINA, G.dx, 0, has)}px)`;
         },
         tab(G) {
             const next = TABS[TABS.indexOf(cfg.tab) + (G.dx < 0 ? 1 : -1)];
             pauseSky(300); // o céu fica parado enquanto a página anda com o dedo
-            body.style.transition = 'none'; body.style.transform = `translateX(${G.dx * (next ? 0.4 : 0.12)}px)`;
+            body.style.transition = 'none'; body.style.transform = `translateX(${OG.segue(OG.SEPARADOR, G.dx, 0, !!next)}px)`;
             peek(next && Math.abs(G.dx) > 80 ? next : '');
         },
         row(G) {
-            const { r } = G.row, w = r.offsetWidth, d = Math.min(0, G.dx), lim = w * 0.7;
+            const { r } = G.row, w = r.offsetWidth;
             r.classList.add('swp'); r.classList.remove('snap');
             r.dataset.sw = SWIPE_LABEL(G.row.x);
-            r.style.setProperty('--sx', `${d < -lim ? -lim + (d + lim) * 0.25 : d}px`);
-            r.classList.toggle('arm', -d > rowMin(w));
+            r.style.setProperty('--sx', `${OG.segue(OG.APAGAR, G.dx, w)}px`);
+            r.classList.toggle('arm', OG.arma(G.dx, w));
         },
         ptr(G) {
             if (G.dy <= 0) { if (st.pulling) { st.pulling = false; ptrSet(0, ''); } return; }
-            st.pulling = true; G.h = Math.min(120, G.dy * 0.5);
+            st.pulling = true; G.h = OG.segue(OG.ATUALIZAR, G.dy);
             body.style.transition = 'none'; ptr.style.transition = 'none';
-            ptrSet(G.h, G.h > PTR * 0.7 ? 'Larga para atualizar' : 'Puxa para atualizar');
+            ptrSet(G.h, OG.fim(OG.ATUALIZAR, G.h, 0) ? 'Larga para atualizar' : 'Puxa para atualizar');
         },
     };
     const done = {
         sheet(G, ok) {
-            if (ok && (G.dy > 110 || (G.dy > 30 && fast(G, G.dy)))) { closeSheet(true); return; }
+            if (ok && OG.fim(OG.FECHAR, G.dy, ms(G))) { closeSheet(true); return; }
             card.style.transition = 'transform .2s ease-out'; card.style.transform = '';
             bg.style.transition = 'opacity .2s'; bg.style.opacity = '';
         },
         day(G, ok) {
             const dir = G.dx < 0 ? 1 : -1;
             card.style.transition = 'transform .2s ease-out'; card.style.transform = '';
-            if (ok && (Math.abs(G.dx) > 80 || (Math.abs(G.dx) > 40 && fast(G, G.dx)))) { card.style.transition = ''; goDay(st.sheet.arg + dir, dir); }
+            if (ok && OG.fim(OG.PAGINA, G.dx, ms(G))) { card.style.transition = ''; goDay(st.sheet.arg + dir, dir); }
         },
         tab(G, ok) {
             const dir = G.dx < 0 ? 1 : -1, next = TABS[TABS.indexOf(cfg.tab) + dir];
             peek('');
-            if (ok && next && (Math.abs(G.dx) > 80 || (Math.abs(G.dx) > 40 && fast(G, G.dx)))) { goTab(next, dir); return; }
+            if (ok && next && OG.fim(OG.SEPARADOR, G.dx, ms(G))) { goTab(next, dir); return; }
             body.style.transition = 'transform .2s ease-out'; body.style.transform = '';
             setTimeout(() => { body.style.transition = ''; }, 220);
         },
         row(G, ok) {
-            const { r, x } = G.row, w = r.offsetWidth, d = -Math.min(0, G.dx);
+            const { r, x } = G.row, w = r.offsetWidth;
             r.classList.add('snap');
-            if (ok && (d > rowMin(w) || (d > 50 && fast(G, d)))) {
+            if (ok && OG.fim(OG.APAGAR, G.dx, ms(G), w)) {
                 r.style.setProperty('--sx', `${-w}px`);
                 setTimeout(() => { x.click(); if (r.isConnected) { r.style.setProperty('--sx', '0px'); setTimeout(() => r.classList.remove('swp', 'snap', 'arm'), 220); } }, 170);
                 return;
@@ -1455,7 +1460,7 @@ document.addEventListener('click', (e) => {
         ptr() {
             if (!st.pulling) return;
             body.style.transition = ''; ptr.style.transition = '';
-            if (st.pullH > PTR * 0.7 && cfg.loc) {
+            if (OG.fim(OG.ATUALIZAR, st.pullH, 0) && cfg.loc) {
                 busy = true; ptrSet(44, 'A atualizar…');
                 Promise.all([refresh(), loadStatus()]).finally(() => { busy = false; st.pulling = false; ptrSet(0, ''); scheduleRender(); });
             } else { st.pulling = false; ptrSet(0, ''); }
@@ -1488,7 +1493,7 @@ document.addEventListener('click', (e) => {
                 if (g.inSheet && g.top && !g.hs && !g.field && g.dy > 0 && ay >= ax && e.cancelable) e.preventDefault();
                 return;
             }
-            g.mode = pick(g, ax, ay);
+            g.mode = pick(g);
             if (!g.mode) { g = null; return; }
             // o browser já começou a deslizar a página (o toque deixou de se poder cancelar): não lutar com ele —
             // mexer a página para o lado enquanto ela sobe e desce era o que a fazia tremer

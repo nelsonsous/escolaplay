@@ -1,0 +1,57 @@
+# Gestos de toque das apps (Música, Meteo, Mercados): as decisões, em Onda, iguais nas três. A ponte de cada app (o
+# JavaScript, que é quem recebe os toques do browser) dá os números e faz o que a Onda decide.
+#   gmodo  — que gesto é, no primeiro movimento a sério (o resto do gesto fica com esse modo)
+#   gsegue — quanto o elemento segue o dedo (com resistência quando não há para onde ir)
+#   gfim   — ao largar: confirma-se (pela distância, ou pela rapidez) ou volta ao sítio
+#   garma  — a linha já passou o ponto de apagar (o rótulo muda de cor)
+#   gopac  — a transparência do fundo da folha ao puxá-la · gopacs — a do ecrã ao mudar de separador
+#
+# Contexto (os bits de c, que a ponte junta no início do toque):
+#     1 dentro da folha aberta        2 o que está debaixo do dedo está no topo (não desliza mais para cima)
+#     4 dentro de algo que já desliza para os lados (tabela larga, gráfico)        8 num campo de texto
+#    16 numa linha que se apaga a arrastar para a esquerda
+#    32 junto à borda esquerda fora da app instalada (no Safari, é o «voltar» do browser)
+#    64 a folha tem páginas para os lados (os dias da Meteo)     128 a página atualiza a puxar para baixo
+#   256 a meio de um puxar (não mistura com os lados)            512 a página tem separadores para os lados
+#  1024 a atualizar (não volta a puxar)
+# Modos: 0 ainda não se sabe · -1 nenhum (fica o deslizar normal do browser) · 1 fechar a folha · 2 páginas da folha
+#        3 separadores · 4 linha (apagar) · 5 puxar para atualizar
+
+: gbit ii>i c b != 0 & c b
+
+: gmodo iff>i c dx dy {
+  = ax Ab dx = ay Ab dy
+  ? && < ax 8.0 < ay 8.0 0
+  ? gbit c 8 -1 {
+    = hz > ax * ay 1.3
+    ? gbit c 1
+      ? ~ hz ? && > dy 0.0 gbit c 2 1 -1
+        ? gbit c 4 -1 ? && gbit c 16 < dx 0.0 4 ? gbit c 64 2 -1
+      ? hz
+        ? || gbit c 4 gbit c 256 -1 ? && gbit c 16 < dx 0.0 4 ? && gbit c 32 > dx 0.0 -1 ? gbit c 512 3 -1
+        ? && && > dy 0.0 gbit c 2 && gbit c 128 ~ gbit c 1024 5 -1 } }
+
+# d: o deslocamento que conta no modo (dy na folha e no puxar, dx nos outros); w: a largura da linha;
+# tem: 1 se há página ou separador para esse lado
+: gsegue iffi>f m d w tem
+  ? == m 1 Mx 0.0 d
+  ? || == m 2 == m 3 * d ? tem ? == m 2 0.45 0.4 0.12
+  ? == m 4 { = x Mn 0.0 d = lim * w 0.7 ? < x - 0.0 lim - * + x lim 0.25 lim x }
+  ? == m 5 Mn 120.0 * Mx 0.0 d 0.5
+  0.0
+
+# ms: quanto durou o gesto; rápido é mais de meio píxel por milissegundo
+: grapido fi>i d ms > / Ab d F Mx 1 ms 0.5
+: gfim ifif>i m d ms w {
+  = a Ab d = r grapido d ms
+  ? == m 1 || > d 110.0 && > d 30.0 r
+  ? || == m 2 == m 3 || > a 80.0 && > a 40.0 r
+  ? == m 4 { = e - 0.0 Mn 0.0 d || > e Mx 90.0 * w 0.35 && > e 50.0 r }
+  ? == m 5 > d 49.0
+  0 }
+
+: garma ff>i d w > - 0.0 Mn 0.0 d Mx 90.0 * w 0.35
+: gopac f>f d Mx 0.15 - 1.0 / Mx 0.0 d 500.0
+: gopacs f>f d - 1.0 Mn 0.45 / Ab d 600.0
+
+: main >i 0
