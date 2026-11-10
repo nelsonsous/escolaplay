@@ -23,7 +23,8 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 
 function tempScale(min, max) {
   for (const s of [1, 2, 5, 10, 20]) {
-    const lo = Math.floor((min - 1) / s) * s, hi = Math.ceil((max + 1.5) / s) * s;
+    // folga pequena (meio grau em baixo, um em cima para o rótulo do máximo): a curva usa a altura toda
+    const lo = Math.floor((min - 0.5) / s) * s, hi = Math.ceil((max + 1) / s) * s;
     if ((hi - lo) / s <= 5) return { lo, hi, step: s };
   }
   return { lo: Math.floor(min), hi: Math.ceil(max) + 1, step: Math.ceil(max - min) || 1 };
