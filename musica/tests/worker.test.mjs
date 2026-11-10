@@ -596,15 +596,18 @@ test('propostas, ideias e afinar: várias versões só na app, escolher uma para
     assert.deepEqual((await (await get('/api/ideias', chave)).json()).ideias, [{ texto: 'Estrada ao sol', momento: 'dia', arco: 'sobe' }, { texto: 'Condução à noite', momento: 'noite', estilo: 'audiofilo' }, { texto: 'Sempre bom', momento: 'sempre' }]);
 });
 
-test('ouvir 30 s: a pré-escuta da Apple (guardada) ou do Deezer pelo ISRC (não guardada); o género para agrupar', async () => {
+test('ouvir 30 s: a pré-escuta do Deezer (pelo ISRC ou pela pesquisa), guardada até caducar; o género para agrupar', async () => {
     const { chave } = await ligarPrimeiraVez();
     const res = (await (await post('/api/resolver', { faixas: [{ titulo: 'So What' }, { titulo: 'Feeling Good' }, { titulo: 'Barco Negro' }, { titulo: 'Teardrop' }] }, chave)).json()).faixas;
     const doc = await (await post('/api/playlists', { nome: 'Ouvir', faixas: res.map((f, i) => ({ ...f, genero: i < 3 ? 'jazz' : 'trip-hop' })) }, chave)).json();
-    const p = await (await get(`/api/playlists/${doc.id}/previas`, chave)).json();
-    assert.deepEqual(p.previas, { 101: 'https://audio.example/So%20What.m4a', 102: 'https://cdn.deezer.example/feeling-good.mp3?exp=1', 106: 'https://audio.example/Teardrop.m4a' });
-    // a segunda vez: as da Apple vêm da KV; a do Deezer pede-se outra vez; a que não existe fica a saber-se que não há
+    assert.equal(doc.faixas[0].isrc, 'USAAA0000101', 'a faixa guarda o ISRC');
+    const p = (await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).previas;
+    assert.deepEqual(Object.keys(p).sort(), ['101', '102', '106']);
+    assert.match(p[101], /^https:\/\/cdn\.deezer\.example\/So%20What\.mp3\?hdnea=exp=\d+/);
+    assert.match(p[102], /feeling-good\.mp3/, 'pelo ISRC');
+    // a segunda vez vem tudo da KV (também o «não há» da «Barco Negro»)
     const antes = sim.chamadas.length;
-    await get(`/api/playlists/${doc.id}/previas`, chave);
-    assert.deepEqual(sim.chamadas.slice(antes).filter((x) => /itunes|deezer/.test(x)).map((x) => x.split('?')[0].replace(/:USAAA\d+/, '')), ['GET https://itunes.apple.com/search', 'GET https://api.deezer.com/track/isrc']);
+    assert.deepEqual((await (await get(`/api/playlists/${doc.id}/previas`, chave)).json()).previas, p);
+    assert.equal(sim.chamadas.slice(antes).filter((x) => /deezer/.test(x)).length, 0);
     assert.equal((await (await get('/api/playlists', chave)).json())[0].genero, 'jazz');
 });

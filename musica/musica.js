@@ -50,8 +50,8 @@
         .catch((e) => {
             document.getElementById('mu-body').innerHTML = '<p class="mu-erro">Não consegui abrir a app: ' + String(e && e.message || e).replace(/[<&]/g, '') + '</p>';
         });
-    // ouvir 30 s de uma faixa: o ▶ das faixas na lista (data-previa = a pré-escuta que o conector encontrou na Apple ou
-    // no Deezer). Um só leitor para a app toda; tocar outra vez pára. A Onda volta a desenhar o ecrã, por isso a marca de
+    // ouvir 30 s de uma faixa: o ▶ das faixas na lista (data-previa = a pré-escuta do Deezer que o conector
+    // encontrou). Um só leitor para a app toda; tocar outra vez pára. A Onda volta a desenhar o ecrã, por isso a marca de
     // «a tocar» repõe-se depois de cada mudança. (O som não é uma porta da Onda: fica aqui, na casca.)
     const leitor = new Audio();
     leitor.preload = 'none';

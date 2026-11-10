@@ -43,17 +43,17 @@ export function simulador() {
 
 function tabelaSimulada(sim, u) {
     const h = String(u);
-    // as pré-escutas: a Apple tem a do «So What» e da «Teardrop»; o Deezer (pelo ISRC) a da «Feeling Good»
-    if (h.startsWith('https://itunes.apple.com/search?')) {
+    // as pré-escutas do Deezer: pela pesquisa, a do «So What» e da «Teardrop»; pelo ISRC, a da «Feeling Good»
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    if (h.startsWith('https://api.deezer.com/search?')) {
         sim.chamadas.push(`GET ${h}`);
-        const term = new URL(h).searchParams.get('term');
-        const tem = [['Miles Davis', 'So What'], ['Massive Attack', 'Teardrop']].filter(([a, t]) => term.includes(t));
-        return new Response(JSON.stringify({ results: tem.map(([a, t]) => ({ artistName: a, trackName: t, previewUrl: `https://audio.example/${encodeURIComponent(t)}.m4a` })) }), { status: 200 });
+        const q = new URL(h).searchParams.get('q');
+        const tem = [['Miles Davis', 'So What'], ['Massive Attack', 'Teardrop']].filter(([, t]) => q.includes(t));
+        return new Response(JSON.stringify({ data: tem.map(([a, t]) => ({ title: t, title_short: t, artist: { name: a }, preview: `https://cdn.deezer.example/${encodeURIComponent(t)}.mp3?hdnea=exp=${exp}~acl=x` })) }), { status: 200 });
     }
-    if (h.startsWith('https://api.deezer.com/search?')) { sim.chamadas.push(`GET ${h}`); return new Response(JSON.stringify({ data: [] }), { status: 200 }); }
     if (h.startsWith('https://api.deezer.com/track/isrc:')) {
         sim.chamadas.push(`GET ${h}`);
-        return new Response(JSON.stringify(h.endsWith('USAAA0000102') ? { preview: 'https://cdn.deezer.example/feeling-good.mp3?exp=1' } : { error: { type: 'DataException' } }), { status: 200 });
+        return new Response(JSON.stringify(h.endsWith('USAAA0000102') ? { preview: `https://cdn.deezer.example/feeling-good.mp3?hdnea=exp=${exp}~acl=x` } : { error: { type: 'DataException' } }), { status: 200 });
     }
     const fonte = h.startsWith('https://rss.marketingtools.apple.com/api/v2/pt/') ? 'pt' : h.startsWith('https://rss.marketingtools.apple.com/api/v2/us/') ? 'eua'
         : h.startsWith('https://api.deezer.com/chart/') ? 'mundo' : null;

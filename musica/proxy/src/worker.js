@@ -644,42 +644,49 @@ async function avaliar(env, d, fav, gostava, nasMixes) {
     return { nota, etiqueta, guardadas, tiradas: tiradas.slice(0, 30), juntadas, eco, apagada, em: new Date().toISOString() };
 }
 
-// ---------- ouvir 30 s: a pré-escuta pública da Apple (pela pesquisa do iTunes; o Deezer, pelo ISRC, se a Apple não
-// tiver, pelo ISRC ou pela pesquisa). A da Apple fica na KV 30 dias (o endereço não muda); a do Deezer é assinada e
-// caduca, por isso não fica. ----------
-const MAX_PREVIAS = 40; // pedidos externos por chamada (o plano gratuito deixa 50)
+// ---------- ouvir 30 s: a pré-escuta pública do Deezer (pelo ISRC, ou pela pesquisa do artista e do título). A da Apple
+// não serve daqui: o iTunes limita o IP partilhado do Cloudflare (HTTP 429). O endereço do Deezer é assinado e caduca
+// (exp=…): fica na KV até pouco antes disso; o «não há» fica um dia. ----------
+const MAX_PREVIAS = 45; // pedidos externos por chamada (o plano gratuito deixa 50)
 async function previas(env, id) {
     const d = await obter(env, id);
     const out = {};
+    const agora = Math.floor(Date.now() / 1000);
     let pedidos = 0;
-    for (const f of d.faixas.slice(0, 100)) {
-        const k = 'previa:' + f.id;
-        let url = await env.KV.get(k);
-        if (url === null && pedidos < MAX_PREVIAS) {
-            const r = await previaApple(f).catch(() => ''); pedidos++;
-            if (r) { url = r; await env.KV.put(k, r, { expirationTtl: 30 * 86400 }); }
-            else if (pedidos < MAX_PREVIAS) { url = await previaDeezer(f).catch(() => ''); pedidos++; if (!url) await env.KV.put(k, '', { expirationTtl: 7 * 86400 }); }
-        }
-        if (url) out[f.id] = url;
+    const fx = d.faixas.slice(0, 100);
+    for (let i = 0; i < fx.length; i += 10) {
+        await Promise.all(fx.slice(i, i + 10).map(async (f) => {
+            const k = 'previa:d:' + f.id;
+            let url = await env.KV.get(k);
+            if (url === null && pedidos < MAX_PREVIAS) {
+                url = await previaDeezer(f, () => ++pedidos <= MAX_PREVIAS).catch(() => null);
+                if (url !== null) {
+                    const exp = Number((/exp=(\d+)/.exec(url) || [])[1]) || 0;
+                    const ttl = url ? (exp ? exp - agora - 120 : 3600) : 86400;
+                    if (ttl >= 60) await env.KV.put(k, url, { expirationTtl: ttl });
+                }
+            }
+            if (url) out[f.id] = url;
+        }));
     }
     return { previas: out };
 }
-async function previaApple(f) {
-    const artista = f.artistas?.[0] || '';
-    const r = await fetch(`https://itunes.apple.com/search?${new URLSearchParams({ term: `${artista} ${f.titulo}`, entity: 'song', limit: '5', country: 'PT' })}`);
-    if (!r.ok) return '';
-    const a = normal(artista), t = normal(f.titulo);
-    const x = ((await r.json())?.results || []).find((y) => y.previewUrl && normal(y.trackName).startsWith(t.slice(0, 12)) && (!a || normal(y.artistName).includes(a.split(' ')[0])));
-    return x?.previewUrl || '';
-}
-async function previaDeezer(f) {
+// '' se o Deezer não a tem; null se não deu para saber (sem folga de pedidos, ou o Deezer falhou)
+async function previaDeezer(f, pode) {
     if (f.isrc) {
+        if (!pode()) return null;
         const r = await fetch(`https://api.deezer.com/track/isrc:${encodeURIComponent(f.isrc)}`);
-        return r.ok ? ((await r.json())?.preview || '') : '';
+        if (!r.ok) return null;
+        const j = await r.json();
+        if (j?.preview) return j.preview;
     }
-    const q = `artist:"${(f.artistas?.[0] || '').replace(/"/g, '')}" track:"${f.titulo.replace(/"/g, '')}"`;
-    const r = await fetch(`https://api.deezer.com/search?${new URLSearchParams({ q, limit: '1' })}`);
-    return r.ok ? ((await r.json())?.data?.[0]?.preview || '') : '';
+    if (!pode()) return null;
+    const artista = f.artistas?.[0] || '';
+    const r = await fetch(`https://api.deezer.com/search?${new URLSearchParams({ q: `${artista} ${f.titulo}`, limit: '5' })}`);
+    if (!r.ok) return null;
+    const a = normal(artista), t = normal(f.titulo);
+    const x = ((await r.json())?.data || []).find((y) => y.preview && normal(y.title_short || y.title).startsWith(t.slice(0, 12)) && (!a || normal(y.artist?.name).includes(a.split(' ')[0])));
+    return x?.preview || '';
 }
 
 // ---------- mudar o nome (e a descrição): na app e no Tidal, no mesmo link; a renovação semanal mantém-no ----------
