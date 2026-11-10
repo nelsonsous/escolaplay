@@ -536,7 +536,8 @@ function verificar({ de, ate, seed }) {
                     quer.push(['P', (b.up.length ? 'Sobem: ' + b.up.map((k) => `${txt(nameOf(k))} ${mk.fmtPct(V(k).changePct)}`).join(', ') : '') + (b.dn.length ? 'Caem: ' + b.dn.map((k) => `${txt(nameOf(k))} ${mk.fmtPct(V(k).changePct)}`).join(', ') : '')]);
                 }
                 // o plano do mês: o do Claude; o automático só sem ele
-                let pt = 'Plano do mês na Trade Republic' + (cv && C.planNote ? txt(C.planNote) : b ? b.planSub : '');
+                // o subtítulo é sempre o da app; a nota do Claude por baixo (4.17)
+                let pt = 'Plano do mês na Trade Republic' + (b ? b.planSub : '') + (cv && C.planNote ? txt(C.planNote) : '');
                 const itens = [];
                 if (cplan) { T.planoClaude++; for (const p of cplan.filter(isObj)) itens.push([REG[p.s] ? 'BUTTON' : 'DIV', REG[p.s] ? atr(p.s) : null, txt(p.name || nameOf(p.s)) + txt(p.why || '') + txt(p.amount || '')]); }
                 else if (b) {
