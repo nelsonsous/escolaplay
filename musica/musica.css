@@ -383,3 +383,13 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-juntar-barra > span { flex: 1; font-size: 14px; font-weight: 600; }
 .mu-juntar-barra .mu-btn[disabled] { opacity: .4; pointer-events: none; }
 .mu-grp h2 span { color: var(--mut); font-weight: 600; font-size: 15px; }
+
+/* os pedidos de uma playlist: o original e as afinações (à espera a tracejado) */
+.mu-hist { margin: 16px 0 4px; }
+.mu-hist h3 { margin: 0 0 8px; font-size: 13px; font-weight: 650; color: var(--mut); text-transform: none; }
+.mu-hist ol { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--line2); display: flex; flex-direction: column; gap: 12px; }
+.mu-hist li { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.mu-hist li::before { content: ""; position: absolute; left: -20px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--fg); }
+.mu-hist li.espera::before { background: var(--panel); box-shadow: inset 0 0 0 2px var(--mut); }
+.mu-hist .q { font-size: 14.5px; line-height: 1.35; }
+.mu-hist .m { font-size: 12.5px; color: var(--mut); }

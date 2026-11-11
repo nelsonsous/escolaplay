@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.15.0';
+const VERSION = '1.16.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -869,6 +869,9 @@ async function afinarPedido(env, id, c) {
         afinar: { playlist: d.id, nome: d.nome, rejeitadas } };
     lista.unshift(p);
     await env.KV.put('pedidos', JSON.stringify(lista.slice(0, 60)));
+    // a playlist guarda as afinações que lhe foram pedidas (a app mostra-as por baixo do pedido original)
+    d.afinacoes = [...(d.afinacoes || []), { pedido: p.id, texto, rejeitadas: rejeitadas.length, em: p.criadoEm }].slice(-20);
+    await env.KV.put('playlist:' + d.id, JSON.stringify(d));
     return p;
 }
 
@@ -1011,5 +1014,13 @@ async function despachar(env, id, playlist) {
     const out = playlist ? lista.map((x) => (x.id === id ? { ...x, estado: 'feito', playlist: x.playlist || playlist,
         playlists: [...new Set([...(x.playlists || (x.playlist ? [x.playlist] : [])), playlist])], feitoEm: x.feitoEm || new Date().toISOString() } : x)) : lista.filter((x) => x.id !== id);
     await env.KV.put('pedidos', JSON.stringify(out));
+    // uma afinação: fica feita (ou sai, se for cancelada) na lista da playlist
+    if (p.afinar?.playlist) {
+        const d = await env.KV.get('playlist:' + p.afinar.playlist, 'json');
+        if (d?.afinacoes?.some((a) => a.pedido === id)) {
+            d.afinacoes = playlist ? d.afinacoes.map((a) => (a.pedido === id ? { ...a, feitoEm: a.feitoEm || new Date().toISOString() } : a)) : d.afinacoes.filter((a) => a.pedido !== id);
+            await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+        }
+    }
     return { ok: true };
 }
