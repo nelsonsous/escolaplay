@@ -74,7 +74,9 @@
     "<div class=\"r-sub\">"
     ? bc { = kk _ar_get cl $"key" "<span class=\"badge " pn_tom kk "\">" ? pn_sht kk 0 _ar_ps _ar_get cl $"action" 1 "</span>" 0 } 0
     ? ba { "<span class=\"badge auto\">" ? pn_sht _ar_get ad $"key" 0 _ar_ps _ar_get ad $"action" 1 "</span>" 0 } 0
-    ? vd { "<span class=\"nb\">" fm_pct1 * _ar_vnum _ar_get d $"dd" 100. " do máximo</span>" 0 } 0
+    ? vd { "<span class=\"nb\">" fm_pct1 * _ar_vnum _ar_get d $"dd" 100. " do máximo</span>" 0 }
+      # o conselho do Claude chegou antes da análise da app: o lugar do desconto já guardado
+      { ? ~ _ar_verd an "<span class=\"nb-sk skel\">−00,0% do máximo</span>" 0 }
     ? && vd vt "<span class=\"dotsep\"> · </span>" 0
     ? vt { "<span class=\"nb\">" _ar_ps tx 1 "</span>" 0 } 0
     "</div>" 0 }
