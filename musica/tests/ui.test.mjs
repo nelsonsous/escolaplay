@@ -584,15 +584,42 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
     await page.locator('#mu-aviso').getByText('Apagada da app.').waitFor();
     assert.equal(await page.locator('details.mu-grupo').count(), 0, 'a proposta apagada sai da lista');
-    // agrupar por: data (por omissão), tipo, género, Tidal, avaliação — e fica escolhido
+    // filtrar: «Todas» e um botão por valor que existe (Tidal, tipo, avaliação, género); tocar outra vez tira o filtro
     await page.getByRole('heading', { name: /^Esta semana/ }).waitFor();
-    await page.getByRole('button', { name: 'Tidal', exact: true }).click();
-    await page.getByRole('heading', { name: /^No Tidal/ }).waitFor();
-    assert.equal(await page.getByRole('heading', { name: /^Esta semana/ }).count(), 0);
-    await page.getByRole('button', { name: 'Tipo', exact: true }).click();
-    await page.getByRole('heading', { name: /^Do Maestro|^Feitas por ti|^Dos teus pedidos|^Atualizam-se sozinhas/ }).first().waitFor();
-    assert.equal(await page.evaluate(() => localStorage.getItem('musica:agrupar')), '1');
-    await page.getByRole('button', { name: 'Data', exact: true }).click();
+    const nCartoes = () => page.locator('#mu-body .mu-grp .mu-pl').count();
+    const todas = Number(await page.locator('#mu-body .mu-filtros .mu-chip-f').first().locator('span').textContent());
+    assert.equal(await nCartoes(), todas);
+    const chip = page.locator('#mu-body .mu-filtros .mu-chip-f').nth(1);
+    const nChip = Number(await chip.locator('span').textContent());
+    assert.ok(nChip < todas, 'um filtro mostra menos');
+    await foto('5a-filtros');
+    await chip.click();
+    await page.waitForFunction((n) => document.querySelectorAll('#mu-body .mu-grp .mu-pl').length === n, nChip);
+    assert.equal(await chip.getAttribute('aria-pressed'), 'true');
+    await chip.click();
+    await page.waitForFunction((n) => document.querySelectorAll('#mu-body .mu-grp .mu-pl').length === n, todas);
+    // juntar: escolher 2 playlists; o conector junta-as numa nova (só na app)
+    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar' }).click();
+    const barra = page.locator('#mu-body .mu-juntar-barra');
+    await barra.getByText('Escolhe 2 ou mais').waitFor();
+    assert.ok(await barra.getByRole('button', { name: 'Juntar' }).isDisabled());
+    const esc = page.locator('#mu-body .mu-pl-esc');
+    const nome1 = await esc.nth(0).locator('.nm').textContent();
+    await esc.nth(0).click();
+    await barra.getByText('1 escolhida').waitFor();
+    await esc.nth(1).click();
+    await barra.getByText('2 escolhidas').waitFor();
+    await foto('5b-juntar');
+    assert.equal(await esc.nth(0).getAttribute('aria-pressed'), 'true');
+    await barra.getByRole('button', { name: 'Juntar' }).click();
+    await page.locator('#mu-aviso').getByText(/^Juntas em «/).waitFor();
+    await page.locator('#mu-body .mu-pl-a .nm', { hasText: `${nome1} + ` }).first().waitFor();
+    assert.equal(await page.locator('#mu-body .mu-juntar-barra').count(), 0, 'sai do modo de juntar');
+    // cancelar também sai
+    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar' }).click();
+    await barra.getByRole('button', { name: 'Cancelar' }).click();
+    await page.locator('#mu-body .mu-pl-a').first().waitFor();
+    assert.equal(await page.locator('#mu-body .mu-pl-esc').count(), 0);
     await foto('5-pedir');
 
     // 7) voltar a abrir: a chave fica, a app abre ligada
