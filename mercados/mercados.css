@@ -793,3 +793,4 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 /* os meus ativos: o lugar do conselho e do desconto enquanto a análise não chega (4.20.1), com a altura da linha final */
 .row .r-sk { font-size: calc(.82rem * var(--k)); margin-top: 1px; white-space: normal; line-height: 1.5; }
 .r-sk .nb { white-space: nowrap; }
+.r-sub .nb-sk { white-space: nowrap; }

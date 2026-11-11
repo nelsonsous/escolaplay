@@ -284,6 +284,8 @@ function verificar({ de, ate, seed }) {
                     // sem a análise ainda: o lugar da linha de baixo guardado (sem saltos quando chega)
                     if (!!row.querySelector('.r-sk') !== (!sub && !r)) erro(`${k}: o lugar da linha de baixo ${row.querySelector('.r-sk') ? 'a mais' : 'falta'}`);
                     if (!sub && !r) T.esqueleto = (T.esqueleto || 0) + 1;
+                    if (!!(sub && sub.querySelector('.nb-sk')) !== !!(sub && !r)) erro(`${k}: o lugar do desconto ${sub && sub.querySelector('.nb-sk') ? 'a mais' : 'falta'}`);
+                    if (sub && !r) T.esqDesconto = (T.esqDesconto || 0) + 1;
                     if (sub) {
                         const b = sub.querySelector('.badge');
                         if (badge ? !b || b.className !== 'badge ' + badge[1] || b.textContent !== txt(badge[0]) : b) erro(`${k}: o conselho ${b && b.outerHTML} em vez de ${JSON.stringify(badge)}`);
