@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.14.2', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.15.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -343,6 +343,26 @@ test('mais como esta: uma playlist de faixas parecidas, logo no Tidal', async ()
     assert.match(d.tidal.url, /^https:\/\/tidal.com\/browse\/playlist\//);
     assert.ok(sim.chamadas.some((c) => c.includes('/tracks/101/relationships/similarTracks')));
     assert.equal((await post('/api/mais', { faixa: 'abc' }, chave)).status, 400);
+});
+
+test('juntar playlists: uma faixa de cada, à vez, sem repetidas; fica só na app; pelo menos 2', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200 });
+    const a = await (await post('/api/playlists', { nome: 'Calma', faixas: [f('1', 'Um', 'A'), f('2', 'Dois', 'B'), f('3', 'Três', 'C')], capas: ['https://img/a.jpg'] }, agente)).json();
+    const b = await (await post('/api/playlists', { nome: 'Noite', faixas: [f('2', 'Dois', 'B'), f('9', 'Um (Remastered)', 'A'), f('5', 'Cinco', 'E')] }, agente)).json();
+    const r = await post('/api/juntar', { ids: [a.id, b.id] }, chave);
+    assert.equal(r.status, 201);
+    const d = await r.json();
+    assert.equal(d.nome, 'Calma + Noite');
+    assert.deepEqual(d.faixas.map((x) => x.id), ['1', '2', '3', '5'], 'alternadas, sem a mesma faixa nem outra edição dela');
+    assert.equal(d.tidal, null, 'fica só na app (envia-se depois)');
+    assert.equal(d.por, 'app');
+    const idx = await (await get('/api/playlists', chave)).json();
+    assert.equal(idx[0].id, d.id);
+    assert.deepEqual(idx[0].capas, ['https://img/a.jpg']);
+    assert.equal((await post('/api/juntar', { ids: [a.id] }, chave)).status, 400);
+    assert.equal((await post('/api/juntar', { ids: [a.id, 'pnaoexiste'] }, chave)).status, 404);
 });
 
 test('para o Maestro: as tuas mixes do Tidal e as novidades dos artistas que segues', async () => {

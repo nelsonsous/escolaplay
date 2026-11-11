@@ -361,7 +361,25 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-cx-afinar { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
 .mu-cx-afinar .mu-campo { flex: 1; margin: 0; }
 .mu-cx-afinar textarea { min-height: 44px; }
-.mu-agrupar { display: flex; flex-direction: column; gap: 6px; margin: 20px 2px 0; }
-.mu-agrupar > span { color: var(--mut); font-size: 13px; font-weight: 600; }
-.mu-agrupar .mu-seg button { padding: 7px 4px; font-size: 13px; }
+/* a lista: o título com «Juntar», os filtros (uma fila que desliza para o lado) e o modo de escolher para juntar */
+.mu-lista-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 22px 2px 0; min-height: 36px; }
+.mu-lista-topo > span { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.mu-filtros { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 10px -16px 0; padding: 2px 16px; scroll-padding: 0 16px; }
+.mu-filtros::-webkit-scrollbar { display: none; }
+.mu-chip-f { flex: none; min-height: 36px; border: 0; border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--fg); background: var(--panel2); cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
+.mu-chip-f span { color: var(--mut); font-weight: 500; margin-left: 2px; }
+.mu-chip-f[aria-pressed="true"] { color: #000; background: var(--fg); }
+.mu-chip-f[aria-pressed="true"] span { color: rgba(0, 0, 0, .55); }
+.mu-chip-f:active { opacity: .7; }
+.mu-pl-esc { display: block; width: 100%; padding: 0; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; box-shadow: inset 0 0 0 2px transparent; transition: box-shadow .15s; }
+.mu-pl-esc .mu-pl-a { padding-right: 64px; }
+.mu-pl-esc .nm, .mu-pl-esc .mt { display: block; }
+.mu-esc-v { position: absolute; right: 16px; top: 50%; width: 28px; height: 28px; margin-top: -14px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--line2); display: flex; align-items: center; justify-content: center; transition: background .15s, box-shadow .15s; }
+.mu-esc-v svg { width: 18px; height: 18px; fill: none; stroke: #000; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.6); transition: opacity .15s, transform .2s cubic-bezier(.3, 1.4, .5, 1); }
+.mu-pl-esc.sim { box-shadow: inset 0 0 0 2px var(--fg); }
+.mu-pl-esc.sim .mu-esc-v { background: var(--fg); box-shadow: none; }
+.mu-pl-esc.sim .mu-esc-v svg { opacity: 1; transform: none; }
+.mu-juntar-barra { position: sticky; bottom: calc(var(--nav) + 12px + env(safe-area-inset-bottom)); z-index: 3; display: flex; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 10px 10px 16px; border-radius: 18px; background: var(--panel3); box-shadow: 0 8px 30px rgba(0, 0, 0, .45); }
+.mu-juntar-barra > span { flex: 1; font-size: 14px; font-weight: 600; }
+.mu-juntar-barra .mu-btn[disabled] { opacity: .4; pointer-events: none; }
 .mu-grp h2 span { color: var(--mut); font-weight: 600; font-size: 15px; }

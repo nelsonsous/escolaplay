@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.14.2';
+const VERSION = '1.15.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -97,6 +97,7 @@ async function route(req, env, url) {
     if (pl && pl[2] === '/nome' && m === 'POST') return json(await renomear(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovar' && m === 'POST') return json(await renovar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovacoes' && m === 'POST') return json(await renovacao(ue, pl[1], await corpo(req)), 201);
+    if (p === '/api/juntar' && m === 'POST') return json(await juntar(ue, await corpo(req), quem), 201);
     if (p === '/api/mais' && m === 'POST') return json(await maisComoEsta(ue, await corpo(req), quem), 201);
     if (p === '/api/mixes' && m === 'GET') return json(await mixes(ue));
     if (p === '/api/novidades' && m === 'GET') return json(await novidades(ue, url.searchParams.get('dias')));
@@ -465,6 +466,7 @@ async function guardar(env, c, quem) {
         // as candidatas (com os sinais) ficam para a app poder afinar a escolha no telemóvel
         candidatas: Array.isArray(c.candidatas) ? c.candidatas.slice(0, 200) : [],
         custo: Number(c.custo) || 0, criadaEm: new Date().toISOString(), por: quem.tipo === 'agente' ? 'curador' : 'app', modelo: txt(c.modelo, 60), tidal: null,
+        ...(Array.isArray(c.capas) && c.capas.some((u) => /^https:\/\//.test(u)) ? { capas: c.capas.filter((u) => /^https:\/\//.test(u)).slice(0, 4).map((u) => txt(u, 300)) } : {}),
         // uma de várias propostas para o mesmo pedido: fica só na app até a pessoa a escolher (Enviar para o Tidal)
         ...(c.rascunho === true ? { rascunho: true, grupo: txt(c.grupo, 40), variante: txt(c.variante, 40) } : {}),
     };
@@ -474,6 +476,32 @@ async function guardar(env, c, quem) {
     idx.unshift(resumoDe(doc));
     await env.KV.put('playlists', JSON.stringify(idx.slice(0, MAX_PLAYLISTS)));
     return doc;
+}
+// juntar playlists numa nova (só na app; envia-se depois para o Tidal): uma faixa de cada, à vez, sem repetidas
+// (nem a mesma faixa, nem o mesmo título do mesmo artista noutra edição)
+async function juntar(env, c, quem) {
+    const ids = [...new Set((Array.isArray(c?.ids) ? c.ids : []).map((x) => txt(x, 40)).filter(Boolean))].slice(0, 10);
+    if (ids.length < 2) throw new Erro(400, 'poucas', 'Escolhe pelo menos 2 playlists para juntar.');
+    const docs = await Promise.all(ids.map((id) => obter(env, id)));
+    const vistas = new Set(), faixas = [];
+    const chave = (f) => `${(f.titulo || '').toLowerCase().replace(/\s*[([].*$/, '')}|${(f.artistas?.[0] || '').toLowerCase()}`;
+    for (let i = 0, mais = true; mais && faixas.length < 200; i++) {
+        mais = false;
+        for (const d of docs) {
+            const f = d.faixas[i];
+            if (!f) continue;
+            mais = true;
+            if (vistas.has(f.id) || vistas.has(chave(f))) continue;
+            vistas.add(f.id); vistas.add(chave(f)); faixas.push(f);
+        }
+    }
+    const ja = new Set(), candidatas = [];
+    for (const d of docs) for (const x of d.candidatas || []) { const id = x?.faixa?.id; if (id && !ja.has(id)) { ja.add(id); candidatas.push(x); } }
+    const nomes = docs.map((d) => d.nome);
+    const nome = nomes.join(' + ');
+    return guardar(env, { nome: nome.length > 60 ? nome.slice(0, 59) + '…' : nome, descricao: txt(`Junta ${nomes.map((n) => `«${n}»`).join(', ')}.`, 300),
+        resumo: 'Uma faixa de cada playlist, à vez, sem repetidas. Afina no telemóvel para mudar a ordem ou a escolha.', faixas, candidatas: candidatas.slice(0, 200),
+        opcoes: { ...docs[0].opcoes, faixas: Math.min(faixas.length, 200) }, capas: docs.map((d) => d.capas?.[0]).filter(Boolean) }, quem);
 }
 const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.por, faixas: d.faixas.length,
     duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null,

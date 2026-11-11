@@ -11,7 +11,9 @@
 #     23 pesquisa, 24..27 pedido: faixas, max por artista, estilo, arco, 29 relogio do aviso, 30 id da playlist,
 #     36 pesos dos estilos, 38 codigo de ligacao (colado), 45 pedido sem letras explicitas, 46 47 nome e descricao
 #     a mudar, 48 as ideias do Maestro (da vista Pedir; a zero ao navegar), 49 o que afinar (texto),
-#     50 a playlist aberta na lista (id), 51 o documento dela, 52 as pre-escutas dela, 53 agrupar por (0..4)
+#     50 a playlist aberta na lista (id), 51 o documento dela, 52 as pre-escutas dela, 53 filtro: por o que (0 todas,
+#     1 tipo, 2 genero, 3 Tidal, 4 avaliacao), 59 filtro: qual (texto), 56 a escolher para juntar, 58 as escolhidas
+#     («,id,id,»)
 #   da vista (a zero ao navegar): 3 estado, 4 dados da vista, 5 pedidos, 6 afinar ligado, 7 faixas, 8 max por
 #     artista, 9 estilo, 10 arco, 11 candidatas, 12 faixas das candidatas, 13 ordem, 14 m, 15 motivos,
 #     16 custo, 17 fixas, 18 tiradas, 19 pesquisa, 28 a confirmar, 31 ocupado, 32 pontos, 33 ms do motor,
@@ -335,7 +337,7 @@
 # ===== Playlists =====
 : npendentes i>i pd { = n 0 = c jprim pd W c { ? tigual jgt c k_estado k_v_pendente { = n + n 1 0 } 0 = c jprox c } n }
 # arrastar um cartão para a esquerda (a casca) pede para o apagar: a pergunta aparece no lugar do cartão
-: pl_card i>i c ? && tlen @ 54 tigual jgt c k_id @ 54 { pl_apagar c 0 } { pl_cartao c 0 }
+: pl_card i>i c ? @ 56 pl_esc c ? && tlen @ 54 tigual jgt c k_id @ 54 { pl_apagar c 0 } { pl_cartao c 0 }
 : pl_apagar i>i c {
   = id jgt c k_id
   "<div class=\"mu-pl mu-pl-apagar\" role=\"group\" aria-label=\"Apagar\"><div class=\"tx\"><b>Apagar «" ? pl_rasc c { pjt jg c $"variante" " · " 0 } 0 pjt jg c k_nome "»?</b><span>"
@@ -418,8 +420,8 @@
   = c pl_aberta
   ? c { = m marca = h tnovo 250000 O h cx_xf c O 0 = g tnovo 4000 O g cx_capa c O 0
     ? Y 100 $".mu-pl.aberta .mu-cx-xf" h { Y 100 $".mu-pl.aberta .mu-folha-cv" g 0 } render solta m 0 } render }
-# agrupar a lista: 0 data, 1 tipo, 2 genero, 3 Tidal, 4 avaliacao
-: nome_grp i>i q ? == q 1 "Tipo" ? == q 2 "Género" ? == q 3 "Tidal" ? == q 4 "Avaliação" "Data"
+# a lista agrupa-se pela data; os filtros mostram so um tipo, genero, Tidal ou avaliacao (q: 0 data, 1 tipo, 2 genero,
+# 3 Tidal, 4 avaliacao)
 : dnum iii>i t i n { = v 0 = j 0 W < j n { = v + * v 10 - tbyte t + i j '0 = j + j 1 } v }
 # dias desde 1970 de «AAAA-MM-DD...»
 : dias_de i>i t {
@@ -430,16 +432,67 @@
   = doy + / + * 153 mm 2 5 - dd 1
   = doe + - + * yoe 365 / yoe 4 / yoe 100 doy
   - + * era 146097 doe 719468 }
-: grp i>i c {
-  = q @ 53
+: grpq ii>i c q {
   ? == q 1 { ? == jtipo jg c $"renovar" 3 $"Atualizam-se sozinhas" ? tigual jgt c k_por $"app" $"Feitas por ti" ? tlen jgt c k_pedido $"Dos teus pedidos" $"Do Maestro" }
   ? == q 2 { = g jgt c k_genero ? && g tlen g g $"Vários géneros" }
   ? == q 3 { ? jgt c k_tidal $"No Tidal" $"Só na app" }
   ? == q 4 { = e jgt jg c $"avaliacao" $"etiqueta" ? || ~ e || tigual e $"ainda cedo" tigual e $"sem sinais" $"Ainda sem avaliação" ? tigual e $"resultou" $"Resultaram" ? tigual e $"boa" $"Boas" ? tigual e $"morna" $"Mornas" $"Não resultaram" }
   { = t jgt c k_criadaEm = dd - / Y 108 0 0 86400000 ? t dias_de t 0 ? <= dd 6 $"Esta semana" ? <= dd 30 $"Este mês" $"Mais antigas" } }
-# c e a primeira do seu grupo (entre as que nao sao propostas)?
-: grp_primeiro ii>i d c { = e jprim d = r 1 = k grp c W && e != e c { ? && ~ pl_rasc e tigual grp e k { = r 0 0 } 0 = e jprox e } r }
-: grp_n ii>i d c { = e jprim d = n 0 = k grp c W e { ? && ~ pl_rasc e tigual grp e k { = n + n 1 0 } 0 = e jprox e } n }
+: grp i>i c grpq c 0
+# passa no filtro escolhido (e nao e proposta)?
+: pl_vis i>i c && ~ pl_rasc c ? @ 53 tigual grpq c @ 53 @ 59 1
+# c e a primeira do seu grupo (entre as que se veem)?
+: grp_primeiro ii>i d c { = e jprim d = r 1 = k grp c W && e != e c { ? && pl_vis e tigual grp e k { = r 0 0 } 0 = e jprox e } r }
+: grp_n ii>i d c { = e jprim d = n 0 = k grp c W e { ? && pl_vis e tigual grp e k { = n + n 1 0 } 0 = e jprox e } n }
+# os filtros: um botao por valor que existe (com quantas tem), por esta ordem: Tidal, tipo, avaliacao, genero
+: chip_prim iii>i d c q { = e jprim d = r 1 = k grpq c q W && e != e c { ? && ~ pl_rasc e tigual grpq e q k { = r 0 0 } 0 = e jprox e } r }
+: chip_n iii>i d c q { = e jprim d = n 0 = k grpq c q W e { ? && ~ pl_rasc e tigual grpq e q k { = n + n 1 0 } 0 = e jprox e } n }
+: chips_pl ii>i d nf {
+  "<div class=\"mu-filtros\" role=\"toolbar\" aria-label=\"Filtrar\"><button type=\"button\" class=\"mu-chip-f\" data-onda=\"filtro&#9;0\" aria-pressed=\"" ? @ 53 "false" "true" "\">Todas <span>" N nf "</span></button>"
+  = i 0
+  W < i 4 {
+    = q ? == i 0 3 ? == i 1 1 ? == i 2 4 2
+    = c jprim d
+    W c {
+      ? && ~ pl_rasc c chip_prim d c q {
+        = n chip_n d c q = l grpq c q = at && == q @ 53 tigual l @ 59
+        # um filtro que deixa tudo na mesma nao vale a pena (a nao ser o que esta escolhido, para o poder tirar)
+        ? || < n nf at { "<button type=\"button\" class=\"mu-chip-f\" data-onda=\"filtro&#9;" N q pt l "\" aria-pressed=\"" ? at "true" "false" "\">" pt l " <span>" N n "</span></button>" 0 } 0 } 0
+      = c jprox c }
+    = i + i 1 }
+  "</div>" 0 }
+# juntar playlists: escolhem-se (as escolhidas ficam em @58 como «,id,id,») e o conector junta-as numa nova
+: tigualem iii>i t i p { = m tlen p = r 1 = j 0 W && r < j m { = r == tbyte t + i j tbyte p j = j + j 1 } r }
+: ttemid ii>i t p { = n tlen t = m tlen p = r 0 = i 1
+  W && ~ r < + i m n { ? && == tbyte t - i 1 44 == tbyte t + i m 44 { = r tigualem t i p 0 } 0 = i + i 1 } r }
+: n_esc i>i d { = n 0 = c jprim d W c { ? && ~ pl_rasc c ttemid @ 58 jgt c k_id { = n + n 1 0 } 0 = c jprox c } n }
+: esc_alt i>i id {
+  = d @ 4 = ja ttemid @ 58 id
+  ? && ~ ja >= n_esc d 10 { = a abre "No máximo 10 playlists de cada vez." O 0 aviso a 0 } {
+    = s abre ","
+    = c jprim d
+    W c { = e jgt c k_id = x ttemid @ 58 e ? ? tigual e id ~ x x { tpor e P 44 0 } 0 = c jprox c }
+    O 0 tcopia @ 58 s 390 render 0 } }
+: pl_esc i>i c {
+  = id jgt c k_id = sim ttemid @ 58 id
+  "<button type=\"button\" class=\"mu-pl mu-pl-esc" ? sim " sim" 0 "\" data-onda=\"esc&#9;" pt id "\" aria-pressed=\"" ? sim "true" "false" "\">"
+  = cs jg c $"capas" ? jn cs { "<span class=\"mu-pl-capa\" aria-hidden=\"true\"><img src=\"" pjt jprim cs "\" alt=\"\" loading=\"lazy\" decoding=\"async\"></span>" 0 } 0
+  "<span class=\"mu-pl-a\"><span class=\"nm\">" pjt jg c k_nome "</span><span class=\"mt\">" N jgi c k_faixas " faixas · " pmin jgi c k_duracao "</span></span>"
+  "<span class=\"mu-esc-v\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\"><path d=\"M5 12.5l4.5 4.5L19 7.5\"/></svg></span></button>" 0 }
+: barra_juntar i>i d {
+  = n n_esc d
+  "<div class=\"mu-juntar-barra\" role=\"region\" aria-label=\"Juntar playlists\"><span>" ? n { N n ? > n 1 " escolhidas" " escolhida" 0 } "Escolhe 2 ou mais" "</span>"
+  "<button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"juntar_nao\">Cancelar</button><button type=\"button\" class=\"mu-btn peq\" data-onda=\"juntar_sim\"" ? < n 2 " disabled" 0 ">" ic 12 "Juntar</button></div>" 0 }
+: juntar_enviar >i ? ocupado 0 {
+    = d @ 4
+    ? < n_esc d 2 { = a abre "Escolhe pelo menos 2 playlists." O 0 aviso a 0 } {
+      ! 31 1 ! 34 19
+      = r abre "POST /api/juntar" P 10 "{\"ids\":["
+      = c jprim d = k 0
+      W c { = e jgt c k_id ? && ~ pl_rasc c ttemid @ 58 e { ? k "," 0 pjs e = k 1 0 } 0 = c jprox c }
+      "]}" O 0
+      busca r k_c_escrita
+      = a abre "A juntar…" O 0 aviso a 0 } }
 : pl_rasc i>i c == jtipo jg c $"rascunho" 3
 # c e a primeira proposta do seu grupo (o pedido) na lista d?
 : pl_primeiro ii>i d c { = e jprim d = r 1 W && e != e c { ? && pl_rasc e tigual jgt e $"grupo" jgt c $"grupo" { = r 0 0 } 0 = e jprox e } r }
@@ -450,7 +503,7 @@
     # as propostas por escolher, agrupadas pelo pedido (abre-se uma para ver as faixas; envia-se a preferida para o Tidal)
     = c jprim d = np 0
     W c {
-      ? && pl_rasc c pl_primeiro d c {
+      ? && && ~ @ 56 pl_rasc c pl_primeiro d c {
         ? ~ np { "<h2 class=\"mu-sec\">Propostas para escolher</h2>" 0 } 0 = np + np 1
         "<details class=\"mu-grupo\" open><summary><span class=\"tx\">" ? tlen jgt c k_pedido { "«" pjt jg c k_pedido "»" 0 } { "Propostas" 0 } "</span><span class=\"n\">" N pl_ngrupo d c " propostas<svg class=\"chev\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></span></summary><div class=\"mu-lista-pl\">"
         = e jprim d W e { ? && pl_rasc e tigual jgt e $"grupo" jgt c $"grupo" { pl_card e 0 } 0 = e jprox e }
@@ -458,14 +511,19 @@
       = c jprox c }
     = nf 0 = c jprim d W c { ? ~ pl_rasc c { = nf + nf 1 0 } 0 = c jprox c }
     ? nf {
-      "<div class=\"mu-agrupar\"><span>Agrupar por</span><div class=\"mu-seg\">" = q 0 W < q 5 { "<button type=\"button\" data-onda=\"agrupar&#9;" N q "\" aria-pressed=\"" ? == q @ 53 "true" "false" "\">" nome_grp q "</button>" = q + q 1 } "</div></div>"
+      "<div class=\"mu-lista-topo\"><span>" ? @ 56 "Escolhe as playlists a juntar" "As tuas playlists" "</span>"
+      ? && ~ @ 56 >= nf 2 { "<button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"juntar_modo\">" ic 12 "Juntar</button>" 0 } 0 "</div>"
+      ? > nf 1 { chips_pl d nf 0 } 0
+      = nv 0 = c jprim d W c { ? pl_vis c { = nv + nv 1 0 } 0 = c jprox c }
+      ? ~ nv { "<p class=\"mu-nota\">Nenhuma playlist com este filtro.</p>" 0 } 0
       = c jprim d
       W c {
-        ? && ~ pl_rasc c grp_primeiro d c {
+        ? && pl_vis c grp_primeiro d c {
           "<section class=\"mu-grp\"><h2 class=\"mu-sec\">" pt grp c " <span>" N grp_n d c "</span></h2><div class=\"mu-lista-pl\">"
-          = k grp c = e jprim d W e { ? && ~ pl_rasc e tigual grp e k { pl_card e 0 } 0 = e jprox e }
+          = k grp c = e jprim d W e { ? && pl_vis e tigual grp e k { pl_card e 0 } 0 = e jprox e }
           "</div></section>" 0 } 0
         = c jprox c }
+      ? @ 56 { barra_juntar d 0 } 0
       0 } 0
     0 } }
 : v_playlists >i {
@@ -719,6 +777,7 @@
     ? == modo 14 { = c jgt r k_g_codigo ? c { tcopia @ 43 c 40 = w abre "Abre a Música (na app do ecrã principal, se a usares) e cola este código em «Código de ligação»: " tpor c " — serve uma vez, durante 24 h." O 0 = x abre purl w O 0 tcopia @ 44 x 580 render = a abre "Código criado: usa-o no outro aparelho." O 0 aviso a 0 } 0 0 }
     ? == modo 13 { = l jgt r k_url ? l { tcopia @ 41 l 200 = w abre "Experimenta a Música: playlists de qualidade no teu Tidal, feitas pelo Claude. Abre este link no iPhone (serve uma vez): " tpor l O 0 = x abre purl w O 0 tcopia @ 42 x 880 render = a abre "Convite criado: envia o link." O 0 aviso a 0 } 0 0 }
     ? == modo 17 { ? == @ 1 1 { ! 51 r render_cx 0 } { ! 4 r render 0 } 0 }
+    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 busca k_p_playlists k_c_pl render = a abre "Juntas em «" tpor jtxt jg r k_nome "» — " N jn jg r k_faixas " faixas. Abre-a para a enviar para o Tidal." O 0 aviso a 0 }
     ? == modo 18 { tvazio @ 49 render = a abre "Pedido de afinação enviado: o Maestro refá-la na próxima corrida." O 0 aviso a 0 }
     ? == modo 16 { ! 4 r ! 28 0 render = a abre ? == jtipo jg r k_tidal 7 "Nome mudado na app e no Tidal." "Nome mudado." O 0 aviso a 0 }
     ? == modo 15 { ! 4 r render = a abre ? == jtipo jg r $"renovar" 3 "Passa a atualizar-se sozinha toda a semana." "Deixa de se atualizar sozinha." O 0 aviso a 0 }
@@ -931,7 +990,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.22.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.23.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====
@@ -961,7 +1020,7 @@
   ? == v @ 1 { Y 115 0 0 0 } 0
   solta @ 2
   = q 3 W <= q 19 { ! q 0 = q + q 1 }
-  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 tvazio @ 50 tvazio @ 54
+  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 tvazio @ 50 tvazio @ 54 ! 56 0 tvazio @ 58
   ! 1 v
   render
   buscam k_p_estado k_c_estado 60000
@@ -1033,7 +1092,15 @@
   ? tigual a $"apagarl_n" { tvazio @ 54 render 0 }
   ? tigual a $"apagarl_s" { tcopia @ 30 b 70 apagar_pl 0 0 }
   ? tigual a $"apagarl_t" { tcopia @ 30 b 70 apagar_pl 1 0 }
-  ? tigual a $"agrupar" { ! 53 tint b Y 106 $"agrupar" b render 0 }
+  ? tigual a $"filtro" {
+      = q - tbyte b 0 48
+      ? || == q 0 && && == q @ 53 == - tlen b 1 tlen @ 59 tigualem b 1 @ 59 { ! 53 0 tvazio @ 59 0 }
+        { ! 53 q tvazio @ 59 O @ 59 = j 1 W && < j tlen b < j 79 { P tbyte b j = j + j 1 } O 0 0 }
+      render 0 }
+  ? tigual a $"juntar_modo" { ! 56 1 tvazio @ 58 tvazio @ 50 ! 51 0 ! 52 0 tvazio @ 54 render 0 }
+  ? tigual a $"juntar_nao" { ! 56 0 tvazio @ 58 render 0 }
+  ? tigual a $"esc" { esc_alt b 0 }
+  ? tigual a $"juntar_sim" { juntar_enviar 0 }
   ? tigual a $"afinar_pedir" { afinar_maestro 0 }
   ? tigual a $"idea" { = c jidx jg @ 48 $"ideias" tint b ? c { tcopia @ 20 jgt c $"texto" 1990 = e jgt c k_estilo ? e { ! 26 idx_estilo e 0 } 0 = q jgt c k_arco ? q { ! 27 idx_arco q 0 } 0 render 0 } 0 0 }
   ? tigual a k_a_pedir { pedir_enviar 0 }
@@ -1227,8 +1294,8 @@
   ! + w 10 150 ! + w 11 150 ! + w 12 500 ! + w 13 250 ! + w 14 150
   ! + w 15 550 ! + w 16 150 ! + w 17 50 ! + w 18 200 ! + w 19 0
   ! + w 20 150 ! + w 21 500 ! + w 22 50 ! + w 23 300 ! + w 24 100
-  ! 20 tnovo 2000 ! 21 tnovo 120 ! 22 tnovo 400 ! 23 tnovo 300 ! 30 tnovo 80 ! 38 tnovo 100 ! 41 tnovo 220 ! 42 tnovo 900 ! 43 tnovo 40 ! 44 tnovo 600 ! 46 tnovo 260 ! 47 tnovo 1300 ! 49 tnovo 2000 ! 50 tnovo 80 ! 54 tnovo 80 ! 55 tnovo 1000 ! 57 tnovo 80
-  = ag Y 105 $"agrupar" 0 ! 53 ? ag Mn 4 Mx 0 tint ag 0
+  ! 20 tnovo 2000 ! 21 tnovo 120 ! 22 tnovo 400 ! 23 tnovo 300 ! 30 tnovo 80 ! 38 tnovo 100 ! 41 tnovo 220 ! 42 tnovo 900 ! 43 tnovo 40 ! 44 tnovo 600 ! 46 tnovo 260 ! 47 tnovo 1300 ! 49 tnovo 2000 ! 50 tnovo 80 ! 54 tnovo 80 ! 55 tnovo 1000 ! 57 tnovo 80 ! 58 tnovo 400 ! 59 tnovo 80
+  ! 53 0 ! 56 0
   ! 24 30 ! 25 2 ! 26 0 ! 27 0
   = px Y 105 k_g_proxy 0
   ? px { tcopia @ 22 px 390 0 } { tcopia @ 22 k_t_proxy 390 0 }
