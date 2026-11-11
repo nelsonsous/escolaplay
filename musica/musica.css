@@ -395,3 +395,4 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-hist .m { font-size: 12.5px; color: var(--mut); }
 .mu-afinada { color: var(--green); font-weight: 650; }
 .mu-hist .mu-mudou { font-size: 13px; color: var(--fg); opacity: .85; }
+#mu-pedidos { scroll-margin-top: calc(env(safe-area-inset-top) + 16px); }

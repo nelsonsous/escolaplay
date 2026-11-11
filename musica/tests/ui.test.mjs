@@ -414,6 +414,12 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const pedido = JSON.parse(await env.KV.get('pedidos'))[0];
     assert.equal(pedido.texto, 'Faixas bem gravadas para testar o som do carro');
     assert.equal(pedido.opcoes.limpa, true);
+    // o cartão «pedido à espera» nas playlists leva à lista dos pedidos (não ao topo do Pedir)
+    await nav(1);
+    await assente(1);
+    await page.locator('#mu-body .mu-cartao', { hasText: /à espera do Maestro/ }).click();
+    await page.waitForFunction(() => { const r = document.getElementById('mu-pedidos')?.getBoundingClientRect(); return r && scrollY > 0 && r.top >= 0 && r.bottom <= innerHeight; });
+    await page.evaluate(() => window.scrollTo(0, 0));
     // mudar de separador a arrastar: para a direita, o anterior (Playlists); para a esquerda, o seguinte (Pedir)
     assert.equal(await separador(), 'ir\t3');
     await deslizarEm('#mu-body h1', 60, 330);
