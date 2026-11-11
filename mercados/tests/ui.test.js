@@ -616,12 +616,14 @@ function proxyBody(u) {
     assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar forte', 'rótulo da família, forte com convicção de 88');
     // o consenso dos analistas (4.14): a segunda opinião de fora, ao lado do veredicto do Claude
     await page.waitForSelector('#mk-sheet .cons-box');
-    assert.match(await page.locator('#mk-sheet .cons-box .adv-act').textContent(), /^Compra forte\s+consenso de 58 analistas$/);
+    assert.match(await page.locator('#mk-sheet .cons-box .adv-act').textContent(), /^Compra forte\s+58 recomendações este mês$/);
     assert.equal(await page.locator('#mk-sheet .cons-box .cons-bar i').count(), 5, 'os votos');
-    assert.deepEqual(await page.locator('#mk-sheet .cons-box .cons-leg span').allTextContents(), ['50 comprar · 86 %', '6 manter · 10 %', '2 vender · 3 %'], 'por extenso');
+    // a legenda com as cores da barra: um ponto por categoria (as que têm votos), com quantos e a %
+    assert.deepEqual(await page.locator('#mk-sheet .cons-box .cons-leg span').allTextContents(), ['20 compra forte · 34 %', '30 comprar · 52 %', '6 manter · 10 %', '1 vender · 2 %', '1 venda forte · 2 %'], 'por extenso');
+    assert.deepEqual(await page.locator('#mk-sheet .cons-box .cons-leg i').evaluateAll((is) => is.map((i) => i.className)), ['c0', 'c1', 'c2', 'c3', 'c4'], 'a cor de cada pedaço da barra');
     const cm = await page.locator('#mk-sheet .cons-box .adv-meta').allTextContents();
-    assert.match(cm[0], /^As recomendações deste mês \(58\)\. A nota média é 1,4 numa escala de 1 \(compra forte\) a 5 \(venda\): compra forte\.$/);
-    assert.match(cm[1], /^Preço-alvo médio a 12 meses: .+€ \(230,50\sUS\$\) \+17,60% face a hoje · o mais baixo .+€ \(150,00\sUS\$\), o mais alto .+€ \(300,00\sUS\$\)\.$/, 'em euros e em dólares: ' + cm[1]);
+    assert.match(cm[0], /^Nota média 1,4, numa escala de 1 \(compra forte\) a 5 \(venda forte\)\.$/);
+    assert.match(cm[1], /^Preço-alvo médio a 12 meses, de 58 analistas: .+€ \(230,50\sUS\$\) \+17,60% face a hoje · o mais baixo .+€ \(150,00\sUS\$\), o mais alto .+€ \(300,00\sUS\$\)\.$/, 'em euros e em dólares: ' + cm[1]);
     assert.match(await page.locator('#mk-sheet .cons-box .adv-alg').textContent(), /Claude: Comprar · concorda com os analistas/);
     if (SHOTS) await page.locator('#mk-sheet .cons-box').screenshot({ path: path.join(SHOTS, '9-consenso.png') });
     assert.equal(await page.locator(adv + ' .adv-nu').textContent(), 'Comprar aos poucos', 'o pormenor do Claude por baixo');

@@ -26,7 +26,7 @@
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
     };
-    const VERSION = '4.20.2';
+    const VERSION = '4.20.3';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1477,23 +1477,24 @@
         const v = Array.isArray(c.votes) ? c.votes.map((x) => Math.max(0, +x || 0)) : null, tot = v ? v.reduce((a, b) => a + b, 0) : 0;
         const cp = tot ? v[0] + v[1] : 0, mt = tot ? v[2] : 0, vd = tot ? v[3] + v[4] : 0;
         const pc = (x) => `${Math.round((x / tot) * 100)} %`;
-        // a barra: quantos dizem comprar, manter e vender este mês, por extenso
+        // a barra (as recomendações deste mês, das cinco categorias) e a legenda com as mesmas cores, uma por categoria
+        const CAT = ['compra forte', 'comprar', 'manter', 'vender', 'venda forte'];
         const bar = tot ? `<div class="cons-bar" role="img" aria-label="${cp} compram, ${mt} mantêm, ${vd} vendem">${v.map((x, i) => x ? `<i class="c${i}" style="flex:${x}"></i>` : '').join('')}</div>
-            <div class="cons-leg"><span class="up-t">${cp} comprar · ${pc(cp)}</span><span>${mt} manter · ${pc(mt)}</span><span class="down-t">${vd} vender · ${pc(vd)}</span></div>
-            <div class="adv-meta">As recomendações deste mês (${tot}). A nota média é <b>${fin(c.mean) ? String(Math.round(c.mean * 10) / 10).replace('.', ',') : '—'}</b> numa escala de 1 (compra forte) a 5 (venda): ${!fin(c.mean) ? '' : c.mean <= 1.5 ? 'compra forte' : c.mean <= 2.5 ? 'comprar' : c.mean <= 3.5 ? 'manter' : c.mean <= 4.5 ? 'vender' : 'venda forte'}.</div>` : '';
+            <div class="cons-leg">${v.map((x, i) => x ? `<span><i class="c${i}"></i>${x} ${CAT[i]} · ${pc(x)}</span>` : '').join('')}${vd ? '' : '<small>ninguém diz vender</small>'}</div>
+            ${fin(c.mean) ? `<div class="adv-meta">Nota média <b>${String(Math.round(c.mean * 10) / 10).replace('.', ',')}</b>, numa escala de 1 (compra forte) a 5 (venda forte).</div>` : ''}` : '';
         // o preço-alvo a 12 meses: na moeda deles e, se a app mostra noutra, convertido pelo preço de hoje
         let alvo = '';
         if (fin(c.target) && fin(c.price) && c.price > 0) {
             const d = (c.target / c.price - 1) * 100, conv = q.currency && c.currency && q.currency !== c.currency && fin(q.price) && q.price > 0 ? q.price / c.price : null;
             const em = (x) => (conv ? `${fmtPx(x * conv, REG[k], q.currency)} <small>(${fmtPx(x, REG[k], c.currency)})</small>` : fmtPx(x, REG[k], c.currency));
-            alvo = `<div class="adv-meta">Preço-alvo médio a 12 meses: <b class="num">${em(c.target)}</b> <span class="${toneOf(d)}-t">${fmtPct(d)}</span> face a hoje${fin(c.low) && fin(c.high) ? ` · o mais baixo ${em(c.low)}, o mais alto ${em(c.high)}` : ''}.</div>`
+            alvo = `<div class="adv-meta">Preço-alvo médio a 12 meses${c.n > 0 ? `, de ${c.n} ${c.n === 1 ? 'analista' : 'analistas'}` : ''}: <b class="num">${em(c.target)}</b> <span class="${toneOf(d)}-t">${fmtPct(d)}</span> face a hoje${fin(c.low) && fin(c.high) ? ` · o mais baixo ${em(c.low)}, o mais alto ${em(c.high)}` : ''}.</div>`
                 + (f > 0 && d < 0 ? '<div class="adv-meta cons-av">Dizem comprar, mas o preço já passou o alvo médio deles: a subida que esperavam já aconteceu.</div>'
                     : f < 0 && d > 0 ? '<div class="adv-meta cons-av">Dizem vender, mas o alvo médio está acima do preço de hoje.</div>' : '');
         }
         const fc = cl ? FAMS[cl.key] : null;
         const quem = fc == null ? '' : `<div class="adv-alg${fc !== f ? ' diff' : ''}"><b>Claude:</b> ${esc(rotulo(cl.key, owns(k)))} · ${fc === f ? 'concorda com os analistas' : `<b>discorda</b> — eles dizem ${CONS_LBL[c.key]}; o porquê do Claude está na leitura dele, acima`}</div>`;
         return `<div class="box cons-box"><h3>Analistas <small>Yahoo Finance</small></h3>
-            <div class="adv-act ${tone}-t">${CONS_LBL[c.key]} <small class="cons-n">consenso de ${c.n} ${c.n === 1 ? 'analista' : 'analistas'}</small></div>
+            <div class="adv-act ${tone}-t">${CONS_LBL[c.key]} <small class="cons-n">${tot ? `${tot} ${tot === 1 ? 'recomendação' : 'recomendações'} este mês` : `consenso de ${c.n} ${c.n === 1 ? 'analista' : 'analistas'}`}</small></div>
             ${bar}${alvo}${quem}</div>`;
     }
     // sinal automático (regras fixas de analise.js): em primeiro plano só quando o Claude não analisou o ativo
