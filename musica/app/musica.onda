@@ -354,6 +354,8 @@
   "<button type=\"button\" class=\"mu-pl-a\" data-onda=\"exp&#9;" pjt jg c k_id "\" aria-expanded=\"" ? ab "true" "false" "\"><div class=\"nm\">" ? == jtipo jg c $"rascunho" 3 { pjt jg c $"variante" " · " 0 } 0 pjt jg c k_nome "</div><div class=\"mt\">" N jgi c k_faixas " faixas · " pmin jgi c k_duracao " · " pdia jgt c k_criadaEm
   = av jg c $"avaliacao" ? av { = e jgt av $"etiqueta" ? || tigual e $"ainda cedo" tigual e $"sem sinais" 0 { " · " pt e 0 } 0 } 0
   ? == jtipo jg c $"renovar" 3 { " · ↻" 0 } 0
+  # afinada pelo Maestro nos ultimos 7 dias: um selo, para se ver logo na lista
+  = fa jgt c $"afinadaEm" ? fa { ? <= - / Y 108 0 0 86400000 dias_de fa 7 { " · <span class=\"mu-afinada\">✓ afinada a " pdia fa "</span>" 0 } 0 } 0
   "</div><svg class=\"chev\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></button>"
   ? jgt c k_tidal { "<a class=\"mu-tocar\" href=\"" pjt jg c k_tidal "\" target=\"_blank\" rel=\"noopener\" aria-label=\"Ouvir «" pjt jg c k_nome "» no Tidal\">" ic 4 "</a>" 0 } 0
   ? ab { cx_aberta c 0 } 0
@@ -402,7 +404,12 @@
       = nr jgi c $"rejeitadas"
       "<li" ? tlen jgt c k_feitoEm 0 " class=\"espera\"" "><span class=\"q\">" ? tlen jgt c k_texto { "«" pjt jg c k_texto "»" 0 } { "«Não esta» em " N nr ? > nr 1 " faixas" " faixa" 0 } "</span><span class=\"m\">Afinação · "
       ? tlen jgt c k_feitoEm { "feita a " pdia jgt c k_feitoEm 0 } { "à espera do Maestro" 0 }
-      ? && nr tlen jgt c k_texto { " · «Não esta» em " N nr 0 } 0 "</span></li>"
+      ? && nr tlen jgt c k_texto { " · «Não esta» em " N nr 0 } 0 "</span>"
+      # o que mudou com a afinacao: quantas entraram e sairam, e as primeiras novas
+      ? jg c $"entraram" { = ne jgi c $"entraram" = ns jgi c $"sairam"
+          "<span class=\"mu-mudou\">" ? || ne ns { N ne ? == ne 1 " nova, " " novas, " N ns ? == ns 1 " saiu" " saíram" 0 } "Sem faixas novas"
+          = nv jg c $"novas" ? jn nv { ": " = e jprim nv W e { pjt e = e jprox e ? e " · " 0 } 0 } 0 "</span>" 0 } 0
+      "</li>"
       = c jprox c }
     "</ol></div>" 0 } 0 }
 : cx_xf i>i c { cx_faixas c ? @ 51 hist_pl @ 51 0 }
@@ -1007,7 +1014,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.24.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.24.1 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====

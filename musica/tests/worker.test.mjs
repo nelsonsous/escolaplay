@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.16.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.17.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -619,6 +619,9 @@ test('propostas, ideias e afinar: várias versões só na app, escolher uma para
     assert.equal(ren.rejeitadas, undefined);
     await call(`/api/pedidos/${af.id}?playlist=${a.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${agente}` } });
     assert.deepEqual(await afs(), [['menos eletrónica', 1, true]], 'feita');
+    const feita = (await (await get(`/api/playlists/${a.id}`, chave)).json()).afinacoes[0];
+    assert.deepEqual([feita.entraram, feita.sairam, feita.novas], [0, 1, []], 'o que mudou: saiu a «Não esta»');
+    assert.ok((await (await get('/api/playlists', chave)).json()).find((x) => x.id === a.id).afinadaEm, 'a lista sabe que foi afinada');
     assert.equal((await (await post(`/api/playlists/${b.id}/renovacoes`, { faixas: res, tidal: true }, agente)).json()).tidal, null);
     // as ideias: só o Maestro as escreve
     assert.deepEqual(await (await get('/api/ideias', chave)).json(), { ideias: [] });

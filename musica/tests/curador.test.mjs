@@ -276,7 +276,7 @@ test('paridade: o publicar da versão Onda mostra, recusa e grava como a versão
         const r = await script(nome, [f, '--renovar', id, '--modelo', 'modelo-renovar', '--sem-tidal']);
         assert.equal(r.code, undefined, r.stderr);
         const d = JSON.parse(await env.KV.get('playlist:' + id));
-        for (const k of ['criadaEm', 'renovadaEm', 'renovacoes', 'historico']) delete d[k];
+        for (const k of ['criadaEm', 'renovadaEm', 'renovacoes', 'historico', 'mudanca']) delete d[k];
         return { stdout: r.stdout, d };
     };
     const ro = await renovarCom('publicar.mjs'), rj = await renovarCom(join('js', 'publicar.mjs'));
