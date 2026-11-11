@@ -337,10 +337,15 @@
 # ===== Playlists =====
 : npendentes i>i pd { = n 0 = c jprim pd W c { ? tigual jgt c k_estado k_v_pendente { = n + n 1 0 } 0 = c jprox c } n }
 # arrastar um cartão para a esquerda (a casca) pede para o apagar: a pergunta aparece no lugar do cartão
+# o nome da proposta (a variante) antes do nome, se o nome ainda nao o tiver (o Maestro as vezes ja o junta)
+: tmin i>i c ? && >= c 65 <= c 90 + c 32 c
+: tcontem_ci ii>i t p { = n tlen t = m tlen p = r 0 = i 0
+  W && ~ r <= + i m n { = k 1 = j 0 W && k < j m { = k == tmin tbyte t + i j tmin tbyte p j = j + j 1 } = r k = i + i 1 } r }
+: var_pref i>i c { = v jgt c $"variante" ? && && pl_rasc c tlen v ~ tcontem_ci jgt c k_nome v { pt v " · " 0 } 0 }
 : pl_card i>i c ? @ 56 pl_esc c ? && tlen @ 54 tigual jgt c k_id @ 54 { pl_apagar c 0 } { pl_cartao c 0 }
 : pl_apagar i>i c {
   = id jgt c k_id
-  "<div class=\"mu-pl mu-pl-apagar\" role=\"group\" aria-label=\"Apagar\"><div class=\"tx\"><b>Apagar «" ? pl_rasc c { pjt jg c $"variante" " · " 0 } 0 pjt jg c k_nome "»?</b><span>"
+  "<div class=\"mu-pl mu-pl-apagar\" role=\"group\" aria-label=\"Apagar\"><div class=\"tx\"><b>Apagar «" var_pref c pjt jg c k_nome "»?</b><span>"
   ? pl_rasc c "É uma proposta: sai só da app." ? jgt c k_tidal "Também está no teu Tidal." "Sai da app."
   "</span></div><div class=\"mu-acoes\">"
   ? jgt c k_tidal { "<button type=\"button\" class=\"mu-btn perigo forte peq\" data-onda=\"apagarl_t&#9;" pt id "\">" ic 9 "No Tidal e na app</button><button type=\"button\" class=\"mu-btn sec peq\" data-onda=\"apagarl_s&#9;" pt id "\">Só na app</button>" 0 }
@@ -351,7 +356,7 @@
   "<div class=\"mu-pl" ? ab " aberta" 0 ? jgt c k_tidal " tidal" 0 "\"" ? ab 0 { " data-esq=\"apagarl&#9;" pjt jg c k_id "\" data-esq-rotulo=\"Apagar\"" 0 } ">"
   = cs jg c $"capas" = nc jn cs
   ? nc { "<span class=\"mu-pl-capa" ? >= nc 4 " m4" 0 "\" aria-hidden=\"true\">" = e jprim cs = q 0 W && e < q 4 { "<img src=\"" pjt e "\" alt=\"\" loading=\"lazy\" decoding=\"async\">" = e jprox e = q + q 1 } "</span>" 0 } 0
-  "<button type=\"button\" class=\"mu-pl-a\" data-onda=\"exp&#9;" pjt jg c k_id "\" aria-expanded=\"" ? ab "true" "false" "\"><div class=\"nm\">" ? == jtipo jg c $"rascunho" 3 { pjt jg c $"variante" " · " 0 } 0 pjt jg c k_nome "</div><div class=\"mt\">" N jgi c k_faixas " faixas · " pmin jgi c k_duracao " · " pdia jgt c k_criadaEm
+  "<button type=\"button\" class=\"mu-pl-a\" data-onda=\"exp&#9;" pjt jg c k_id "\" aria-expanded=\"" ? ab "true" "false" "\"><div class=\"nm\">" var_pref c pjt jg c k_nome "</div><div class=\"mt\">" N jgi c k_faixas " faixas · " pmin jgi c k_duracao " · " pdia jgt c k_criadaEm
   = av jg c $"avaliacao" ? av { = e jgt av $"etiqueta" ? || tigual e $"ainda cedo" tigual e $"sem sinais" 0 { " · " pt e 0 } 0 } 0
   ? == jtipo jg c $"renovar" 3 { " · ↻" 0 } 0
   # afinada pelo Maestro nos ultimos 7 dias: um selo, para se ver logo na lista
@@ -366,7 +371,7 @@
 : cx_aberta i>i c {
   "<div class=\"mu-folha\" role=\"dialog\" aria-modal=\"true\" aria-label=\"" pjt jg c k_nome "\">"
   "<div class=\"mu-folha-topo\"><button type=\"button\" class=\"mu-fechar\" data-onda=\"exp&#9;" pjt jg c k_id "\" aria-label=\"Fechar\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></button></div>"
-  "<div class=\"mu-folha-cab\"><div class=\"mu-folha-cv\">" cx_capa c "</div><div class=\"tx\"><h2>" ? pl_rasc c { pjt jg c $"variante" " · " 0 } 0 pjt jg c k_nome "</h2><p>" N jgi c k_faixas " faixas · " pmin jgi c k_duracao "</p></div></div>"
+  "<div class=\"mu-folha-cab\"><div class=\"mu-folha-cv\">" cx_capa c "</div><div class=\"tx\"><h2>" var_pref c pjt jg c k_nome "</h2><p>" N jgi c k_faixas " faixas · " pmin jgi c k_duracao "</p></div></div>"
   "<div class=\"mu-cx\">"
   ? pl_rasc c { "<p class=\"mu-nota\">Proposta — ainda não está no Tidal. Ouve um bocado de cada faixa (▶) e envia-a se gostares.</p>" 0 } 0
   "<div class=\"mu-cx-xf\">" cx_xf c "</div><div class=\"mu-acoes\">"
@@ -527,7 +532,7 @@
     W c {
       ? && && ~ @ 56 pl_rasc c pl_primeiro d c {
         ? ~ np { "<h2 class=\"mu-sec\">Propostas para escolher</h2>" 0 } 0 = np + np 1
-        "<details class=\"mu-grupo\" open><summary><span class=\"tx\">" ? tlen jgt c k_pedido { "«" pjt jg c k_pedido "»" 0 } { "Propostas" 0 } "</span><span class=\"n\">" N pl_ngrupo d c " propostas<svg class=\"chev\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></span></summary><div class=\"mu-lista-pl\">"
+        "<details class=\"mu-grupo\" open><summary><span class=\"tx\">" ? tlen jgt c k_pedido { "«" pjt jg c k_pedido "»" 0 } { "Propostas" 0 } "</span><span class=\"n\">" N pl_ngrupo d c ? == pl_ngrupo d c 1 " proposta" " propostas" "<svg class=\"chev\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg></span></summary><div class=\"mu-lista-pl\">"
         = e jprim d W e { ? && pl_rasc e tigual jgt e $"grupo" jgt c $"grupo" { pl_card e 0 } 0 = e jprox e }
         "</div></details>" 0 } 0
       = c jprox c }
@@ -1014,7 +1019,7 @@
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.24.2 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.24.3 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====

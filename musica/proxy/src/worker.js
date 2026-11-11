@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.17.0';
+const VERSION = '1.17.1';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -538,6 +538,10 @@ async function apagar(env, id, noTidal) {
     await env.KV.delete('playlist:' + id);
     const idx = ((await env.KV.get('playlists', 'json')) || []).filter((x) => x.id !== id);
     await env.KV.put('playlists', JSON.stringify(idx));
+    // as afinações à espera desta playlist já não têm onde ser feitas: saem dos pedidos
+    const ped = (await env.KV.get('pedidos', 'json')) || [];
+    const ficam = ped.filter((x) => !(x.estado === 'pendente' && x.afinar?.playlist === id));
+    if (ficam.length !== ped.length) await env.KV.put('pedidos', JSON.stringify(ficam));
     return { ok: true };
 }
 

@@ -578,6 +578,8 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.waitForFunction(() => !document.querySelector('.mu-folha'));
     await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
     assert.equal(await page.locator('details.mu-grupo .mu-pl').count(), 1, 'a escolhida sai das propostas');
+    assert.match(await page.locator('details.mu-grupo summary .n').textContent(), /^1 proposta$/);
+    assert.equal(await page.locator('details.mu-grupo .mu-pl .nm').textContent(), 'Noite · Mais conhecida', 'o nome já tem a variante: não se repete');
     // arrastar a proposta para a esquerda: pouco volta ao sítio; mais de um terço pergunta se é para apagar
     const deslizar = (ate) => page.evaluate(async (ate) => {
         const c = document.querySelector('details.mu-grupo .mu-pl');

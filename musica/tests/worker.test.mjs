@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.17.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.17.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -623,6 +623,10 @@ test('propostas, ideias e afinar: várias versões só na app, escolher uma para
     assert.deepEqual([feita.entraram, feita.sairam, feita.novas], [0, 1, []], 'o que mudou: saiu a «Não esta»');
     assert.ok((await (await get('/api/playlists', chave)).json()).find((x) => x.id === a.id).afinadaEm, 'a lista sabe que foi afinada');
     assert.equal((await (await post(`/api/playlists/${b.id}/renovacoes`, { faixas: res, tidal: true }, agente)).json()).tidal, null);
+    // apagar uma playlist tira as afinações dela que estavam à espera (o Maestro já não tem onde as fazer)
+    const afB = await (await post(`/api/playlists/${b.id}/afinar`, { texto: 'mais calma' }, chave)).json();
+    await call(`/api/playlists/${b.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } });
+    assert.equal((await (await get('/api/pedidos', chave)).json()).some((x) => x.id === afB.id), false);
     // as ideias: só o Maestro as escreve
     assert.deepEqual(await (await get('/api/ideias', chave)).json(), { ideias: [] });
     assert.equal((await post('/api/ideias', { ideias: [{ texto: 'x x x' }] }, chave)).status, 403);
