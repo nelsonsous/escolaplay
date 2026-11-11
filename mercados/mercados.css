@@ -735,7 +735,11 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .cons-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; margin: 8px 0 4px; }
 .cons-bar i { display: block; } .cons-bar .c0 { background: var(--up); } .cons-bar .c1 { background: var(--up); opacity: .6; }
 .cons-bar .c2 { background: var(--flat); opacity: .7; } .cons-bar .c3 { background: var(--down); opacity: .6; } .cons-bar .c4 { background: var(--down); }
-.cons-leg { display: flex; justify-content: space-between; color: var(--muted); font-size: calc(.74rem * var(--k)); margin-bottom: 6px; }
+.cons-leg { display: flex; flex-wrap: wrap; gap: 3px 14px; color: var(--muted); font-size: calc(.76rem * var(--k)); margin-bottom: 6px; }
+.cons-leg span { white-space: nowrap; }
+.cons-leg i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+.cons-leg .c0 { background: var(--up); } .cons-leg .c1 { background: var(--up); opacity: .6; } .cons-leg .c2 { background: var(--flat); opacity: .7; }
+.cons-leg .c3 { background: var(--down); opacity: .6; } .cons-leg .c4 { background: var(--down); }
 
 /* simulador: controlos com barra e − / + (4.14) */
 .sim-ctl { display: grid; gap: 12px; margin: 4px 0 12px; }
