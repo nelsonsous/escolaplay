@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.15.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.16.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -608,9 +608,17 @@ test('propostas, ideias e afinar: várias versões só na app, escolher uma para
     assert.equal((await post(`/api/playlists/${a.id}/rejeitar`, { faixa: '999' }, chave)).status, 400);
     const af = await (await post(`/api/playlists/${a.id}/afinar`, { texto: 'menos eletrónica' }, chave)).json();
     assert.deepEqual([af.texto, af.estado, af.afinar.playlist, af.afinar.rejeitadas.map((x) => x.titulo)], ['menos eletrónica', 'pendente', a.id, ['Teardrop']]);
+    // a playlist guarda as afinações pedidas: à espera, depois feita; uma cancelada sai
+    const afs = async () => (await (await get(`/api/playlists/${a.id}`, chave)).json()).afinacoes.map((x) => [x.texto, x.rejeitadas, !!x.feitoEm]);
+    assert.deepEqual(await afs(), [['menos eletrónica', 1, false]]);
+    const af2 = await (await post(`/api/playlists/${a.id}/afinar`, { texto: 'mais curta' }, chave)).json();
+    assert.equal((await call(`/api/pedidos/${af2.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } })).status, 200);
+    assert.deepEqual(await afs(), [['menos eletrónica', 1, false]], 'a cancelada sai');
     // o Maestro refá-la no mesmo sítio: as rejeitadas ficam aplicadas; a proposta B continua só na app
     const ren = await (await post(`/api/playlists/${a.id}/renovacoes`, { faixas: res.filter((f) => f.id !== '106'), tidal: true }, agente)).json();
     assert.equal(ren.rejeitadas, undefined);
+    await call(`/api/pedidos/${af.id}?playlist=${a.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${agente}` } });
+    assert.deepEqual(await afs(), [['menos eletrónica', 1, true]], 'feita');
     assert.equal((await (await post(`/api/playlists/${b.id}/renovacoes`, { faixas: res, tidal: true }, agente)).json()).tidal, null);
     // as ideias: só o Maestro as escreve
     assert.deepEqual(await (await get('/api/ideias', chave)).json(), { ideias: [] });

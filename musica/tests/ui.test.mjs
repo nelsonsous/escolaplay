@@ -549,6 +549,12 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('#mu-aviso').getByText(/Pedido de afinação enviado/).waitFor();
     const af = JSON.parse(await env.KV.get('pedidos'))[0];
     assert.deepEqual([af.texto, af.afinar.rejeitadas.length], ['Mais vozes, menos jazz', 1]);
+    // a playlist mostra o pedido original e a afinação, à espera do Maestro
+    const hist = page.locator('#mu-body .mu-hist');
+    await hist.getByText('«Mais vozes, menos jazz»').waitFor();
+    assert.equal(await hist.locator('h3').textContent(), 'Pedidos desta playlist');
+    assert.match(await hist.locator('li').first().textContent(), /^«.+»O pedido · /);
+    assert.match(await hist.locator('li.espera').textContent(), /Afinação · à espera do Maestro · «Não esta» em 1/);
     await nav(1);
     await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
     assert.equal(await page.locator('details.mu-grupo .mu-pl').count(), 1, 'a escolhida sai das propostas');
