@@ -22,6 +22,9 @@
 //   114 lembrar  chave ms → o texto guardado há menos de ms milissegundos, ou 0
 //   115 esquecer 0 0      → apaga tudo o que se guardou com 113
 //   116 soma     0 0      → a url que está a tocar (texto), ou 0
+//   117 buscam   u fn     → u = "url\tms": como o 102, mas se a resposta está guardada (113) há menos de ms, dá-a já
+//                           (estado 200, sem ir à rede); senão vai à rede e guarda-a, se vier 200. A app decide o quê e o
+//                           prazo; 115 esquece
 // Os nomes de funções (fn) são textos com o nome de uma função da Onda (ex.: "clique").
 // Memória: cada texto que o anfitrião entrega é reservado com o alocador do runtime (_oa). Para não crescer sem fim,
 // a app marca o monte antes de um evento e solta-o no fim (ver `marca`/`solta` em lib/app.onda).
@@ -160,6 +163,18 @@
                 case 113: memoria.set(ler(a), { t: ler(b), em: Date.now() }); return 0n;
                 case 114: { const m = memoria.get(ler(a)); return m && Date.now() - m.em < Number(b) ? escrever(m.t) : 0n; }
                 case 115: memoria.clear(); return 0n;
+                case 117: {
+                    const [url, prazo] = ler(a).split('\t'), fn = ler(b), ms = Number(prazo) || 0;
+                    const m = memoria.get(url);
+                    if (m && Date.now() - m.em < ms) { Promise.resolve().then(() => chamar(fn, escrever(m.t), 200n)); return 1n; }
+                    if (!buscar) { chamar(fn, escrever(''), 0n); return 0n; }
+                    buscar(url).then(async (r) => {
+                        const u = new Uint8Array(await r.arrayBuffer());
+                        if (r.status === 200) memoria.set(url, { t: dec.decode(u), em: Date.now() });
+                        chamar(fn, escrever(u), BigInt(r.status));
+                    }).catch(() => chamar(fn, escrever(''), 0n));
+                    return 0n;
+                }
                 case 116: { const u = aTocar(); return u ? escrever(u) : 0n; }
             }
             return 0n;

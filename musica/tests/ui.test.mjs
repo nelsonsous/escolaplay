@@ -111,6 +111,8 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     });
     const foto = async (n) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `${n}.png`) }); };
     const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
+    // a troca de separador acabou: está no separador v e a espreita já desapareceu
+    const assente = (v) => page.waitForFunction((v) => document.querySelector('#mu-nav [aria-current="page"]').dataset.onda === v && document.getElementById('mu-espreita').hidden, `ir\t${v}`);
     // arrastar com o dedo (toques sintéticos) de x=de até x=ate, no primeiro elemento de sel
     // (trocar: a meio do gesto, o elemento sai da página, como quando a Onda redesenha o ecrã)
     const deslizarEm = (sel, de, ate, trocar = false) => page.evaluate(async ([sel, de, ate, trocar]) => {
@@ -454,6 +456,24 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(volta.nome, 'Música');
     assert.ok(volta.cartoes > 0 && volta.capas > 0, `a lista verdadeira, com as capas: ${JSON.stringify(volta)}`);
     await page.waitForFunction(() => document.getElementById('mu-espreita').hidden);
+    // voltar a um separador visto há pouco não vai à rede (a Onda guarda as respostas 30 s; sem «A carregar…» a piscar)
+    const rede = [];
+    const ouvirRede = (r) => { if (/\/api\/(playlists|pedidos|estado)$/.test(new URL(r.url()).pathname)) rede.push(new URL(r.url()).pathname); };
+    page.on('request', ouvirRede);
+    const em = (v) => page.waitForFunction((v) => document.querySelector('#mu-nav [aria-current="page"]').dataset.onda === v, `ir\t${v}`);
+    await nav(1);
+    await em(1);
+    await page.locator('#mu-body .mu-pl').first().waitFor();
+    await nav(3);
+    await em(3);
+    await page.locator('#mu-body').getByRole('heading', { name: 'Pedir' }).waitFor();
+    await page.waitForFunction(() => document.getElementById('mu-espreita').hidden);
+    page.off('request', ouvirRede);
+    assert.deepEqual(rede, [], 'tudo da memória');
+    // tocar outra vez no separador em que se está atualiza (vai à rede)
+    const pediu = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/pedidos', { timeout: 5000 });
+    await nav(3);
+    await pediu;
     // arrastar um pedido à espera para a esquerda cancela-o
     await page.locator('.mu-pedido[data-esq]').first().waitFor();
     await deslizarEm('.mu-pedido[data-esq]', 330, 60);
@@ -479,7 +499,9 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const api7 = async (p, corpo) => (await worker.fetch(new Request(WORKER + p, { method: 'POST', headers: { authorization: `Bearer ${agente7}`, 'content-type': 'application/json' }, body: JSON.stringify(corpo) }), env, { waitUntil() {} })).json();
     await api7('/api/ideias', { ideias: [{ texto: 'Ideia para qualquer hora', momento: 'sempre', porque: 'Porque o fim do dia pede calma', opcoes: { arco: 'desce' } }, { texto: 'Ideia de dia', momento: 'dia' }, { texto: 'Ideia de noite', momento: 'noite' }] });
     await nav(1);
-    await nav(3);
+    await nav(3); // um toque a meio da troca não se perde: vai-se para lá a seguir
+    await assente(3);
+    await nav(3); // as ideias ficam 5 min em memória: tocar outra vez no separador vai buscar as novas
     await page.getByRole('button', { name: 'Ideia para qualquer hora' }).click();
     assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), 'Ideia para qualquer hora', 'o porquê não vai para o pedido');
     assert.equal(await page.locator('.mu-chip.ideia span').first().textContent(), 'Porque o fim do dia pede calma', 'o porquê aparece por baixo da ideia');
@@ -490,6 +512,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.evaluate(() => localStorage.setItem('musica:fuso', '600'));
     await nav(1);
     await nav(3);
+    await assente(3);
     await page.getByRole('button', { name: 'Ideia para qualquer hora' }).waitFor();
     const h10 = (new Date().getUTCHours() + 10) % 24;
     assert.equal(await page.getByRole('button', { name: h10 >= 7 && h10 < 20 ? 'Ideia de dia' : 'Ideia de noite' }).count(), 1, 'o dia e a noite pela hora local');

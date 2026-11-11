@@ -45,8 +45,13 @@
         const chave = ls.get('chave');
         if (chave) headers.authorization = `Bearer ${chave}`;
         if (corpo) headers['content-type'] = 'application/json';
-        return fetch((ls.get('proxy') || PROXY).replace(/\/+$/, '') + alvo, { method: metodo, headers, body: corpo || undefined });
+        emCurso++;
+        const fim = () => { emCurso--; ultimaResposta = performance.now(); };
+        return fetch((ls.get('proxy') || PROXY).replace(/\/+$/, '') + alvo, { method: metodo, headers, body: corpo || undefined })
+            .then((r) => { fim(); return r; }, (e) => { fim(); throw e; });
     }
+    // os pedidos à rede em curso: ao trocar de separador, a espreita só sai quando a página nova já tem os dados
+    let emCurso = 0, ultimaResposta = 0;
 
     fetch('app/musica.wasm')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
@@ -134,6 +139,7 @@
     const espreita = document.createElement('div');
     espreita.id = 'mu-espreita';
     espreita.setAttribute('aria-hidden', 'true');
+    espreita.inert = true; // é só uma imagem da página: nada lá dentro se toca, foca ou conta como a página
     espreita.hidden = true; // só aparece durante a troca (sem isto, tapava a página ao abrir)
     document.body.appendChild(espreita);
     const indice = () => separadores().findIndex((b) => b.getAttribute('aria-current') === 'page');
@@ -198,7 +204,17 @@
     const animar = (el, de, ate, ms, curva) => (el.animate && !calmo()
         ? el.animate([{ transform: de }, { transform: ate }], { duration: ms, easing: curva, fill: 'forwards' }).finished.catch(() => {})
         : Promise.resolve());
-    let aTrocar = false, desvanecer = null;
+    let aTrocar = false, desvanecer = null, seguinte = null;
+    // a página nova está pronta: sem «A carregar…» e sem pedidos à rede há 120 ms (no máximo 2 s à espera)
+    const pronta = () => new Promise((ok) => {
+        const t0 = performance.now();
+        const ver = () => {
+            const agora = performance.now();
+            const quieta = emCurso === 0 && agora - ultimaResposta > 120 && agora - t0 > 60 && !corpo.querySelector('.mu-a-carregar');
+            if (quieta || agora - t0 > 2000) ok(); else setTimeout(ver, 40);
+        };
+        setTimeout(ver, 40);
+    });
     // larga para o separador alvo: a página sai pelo lado do dedo (à velocidade dele) e o vizinho entra
     async function trocarPara(alvo, dir, x = 0, v = 0) {
         if (aTrocar) return;
@@ -219,8 +235,17 @@
         alvo.click();
         corpo.getAnimations?.().forEach((a) => a.cancel());
         aTrocar = false; // já se pode arrastar outra vez: o resto é só a espreita a desvanecer
-        // o separador novo aparece por baixo e a espreita desvanece por cima dele (um arrasto novo interrompe-a)
-        const f = espreita.animate && !calmo() ? espreita.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-out', fill: 'forwards' }) : null;
+        // um toque noutro separador a meio da troca não se perde: vai-se para lá agora (a espreita passa a ser essa)
+        const outro = seguinte && separadores().find((b) => b.dataset.onda === seguinte);
+        seguinte = null;
+        if (outro && outro.getAttribute('aria-current') !== 'page') { prepararEspreita(outro); marcaEm(separadores().indexOf(outro)); outro.click(); }
+        // o separador novo desenha-se por baixo; a espreita (a mesma página) fica por cima até ele ter os dados, para
+        // não se ver o «A carregar…» a piscar; depois desvanece (um arrasto novo interrompe-a)
+        const vez = {};
+        desvanecer = vez;
+        await pronta();
+        if (desvanecer !== vez) return;
+        const f = espreita.animate && !calmo() ? espreita.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: 'ease-out', fill: 'forwards' }) : null;
         desvanecer = f;
         if (f) await f.finished.catch(() => {});
         if (desvanecer !== f) return;
@@ -241,7 +266,10 @@
     // tocar num separador da barra: a mesma troca (sem dedo)
     if (nav) nav.addEventListener('click', (e) => {
         const b = e.target.closest && e.target.closest('[data-onda^="ir"]');
-        if (!b || !e.isTrusted || calmo() || aTrocar || document.querySelector('.mu-folha')) return;
+        if (!b || !e.isTrusted) return;
+        // a meio de uma troca, um toque na barra não conta (a página que se deixa ainda é a «atual»)
+        if (aTrocar) { e.preventDefault(); e.stopPropagation(); seguinte = b.dataset.onda; return; }
+        if (calmo() || document.querySelector('.mu-folha')) return;
         const s = separadores(), i = indice(), j = s.indexOf(b);
         if (i < 0 || j < 0 || i === j) return;
         e.preventDefault();
