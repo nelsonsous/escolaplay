@@ -83,7 +83,13 @@ export const store = {
     try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
   },
   del(key) { try { localStorage.removeItem(key); } catch { /* ignorar */ } },
+  /** As chaves com este início (para arrumar). */
+  keys(prefix) { const out = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith(prefix)) out.push(k); } } catch { /* ignorar */ } return out; },
 };
+/** Sem espaço: a cache dos pedidos ("mc:") e as análises de outros locais podem sair — a previsão a abrir vale mais. */
+export function freeSpace(keep = '') {
+  for (const k of [...store.keys('mc:'), ...store.keys('meteo:an:')]) if (k !== keep) store.del(k);
+}
 
 // ---------- identidade deste telemóvel (sem contas) e código do dono ----------
 const DEVICE_KEY = 'meteo:device', OWNER_KEY = 'meteo:dono';
@@ -122,11 +128,13 @@ export function saveForecast(lat, lon, fc) {
   store.set('meteo:fc-index', idx);
   // os dias verificados agora já foram juntos à memória da aprendizagem: não se guardam duas vezes
   if (fc?.learning?.window) fc = { ...fc, learning: { ...fc.learning, window: null } };
-  if (!store.set(key, { savedAt: Date.now(), fc })) {
-    for (const k of idx.slice(1)) store.del(k);
-    store.set('meteo:fc-index', [key]);
-    store.set(key, { savedAt: Date.now(), fc });
-  }
+  if (store.set(key, { savedAt: Date.now(), fc })) return true;
+  // armazenamento cheio: primeiro as caches e as análises de outros locais; depois as previsões dos outros locais
+  freeSpace(anKey(lat, lon));
+  if (store.set(key, { savedAt: Date.now(), fc })) return true;
+  for (const k of idx.slice(1)) store.del(k);
+  store.set('meteo:fc-index', [key]);
+  return store.set(key, { savedAt: Date.now(), fc });
 }
 export const loadSavedForecast = (lat, lon) => store.get(fcKey(lat, lon));
 
@@ -158,6 +166,10 @@ export function saveLearning(lat, lon, memory) {
 const anKey = (lat, lon) => `meteo:an:${r4(lat)},${r4(lon)}`;
 export const saveAnalysis = (lat, lon, data) => store.set(anKey(lat, lon), { savedAt: Date.now(), data });
 export const loadSavedAnalysis = (lat, lon) => store.get(anKey(lat, lon));
+/** As análises guardadas de locais por onde já não se passa há mais de 14 dias saem (uma por cada local visitado). */
+export function tidyAnalyses(now = Date.now()) {
+  for (const k of store.keys('meteo:an:')) { const v = store.get(k); if (!v?.savedAt || now - v.savedAt > 14 * 864e5) store.del(k); }
+}
 // o último aviso deste telemóvel (vale 45 min e só perto do sítio onde foi dado)
 export const saveReport = (r) => store.set('meteo:report', r);
 export const loadReport = () => store.get('meteo:report');

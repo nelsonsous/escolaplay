@@ -681,7 +681,11 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const lateNav = (focus) => page.evaluate((f) => new Promise((ok) => setTimeout(ok, 1500)).then(async () => (await caches.open('meteonav'))
         .put('nav', new Response(JSON.stringify({ tab: 'analise', open: 'd-an', focus: f, at: Date.now() - (f ? 1000 : 2000) })))), focus);
     const inView = (id) => page.waitForFunction((i) => { const r = document.getElementById(i)?.getBoundingClientRect(); return r && r.top >= -2 && r.top < innerHeight; }, id); // folga de arredondamento (meio píxel)
+    // o localStorage como estava nos telemóveis: o risco de incêndio numa chave nova por hora, nunca apagada. Ao abrir, sai
+    await page.evaluate(() => { for (let i = 0; i < 30; i++) localStorage.setItem(`mc:ipma:rcm0:2026-11-0${1 + (i % 5)}T${String(i % 24).padStart(2, '0')}`, JSON.stringify({ t: Date.now(), v: { x: 'x'.repeat(20000) } })); });
     await page.goto(url);
+    assert.deepEqual(await page.evaluate(() => Object.keys(localStorage).filter((k) => /^mc:ipma:rcm[01]:/.test(k))), [], 'as chaves por hora saíram');
+    assert.ok(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('meteo:fc:'))), 'a última previsão está guardada');
     await page.click('#mt-nav [data-tab="agora"]');
     await lateNav('');
     await page.waitForSelector('#mt-nav [data-tab="analise"].on');
