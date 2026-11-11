@@ -4,7 +4,7 @@
 // Endereço do conector nos Ajustes ou ?proxy=URL. Sem contas: cada telemóvel tem uma identidade anónima (api.js); a
 // análise diária do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
-import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps } from './lib/data.js';
+import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps, tidyCache } from './lib/data.js';
 import { withReport, reportActive, warnHereText, missingText } from './lib/engine.js';
 import { mergeMemory, learnHistory, LVARS, LEADS } from './lib/learn.js';
 import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.20.0';
+const VERSION = '1.20.1';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -178,6 +178,8 @@ function toast(msg, undo) {
 // ---------- arranque ----------
 function init() {
     applyFs();
+    // antes de tudo, arrumar o localStorage: cheio, a última previsão não se guardava e a app abria à espera da rede
+    tidyCache(); api.tidyAnalyses();
     if ('serviceWorker' in navigator) {
         const had = !!navigator.serviceWorker.controller;
         navigator.serviceWorker.register('./sw.js').catch(() => {});

@@ -33,6 +33,36 @@ function cacheSet(key, v) {
         if (isBrowser) localStorage.setItem('mc:' + key, s); else mem.set(key, s);
     } catch { /* quota cheia: ignora */ }
 }
+// Arrumar a cache ao abrir a app: o localStorage tem ~5 MB para o endereço todo (a Meteo, a Música e a Mercados estão no
+// mesmo) e, cheio, a última previsão deixa de caber e a app abre sem nada à espera da rede. Até à 1.20 o risco de
+// incêndio ficava numa chave nova por hora (~50 KB cada) que nunca se apagava.
+const CACHE_MAX = [[/^ipma:rcm[01]:/, 0], [/^ipma:(rcm|agg|stations)/, 864e5], [/^clim:/, 8 * 864e5], [/^(ipma:locations|ipma:districts|rvcov:)/, 7 * 864e5], [/^rev:/, 30 * 864e5]];
+const CACHE_DEFAULT = 31 * 864e5;
+/** As chaves da cache (sem o "mc:") a apagar: as de nome antigo e as mais velhas do que valem. entries = [chave, início do valor]. */
+export function staleCacheKeys(entries, now = Date.now()) {
+    return entries.filter(([key, head]) => {
+        const rule = CACHE_MAX.find(([re]) => re.test(key));
+        const max = rule ? rule[1] : CACHE_DEFAULT;
+        if (max === 0) return true;
+        const t = Number((/^\{"t":(\d+)/.exec(head || '') || [])[1]);
+        return !Number.isFinite(t) || now - t > max;
+    }).map(([key]) => key);
+}
+/** Apaga do localStorage a cache velha (lê só o início de cada valor); devolve quantas chaves e caracteres saíram. */
+export function tidyCache(now = Date.now()) {
+    if (!isBrowser) return { removed: 0, chars: 0 };
+    try {
+        const entries = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k?.startsWith('mc:')) entries.push([k.slice(3), (localStorage.getItem(k) || '').slice(0, 32), k]);
+        }
+        let chars = 0;
+        const stale = new Set(staleCacheKeys(entries, now));
+        for (const [key, , k] of entries) if (stale.has(key)) { chars += (localStorage.getItem(k) || '').length; localStorage.removeItem(k); }
+        return { removed: stale.size, chars };
+    } catch { return { removed: 0, chars: 0 }; }
+}
 async function cached(key, maxAgeMs, fn) {
     const hit = cacheGet(key, maxAgeMs);
     if (hit != null) return hit;
@@ -247,8 +277,8 @@ export async function loadForecast(o = {}) {
             stations: settle(cached('ipma:stations', 864e5, () => request(IPMA.stations))),
             obs: settle(request(IPMA.obs, { timeout: 20000 })),
             warnings: settle(request(IPMA.warnings)),
-            rcm0: settle(cached(`ipma:rcm0:${new Date().toISOString().slice(0, 13)}`, 36e5, () => request(IPMA.rcm0))),
-            rcm1: settle(cached(`ipma:rcm1:${new Date().toISOString().slice(0, 13)}`, 36e5, () => request(IPMA.rcm1))),
+            rcm0: settle(cached('ipma:rcm0', 36e5, () => request(IPMA.rcm0))),
+            rcm1: settle(cached('ipma:rcm1', 36e5, () => request(IPMA.rcm1))),
             districts: settle(cached('ipma:districts', 7 * 864e5, () => request(IPMA.districts))),
             // a ANEPC recusa o conector e bloqueia pedidos de outros sites: depois de uma falha, pausa de 12 h
             fogos: fogosPaused() ? { ok: false, e: new Error('em pausa: a ANEPC não aceita o conector (nova tentativa daqui a umas horas)') }
