@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.16.0';
+const VERSION = '1.17.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -505,7 +505,7 @@ async function juntar(env, c, quem) {
 }
 const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.por, faixas: d.faixas.length,
     duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null,
-    ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}),
+    ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}), ...(d.afinadaEm ? { afinadaEm: d.afinadaEm } : {}),
     ...(d.rascunho ? { rascunho: true, grupo: d.grupo || '', variante: d.variante || '' } : {}),
     // para agrupar na app: o pedido (se houve) e o género que mais aparece
     ...(d.pedido ? { pedido: txt(d.pedido, 120) } : {}), ...(generoDe(d.faixas) ? { genero: generoDe(d.faixas) } : {}),
@@ -828,6 +828,11 @@ async function renovacao(env, id, c) {
     const faixas = (Array.isArray(c?.faixas) ? c.faixas : []).map(normalizarFaixa).filter(Boolean).slice(0, 200);
     if (!faixas.length) throw new Erro(400, 'sem_faixas', 'A renovação precisa de "faixas" já encontradas no Tidal (com "id").');
     const agora = new Date().toISOString();
+    // o que mudou (a app mostra-o na afinação que esta renovação cumpre)
+    const antes = new Set(d.faixas.map((f) => String(f.id))), depois = new Set(faixas.map((f) => f.id));
+    const novas = faixas.filter((f) => !antes.has(f.id));
+    d.mudanca = { em: agora, entraram: novas.length, sairam: d.faixas.filter((f) => !depois.has(String(f.id))).length,
+        novas: novas.slice(0, 3).map((f) => txt(`${f.titulo}${f.artistas[0] ? ` — ${f.artistas[0]}` : ''}`, 120)) };
     if (d.avaliacao) d.historico = [...(d.historico || []), { em: d.avaliacao.em, nota: d.avaliacao.nota, etiqueta: d.avaliacao.etiqueta }].slice(-10);
     delete d.avaliacao;
     delete d.ecoBase;
@@ -1017,9 +1022,15 @@ async function despachar(env, id, playlist) {
     // uma afinação: fica feita (ou sai, se for cancelada) na lista da playlist
     if (p.afinar?.playlist) {
         const d = await env.KV.get('playlist:' + p.afinar.playlist, 'json');
-        if (d?.afinacoes?.some((a) => a.pedido === id)) {
-            d.afinacoes = playlist ? d.afinacoes.map((a) => (a.pedido === id ? { ...a, feitoEm: a.feitoEm || new Date().toISOString() } : a)) : d.afinacoes.filter((a) => a.pedido !== id);
+        const a = d?.afinacoes?.find((x) => x.pedido === id);
+        if (a && !a.feitoEm) {
+            if (playlist) {
+                const agora = new Date().toISOString(), m = d.mudanca && d.mudanca.em >= a.em ? d.mudanca : null;
+                d.afinacoes = d.afinacoes.map((x) => (x.pedido === id ? { ...x, feitoEm: agora, ...(m ? { entraram: m.entraram, sairam: m.sairam, novas: m.novas } : {}) } : x));
+                d.afinadaEm = agora;
+            } else d.afinacoes = d.afinacoes.filter((x) => x.pedido !== id);
             await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+            if (playlist) await atualizarIndice(env, d); // a lista mostra «afinada»
         }
     }
     return { ok: true };

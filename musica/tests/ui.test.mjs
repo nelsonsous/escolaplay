@@ -414,6 +414,12 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const pedido = JSON.parse(await env.KV.get('pedidos'))[0];
     assert.equal(pedido.texto, 'Faixas bem gravadas para testar o som do carro');
     assert.equal(pedido.opcoes.limpa, true);
+    // o cartão «pedido à espera» nas playlists leva à lista dos pedidos (não ao topo do Pedir)
+    await nav(1);
+    await assente(1);
+    await page.locator('#mu-body .mu-cartao', { hasText: /à espera do Maestro/ }).click();
+    await page.waitForFunction(() => { const r = document.getElementById('mu-pedidos')?.getBoundingClientRect(); return r && scrollY > 0 && r.top >= 0 && r.bottom <= innerHeight; });
+    await page.evaluate(() => window.scrollTo(0, 0));
     // mudar de separador a arrastar: para a direita, o anterior (Playlists); para a esquerda, o seguinte (Pedir)
     assert.equal(await separador(), 'ir\t3');
     await deslizarEm('#mu-body h1', 60, 330);
@@ -555,7 +561,21 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(await hist.locator('h3').textContent(), 'Pedidos desta playlist');
     assert.match(await hist.locator('li').first().textContent(), /^«.+»O pedido · /);
     assert.match(await hist.locator('li.espera').textContent(), /Afinação · à espera do Maestro · «Não esta» em 1/);
+    // o Maestro afina-a (refá-la sem a «Não esta» e dá o pedido por feito): a lista mostra «afinada» e a playlist o que mudou
+    const agAf = await env.KV.get('agente:chave');
+    const apiAf = (p, init = {}) => worker.fetch(new Request(WORKER + p, { ...init, headers: { authorization: `Bearer ${agAf}`, 'content-type': 'application/json' } }), env, { waitUntil() {} });
+    const docAf = await (await apiAf(`/api/playlists/${af.afinar.playlist}`)).json();
+    const fora = new Set(docAf.rejeitadas);
+    await apiAf(`/api/playlists/${docAf.id}/renovacoes`, { method: 'POST', body: JSON.stringify({ faixas: docAf.faixas.filter((f) => !fora.has(f.id)) }) });
+    await apiAf(`/api/pedidos/${af.id}?playlist=${docAf.id}`, { method: 'DELETE' });
     await nav(1);
+    const afinada = page.locator('#mu-body .mu-grp .mu-pl', { hasText: docAf.nome });
+    await afinada.locator('.mu-afinada').getByText(/^✓ afinada a /).waitFor();
+    await afinada.locator('.mu-pl-a').click();
+    await page.locator('.mu-folha .mu-hist .mu-mudou').getByText('0 novas, 1 saiu').waitFor();
+    assert.match(await page.locator('.mu-folha .mu-hist li').last().textContent(), /Afinação · feita a /);
+    await page.locator('.mu-folha .mu-fechar').click();
+    await page.waitForFunction(() => !document.querySelector('.mu-folha'));
     await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
     assert.equal(await page.locator('details.mu-grupo .mu-pl').count(), 1, 'a escolhida sai das propostas');
     // arrastar a proposta para a esquerda: pouco volta ao sítio; mais de um terço pergunta se é para apagar
