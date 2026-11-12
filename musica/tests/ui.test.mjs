@@ -657,6 +657,18 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await ctx.close();
 });
 
+test('um convite já usado: ao ligar diz porquê e aparece o campo para colar um código novo', { skip: !chromium && 'sem Playwright' }, async () => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const page = await ctx.newPage();
+    await page.addInitScript(() => { if (!sessionStorage.getItem('feito')) { sessionStorage.setItem('feito', '1'); localStorage.clear(); localStorage.setItem('musica:codigo', 'CONVITE-GASTO'); } });
+    await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+    await page.getByRole('button', { name: 'Ligar ao Tidal' }).click();
+    await page.locator('#mu-aviso').getByText(/inválido ou já usado/).waitFor();
+    await page.locator('[data-onda="cod"]').waitFor();
+    assert.equal(await page.evaluate(() => localStorage.getItem('musica:codigo')), null, 'esquece o código que não serve');
+    await ctx.close();
+});
+
 test('outro aparelho (a app no ecrã principal do iOS tem o seu armazém): cola o código e fica com acesso', { skip: !chromium && 'sem Playwright' }, async () => {
     await env.KV.put('codigo:ligacao', createHash('sha256').update('NOVO-789').digest('hex'));
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
