@@ -79,14 +79,16 @@ function tidalSimulado(sim, u, init = {}) {
         const b = Object.fromEntries(new URLSearchParams(init.body));
         sim.tokenBodies.push(b);
         if (b.grant_type === 'authorization_code' && b.code === 'CODIGO-BOM') return resp({ access_token: 'AT1', refresh_token: 'RT1', expires_in: 3600, scope: b.scope, user_id: 42 });
+        if (b.grant_type === 'authorization_code' && b.code === 'CODIGO-ANA') return resp({ access_token: 'AT-ANA', refresh_token: 'RT-ANA', expires_in: 3600, scope: b.scope, user_id: 77 });
         if (b.grant_type === 'refresh_token' && b.refresh_token === 'RT1') return resp({ access_token: 'AT2', expires_in: 3600 });
         return resp({ error: 'invalid_grant' }, 400);
     }
     assert.equal(url.origin, 'https://openapi.tidal.com', `pedido inesperado: ${url.href}`);
     const auth = new Headers(init.headers).get('authorization');
     if (sim.recusar401 && auth === 'Bearer AT1') return resp({ errors: [{ title: 'expired' }] }, 401);
-    if (!['Bearer AT1', 'Bearer AT2'].includes(auth)) return resp({ errors: [{ title: 'unauthorized' }] }, 401);
+    if (!['Bearer AT1', 'Bearer AT2', 'Bearer AT-ANA'].includes(auth)) return resp({ errors: [{ title: 'unauthorized' }] }, 401);
     const p = url.pathname.replace(/^\/v2/, '');
+    if (p === '/users/me' && auth === 'Bearer AT-ANA') return resp({ data: { id: '77', type: 'users', attributes: { username: 'ana', country: 'PT' } } });
     if (p === '/users/me') return resp({ data: { id: '42', type: 'users', attributes: { username: 'nelson', country: 'PT' } } });
     if (p === '/userCollectionTracks/me/relationships/items') {
         const pag = url.searchParams.get('page[cursor]');

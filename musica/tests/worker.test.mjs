@@ -38,7 +38,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.17.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.18.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -389,7 +389,11 @@ test('várias pessoas: convite, cada uma com o seu Tidal e a sua biblioteca; o M
     const r = await post('/api/ligar', { codigo: cv.codigo, nome: 'telemóvel da Ana' });
     assert.equal(r.status, 200);
     const state = new URL((await r.json()).url).searchParams.get('state');
-    const volta = await call(`/tidal/retorno?code=CODIGO-BOM&state=${state}`);
+    // com a conta do Tidal do dono, não: cada pessoa entra com a sua (e o convite não se gasta)
+    const comDono = await call(`/tidal/retorno?code=CODIGO-BOM&state=${state}`);
+    assert.match(decodeURIComponent(comDono.headers.get('location')), /#erro=Essa é a conta do Tidal de quem montou a app/);
+    const state2 = new URL((await (await post('/api/ligar', { codigo: cv.codigo, nome: 'telemóvel da Ana' })).json()).url).searchParams.get('state');
+    const volta = await call(`/tidal/retorno?code=CODIGO-ANA&state=${state2}`);
     const chaveAna = decodeURIComponent(volta.headers.get('location').split('#chave=')[1] || '');
     assert.ok(chaveAna.length > 20, 'a convidada recebe a chave do seu aparelho');
     assert.equal((await post('/api/ligar', { codigo: cv.codigo })).status, 401, 'o convite gasta-se');
@@ -416,6 +420,12 @@ test('várias pessoas: convite, cada uma com o seu Tidal e a sua biblioteca; o M
     assert.deepEqual(await (await get('/api/pedidos', agente)).json(), [], 'sem ?u= é o dono');
     assert.equal((await get('/api/utilizadores', chave)).status, 403, 'a lista de pessoas é só para o Maestro');
     assert.equal((await get('/api/pedidos?u=u-nao-existe', agente)).status, 404);
+    // um convite novo com a mesma conta do Tidal da Ana volta à biblioteca dela (não cria outra pessoa, vazia)
+    const cv2 = await (await post('/api/convites', {}, chave)).json();
+    const st3 = new URL((await (await post('/api/ligar', { codigo: cv2.codigo })).json()).url).searchParams.get('state');
+    const chaveAna2 = decodeURIComponent((await call(`/tidal/retorno?code=CODIGO-ANA&state=${st3}`)).headers.get('location').split('#chave=')[1] || '');
+    assert.deepEqual((await (await get('/api/pedidos', chaveAna2)).json()).map((x) => x.texto), ['Fado para a Ana']);
+    assert.equal((await (await get('/api/utilizadores', agente)).json()).length, 2, 'continuam a ser 2 pessoas');
     // desligar o Tidal da Ana não mexe no do dono
     await post('/api/desligar', {}, chaveAna);
     assert.equal(await env.KV.get(`u:${ana.uid}:tidal:tokens`), null);
@@ -428,7 +438,7 @@ test('ligar outro aparelho: cada pessoa cria um código de uma vez; o aparelho n
     // uma convidada entra pelo convite (no Safari)
     const cv = await (await post('/api/convites', {}, chave)).json();
     const state = new URL((await (await post('/api/ligar', { codigo: cv.codigo })).json()).url).searchParams.get('state');
-    const volta = await call(`/tidal/retorno?code=CODIGO-BOM&state=${state}`);
+    const volta = await call(`/tidal/retorno?code=CODIGO-ANA&state=${state}`);
     const chaveAna = decodeURIComponent(volta.headers.get('location').split('#chave=')[1]);
     await post('/api/pedidos', { texto: 'Fado para a Ana' }, chaveAna);
     // a app do ecrã principal tem outro armazém: o convite já não serve lá
