@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.20.1';
+const VERSION = '1.20.2';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -568,7 +568,7 @@ function optInHtml() {
     if (!owner && othersMode() === 'off') return `${head}<p>A análise diária do Claude está desligada, por agora, pelo dono da app.</p>`;
     const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
     return `${head}<p>Opcional: o Claude escreve uma análise para este ponto exato ${esc(when)}, com os modelos, as observações, o radar e o satélite. Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma.</p>
-        ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada telemóvel tem 1 local: a tua análise diária passa de ${mine.name} para aqui.`)}</p>` : ''}
+        ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada pessoa tem 1 local: a tua análise diária passa de ${mine.name} para aqui.`)}</p>` : ''}
         <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise diária do Claude para este local</span></button>`;
 }
 // o mar (só num ponto na costa ou na praia): a temperatura da água, as ondas e o UV de hoje; os próximos dias em «Ver mais»
@@ -860,7 +860,7 @@ function viewAnalysis() {
     const swHint = np ? `Ligada (${np.name}) · ${schedFor().join(' · ')}`
         : owner ? `Às ${sched.join(', ')} · sem limite de locais`
         : othersMode() === 'off' ? 'Desligada pelo dono da app, por agora'
-        : `${othersMode() === '1x' ? '1× por dia, às 07:34' : `Às ${sched.join(', ')}`} · 1 local por telemóvel${mine && !mine.off ? ` (agora em ${mine.name})` : ''}`;
+        : `${othersMode() === '1x' ? '1× por dia, às 07:34' : `Às ${sched.join(', ')}`} · 1 local por pessoa${mine && !mine.off ? ` (agora em ${mine.name})` : ''}`;
     h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${esc(swHint)}</small></span>
         <div class="seg" role="group" aria-label="Análise diária"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
@@ -1185,7 +1185,7 @@ function placeRow(p, other = false) {
 function placesSettingsHtml() {
     const owner = isOwner(), mineOn = onPlaces();
     const byOwner = !owner && myPlaces().some((p) => p.off && p.offBy === 'owner');
-    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Análise diária do Claude</h2><span class="sub">${owner ? 'sem limite de locais' : '1 local por telemóvel'}</span></div><div class="form">
+    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Análise diária do Claude</h2><span class="sub">${owner ? 'sem limite de locais' : '1 local por pessoa'}</span></div><div class="form">
         <div class="wl">${mineOn.length ? mineOn.map((p) => placeRow(p)).join('') : `<div class="hint">${byOwner ? 'Desligada pelo dono da app.' : 'Desligada (é opcional). Liga-a no cartão «Análise do Claude» do local que quiseres.'}</div>`}</div>`;
     if (owner) {
         const others = st.places.filter((p) => p.mine === false);

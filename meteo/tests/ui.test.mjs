@@ -718,7 +718,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(prec, /Relevo: Vale · 70 m abaixo do relevo à volta/);
     assert.match(await page.locator('.sec:has(h2:text("Estado das fontes"))').textContent(), /Relevo à volta do ponto/);
     // ✕ na lista também pede confirmação; Desfazer volta a ligar
-    assert.match(await page.locator('#locais .sec-h').textContent(), /1 local por telemóvel/);
+    assert.match(await page.locator('#locais .sec-h').textContent(), /1 local por pessoa/);
     assert.match(await page.locator('#locais').textContent(), /Uma análise por cidade \(partilhada com quem a ligar na mesma cidade\); se ninguém abrir a app durante 14 dias, fica em pausa até voltarem\./);
     assert.equal(await page.locator('#uso').count(), 0, 'o painel "Utilização" é só do dono');
     const dels0 = calls.filter((c) => c === 'DELETE /api/places/casa').length;

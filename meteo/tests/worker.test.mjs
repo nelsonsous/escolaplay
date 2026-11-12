@@ -63,7 +63,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.6.3');
+    assert.equal(j.version, '1.7.0');
     assert.deepEqual(j.schedule, ['07:34', '13:34', '17:34', '20:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -712,4 +712,35 @@ test('avisos do utilizador: ficam com o telemóvel que os deu — no seu local (
     assert.deepEqual((await J('GET', '/api/reports?lat=41.3354&lon=-8.4745')).body, { place: null, reports: [] }, 'sem identidade: nenhum');
     assert.equal((await J('GET', '/api/reports?lat=40&lon=-8', { d: a })).body.reports.length, 0);
     assert.equal((await api('GET', '/api/reports?lat=x&lon=1', { d: a })).status, 400);
+});
+
+test('1 análise por pessoa: um registo novo com o mesmo nome (histórico limpo, outro browser) é a mesma pessoa', async () => {
+    const before = env.KV.m.get('places');
+    env.KV.m.set('places', JSON.stringify([]));
+    env.OWNER_CODE = CODE;
+    const named = (name) => { const d = device(); const k = 'dev:' + d.id; env.KV.m.set(k, JSON.stringify({ ...JSON.parse(env.KV.m.get(k)), name })); return d; };
+    const a = named('Vanessa'), b = named('  vanéssa '), c = named('Ana'), dono = device();
+    const post = (d, body) => J('POST', '/api/places', { d, body });
+    const r1 = await post(a, { name: 'Vila Meã', lat: 41.2577, lon: -8.2115 });
+    assert.equal(r1.status, 201);
+    assert.equal(kvj('places')[0].ownerName, 'Vanessa');
+    // o registo novo da mesma pessoa vê o local como seu; noutro sítio, 409 com esse local (a app muda-o)
+    assert.deepEqual((await J('GET', '/api/places', { d: b })).body.map((p) => [p.id, p.mine, !!p.approx]), [[r1.body.id, true, false]]);
+    const far = await post(b, { name: 'Campanhã', lat: 41.1571, lon: -8.5747 });
+    assert.deepEqual([far.status, far.body.place.id], [409, r1.body.id]);
+    // mudá-lo de sítio a partir do registo novo: passa a ser deste registo (o antigo deixa de abrir a app)
+    const mv = await J('PATCH', `/api/places/${r1.body.id}`, { d: b, body: { lat: 41.1571, lon: -8.5747, name: 'Campanhã' } });
+    assert.equal(mv.status, 200);
+    assert.deepEqual([kvj('places').length, kvj('places')[0].owner, kvj('places')[0].name], [1, b.id, 'Campanhã']);
+    // outra pessoa continua com o seu próprio local
+    assert.equal((await post(c, { name: 'Braga', lat: 41.55, lon: -8.42 })).status, 201);
+    assert.equal(kvj('places').filter((p) => !p.off).length, 2);
+    // desligado pelo próprio: o dono deixa de o ver na lista; desligado pelo dono: continua a vê-lo (para o voltar a ligar)
+    const del1 = await J('DELETE', `/api/places/${r1.body.id}`, { d: b });
+    assert.equal(del1.status, 204, 'apagar pelo próprio ' + JSON.stringify(del1.body));
+    const braga = kvj('places').find((p) => p.name === 'Braga');
+    assert.equal((await J('DELETE', `/api/places/${braga.id}`, { owner: CODE, d: dono })).status, 204);
+    const seen = (await J('GET', '/api/places', { owner: CODE, d: dono })).body.map((p) => p.name);
+    assert.ok(!seen.includes('Campanhã') && seen.includes('Braga'), JSON.stringify(seen));
+    env.KV.m.set('places', before ?? '[]');
 });

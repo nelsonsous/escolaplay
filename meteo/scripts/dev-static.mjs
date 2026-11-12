@@ -82,7 +82,7 @@ async function apiRoute(req, res, url, p) {
   if (p === '/api/places' && req.method === 'POST') {
     const b = await readBody(req);
     if (!b.name || !Number.isFinite(b.lat) || !Number.isFinite(b.lon)) return json(res, 400, { error: 'dados', message: 'Faltam o nome ou as coordenadas.' });
-    if (!OWNER && places.length) return json(res, 409, { error: 'limite', message: 'Cada telemóvel tem 1 local com análise diária: muda-o para aqui.', place: places[0] });
+    if (!OWNER && places.length) return json(res, 409, { error: 'limite', message: 'Cada pessoa tem 1 local com análise diária: muda-o para aqui.', place: places[0] });
     const place = { id: `${b.name.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-')}-${places.length + 1}`, name: b.name, lat: b.lat, lon: b.lon, mine: true, kind: OWNER ? 'owner' : 'guest', status: 'active', createdAt: new Date().toISOString() };
     places.push(place);
     return json(res, 201, place);

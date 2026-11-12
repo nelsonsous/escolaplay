@@ -13,7 +13,7 @@ import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.6.3';
+const VERSION = '1.7.0';
 const SCHEDULE = ['07:34', '13:34', '17:34', '20:34'];
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -262,8 +262,15 @@ const savePlaces = (env, places) => env.KV.put('places', JSON.stringify(places))
 const getSettings = async (env) => (env.KV && (await env.KV.get('settings', 'json'))) || {};
 const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'local';
 const rand = (n) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map((b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join(''); };
-/** É deste telemóvel? (o dono: os do dono e os deste telemóvel) */
-const mine = (me, p) => (me.owner && isOwnerPlace(p)) || (!!me.id && placeOwner(p) === me.id);
+// 1 análise por pessoa, não por telemóvel: limpar o histórico ou instalar noutro browser dá um registo novo, mas com o
+// mesmo nome é a mesma pessoa (o nome é obrigatório no registo). O local guarda o nome de quem o ligou (ownerName).
+const personKey = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+const samePerson = (me, p) => !isOwnerPlace(p) && !!me.name && !!p.ownerName && personKey(me.name) === personKey(p.ownerName);
+/** É deste telemóvel? (o dono: os do dono; os outros: os deste telemóvel e os da mesma pessoa, noutro registo) */
+const mine = (me, p) => (me.owner && isOwnerPlace(p)) || (!!me.id && placeOwner(p) === me.id) || (!me.owner && samePerson(me, p));
+/** O local passa para o registo que o está a usar agora (o antigo deixa de abrir a app: senão ficava em pausa) */
+const claim = (me, p) => (!me.owner && me.id && !isOwnerPlace(p) && placeOwner(p) !== me.id && mine(me, p)
+    ? { ...p, owner: me.id, members: placeMembers(p).filter((x) => x !== me.id) } : p);
 /** Juntou-se a este local (outro telemóvel ligou-o na mesma cidade): vê e usa a análise, mas não o muda de sítio */
 const member = (me, p) => !mine(me, p) && !!me.id && placeMembers(p).includes(me.id);
 const uses = (me, p) => mine(me, p) || member(me, p);
@@ -304,7 +311,8 @@ async function guestBlock(env, places, cur) {
 async function listPlaces(req, env, url) {
     const me = await who(req, env, url);
     if (me.error) return me.error;
-    const vis = (await getPlaces(env)).filter((p) => canSee(me, p));
+    // o dono não vê os locais que o próprio telemóvel desligou (eram dele; se os voltar a ligar, aparecem)
+    const vis = (await getPlaces(env)).filter((p) => canSee(me, p) && !(me.owner && p.off && p.offBy !== 'owner' && !mine(me, p)));
     const seen = me.owner ? await lastSeenOf(env, vis.filter((p) => !mine(me, p)).flatMap((p) => [placeOwner(p), ...placeMembers(p)])) : {};
     const now = new Date().toISOString();
     return json(vis.map((p) => placeView(me, p, { status: placeStatus(p, uses(me, p) ? now : lastSeenOfPlace(p, (id) => seen[id])) })), 200);
@@ -320,10 +328,14 @@ async function addPlace(req, env, url) {
     const lat = Number(b?.lat), lon = Number(b?.lon), name = String(b?.name || '').trim().slice(0, 40);
     if (!name || !validLatLon(lat, lon)) return bad('Dados do local inválidos.');
     const places = await getPlaces(env);
-    const own = places.filter((p) => mine(me, p));
+    const own = places.filter((p) => mine(me, p)).sort((a, b) => Number(!!a.off) - Number(!!b.off)); // o ligado primeiro
     const near = own.filter((p) => distKm(p.lat, p.lon, lat, lon) < 0.5);
     const on = near.find((p) => !p.off);
-    if (on) return json(placeView(me, on), 200);
+    if (on) {
+        const c = claim(me, on);
+        if (c !== on) await savePlaces(env, places.map((x) => (x.id === on.id ? c : x)));
+        return json(placeView(me, c), 200);
+    }
     const off = near.find((p) => p.off) || null;
     const nowIso = new Date().toISOString();
     // O dono a ligar uma cidade onde outro telemóvel já tem análise diária (≤ 5 km): não se cria outra — o local passa a
@@ -353,12 +365,12 @@ async function addPlace(req, env, url) {
     }
     if (!me.owner) {
         // 1 local por telemóvel: noutro sítio, a app muda-o (PATCH /api/places/<id>)
-        if (!off && own.length >= GUEST_MAX) return json({ error: 'limite', message: 'Cada telemóvel tem 1 local com análise diária: muda-o para aqui.', place: placeView(me, own[0]) }, 409);
+        if (!off && own.length >= GUEST_MAX) return json({ error: 'limite', message: 'Cada pessoa tem 1 local com análise diária: muda-o para aqui.', place: placeView(me, own[0]) }, 409);
         const block = await guestBlock(env, places, off);
         if (block) return block;
     }
     if (off) { // voltar a ligar: o mesmo id (a última análise e as lições continuam)
-        const back = { ...off, onAt: nowIso };
+        const back = { ...claim(me, off), onAt: nowIso };
         delete back.off; delete back.offAt; delete back.offBy;
         await savePlaces(env, places.map((x) => (x.id === off.id ? back : leave(x, me.id))));
         return json(placeView(me, back), 200);
@@ -366,7 +378,7 @@ async function addPlace(req, env, url) {
     const base = slug(name);
     let id = me.owner ? base : `${base.slice(0, 17)}-${rand(6)}`;
     while (places.some((x) => x.id === id)) id = `${base.slice(0, 17)}-${rand(6)}`;
-    const place = { id, name, lat: r4(lat), lon: r4(lon), createdAt: nowIso, owner: me.owner ? OWNER : me.id };
+    const place = { id, name, lat: r4(lat), lon: r4(lon), createdAt: nowIso, owner: me.owner ? OWNER : me.id, ...(!me.owner && me.name ? { ownerName: me.name } : {}) };
     await savePlaces(env, [...places.map((x) => leave(x, me.id)), place]);
     return json(placeView(me, place), 201);
 }
@@ -407,7 +419,7 @@ async function updatePlace(req, env, url, id) {
         return json(placeView(me, cur), 200);
     }
     const move = b.lat != null || b.lon != null;
-    let next = { ...cur };
+    let next = claim(me, { ...cur });
     if (move) {
         if (!own) return json({ error: 'so_o_proprio', message: 'Só o telemóvel deste local o pode mudar de sítio.' }, 403);
         const lat = Number(b.lat), lon = Number(b.lon);
@@ -428,7 +440,7 @@ async function updatePlace(req, env, url, id) {
     }
     if (!move && b.on == null) return bad('Nada a mudar.');
     // sem mudanças (ligar o que já está ligado…): não grava
-    if (move || (b.on === true && cur.off) || (b.on === false && !cur.off)) await savePlaces(env, places.map((x) => (x.id === id ? next : x)));
+    if (move || (b.on === true && cur.off) || (b.on === false && !cur.off) || next.owner !== cur.owner) await savePlaces(env, places.map((x) => (x.id === id ? next : x)));
     return json(placeView(me, next), 200);
 }
 
