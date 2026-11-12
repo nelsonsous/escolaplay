@@ -712,7 +712,7 @@ test('convidar: o dono cria o convite nos Ajustes; a convidada liga o seu Tidal 
     pb.on('pageerror', (e) => erros.push(String(e)));
     await pb.route('https://login.tidal.com/**', (route) => {
         const u = new URL(route.request().url());
-        route.fulfill({ status: 302, headers: { location: `${WORKER}/tidal/retorno?code=CODIGO-BOM&state=${u.searchParams.get('state')}` } });
+        route.fulfill({ status: 302, headers: { location: `${WORKER}/tidal/retorno?code=CODIGO-ANA&state=${u.searchParams.get('state')}` } });
     });
     await pb.goto(`${link.replace(APP, APP)}&proxy=${encodeURIComponent(WORKER)}`);
     await pb.getByRole('button', { name: 'Ligar ao Tidal' }).click();

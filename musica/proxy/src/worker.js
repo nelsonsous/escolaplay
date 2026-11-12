@@ -8,7 +8,7 @@ import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 
-const VERSION = '1.17.1';
+const VERSION = '1.18.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -263,11 +263,7 @@ async function retorno(env, url) {
     if (!est || !code) return voltar('#erro=' + encodeURIComponent('A ligação expirou. Tenta outra vez.'));
     await env.KV.delete('tidal:estado:' + state);
     let uid = est.uid || DONO;
-    if (est.convite) {
-        if (!(await env.KV.get('convite:' + est.convite))) return voltar('#erro=' + encodeURIComponent('Este convite já foi usado.'));
-        uid = novoId('u');
-    }
-    const ue = deUtilizador(env, uid);
+    if (est.convite && !(await env.KV.get('convite:' + est.convite))) return voltar('#erro=' + encodeURIComponent('Este convite já foi usado.'));
     const r = await fetch(TOKEN, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({
         client_id: await clientId(env), code, code_verifier: est.verifier, grant_type: 'authorization_code',
         redirect_uri: new URL('/tidal/retorno', url.origin).href, scope: SCOPES.join(' '),
@@ -280,13 +276,29 @@ async function retorno(env, url) {
     t.utilizador = eu?.data?.attributes?.username || eu?.data?.attributes?.firstName || '';
     t.pais = eu?.data?.attributes?.country || env.PAIS || 'PT';
     if (eu?.data?.id) t.userId = String(eu.data.id);
+    let jaExiste = false;
+    if (est.convite) {
+        // cada pessoa entra com a sua conta do Tidal: a de quem montou a app não serve num convite; e quem já está na app
+        // (a mesma conta do Tidal) volta à sua biblioteca em vez de ficar com uma nova, vazia
+        const dono = await env.KV.get('tidal:tokens', 'json');
+        if (t.userId && dono?.userId === t.userId) return voltar('#erro=' + encodeURIComponent('Essa é a conta do Tidal de quem montou a app. Entra com a tua própria conta do Tidal.'));
+        const us = (await env.KV.get('utilizadores', 'json')) || [];
+        for (const x of us) {
+            const tt = t.userId && (await deUtilizador(env, x.uid).KV.get('tidal:tokens', 'json'));
+            if (tt?.userId === t.userId) { uid = x.uid; jaExiste = true; break; }
+        }
+        if (!jaExiste) uid = novoId('u');
+    }
+    const ue = deUtilizador(env, uid);
     await ue.KV.put('tidal:tokens', JSON.stringify(t));
     await ue.KV.delete('perfil');
     if (est.convite) {
         await env.KV.delete('convite:' + est.convite);
-        const us = (await env.KV.get('utilizadores', 'json')) || [];
-        us.push({ uid, nome: t.utilizador, criadoEm: t.ligadoEm });
-        await env.KV.put('utilizadores', JSON.stringify(us));
+        if (!jaExiste) {
+            const us = (await env.KV.get('utilizadores', 'json')) || [];
+            us.push({ uid, nome: t.utilizador, criadoEm: t.ligadoEm });
+            await env.KV.put('utilizadores', JSON.stringify(us));
+        }
     }
     if (!(await env.KV.get('agente:chave'))) await env.KV.put('agente:chave', await novaChave(env, 'agente', 'Maestro (tarefa agendada)'));
     if (!est.novo) return voltar('#ligado=1');
