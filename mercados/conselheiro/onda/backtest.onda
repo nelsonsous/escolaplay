@@ -8,8 +8,6 @@
 
 #g g_bacc 77
 #g g_bord 8
-#k k_bkeys ["hold","buy","scale","wait","neutral","turn","avoid"]
-#k k_bshow ["buy","scale","hold","wait","neutral","turn","avoid"]
 
 : bt_corre >i {
   ! g_scr 6
@@ -24,111 +22,99 @@
   = i @ g_i = keys @ g_keys = n _js_len keys
   ? < i n {
       = part _js_fatia keys i Mn n + i 40 ! g_part part
-      _an_abre 0 = j 0 W < j _js_len part { ? j P ', 0 _tx_p cs_yahoo _js_it part j = j + j 1 } = sy _an_fecha
+      _an_abre 0 = j 0 W < j _js_len part { Se j P ', crut cs_yahoo _js_it part j = j + j 1 } = sy _an_fecha
       ! g_ph 2
-      ? _tx_urimal sy { cs_falha k_urimal 1 } { cs_wini "/quotes?symbols=" _tx_uri sy "&range=" _nu_ps @f g_anos "y&interval=1d&adj=1" ~ cs_wfim 90000 } }
+      ? _tx_urimal sy { cs_falha $"URI malformed" 1 } { `{ cs_wini }/quotes?symbols={ _tx_uri sy }&range={ _nu_ps @f g_anos }y&interval=1d&adj=1` ~ cs_wfim 90000 } }
     { bt_fim } }
 # o dia (o toISOString().slice(0, 10) de x[0] * 1000) como texto UTF-16 [10, unidades]
 : bt_dia i>i v {
   = ms * _js_tonum v 1000.
-  ? ~ _dt_ok ms cs_lanca k_RangeError k_itv 0
+  Se ~ _dt_ok ms cs_lanca $"RangeError" $"Invalid time value"
   _an_abre 0 _dt_piso ms = t _an_fecha
-  = r A 11 ! r 10 = j 0 W < j 10 { ! + + r 1 j _tx_b t j = j + j 1 } r }
+  = r A 11 ! r 10 L j 10 ! + + r 1 j _tx_b t j r }
 : bt_p2 >i {
   cs_rget cs_lancase
-  = qs da_itx cs_getx @ g_res k_quotes = part @ g_part = j 0
+  = qs da_itx cs_getx @ g_res $"quotes" = part @ g_part = j 0
   W < j _js_len qs {
-    = q _js_it qs j = sym cs_getx q k_symbol
-    = k 0 = m 0 W && ~ k < m _js_len part { = x _js_it part m ? _js_eq cs_yahoo x sym = k x 0 = m + m 1 }
-    = ser _js_get q k_series
-    ? && && && k ~ _js_v _js_get q k_error _js_v ser > _js_tonum _js_get ser k_length 300. {
-        ? ~ _js_ehlst ser cs_lanca k_TypeError k_qseriesnf 0
+    = q _js_it qs j = sym cs_getx q $"symbol"
+    = k 0 = m 0 W && ~ k < m _js_len part { = x _js_it part m Se _js_eq cs_yahoo x sym = k x = m + m 1 }
+    = ser _js_get q $"series"
+    Se && && && k ~ _js_v _js_get q $"error" _js_v ser > _js_tonum _js_get ser $"length" 300. {
+        Se ~ _js_ehlst ser cs_lanca $"TypeError" $"q.series.map is not a function"
         = n _js_len ser
-        = ca A + n 1 = cf A + n 1 = ds A + n 1 = todos 1 = i 0
-        W < i n {
-          = p _js_it ser i = x cs_getx p k_1
+        = ca A + n 1 = cf A + n 1 = ds A + n 1 = todos 1 L i n {
+          = p _js_it ser i = x cs_getx p $"1"
           !f + ca i ? _js_ehnum x _js_f x Bw 2146959360 0
           !f + cf i _js_tonum x
-          ? ~ _js_ehnum x = todos 0 0
-          = i + i 1 }
-        = i 0 W < i n { ! + ds i bt_dia cs_getx _js_it ser i k_0 = i + i 1 }
+          Se ~ _js_ehnum x = todos 0 }
+        L i n ! + ds i bt_dia cs_getx _js_it ser i $"0"
         = a A 6 ! a k ! + a 1 cs_kind k ! + a 2 n ! + a 3 ca ! + a 4 ? todos 0 cf ! + a 5 ds
-        _js_push @ g_ativos a 0 } 0
+        _js_push @ g_ativos a }
     = j + j 1 }
   ! g_i + @ g_i 40 ! g_ph 1 1 }
-#k k_qseriesnf q.series.map is not a function
-#k k_0 0
 # benchFn(bench): o índice do VWCE (bix, em M[62])
 : bt_bench i>i a {
   = n @ + a 2 = ds @ + a 5 = cf ? @ + a 4 @ + a 4 @ + a 3
-  = b A + 1 * n 14 ! b n = q + b 1 = j 0
-  W < j n { ! q 1 !f + q 1 @f + cf j = q cs_u16cp + q 2 @ + ds j = j + j 1 }
+  = b A + 1 * n 14 ! b n = q + b 1 L j n { ! q 1 !f + q 1 @f + cf j = q cs_u16cp + q 2 @ + ds j }
   bix b 0 }
 # backtestAsset(sub, bf, acc, { cost, warm }) com sub = os primeiros hi dias do ativo
 : bt_ativo iiff>i a hi warm cost {
   = n Mn hi @ + a 2 = kind @ + a 1
   = b A 102
-  ! b n ! + b 1 cs_tipoan kind ! + b 2 _tx_igual kind k_crypto
+  ! b n ! + b 1 cs_tipoan kind ! + b 2 mesmo kind $"crypto"
   !f + b 3 warm !f + b 4 Bw 2146959360 0 !f + b 5 cost ! + b 6 @ g_bmodo
   ! + b 7 @ + a 3 ! + b 8 ? @ + a 4 @ + a 4 @ + a 3
-  ? == @ g_bmodo 1 { = dt A + n 1 ! dt n = j 0 W < j n { ! + + dt 1 j @ + @ + a 5 j = j + j 1 } ! + b 9 dt 0 } 0
-  = j 0 W < j 7 { = s + g_bacc * j 11 ? @ s { ! + + b 10 * j 11 1 = i 1 W <= i 10 { !f + + + b 10 * j 11 i @f + s i = i + i 1 } 0 } 0 = j + j 1 }
+  Se == @ g_bmodo 1 { = dt A + n 1 ! dt n L j n ! + + dt 1 j @ + @ + a 5 j ! + b 9 dt }
+  L j 7 { = s + g_bacc * j 11 Se @ s { ! + + b 10 * j 11 1 = i 1 W <= i 10 { !f + + + b 10 * j 11 i @f + s i = i + i 1 } } }
   ! 61 0
   btk b
   bta b
   # as chaves novas (pela ordem em que o JS as cria) e as mexidas
   = j 0 W < j @ + b 91 { = k @ + + b 92 j = s + g_bacc * k 11 ! s 1 = i 1 W <= i 10 { !f + s i 0. = i + i 1 } ! + + g_bord 1 @ g_bord k ! g_bord + @ g_bord 1 = j + j 1 }
-  = j 0 W < j 7 { ? == @ + + b 10 * j 11 2 { = s + g_bacc * j 11 = i 1 W <= i 10 { !f + s i @f + + + b 10 * j 11 i = i + i 1 } 0 } 0 = j + j 1 }
+  L j 7 Se == @ + + b 10 * j 11 2 { = s + g_bacc * j 11 = i 1 W <= i 10 { !f + s i @f + + + b 10 * j 11 i = i + i 1 } }
   # per: [chave, buyN, buyS]
   = p A 3 ! p @ a !f + p 1 @f + b 87 !f + p 2 @f + b 88 p }
 # pc do backtest: x == null ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(1) + '%' (o NaN sai NaN%), à direita em w
-: bt_pc i>i v { _an_abre 0 ? _js_nulo v "—" { = x _js_tonum v ? > x 0. P '+ 0 _nu_fixo * x 100. 1 P '% } _an_fecha }
+: bt_pc i>i v { _an_abre 0 ? _js_nulo v "—" { = x _js_tonum v Se > x 0. P '+ _nu_fixo * x 100. 1 P '% } _an_fecha }
 : bt_pad ii>i t w { = n _tx_l16 t W < n w { P 32 = n + n 1 } _tx_pu t }
 : bt_corrida iii>i rot corte per {
-  ! g_bord 0 = j 0 W < j 77 { ! + g_bacc j 0 = j + j 1 }
+  ! g_bord 0 L j 77 ! + g_bacc j 0
   = as @ g_ativos = j 0
   W < j _js_len as {
     = a _js_it as j = n @ + a 2
     = lo ? == corte 2 / n 2 0 = hi ? == corte 1 + / n 2 63 n
-    = p bt_ativo a hi ? > lo 200 F lo 200. ? _tx_igual @ + a 1 k_fund 0. / 1. @f g_ticket
-    ? per _js_push per p 0
+    = p bt_ativo a hi ? > lo 200 F lo 200. ? mesmo @ + a 1 $"fund" 0. / 1. @f g_ticket
+    Se per _js_push per p
     = j + j 1 }
   # summarize(acc)
-  = ne @ g_bord = b A + 1 * 10 ne ! b ne = j 0
-  W < j ne { = s + g_bacc * @ + + g_bord 1 j 11 = i 0 W < i 10 { !f + + + b 1 * j 10 i @f + s + i 1 = i + i 1 } = j + j 1 }
+  = ne @ g_bord = b A + 1 * 10 ne ! b ne L j ne { = s + g_bacc * @ + + g_bord 1 j 11 L i 10 !f + + + b 1 * j 10 i @f + s + i 1 }
   ! 60 0 ! 61 0
   _an_abre 0 resumo b = r cs_fase
-  P 10 "== " _tx_p rot P 10
-  = sh _js_parse k_bshow = bk _js_parse k_bkeys = j 0
-  W < j 7 {
+  P 10 `== { crut rot }` P 10
+  = sh _js_parse $`["buy","scale","hold","wait","neutral","turn","avoid"]` = bk _js_parse $`["hold","buy","scale","wait","neutral","turn","avoid"]` L j 7 {
     = k _js_it sh j = ki _js_ix bk k
-    = pos -1 = i 0 W < i ne { ? == @ + + g_bord 1 i ki = pos i 0 = i + i 1 }
-    ? >= pos 0 {
+    = pos -1 L i ne Se == @ + + g_bord 1 i ki = pos i
+    Se >= pos 0 {
         = s _js_it r pos
-        _tx_p k = i _tx_len k W < i 8 { P 32 = i + i 1 }
-        " n=" _an_abre 0 _js_ps _js_get s k_n63 = t _an_fecha bt_pad t 4
-        "  3m " bt_pad bt_pc _js_get s k_avg63 7 "  acerto " bt_pad bt_pc _js_get s k_hit63 7 "  vs VWCE " bt_pad bt_pc _js_get s k_ex63 7 P 10 } 0
-    = j + j 1 }
-  0 }
-#k k_rot1 Período todo
-#k k_rot2 1.ª metade (afinar aqui)
-#k k_rot3 2.ª metade (confirmar aqui)
+        crut k = i _tx_len k W < i 8 { P 32 = i + i 1 }
+        ` n={ _an_abre 0 }{ _js_ps _js_get s $"n63" }` = t _an_fecha bt_pad t 4
+        `  3m { bt_pad bt_pc _js_get s $"avg63" 7 }  acerto { bt_pad bt_pc _js_get s $"hit63" 7 }  vs VWCE { bt_pad bt_pc _js_get s $"ex63" 7 }` P 10 } } }
 # o comparador das compras (cs_cmp 50): a[1] - b[1]
 : bt_cmp iii>f k x y - _js_f _js_it x 1 _js_f _js_it y 1
 : bt_fim >i {
   = as @ g_ativos
   # bench = assets.find((a) => a.key === 'VWCE.DE'); bf = AO.benchFn(bench)
-  = be 0 = j 0 W && ~ be < j _js_len as { ? _tx_igual @ _js_it as j k_VWCE = be _js_it as j 0 = j + j 1 }
+  = be 0 = j 0 W && ~ be < j _js_len as { Se mesmo @ _js_it as j $"VWCE.DE" = be _js_it as j = j + j 1 }
   ! g_bmodo ? be 1 0
-  ? be bt_bench be 0
-  N _js_len as " ativos, " _nu_ps @f g_anos " anos, " _nu_ps @f g_ticket " € por compra (comissão " _nu_fixo / 100. @f g_ticket 1 "%)" P 10
+  Se be bt_bench be
+  `{ N _js_len as } ativos, { _nu_ps @f g_anos } anos, { _nu_ps @f g_ticket } € por compra (comissão { _nu_fixo / 100. @f g_ticket 1 }%)` P 10
   = per _js_lst 40
-  bt_corrida k_rot1 0 per bt_corrida k_rot2 1 0 bt_corrida k_rot3 2 0
+  bt_corrida $"Período todo" 0 per bt_corrida $"1.ª metade (afinar aqui)" 1 0 bt_corrida $"2.ª metade (confirmar aqui)" 2 0
   # as piores e as melhores compras (com 5 ou mais)
   = bu _js_lst 40 = j 0
-  W < j _js_len per { = p _js_it per j ? >= @f + p 1 5. { = e _js_lst 2 _js_push e @ p _js_push e _js_num / @f + p 2 @f + p 1 _js_push bu e 0 } 0 = j + j 1 }
+  W < j _js_len per { = p _js_it per j Se >= @f + p 1 5. { = e _js_lst 2 _js_push e @ p _js_push e _js_num / @f + p 2 @f + p 1 _js_push bu e } = j + j 1 }
   cs_ordena bu 50
   = n _js_len bu
-  P 10 "Piores compras: " = j 0 W < j Mn 4 n { ? j ", " 0 = e _js_it bu j _tx_pu cs_nome _js_it e 0 P 32 _tx_pu bt_pc _js_it e 1 = j + j 1 } P 10
-  "Melhores compras: " = j 0 W < j Mn 4 n { ? j ", " 0 = e _js_it bu - - n 1 j _tx_pu cs_nome _js_it e 0 P 32 _tx_pu bt_pc _js_it e 1 = j + j 1 } P 10
+  P 10 "Piores compras: " = j 0 W < j Mn 4 n { Se j ", " = e _js_it bu j _tx_pu cs_nome _js_it e 0 P 32 _tx_pu bt_pc _js_it e 1 = j + j 1 } P 10
+  "Melhores compras: " = j 0 W < j Mn 4 n { Se j ", " = e _js_it bu - - n 1 j _tx_pu cs_nome _js_it e 0 P 32 _tx_pu bt_pc _js_it e 1 = j + j 1 } P 10
   _an_sair 0 }

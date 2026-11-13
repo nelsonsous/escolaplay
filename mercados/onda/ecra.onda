@@ -81,8 +81,17 @@
 : ln_ativo i>i kn { = c pri es.assets = r 0 W && c ~ r { Se igual c.k kn = r c = c seg c } r }
 # … com a chave do texto t
 : ln_ativot i>i t { = c pri es.assets = r 0 W && c ~ r { Se eh c.k t = r c = c seg c } r }
-# um nó que é um número finito (o fin(v) do JS)
-: ln_fin i>i n && == tipo n 4 fin @f + n 1
+# um nó que é um número finito (o fin(v) do JS; é o dc_e do decisao.onda)
+: ln_fin i>i n dc_e n
+# o rótulo de uma família (1 entrar, 0 ficar, -1 sair) para quem tem (o) ou não o ativo; parte: é um reduce
+: ln_rot iii>i f o parte ? > f 0 ? o "Reforçar" "Comprar" ? == f 0 ? o "Manter" "Aguardar"
+  ? o `Vender{ Se parte " parte" }` "Evitar"
+# o tom de uma família
+: ln_tomf i>i f ? > f 0 "up" ? < f 0 "down" "flat"
+# o rótulo de um veredicto (o rotulo(k, own) do JS, 4.11): a família (a do dc_fam, decisao.onda) pela palavra de quem
+# tem (o) ou não o ativo; na referência, a direção. Escreve-o e dá 1, ou 0 se a chave não é conhecida
+: ln_sht ii>i k o { = f dc_fam k ? != f 9 { ln_rot f o eh k $"reduce" 1 }
+  ? eh k $"up" { "Em alta" 1 } ? eh k $"flat" { "Lateral" 1 } ? eh k $"down" { "Em queda" 1 } 0 }
 # o tom de um veredicto (o CL_TONE[k] || 'flat' do JS)
 : ln_tomk i>i k ? || || eh k $"buy" eh k $"scale" eh k $"up" "up"
   ? || || || eh k $"reduce" eh k $"avoid" eh k $"sell" eh k $"down" "down" "flat"

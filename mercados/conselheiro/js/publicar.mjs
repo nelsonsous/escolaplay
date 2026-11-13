@@ -38,7 +38,7 @@ export function buildAdvice(a, dados, uniRows = []) {
         lessons: (Array.isArray(a.lessons) ? a.lessons : []).slice(0, 15).map((r, i) => str(r, 240, `lessons[${i}]`, true)),
     };
     if (!out.plan.length) errs.push('plan vazio: diz sempre o que fazer com o plano do mês');
-    if (!out.tldr.length) errs.push('tldr vazio: escreve o resumo em 3 linhas curtas (mercado · plano · atenção)');
+    if (!out.tldr.length) errs.push('tldr vazio: escreve o resumo em 3 linhas curtas (mercado · hoje · atenção)');
 
     // um veredicto por ativo: todos os do dados.json (o que a app mostra) e até MAX_EXTRA da lista toda da TR
     const list = Array.isArray(a.actions) ? a.actions : [];

@@ -17,7 +17,9 @@ const WS = (c) => c === 32 || c === 9 || c === 10 || c === 13;
 const FIM = (c) => WS(c) || c === 123 || c === 125 || c === 40 || c === 41 || Number.isNaN(c);
 
 // ---------- tokens crus, com a posição: um molde inteiro e um nome com pontos são um token só ----------
-export function tokens(src) {
+// Com visita, chama-a também para cada palavra e cada texto constante que está dentro de uma interpolação de um molde
+// (visita(tipo, texto): 'name' ou 'tc'), que no resultado não são tokens à parte.
+export function tokens(src, visita) {
   const t = [], n = src.length;
   const texto = (s) => { const q = src.charCodeAt(s); let j = s + 1; while (j < n && src.charCodeAt(j) !== q) { if (src.charCodeAt(j) === 92) j++; j++; } if (j >= n) throw new Error('texto sem fim'); return j + 1; };
   const palavra = (s) => { let j = s + 1; if (src.charCodeAt(s) === 39 && j < n) j++; while (j < n && !FIM(src.charCodeAt(j))) j++; return j; };
@@ -31,11 +33,11 @@ export function tokens(src) {
       else if (c === 35) { while (j < n && src.charCodeAt(j) !== 10) j++; }
       else if (c === 34) j = texto(j);
       else if (c === 96) j = molde(j);
-      else if (c === 36 && (c1 === 34 || c1 === 96)) j = texto(j + 1);
+      else if (c === 36 && (c1 === 34 || c1 === 96)) { const e = texto(j + 1); if (visita) visita('tc', src.slice(j, e)); j = e; }
       else if (c === 125 && pf === 0) return j + 1;
       else if (c === 123 || c === 125) { pf += c === 123 ? 1 : -1; j++; }
       else if (c === 40 || c === 41) j++;
-      else j = palavra(j);
+      else { const e = palavra(j); if (visita) visita('name', src.slice(j, e)); j = e; }
     }
   };
   const molde = (s) => {
@@ -66,6 +68,19 @@ export function tokens(src) {
     poe(k, i, e); i = e;
   }
   return t;
+}
+
+// todas as palavras e todos os textos constantes de um programa, também os de dentro dos moldes: [{ k: 'name' | 'tc', x }]
+// (para quem monta um programa e precisa de saber que nomes ele usa: mercados/conselheiro/onda/build.mjs)
+export function palavras(src) {
+  const out = [];
+  for (const t of tokens(src, (k, x) => out.push({ k, x }))) if (t.k === 'name' || t.k === 'dot' || t.k === 'tc') out.push({ k: t.k === 'tc' ? 'tc' : 'name', x: t.x });
+  return out;
+}
+// o conteúdo de um texto constante ($"…" ou $`…`), sem os escapes
+export function conteudo(tc) {
+  const cru = tc[1] === '`', m = tc.slice(2, -1);
+  return m.replace(/\\(.)/gs, (_, c) => (c === 'n' ? '\n' : c === 't' ? '\t' : c));
 }
 
 // ---------- as funções (nome → aridade, parâmetros e onde começa o corpo) ----------

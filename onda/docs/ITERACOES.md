@@ -2801,3 +2801,28 @@ técnica ficou ao lado), e não uma conta à parte no JS, que saiu.
 
 **Verificado.** O cartão em 4 000 instantâneos (com a linha e sem ela), um caso lido à mão e a ficha da Nvidia no
 teste de interface, com a análise passada pelo validador verdadeiro do `publicar`.
+
+## Iteração 149: limpeza — o conselheiro na Onda fluida e o que ficou sem uso (Mercados 4.22.2)
+
+**Os scripts do conselheiro (`mercados/conselheiro/onda`, 7 ficheiros).** Eram o último bloco de Onda no estilo
+antigo. Em dois passos, cada um conferido pelos testes de paridade:
+- Os 291 textos fixos eram nomes `k_*` que o build gerava e criava um a um no arranque (`k_ini`). Passaram a textos
+  constantes da linguagem (`$"price"`; com aspas, `` $`["buy","scale"]` ``): 864 usos trocados, 98 linhas de `#k` e a
+  maquinaria do build fora. O bloco dos globais passou de 471 para 180 palavras e o módulo ficou 13 KB mais pequeno.
+- O conversor (`tools/fluir.mjs`) fez 191 moldes, 115 palavras da fala, 225 `Se` e 44 `L`. A configuração em JSON
+  deixou de ter `\"` em todas as linhas.
+De 1 984 para 1 844 linhas. Para o build saber que nomes o programa usa dentro dos moldes, o conversor passou a dar
+todas as palavras e todos os textos constantes de um programa (`palavras`), com o mesmo leitor do compilador.
+
+**Conferido com dados reais.** Além dos 16 testes (rede simulada), uma corrida do `dados` com a rede verdadeira
+gravada (só leitura): o JS de referência e a Onda convertida escrevem o `dados.json`, o `dados.md` e o `modelo.json`
+iguais byte a byte, com os mesmos pedidos.
+
+**O modelo do resumo.** O `modelo.json` propunha «Plano:» na segunda linha do resumo, contra as regras (que pedem
+«Hoje:» e mandam não repetir o plano). Era a origem do plano repetido no cartão «Hoje». Passa a «Hoje:».
+
+**Nas vistas.** Havia três tabelas com os veredictos e duas funções a escrever o mesmo rótulo (uma na Análise, outra
+no Painel, outra no cartão). Fica uma tabela (`dc_fam`) e um rótulo (`ln_rot`/`ln_sht`, no `ecra.onda`).
+
+**No JS e no CSS.** 24 regras de estilo sem uso (a barra de topo antiga, cartões antigos, uma animação) e um ramo
+morto na leitura dos índices. Uma varredura às funções da Onda e aos nomes de topo do JS não achou mais nada por usar.

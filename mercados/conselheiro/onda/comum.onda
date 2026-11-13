@@ -4,52 +4,17 @@
 # Os erros que o JS lança ficam em g_err (mensagem) e g_errt (tipo): um tryOr transforma-os num aviso; fora dele,
 # cs_lancase faz o que o Node faz com um erro por apanhar (a mensagem no stderr e o código 1).
 
-#k k_TypeError TypeError
-#k k_Error Error
-#k k_URIError URIError
-#k k_RangeError RangeError
-#k k_SyntaxError SyntaxError
-#k k_cfgowner cfg:owner
-#k k_cfgothers cfg:others
-#k k_cfglastRun cfg:lastRun
-#k k_jdois j:
-#k k_advice2 advice:2
-#k k_advicelessons advice:lessons
-#k k_advicelatest advice:latest
-#k k_unilatest uni:latest
-#k k_VWCE VWCE.DE
-#k k_EURUSD EURUSD=X
-#k k_VIX ^VIX
-#k k_GBp GBp
-#k k_traco —
-#k k_tmp /tmp/conselheiro
-#k k_conv1 ≥70
-#k k_conv2 58–69
-#k k_conv3 43–57
-#k k_conv4 31–42
-#k k_conv5 ≤30
-#k k_urimal URI malformed
-#k k_itv Invalid time value
-#k k_spread Spread syntax requires ...iterable[Symbol.iterator] to be a function
-#k k_naoiter is not iterable
-#k k_bindingJ binding = "JOURNAL"
-#k k_idq id = "
-#k k_worker0 https://mercados-proxy.mercados-proxy.workers.dev
-#k k_account0 e5f9f94050228b1fa9f74443667b20a6
-#k k_tokenvar CLOUDFLARE_API_TOKEN
-#k k_proxyinj proxy-injected
-#k k_dirvar MERCADOS_DIR
 
 # ---------- erros ----------
 # um erro que o JS não apanhava: "Tipo: mensagem" no stderr e sai com 1 (o Node mostra também a pilha do JS)
-: cs_lanca ii>i tipo m { _an_fd 2 _tx_pu tipo ": " _tx_pu m P 10 _an_volta _an_sair 1 }
+: cs_lanca ii>i tipo m { `{ _an_fd 2 }{ _tx_pu tipo }: { _tx_pu m }{ P 10 }{ _an_volta }` _an_sair 1 }
 : cs_erro ii>i tipo m { ! g_errt tipo ! g_err m 0 }
-: cs_semerro >i { ! g_err 0 ! g_errt k_Error 0 }
+: cs_semerro >i { ! g_err 0 ! g_errt $"Error" 0 }
 : cs_lancase >i ? @ g_err cs_lanca @ g_errt @ g_err 0
 # o v[k] de dentro de uma função que o tryOr apanha: com v undefined/null, o erro (TypeError) fica em g_err
-: cs_tget ii>i v k ? _js_nulo v { ? @ g_err 0 { _an_abre 0 "Cannot read properties of " ? == v 1 "undefined" "null" " (reading '" _tx_p k "')" cs_erro k_TypeError _an_fecha } 1 } _js_get v k
+: cs_tget ii>i v k ? _js_nulo v { ? @ g_err 0 { `{ _an_abre 0 }Cannot read properties of { ? == v 1 "undefined" "null" } (reading '{ crut k }'){ cs_erro $"TypeError" _an_fecha }` } 1 } _js_get v k
 # o aviso de um tryOr: `${what}: ${e.message}` em g_warn
-: cs_aviso i>i what { _an_abre 0 _tx_p what ": " _tx_p @ g_err = t _an_fecha _js_push @ g_warn t cs_semerro }
+: cs_aviso i>i what { `{ _an_abre 0 }{ crut what }: { crut @ g_err }` = t _an_fecha _js_push @ g_warn t cs_semerro }
 # os erros da validação (errs.push): cs_eini, a mensagem, cs_efim
 : cs_eini >i _an_abre 0
 : cs_efim >i { = t _an_fecha _js_push @ g_errs t 0 }
@@ -59,62 +24,61 @@
 # Math.round(x * 10) / 10
 : cs_rd1 f>f x / _nu_round * x 10. 10.
 # o v[k] com o erro do JS se v é undefined/null: escreve a mensagem e sai com 1
-: cs_getx ii>i v k ? _js_nulo v { _an_abre 0 "Cannot read properties of " ? == v 1 "undefined" "null" " (reading '" _tx_p k "')" cs_lanca k_TypeError _an_fecha } _js_get v k
+: cs_getx ii>i v k ? _js_nulo v { `{ _an_abre 0 }Cannot read properties of { ? == v 1 "undefined" "null" } (reading '{ crut k }')` cs_lanca $"TypeError" _an_fecha } _js_get v k
 # r2: x == null || !Number.isFinite(x) ? null : Number(x.toPrecision(6))
 : cs_r2 i>i v ? _js_fin v _js_num _nu_rprec _js_f v 6 2
-: cs_r2f f>i x ? _nu_fin x _js_num _nu_rprec x 6 2
+: cs_r2f f>i x ? fin x _js_num _nu_rprec x 6 2
 # r1: Number.isFinite(x) ? Math.round(x * 10) / 10 : null
 : cs_r1 i>i v ? _js_fin v _js_num cs_rd1 _js_f v 2
-: cs_r1f f>i x ? _nu_fin x _js_num cs_rd1 x 2
+: cs_r1f f>i x ? fin x _js_num cs_rd1 x 2
 # pc: x == null || !Number.isFinite(x) ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(1) + '%'
-: cs_pcf f>i x { ? > x 0. P '+ 0 _nu_fixo * x 100. 1 P '% }
+: cs_pcf f>i x { Se > x 0. P '+ _nu_fixo * x 100. 1 P '% }
 : cs_pc i>i v ? _js_fin v cs_pcf _js_f v "—"
-: cs_pcr f>i x ? _nu_fin x cs_pcf x "—"
+: cs_pcr f>i x ? fin x cs_pcf x "—"
 # n0: Number.isFinite(x) ? Math.round(x) : '—'
 : cs_n0 i>i v ? _js_fin v _nu_ps _nu_round _js_f v "—"
 # cut(t, n): String(t || ''), cortado a n - 1 unidades UTF-16 com '…' se passa de n
-: cs_cut ii>i v n { = s ? _js_v v _js_str v _tx_novo 0 ? > _tx_l16 s n { = c _tx_s16 s 0 - n 1 _an_abre 0 _tx_p c "…" _an_fecha } s }
+: cs_cut ii>i v n { = s ? _js_v v _js_str v _tx_novo 0 ? > _tx_l16 s n { = c _tx_s16 s 0 - n 1 `{ _an_abre 0 }{ crut c }…` _an_fecha } s }
 
 # ---------- as listas da app (as mesmas do comum.mjs) ----------
 : cs_cfgjson >i {
-  "{\"STOCKS\":{\"AAPL\":\"Apple\",\"MSFT\":\"Microsoft\",\"NVDA\":\"Nvidia\",\"AMZN\":\"Amazon\",\"GOOGL\":\"Alphabet (Google)\",\"META\":\"Meta\",\"TSLA\":\"Tesla\","
-  "\"AVGO\":\"Broadcom\",\"JPM\":\"JPMorgan\",\"V\":\"Visa\",\"LLY\":\"Eli Lilly\",\"BRK-B\":\"Berkshire Hathaway\",\"PLTR\":\"Palantir\",\"AMD\":\"AMD\","
-  "\"ASML.AS\":\"ASML\",\"SAP.DE\":\"SAP\",\"MC.PA\":\"LVMH\",\"SIE.DE\":\"Siemens\",\"NOVO-B.CO\":\"Novo Nordisk\",\"ALV.DE\":\"Allianz\","
-  "\"TTE.PA\":\"TotalEnergies\",\"RHM.DE\":\"Rheinmetall\",\"TSM\":\"TSMC (Taiwan)\"},"
-  "\"FUNDS\":{\"VWCE.DE\":\"FTSE All-World USD (Acc) · VWCE\",\"EUNL.DE\":\"MSCI World (iShares)\",\"SXR8.DE\":\"S&P 500 (iShares)\",\"SXRV.DE\":\"Nasdaq-100 (iShares)\","
-  "\"IS3N.DE\":\"Mercados emergentes (iShares)\",\"EXSA.DE\":\"Europa 600 (iShares)\",\"4GLD.DE\":\"Ouro físico (Xetra-Gold)\"},"
-  "\"CRYPTO\":{\"c:BTC\":[\"BTC-EUR\",\"Bitcoin\"],\"c:ETH\":[\"ETH-EUR\",\"Ether\"],\"c:SOL\":[\"SOL-EUR\",\"Solana\"],\"c:XRP\":[\"XRP-EUR\",\"XRP\"]},"
-  "\"MARKET\":{\"^GSPC\":\"S&P 500\",\"^IXIC\":\"Nasdaq\",\"^STOXX50E\":\"Euro Stoxx 50\",\"PSI20.LS\":\"PSI\",\"^VIX\":\"VIX\",\"EURUSD=X\":\"EUR/USD\","
-  "\"BZ=F\":\"Petróleo Brent\",\"CL=F\":\"Petróleo WTI\",\"RB=F\":\"Gasolina (RBOB)\",\"HO=F\":\"Gasóleo (ULSD)\",\"NG=F\":\"Gás natural\",\"GC=F\":\"Ouro (futuros)\"},"
-  "\"MINE\":[\"VWCE.DE\",\"c:BTC\",\"c:ETH\",\"c:SOL\",\"c:XRP\"],"
-  "\"ACTION_KEYS\":[\"buy\",\"scale\",\"hold\",\"wait\",\"neutral\",\"turn\",\"reduce\",\"sell\",\"avoid\"],\"REF_KEYS\":[\"up\",\"flat\",\"down\"],"
-  "\"ACTION_LABEL\":{\"buy\":\"Comprar\",\"scale\":\"Comprar aos poucos\",\"hold\":\"Manter\",\"wait\":\"Esperar\",\"neutral\":\"Manter, sem reforçar\",\"turn\":\"Esperar confirmação\","
-  "\"reduce\":\"Reduzir\",\"sell\":\"Vender\",\"avoid\":\"Evitar\",\"up\":\"Em alta\",\"flat\":\"Lateral\",\"down\":\"Em queda\"},"
-  "\"FAM\":{\"buy\":1,\"scale\":1,\"hold\":0,\"wait\":0,\"neutral\":0,\"turn\":0,\"reduce\":-1,\"sell\":-1,\"avoid\":-1},"
-  "\"HZ\":[\"short\",\"mid\",\"long\"],\"LEVELS\":[\"entry\",\"target\",\"stop\"],\"HZLV\":[\"short\",\"mid\",\"long\",\"entry\",\"target\",\"stop\"],"
-  "\"LV\":{\"Média de 20 dias\":\"MM20\",\"Média de 50 dias\":\"MM50\",\"Média de 200 dias\":\"MM200\",\"Máximo do ano\":\"máx.ano\",\"Mínimo do ano\":\"mín.ano\","
-  "\"Topo recente\":\"topo\",\"Fundo recente\":\"fundo\",\"Antigo fundo, já perdido\":\"ex-fundo\",\"Antigo topo, já ultrapassado\":\"ex-topo\"},"
-  "\"KIND_PT\":{\"fund\":\"ETF\",\"stock\":\"ação\",\"crypto\":\"cripto\",\"ref\":\"ref\"},"
-  "\"SECTIONS\":[[\"mine\",\"O que tens\"],[\"fund\",\"ETF\"],[\"crypto\",\"Cripto\"],[\"stock\",\"Ações da lista da app\"],[\"extra\",\"Juntadas por ti na app\"],"
-  "[\"ref\",\"Referência: índices, câmbio e futuros (key up/flat/down)\"]],"
-  "\"MK\":[\"^GSPC\",\"^IXIC\",\"^STOXX50E\",\"PSI20.LS\",\"^VIX\",\"EURUSD=X\",\"BZ=F\",\"GC=F\"],"
-  "\"NEWSQ\":[[\"stock market today\",\"en\"],[\"bolsa mercados hoje\",\"pt\"],[\"bitcoin\",\"en\"]],"
-  "\"PLAN0\":[{\"s\":\"VWCE.DE\",\"amount\":\"810 €\"},{\"s\":\"c:BTC\",\"amount\":\"90 €\"}],\"TLDR0\":[\"Mercado: \",\"Plano: \",\"Atenção: \"],"
-  "\"BUYISH\":[\"buy\",\"scale\"],\"SELLISH\":[\"sell\",\"reduce\",\"avoid\"],\"SELLAV\":[\"sell\",\"avoid\"],\"MINEX\":[\"mine\",\"extra\"],"
-  "\"KIND\":{\"stock\":\"stock\",\"etf\":\"fund\",\"crypto\":\"crypto\"},"
-  "\"UNI\":[[\"etf\",\"ETF\"],[\"stock\",\"Ações\"],[\"crypto\",\"Cripto\"]]}"
-  0 }
+  `\{"STOCKS":\{"AAPL":"Apple","MSFT":"Microsoft","NVDA":"Nvidia","AMZN":"Amazon","GOOGL":"Alphabet (Google)","META":"Meta","TSLA":"Tesla",`
+  `"AVGO":"Broadcom","JPM":"JPMorgan","V":"Visa","LLY":"Eli Lilly","BRK-B":"Berkshire Hathaway","PLTR":"Palantir","AMD":"AMD",`
+  `"ASML.AS":"ASML","SAP.DE":"SAP","MC.PA":"LVMH","SIE.DE":"Siemens","NOVO-B.CO":"Novo Nordisk","ALV.DE":"Allianz",`
+  `"TTE.PA":"TotalEnergies","RHM.DE":"Rheinmetall","TSM":"TSMC (Taiwan)"\},`
+  `"FUNDS":\{"VWCE.DE":"FTSE All-World USD (Acc) · VWCE","EUNL.DE":"MSCI World (iShares)","SXR8.DE":"S&P 500 (iShares)","SXRV.DE":"Nasdaq-100 (iShares)",`
+  `"IS3N.DE":"Mercados emergentes (iShares)","EXSA.DE":"Europa 600 (iShares)","4GLD.DE":"Ouro físico (Xetra-Gold)"\},`
+  `"CRYPTO":\{"c:BTC":["BTC-EUR","Bitcoin"],"c:ETH":["ETH-EUR","Ether"],"c:SOL":["SOL-EUR","Solana"],"c:XRP":["XRP-EUR","XRP"]\},`
+  `"MARKET":\{"^GSPC":"S&P 500","^IXIC":"Nasdaq","^STOXX50E":"Euro Stoxx 50","PSI20.LS":"PSI","^VIX":"VIX","EURUSD=X":"EUR/USD",`
+  `"BZ=F":"Petróleo Brent","CL=F":"Petróleo WTI","RB=F":"Gasolina (RBOB)","HO=F":"Gasóleo (ULSD)","NG=F":"Gás natural","GC=F":"Ouro (futuros)"\},`
+  `"MINE":["VWCE.DE","c:BTC","c:ETH","c:SOL","c:XRP"],`
+  `"ACTION_KEYS":["buy","scale","hold","wait","neutral","turn","reduce","sell","avoid"],"REF_KEYS":["up","flat","down"],`
+  `"ACTION_LABEL":\{"buy":"Comprar","scale":"Comprar aos poucos","hold":"Manter","wait":"Esperar","neutral":"Manter, sem reforçar","turn":"Esperar confirmação",`
+  `"reduce":"Reduzir","sell":"Vender","avoid":"Evitar","up":"Em alta","flat":"Lateral","down":"Em queda"\},`
+  `"FAM":\{"buy":1,"scale":1,"hold":0,"wait":0,"neutral":0,"turn":0,"reduce":-1,"sell":-1,"avoid":-1\},`
+  `"HZ":["short","mid","long"],"LEVELS":["entry","target","stop"],"HZLV":["short","mid","long","entry","target","stop"],`
+  `"LV":\{"Média de 20 dias":"MM20","Média de 50 dias":"MM50","Média de 200 dias":"MM200","Máximo do ano":"máx.ano","Mínimo do ano":"mín.ano",`
+  `"Topo recente":"topo","Fundo recente":"fundo","Antigo fundo, já perdido":"ex-fundo","Antigo topo, já ultrapassado":"ex-topo"\},`
+  `"KIND_PT":\{"fund":"ETF","stock":"ação","crypto":"cripto","ref":"ref"\},`
+  `"SECTIONS":[["mine","O que tens"],["fund","ETF"],["crypto","Cripto"],["stock","Ações da lista da app"],["extra","Juntadas por ti na app"],`
+  `["ref","Referência: índices, câmbio e futuros (key up/flat/down)"]],`
+  `"MK":["^GSPC","^IXIC","^STOXX50E","PSI20.LS","^VIX","EURUSD=X","BZ=F","GC=F"],`
+  `"NEWSQ":[["stock market today","en"],["bolsa mercados hoje","pt"],["bitcoin","en"]],`
+  `"PLAN0":[\{"s":"VWCE.DE","amount":"810 €"\},\{"s":"c:BTC","amount":"90 €"\}],"TLDR0":["Mercado: ","Hoje: ","Atenção: "],`
+  `"BUYISH":["buy","scale"],"SELLISH":["sell","reduce","avoid"],"SELLAV":["sell","avoid"],"MINEX":["mine","extra"],`
+  `"KIND":\{"stock":"stock","etf":"fund","crypto":"crypto"\},`
+  `"UNI":[["etf","ETF"],["stock","Ações"],["crypto","Cripto"]]\}` }
 : cs_c i>i k _js_oget @ g_cfg k
-: cs_stocks >i cs_c k_STOCKS
-: cs_funds >i cs_c k_FUNDS
-: cs_crypto >i cs_c k_CRYPTO
-: cs_market >i cs_c k_MARKET
-: cs_alabel i>i k _js_oget cs_c k_ACTION_LABEL k
+: cs_stocks >i cs_c $"STOCKS"
+: cs_funds >i cs_c $"FUNDS"
+: cs_crypto >i cs_c $"CRYPTO"
+: cs_market >i cs_c $"MARKET"
+: cs_alabel i>i k _js_oget cs_c $"ACTION_LABEL" k
 # yahooOf: a chave da app → símbolo do Yahoo (c:ADA → ADA-EUR)
 : cs_cpref i>i k && >= _tx_len k 2 && == _tx_b k 0 'c == _tx_b k 1 ':
-: cs_yahoo i>i k { = c _js_oget cs_crypto k ? != c 1 _js_it c 0 ? cs_cpref k { = r _tx_sub k 2 _tx_len k _an_abre 0 _tx_p r "-EUR" _an_fecha } k }
+: cs_yahoo i>i k { = c _js_oget cs_crypto k ? != c 1 _js_it c 0 ? cs_cpref k { = r _tx_sub k 2 _tx_len k `{ _an_abre 0 }{ crut r }-EUR` _an_fecha } k }
 # kindOf: crypto, fund, market ou stock
-: cs_kind i>i k ? || _js_otem cs_crypto k cs_cpref k k_crypto ? _js_otem cs_funds k k_fund ? _js_otem cs_market k k_market k_stock
+: cs_kind i>i k ? || _js_otem cs_crypto k cs_cpref k $"crypto" ? _js_otem cs_funds k $"fund" ? _js_otem cs_market k $"market" $"stock"
 # nameOf
 : cs_nome i>i k {
   = v _js_oget cs_stocks k
@@ -136,33 +100,33 @@
 # o id do KV no wrangler.toml: /binding = "JOURNAL"\s*\nid = "([0-9a-f]+)"/ (o texto, ou "undefined")
 : cs_hexl i>i c || && >= c '0 <= c '9 && >= c 'a <= c 'f
 : cs_kvns i>i t {
-  = n _tx_len t = np _tx_len k_bindingJ = r 0 = i 0
+  = n _tx_len t = np _tx_len $`binding = "JOURNAL"` = r 0 = i 0
   W && ~ r <= + i np n {
-    ? _tx_em t i k_bindingJ {
+    Se _tx_em t i $`binding = "JOURNAL"` {
         = w + i np = lw -1
         W && < w n _tx_ews _tx_cp + + t 1 w { = lw w = w + w _tx_nb }
-        ? && >= lw 0 && == _tx_b t lw 10 _tx_em t w k_idq {
-            = h0 + w _tx_len k_idq = h h0
+        Se && >= lw 0 && == _tx_b t lw 10 _tx_em t w $`id = "` {
+            = h0 + w _tx_len $`id = "` = h h0
             W && < h n cs_hexl _tx_b t h = h + h 1
-            ? && > h h0 && < h n == _tx_b t h 34 { = r _tx_sub t h0 h 0 } 0 } 0 } 0
+            Se && > h h0 && < h n == _tx_b t h 34 = r _tx_sub t h0 h } }
     = i + i 1 }
-  ? r r k_undefined }
+  ? r r $"undefined" }
 # process.env[nome] || omissão
 : cs_envou ii>i nome om { = v _an_env nome ? && v > _tx_len v 0 v om }
 : cs_ini >i {
   ! g_cfg _js_parse { _an_abre 0 cs_cfgjson _an_fecha }
-  ! g_dir _an_env k_dirvar
+  ! g_dir _an_env $"MERCADOS_DIR"
   = d @ g_dir
-  _an_abre 0 _tx_p d "/proxy/wrangler.toml" = f _an_fecha
+  `{ _an_abre 0 }{ crut d }/proxy/wrangler.toml` = f _an_fecha
   = t _an_fich f
-  ? ~ t cs_lanca k_Error _an_erro 0
-  ! g_worker cs_envou k_MERCADOS_PROXY k_worker0
-  = acc cs_envou k_CF_ACCOUNT_ID k_account0
+  Se ~ t cs_lanca $"Error" _an_erro
+  ! g_worker cs_envou $"MERCADOS_PROXY" $"https://mercados-proxy.mercados-proxy.workers.dev"
+  = acc cs_envou $"CF_ACCOUNT_ID" $"e5f9f94050228b1fa9f74443667b20a6"
   = ns cs_kvns _tx_norm t 0
-  _an_abre 0 "https://api.cloudflare.com/client/v4/accounts/" _tx_p acc "/storage/kv/namespaces/" _tx_p ns ! g_kv _an_fecha
-  = tok cs_envou k_tokenvar k_proxyinj
-  _an_abre 0 "Authorization: Bearer " _tx_p tok ! g_auth _an_fecha
-  _an_abre 0 "Authorization: Bearer " _tx_p tok P 10 "Content-Type: text/plain" ! g_authct _an_fecha
+  `{ _an_abre 0 }https://api.cloudflare.com/client/v4/accounts/{ crut acc }/storage/kv/namespaces/{ crut ns }` ! g_kv _an_fecha
+  = tok cs_envou $"CLOUDFLARE_API_TOKEN" $"proxy-injected"
+  `{ _an_abre 0 }Authorization: Bearer { crut tok }` ! g_auth _an_fecha
+  `{ _an_abre 0 }Authorization: Bearer { crut tok }{ P 10 }Content-Type: text/plain` ! g_authct _an_fecha
   ! g_warn _js_lst 8
   ! g_errs _js_lst 8
   cs_semerro
@@ -177,14 +141,13 @@
 
 # ---------- pedidos ----------
 # p = [método, url, cabeçalhos, corpo, ms]: o anfitrião chama cs_resp com o corpo e o estado HTTP
-: cs_pede iiiii>i m u h c ms { = p A 5 ! p m ! + p 1 u ! + p 2 h ! + p 3 c ! + p 4 ms ! g_url u _an_pede p k_cs_resp 1 }
+: cs_pede iiiii>i m u h c ms { = p A 5 ! p m ! + p 1 u ! + p 2 h ! + p 3 c ! + p 4 ms ! g_url u _an_pede p $"cs_resp" 1 }
 # o JS lançou antes do fetch (o encodeURIComponent dá URIError): a resposta "chega" já, com este estado
 : cs_falha i>i m { ! g_rs -1000 ! g_rt m 0 }
 : cs_resp ii>i t st { ! g_rt t ! g_rs st ? @ g_sub cs_lsub cs_passo }
-: cs_passo >i { = go 1 W go { = s @ g_scr = go ? == s 1 da_passo ? == s 2 un_passo ? == s 3 od_passo ? == s 4 op_passo ? == s 5 pu_passo ? == s 6 bt_passo 0 } 0 }
+: cs_passo >i { = go 1 W go { = s @ g_scr = go ? == s 1 da_passo ? == s 2 un_passo ? == s 3 od_passo ? == s 4 op_passo ? == s 5 pu_passo ? == s 6 bt_passo 0 } }
 # o tipo do erro de um pedido que falhou (o Node mostra a DOMException assim)
-#k k_domabort DOMException [AbortError]
-: cs_tipofetch >i { = n _an_nomeerro ? _tx_igual n k_AbortError k_domabort n }
+: cs_tipofetch >i { = n _an_nomeerro ? mesmo n $"AbortError" $"DOMException [AbortError]" n }
 # o corpo como o r.json() do fetch: UTF-8 sem BOM, JSON ou null
 : cs_jcorpo >i { = v _js_parse _tx_norm @ g_rt 1 ? v v 2 }
 : cs_okst i>i s && >= s 200 <= s 299
@@ -192,79 +155,78 @@
 : cs_rget >i {
   cs_semerro ! g_res 2
   = st @ g_rs
-  ? == st -1000 cs_erro k_URIError @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt {
+  ? == st -1000 cs_erro $"URIError" @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt {
     = s iabs st
     = b ? < st 0 2 cs_jcorpo
     ? cs_okst s { ! g_res b 0 } {
-      = e ? _js_v b _js_get b k_error 1
-      ? _js_v e cs_erro k_Error _js_str e { _an_abre 0 "HTTP " N s P 32 _tx_p @ g_url cs_erro k_Error _an_fecha } } } }
+      = e ? _js_v b _js_get b $"error" 1
+      ? _js_v e cs_erro $"Error" _js_str e { `{ _an_abre 0 }HTTP { N s }{ P 32 }{ crut @ g_url }` cs_erro $"Error" _an_fecha } } } }
 # px(caminho, ms): GET ao conector; o caminho escreve-se entre cs_wini e cs_wfim; devolve 1 (à espera)
-: cs_wini >i { _an_abre 0 _tx_p @ g_worker 0 }
+: cs_wini >i { _an_abre 0 crut @ g_worker 0 }
 : cs_wfim i>i ms { = u _an_fecha cs_pede 0 u 0 0 ms }
 # o JSON.stringify(b && b.errors) dentro de uma mensagem (undefined sai "undefined")
-: cs_perrs i>i b { = x ? _js_v b _js_get b k_errors b ? == x 1 "undefined" _js_pj x 0 0 }
+: cs_perrs i>i b { = x ? _js_v b _js_get b $"errors" b ? == x 1 "undefined" _js_pj x 0 0 }
 # getJSONauth: erro se !r.ok ou b.success === false
 : cs_rauth >i {
   cs_semerro ! g_res 2
   = st @ g_rs
-  ? == st -1000 cs_erro k_URIError @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt {
+  ? == st -1000 cs_erro $"URIError" @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt {
     = s iabs st
     = b ? < st 0 2 cs_jcorpo
-    ? || ~ cs_okst s && _js_v b == _js_get b k_success 3 {
-        _an_abre 0 "Cloudflare: HTTP " N s P 32 cs_perrs b cs_erro k_Error _an_fecha } { ! g_res b 0 } } }
+    ? || ~ cs_okst s && _js_v b == _js_get b $"success" 3 {
+        `{ _an_abre 0 }Cloudflare: HTTP { N s }{ P 32 }{ cs_perrs b }` cs_erro $"Error" _an_fecha } { ! g_res b 0 } } }
 # kvGet(key): 404 → null; o corpo em JSON, ou o texto
 : cs_kvget i>i key {
   = ks _js_str key
-  ? _tx_urimal ks cs_falha k_urimal { _an_abre 0 _tx_p @ g_kv "/values/" _tx_uri ks = u _an_fecha cs_pede 0 u @ g_auth 0 0 } }
+  ? _tx_urimal ks cs_falha $"URI malformed" { `{ _an_abre 0 }{ crut @ g_kv }/values/{ _tx_uri ks }` = u _an_fecha cs_pede 0 u @ g_auth 0 0 } }
 : cs_rkvget i>i key {
   cs_semerro ! g_res 2
   = st @ g_rs = s iabs st
-  ? == st -1000 cs_erro k_URIError @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt ? == s 404 0
-  ? ~ cs_okst s { _an_abre 0 "Cloudflare: HTTP " N s " a ler " _js_ps key cs_erro k_Error _an_fecha } ? < st 0 cs_erro cs_tipofetch @ g_rt {
+  ? == st -1000 cs_erro $"URIError" @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt ? == s 404 0
+  ? ~ cs_okst s { `{ _an_abre 0 }Cloudflare: HTTP { N s } a ler { _js_ps key }` cs_erro $"Error" _an_fecha } ? < st 0 cs_erro cs_tipofetch @ g_rt {
     = t _tx_norm @ g_rt 1 = v _js_parse t ! g_res ? v v t 0 } }
 # kvPut(key, value): PUT com o JSON.stringify(value)
 : cs_kvput ii>i key v {
   = ks _js_str key
-  ? _tx_urimal ks cs_falha k_urimal {
-    _an_abre 0 _tx_p @ g_kv "/values/" _tx_uri ks = u _an_fecha
+  ? _tx_urimal ks cs_falha $"URI malformed" {
+    `{ _an_abre 0 }{ crut @ g_kv }/values/{ _tx_uri ks }` = u _an_fecha
     _an_abre 0 _js_pj v 0 0 = c _an_fecha
-    cs_pede k_PUT u @ g_authct c 0 } }
+    cs_pede $"PUT" u @ g_authct c 0 } }
 : cs_rkvput i>i key {
   cs_semerro ! g_res 2
   = st @ g_rs = s iabs st
-  ? == st -1000 cs_erro k_URIError @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt {
+  ? == st -1000 cs_erro $"URIError" @ g_rt ? == st 0 cs_erro cs_tipofetch @ g_rt {
     = b ? < st 0 2 cs_jcorpo
-    ? || || ~ cs_okst s ~ _js_v b ~ _js_v _js_get b k_success {
-        _an_abre 0 "Cloudflare: HTTP " N s " a gravar " _js_ps key P 32 cs_perrs b cs_erro k_Error _an_fecha } 0 } }
+    ? || || ~ cs_okst s ~ _js_v b ~ _js_v _js_get b $"success" {
+        `{ _an_abre 0 }Cloudflare: HTTP { N s } a gravar { _js_ps key }{ P 32 }{ cs_perrs b }` cs_erro $"Error" _an_fecha } 0 } }
 # kvList(prefix): as páginas (cursor) seguidas; no fim, g_res = a lista (ou g_err) e o script continua no passo volta
 : cs_lista ii>i pre volta { ! g_lpre pre ! g_lout _js_lst 8 ! g_lcur 0 ! g_lvolta volta ! g_sub 1 cs_lpag }
 : cs_lpag >i {
-  _an_abre 0 _tx_p @ g_kv "/keys?prefix=" _tx_uri @ g_lpre ? _js_v @ g_lcur { "&cursor=" _js_ps @ g_lcur } 0 = u _an_fecha
+  `{ _an_abre 0 }{ crut @ g_kv }/keys?prefix={ _tx_uri @ g_lpre }{ Se _js_v @ g_lcur `&cursor={ _js_ps @ g_lcur }` }` = u _an_fecha
   cs_pede 0 u @ g_auth 0 0 }
 : cs_lfim >i { ! g_sub 0 ! g_ph @ g_lvolta cs_passo }
 : cs_lsub >i {
   cs_rauth
   ? @ g_err cs_lfim {
     = r @ g_res
-    = x cs_tget r k_result
+    = x cs_tget r $"result"
     ? @ g_err cs_lfim {
-      ? _js_v x { ? _js_ehlst x { = j 0 W < j _js_len x { _js_push @ g_lout _js_it x j = j + j 1 } 0 } cs_erro k_TypeError k_spread } 0
+      Se _js_v x ? _js_ehlst x { = j 0 W < j _js_len x { _js_push @ g_lout _js_it x j = j + j 1 } } cs_erro $"TypeError" $"Spread syntax requires ...iterable[Symbol.iterator] to be a function"
       ? @ g_err cs_lfim {
-        = ri _js_get r k_result_info
-        = c ? _js_v ri _js_get ri k_cursor ri
+        = ri _js_get r $"result_info"
+        = c ? _js_v ri _js_get ri $"cursor" ri
         ? _js_v c { ! g_lcur c cs_lpag } { ! g_res @ g_lout cs_lfim } } } } }
 # kvKeys: os nomes (k.name de cada um)
-: cs_nomes i>i l { = r _js_lst _js_len l = j 0 W && < j _js_len l ~ @ g_err { _js_push r cs_tget _js_it l j k_name = j + j 1 } r }
+: cs_nomes i>i l { = r _js_lst _js_len l = j 0 W && < j _js_len l ~ @ g_err { _js_push r cs_tget _js_it l j $"name" = j + j 1 } r }
 
 # ---------- a análise (a mesma da app; a ponte do analise-onda.js) ----------
 # o tipo para o motor: fund 1, stock 2, crypto 3, index 4, o resto 0
-: cs_tipoan i>i k ? _js_ehtxt k { ? _tx_igual k k_fund 1 ? _tx_igual k k_stock 2 ? _tx_igual k k_crypto 3 ? _tx_igual k k_index 4 0 } 0
+: cs_tipoan i>i k ? _js_ehtxt k { ? mesmo k $"fund" 1 ? mesmo k $"stock" 2 ? mesmo k $"crypto" 3 ? mesmo k $"index" 4 0 } 0
 # analyse(closes, { crypto, kind }): closes = lista de valores do JS (o que não é número vai como NaN); o objeto
 # que o JSON da análise dá (ou null)
 : cs_analisa iii>i cl kind cr {
   = n _js_len cl
-  = c A + n 1 = j 0
-  W < j n { = x _js_it cl j !f + c j ? _js_ehnum x _js_f x Bw 2146959360 0 = j + j 1 }
+  = c A + n 1 L j n { = x _js_it cl j !f + c j ? _js_ehnum x _js_f x Bw 2146959360 0 }
   ! 8 A + n 1 ! 4 kind ! 3 cr ! 5 0 !f 6 0.
   _an_abre 0 serie c n = t _an_fecha
   _js_parse t }
@@ -272,8 +234,8 @@
 : cs_ehnan i>i v && _js_ehtxt v && == _tx_len v 4 && && == _tx_b v 0 0 == _tx_b v 1 'N && == _tx_b v 2 'a == _tx_b v 3 'N
 : cs_revive i>i v {
   ? cs_ehnan v _js_num Bw 2146959360 0 {
-    ? _js_ehlst v { = j 0 W < j _js_len v { ! + @ + v 3 j cs_revive _js_it v j = j + j 1 } 0 } 0
-    ? _js_ehobj v { = j 0 W < j _js_on v { ! + @ + v 4 j cs_revive _js_ov v j = j + j 1 } 0 } 0
+    Se _js_ehlst v { = j 0 W < j _js_len v { ! + @ + v 3 j cs_revive _js_it v j = j + j 1 } }
+    Se _js_ehobj v { = j 0 W < j _js_on v { ! + @ + v 4 j cs_revive _js_ov v j = j + j 1 } }
     v } }
 : cs_fase >i { = t _an_fecha = v _js_parse t ? @ 60 cs_revive v v }
 # copia um texto UTF-16 [n, unidades] para d; devolve o endereço a seguir
@@ -285,104 +247,98 @@
   = l ? _js_v days days _js_lst 0
   = n _js_len l
   = dd A + n 1 ! dd n
-  = j 0 W < j n { !f + + dd 1 j _js_tonum _js_it l j = j + j 1 }
+  L j n !f + + dd 1 j _js_tonum _js_it l j
   ! 60 0 ! 61 0
   _an_abre 0 lotes si to dd cs_fase }
 # cryptoTax(lots, today): uma data que o Date.parse recusa → RangeError (o JS lança)
 : cs_imposto ii>i lots today {
   = n _js_len lots
-  = ds A + n 1 = tot 0 = j 0
-  W < j n {
+  = ds A + n 1 = tot 0 L j n {
     = x _js_it lots j
-    ? _js_v x { = d _js_get x k_d = u _tx_a16 ? _js_ehtxt d d _js_str d ! + ds j u = tot + tot @ u 0 } { ! + ds j 0 0 }
-    = j + j 1 }
+    ? _js_v x { = d _js_get x $"d" = u _tx_a16 ? _js_ehtxt d d _js_str d ! + ds j u = tot + tot @ u 0 } { ! + ds j 0 0 } }
   = t16 _tx_a16 today
   = b A + + + 4 @ t16 * 4 n tot
   !f b * F _dt_liso today 86400000.
   ! + b 1 1
   = q cs_u16cp + b 2 t16
   ! q n = q + q 1
-  = j 0
-  W < j n {
+  L j n {
     = x _js_it lots j
-    ? _js_v x { ! q 1 !f + q 1 _js_tonum _js_get x k_e ! + q 2 _js_v _js_get x k_plan 0 } { ! q 0 0 }
+    ? _js_v x { ! q 1 !f + q 1 _js_tonum _js_get x $"e" ! + q 2 _js_v _js_get x $"plan" 0 } { ! q 0 0 }
     = u @ + ds j
-    = q ? u cs_u16cp + q 3 u { ! + q 3 0 + q 4 }
-    = j + j 1 }
+    = q ? u cs_u16cp + q 3 u { ! + q 3 0 + q 4 } }
   ! 60 0 ! 61 0
   _an_abre 0 imposto b
   = r cs_fase
-  ? @ 61 cs_lanca k_RangeError k_itv 0
+  Se @ 61 cs_lanca $"RangeError" $"Invalid time value"
   r }
 
 # ---------- veredictos (normVerdict e textCheck do comum.mjs; os erros vão para g_errs) ----------
 # str(v, max, name, req): o texto, ou '' (com o erro)
 : cs_str iiii>i v max nome req
-  ? || _js_nulo v && _js_ehtxt v == _tx_len v 0 { ? req { cs_eini "falta " _tx_p nome cs_efim } 0 _tx_novo 0 }
-  ? ~ _js_ehtxt v { cs_eini _tx_p nome " tem de ser texto" cs_efim _tx_novo 0 }
-  { ? > _tx_l16 v max { cs_eini _tx_p nome " com mais de " N max " caracteres" cs_efim } 0 v }
+  ? || _js_nulo v && _js_ehtxt v == _tx_len v 0 { Se req `{ cs_eini }falta { crut nome }{ cs_efim }` _tx_novo 0 }
+  ? ~ _js_ehtxt v { `{ cs_eini }{ crut nome } tem de ser texto{ cs_efim }` _tx_novo 0 }
+  { Se > _tx_l16 v max `{ cs_eini }{ crut nome } com mais de { N max } caracteres{ cs_efim }` v }
 # um nome de campo: `${p}.campo` (o campo é um texto)
-: cs_pc2 ii>i p c { _an_abre 0 _tx_p p P '. _tx_p c _an_fecha }
+: cs_pc2 ii>i p c { _an_abre 0 crut p P '. crut c _an_fecha }
 # x[h] == null || x[h] === ''
 : cs_vazio i>i v || _js_nulo v && _js_ehtxt v == _tx_len v 0
 : cs_norm iiiiii>i x p ref price sreq plano {
   ? || || ~ _js_v x ~ || _js_ehobj x _js_ehlst x _js_ehlst x {
-    cs_eini _tx_p p ": tem de ser um objeto" cs_efim
-    = o _js_obj 1 _js_oset o k_s 2 } {
-  = keys ? ref cs_c k_REF_KEYS cs_c k_ACTION_KEYS
-  = xk _js_get x k_key
-  ? ~ _js_inc keys xk {
-      cs_eini _tx_p p ".key inválido: " _js_ps xk " (" ? ref "referência" "ativo que se compra" ": "
-      = j 0 W < j _js_len keys { ? j ", " 0 _tx_p _js_it keys j = j + j 1 } ")" cs_efim } 0
+    `{ cs_eini }{ crut p }: tem de ser um objeto{ cs_efim }`
+    = o _js_obj 1 _js_oset o $"s" 2 } {
+  = keys ? ref cs_c $"REF_KEYS" cs_c $"ACTION_KEYS"
+  = xk _js_get x $"key"
+  Se ~ _js_inc keys xk {
+      `{ cs_eini }{ crut p }.key inválido: { _js_ps xk } ({ ? ref "referência" "ativo que se compra" }: `
+      = j 0 W < j _js_len keys { Se j ", " crut _js_it keys j = j + j 1 } `){ cs_efim }` }
   = o _js_obj 16
-  _js_oset o k_s _js_get x k_s
-  _js_oset o k_key xk
-  = a cs_str _js_get x k_action 40 cs_pc2 p k_action 0
+  _js_oset o $"s" _js_get x $"s"
+  _js_oset o $"key" xk
+  = a cs_str _js_get x $"action" 40 cs_pc2 p $"action" 0
   = a ? > _tx_len a 0 a { = l cs_alabel _js_str xk ? _js_v l l _tx_novo 0 }
-  _js_oset o k_action a
-  _js_oset o k_why cs_str _js_get x k_why 280 cs_pc2 p k_why 1
-  ? plano { = t cs_str _js_get x k_plan 280 cs_pc2 p k_plan 0 ? > _tx_len t 0 _js_oset o k_plan t 0 0 } 0
-  = hz cs_c k_HZ
-  = j 0 W < j 3 {
+  _js_oset o $"action" a
+  _js_oset o $"why" cs_str _js_get x $"why" 280 cs_pc2 p $"why" 1
+  Se plano { = t cs_str _js_get x $"plan" 280 cs_pc2 p $"plan" 0 Se > _tx_len t 0 _js_oset o $"plan" t }
+  = hz cs_c $"HZ"
+  L j 3 {
     = h _js_it hz j = v _js_get x h
-    ? cs_vazio v { ? sreq { cs_eini "falta " _tx_p p P '. _tx_p h " (convicção 0–100)" cs_efim } 0 } {
+    ? cs_vazio v { Se sreq `{ cs_eini }falta { crut p }{ P '. }{ crut h } (convicção 0–100){ cs_efim }` } {
       = n _js_tonum v
-      ? || || || == _js_tipo v 3 == _js_tipo v 4 ~ _nu_fin n || < n 0. > n 100. {
-          cs_eini _tx_p p P '. _tx_p h ": a convicção é de 0 a 100 (veio " _js_pj v 0 0 ")" cs_efim }
-        { _js_oset o h _js_num _nu_round n 0 } }
-    = j + j 1 }
+      ? || || || == _js_tipo v 3 == _js_tipo v 4 ~ fin n || < n 0. > n 100. {
+          `{ cs_eini }{ crut p }{ P '. }{ crut h }: a convicção é de 0 a 100 (veio { _js_pj v 0 0 }){ cs_efim }` }
+        { _js_oset o h _js_num _nu_round n 0 } } }
   # sc: as convicções que ficaram
-  = sc _js_lst 3 = j 0 W < j 3 { = v _js_oget o _js_it hz j ? _js_fin v _js_push sc v 0 = j + j 1 }
-  ? == _js_len sc 3 {
+  = sc _js_lst 3 L j 3 { = v _js_oget o _js_it hz j Se _js_fin v _js_push sc v }
+  Se == _js_len sc 3 {
       = mx Mx Mx _js_f _js_it sc 0 _js_f _js_it sc 1 _js_f _js_it sc 2
       = mn Mn Mn _js_f _js_it sc 0 _js_f _js_it sc 1 _js_f _js_it sc 2
-      ? && _js_inc cs_c k_BUYISH xk < mx 50. {
-          cs_eini _tx_p p ": \"" _tx_p _js_oget o k_action "\" com convicção contra nos três prazos (" cs_psc sc "): 100 = muito a favor" cs_efim } 0
-      ? && _js_inc cs_c k_SELLAV xk > mn 50. {
-          cs_eini _tx_p p ": \"" _tx_p _js_oget o k_action "\" com convicção a favor nos três prazos (" cs_psc sc "): 0 = muito contra" cs_efim } 0 } 0
-  = lv cs_c k_LEVELS
-  = j 0 W < j 3 {
+      Se && _js_inc cs_c $"BUYISH" xk < mx 50. {
+          `{ cs_eini }{ crut p }: "{ crut _js_oget o $"action" }" com convicção contra nos três prazos ({ cs_psc sc }): 100 = muito a favor{ cs_efim }` }
+      Se && _js_inc cs_c $"SELLAV" xk > mn 50. {
+          `{ cs_eini }{ crut p }: "{ crut _js_oget o $"action" }" com convicção a favor nos três prazos ({ cs_psc sc }): 0 = muito contra{ cs_efim }` } }
+  = lv cs_c $"LEVELS"
+  L j 3 {
     = l _js_it lv j = v _js_get x l
     ? cs_vazio v 0 {
       = n _js_tonum v
-      ? || || == _js_tipo v 3 == _js_tipo v 4 || ~ _nu_fin n <= n 0. {
-          cs_eini _tx_p p P '. _tx_p l " tem de ser um número (na moeda do ativo)" cs_efim } {
-        ? _js_fin price {
+      ? || || == _js_tipo v 3 == _js_tipo v 4 || ~ fin n <= n 0. {
+          `{ cs_eini }{ crut p }{ P '. }{ crut l } tem de ser um número (na moeda do ativo){ cs_efim }` } {
+        Se _js_fin price {
             = pr _js_f price
-            ? && > pr 0. || < n / pr 4. > n * pr 4. {
-                cs_eini _tx_p p P '. _tx_p l " = " _nu_ps n " longe do preço de hoje (" _nu_ps pr "): está na moeda do ativo?" cs_efim } 0 } 0
-        _js_oset o l _js_num _nu_rprec n 6 0 } }
-    = j + j 1 }
-  = st _js_oget o k_stop = en _js_oget o k_entry = ta _js_oget o k_target
-  ? && && ~ _js_nulo st ~ _js_nulo en >= _js_f st _js_f en {
-      cs_eini _tx_p p ": o stop (" _js_ps st ") tem de ficar abaixo da entrada (" _js_ps en ")" cs_efim } 0
-  ? && && ~ _js_nulo en ~ _js_nulo ta <= _js_f ta _js_f en {
-      cs_eini _tx_p p ": o alvo (" _js_ps ta ") tem de ficar acima da entrada (" _js_ps en ")" cs_efim } 0
-  ? && && ~ _js_nulo st ~ _js_nulo ta <= _js_f ta _js_f st {
-      cs_eini _tx_p p ": o alvo (" _js_ps ta ") tem de ficar acima do stop (" _js_ps st ")" cs_efim } 0
+            Se && > pr 0. || < n / pr 4. > n * pr 4. {
+                `{ cs_eini }{ crut p }{ P '. }{ crut l } = { _nu_ps n } longe do preço de hoje ({ _nu_ps pr }): está na moeda do ativo?{ cs_efim }` } }
+        _js_oset o l _js_num _nu_rprec n 6 0 } } }
+  = st _js_oget o $"stop" = en _js_oget o $"entry" = ta _js_oget o $"target"
+  Se && && ~ _js_nulo st ~ _js_nulo en >= _js_f st _js_f en {
+      `{ cs_eini }{ crut p }: o stop ({ _js_ps st }) tem de ficar abaixo da entrada ({ _js_ps en }){ cs_efim }` }
+  Se && && ~ _js_nulo en ~ _js_nulo ta <= _js_f ta _js_f en {
+      `{ cs_eini }{ crut p }: o alvo ({ _js_ps ta }) tem de ficar acima da entrada ({ _js_ps en }){ cs_efim }` }
+  Se && && ~ _js_nulo st ~ _js_nulo ta <= _js_f ta _js_f st {
+      `{ cs_eini }{ crut p }: o alvo ({ _js_ps ta }) tem de ficar acima do stop ({ _js_ps st }){ cs_efim }` }
   o } }
 # sc.join('/')
-: cs_psc i>i l { = j 0 W < j _js_len l { ? j P '/ 0 _js_ps _js_it l j = j + j 1 } 0 }
+: cs_psc i>i l { = j 0 W < j _js_len l { Se j P '/ _js_ps _js_it l j = j + j 1 } }
 
 # ---------- ordenar (estável, como o sort do JS: o que fica à frente quando cs_cmp(depois, antes) < 0) ----------
 # a ordem: cs_cmp k x y (comum.onda) devolve um real como o comparador do JS (NaN conta como 0)
@@ -402,7 +358,7 @@
       = t s = s d = d t
       = w * w 2 }
     = it @ + a 3
-    ? != s it { = j 0 W < j n { ! + it j @ + s j = j + j 1 } 0 } 0
+    Se != s it { L j n ! + it j @ + s j }
     a } }
 
 # ---------- comparadores do sort (o real do comparador do JS) e o arranque dos scripts ----------
@@ -410,13 +366,12 @@
 : cs_cmp iii>f k x y ? == k 1 F _tx_cmp _js_str x _js_str y ? < k 20 da_cmp k x y ? < k 30 un_cmp k x y ? < k 40 ou_cmp k x y ? < k 50 pu_cmp k x y bt_cmp k x y
 # o sort() do JS: os undefined vão para o fim sem comparar
 : cs_sortdef i>i a {
-  = n _js_len a = b _js_lst n = u 0 = j 0
-  W < j n { = x _js_it a j ? == x 1 = u + u 1 _js_push b x = j + j 1 }
+  = n _js_len a = b _js_lst n = u 0 L j n { = x _js_it a j ? == x 1 = u + u 1 _js_push b x }
   cs_ordena b 1
-  = j 0 W < j u { _js_push b 1 = j + j 1 }
+  L j u _js_push b 1
   ! + a 3 @ + b 3 ! + a 2 @ + b 2 ! + a 1 @ + b 1 a }
 : cs_corre >i {
   cs_ini
   = s _an_arg 0
-  ? _tx_igual s k_dados da_corre ? _tx_igual s k_universo un_corre ? _tx_igual s k_outros ou_corre
-    ? _tx_igual s k_publicar pu_corre ? _tx_igual s k_backtest bt_corre { _an_fd 2 "uso: correr.mjs dados|universo|outros|publicar|backtest [...]" P 10 _an_sair 2 } }
+  ? mesmo s $"dados" da_corre ? mesmo s $"universo" un_corre ? mesmo s $"outros" ou_corre
+    ? mesmo s $"publicar" pu_corre ? mesmo s $"backtest" bt_corre { `{ _an_fd 2 }uso: correr.mjs dados|universo|outros|publicar|backtest [...]` P 10 _an_sair 2 } }

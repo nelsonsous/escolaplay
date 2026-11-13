@@ -7,12 +7,8 @@
 #   act: a frase do Claude (se diz mais do que o rótulo), why, plan, algWhy (porque discorda das outras fontes),
 #   lv: [{ f, l, px, d }] (os níveis, já na moeda do ecrã), anD (o alvo dos analistas face a hoje, em %),
 #   nn (os títulos que contam para o tom), hoje (porque mexe hoje), desce, ev: [{ t, q, d }] (a agenda) }
-# Precisa do decisao.onda, do ecra.onda (es, ln_fin, fm_pct) e do ecra-analise.onda (an_sht, an_barv).
+# Precisa do decisao.onda, do ecra.onda (es, ln_fin, ln_rot, ln_sht, fm_pct) e do ecra-analise.onda (an_barv).
 
-# a família (1 entrar, 0 ficar, -1 sair) por extenso, para quem tem (o) ou não o ativo; parte: é um reduce
-: dv_rot iii>i f o parte ? > f 0 ? o "Reforçar" "Comprar" ? == f 0 ? o "Manter" "Aguardar"
-  ? o `Vender{ Se parte " parte" }` "Evitar"
-: dv_tom i>i f ? > f 0 "up" ? < f 0 "down" "flat"
 : dv_nome i>i q ? == q 0 "Claude" ? == q 1 "Analistas" ? == q 2 "Técnica" ? == q 3 "Notícias" ? == q 4 "Fundamentos" "Sentimento"
 # a fonte por extenso, com o artigo ("os analistas"); com de, "dos analistas"
 : dv_art ii>i q de { Se de "d" ? == q 0 "o Claude" ? == q 1 "os analistas" ? == q 2 "a técnica" ? == q 3 "as notícias"
@@ -63,8 +59,8 @@
 : dv_fonte ii>i r i {
   = b + + r 10 * 6 i = q @ b = f @ + b 1 = lado @ + b 2
   = d es.d = o ha es.own
-  `<li class="d{ ? > lado 0 "1" ? < lado 0 "2" "0" }"><div class="dec-r"><b>{ dv_nome q }</b><span class="dec-l { dv_tom f }-t">`
-  ? == q 0 an_sht d.cl.key o ? == q 1 dv_cons d.an.key ? == q 2 an_sht d.tec.key o
+  `<li class="d{ ? > lado 0 "1" ? < lado 0 "2" "0" }"><div class="dec-r"><b>{ dv_nome q }</b><span class="dec-l { ln_tomf f }-t">`
+  ? == q 0 ln_sht d.cl.key o ? == q 1 dv_cons d.an.key ? == q 2 ln_sht d.tec.key o
     ? == q 4 ? > f 0 "fortes" ? < f 0 "fracos" "razoáveis"
     ? == q 5 dv_sent d.sent
     ? > f 0 "positivas" ? < f 0 "negativas" "neutras"
@@ -92,9 +88,9 @@
   = r dc_calc es.d
   Se r {
     = f @ + r 1 = c @ + r 3
-    `<div class="box advice dec-box { dv_tom f }"><h3>Decisão</h3>`
+    `<div class="box advice dec-box { ln_tomf f }"><h3>Decisão</h3>`
     Se ha es.src `<div class="adv-src">{ esc es.src }</div>`
-    `<div class="dec-top"><div class="adv-act { dv_tom f }-t">{ dv_rot f ha es.own mesmo @ + r 5 $"reduce" }`
+    `<div class="dec-top"><div class="adv-act { ln_tomf f }-t">{ ln_rot f ha es.own mesmo @ + r 5 $"reduce" }`
     `{ Se @ + r 2 ` <small class="adv-forte">forte</small>` }</div>`
     `<span class="dec-conf c{N c}">confiança { ? == c 2 "alta" ? == c 1 "média" "baixa" }</span></div>`
     Se ha es.act `<div class="adv-nu">{ esc es.act }</div>`

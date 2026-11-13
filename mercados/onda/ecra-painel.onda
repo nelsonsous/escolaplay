@@ -14,12 +14,6 @@
 # Nomes: pn_*.
 
 
-# ===== o que o JS tem em tabelas =====
-# SHORT[k] (as etiquetas curtas dos veredictos): escreve-a e dá 1, ou 0 se não há
-: pn_sht i>i k ? || eh k $"buy" eh k $"scale" { "Reforçar" 1 }
-  ? || || || eh k $"hold" eh k $"wait" eh k $"neutral" eh k $"turn" { "Manter" 1 }
-  ? eh k $"reduce" { "Vender parte" 1 } ? || eh k $"avoid" eh k $"sell" { "Vender" 1 }
-  ? eh k $"up" { "Em alta" 1 } ? eh k $"flat" { "Lateral" 1 } ? eh k $"down" { "Em queda" 1 } 0
 # os bytes [a, b) do texto t, escapados
 : pn_esc iii>i t a b { = j a W < j b { = c _tx_b t j ? == c '& "&amp;" ? == c '< "&lt;" ? == c '> "&gt;" ? == c 34 "&quot;" ? == c 39 "&#39;" P c = j + j 1 } }
 
@@ -62,9 +56,9 @@
   = vt ha tx
   ? || || || bc ba vd vt {
     `<div class="r-sub">`
-    Se bc { = kk cl.key `<span class="badge { ln_tomk kk }">{ ? pn_sht kk 0 esc cl.action }</span>` }
+    Se bc { = kk cl.key `<span class="badge { ln_tomk kk }">{ ? ln_sht kk 1 0 esc cl.action }</span>` }
     # sem o Claude: o veredicto da decisão consolidada (a.dk, o mesmo da ficha); sem ela, o do sinal automático
-    Se ba { = ak ? ha a.dk a.dk ad.key `<span class="badge auto">{ ? pn_sht ak 0 esc ad.action }</span>` }
+    Se ba { = ak ? ha a.dk a.dk ad.key `<span class="badge auto">{ ? ln_sht ak 1 0 esc ad.action }</span>` }
     ? vd `<span class="nb">{ fm_pct1 * num d.dd 100. } do máximo</span>`
       # o conselho do Claude chegou antes da análise da app: o lugar do desconto já guardado
       { Se ~ ha an `<span class="nb-sk skel">−00,0% do máximo</span>` }

@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.22.1';
+    const VERSION = '4.22.2';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1426,16 +1426,14 @@
         const c = claudeFor(k);
         if (!c) return '';
         const A_ = REG[k], tone = CL_TONE[c.key] || 'flat';
-        const lbl = rotulo(c.key, owns(k)) || c.action || '', cs = HZ.map(([h]) => c[h]).filter(fin);
-        // forte: convicção de 70 ou mais nalgum prazo (entrar), ou de 30 ou menos (sair)
-        const forte = cs.length && (FAMS[c.key] === 1 ? Math.max(...cs) >= 70 : FAMS[c.key] === -1 ? Math.min(...cs) <= 30 : false);
+        const lbl = rotulo(c.key, owns(k)) || c.action || '';
         const dist = (v) => { const p = clPx(k, q, v); return fin(p) && fin(q.price) && q.price ? fmtPct((p / q.price - 1) * 100) : ''; };
         const conv = HZ.filter(([h]) => fin(c[h])).map(([h, l]) => `<div class="cv"><small>${l} prazo</small>${scoreBar({ score: c[h], tone: scoreTone(c[h]) })}</div>`).join('');
         const lv = [['entry', 'Entrada'], ['target', 'Alvo'], ['stop', 'Stop']].filter(([f]) => fin(clPx(k, q, c[f])))
             .map(([f, l]) => `<li class="${f}"><small>${l}</small><b class="num">${fmtPx(clPx(k, q, c[f]), A_, q.currency)}</b><span class="num">${dist(c[f])}</span></li>`).join('');
         return `<div class="box advice cl-adv ${tone}"><h3>Leitura do Claude</h3>
             <div class="adv-src">${c.old ? `Análise do Claude de ${esc(dmy(c.date).slice(0, 5))} · último comentário a este ativo` : `Análise do Claude · ${esc(clWhen())}`}</div>
-            <div class="adv-act ${tone}-t">${esc(lbl)}${forte ? ' <small class="adv-forte">forte</small>' : ''}</div>${nuance(lbl, c.action)}
+            <div class="adv-act ${tone}-t">${esc(lbl)}</div>${nuance(lbl, c.action)}
             ${conv ? `<div class="cl-conv" role="group" aria-label="Convicção do Claude por prazo">${conv}</div>` : ''}
             ${lv ? `<ul class="cl-lv">${lv}</ul>` : ''}
             ${whyToday(k, q)}

@@ -54,7 +54,7 @@ function quote(sym, range) {
 }
 // análise do Claude do dono: o formato antigo (até à 3.x: o veredicto de alguns ativos) e o da 4.0, feito no arranque
 // pelo publicar.mjs a partir de uma análise de teste (um veredicto por ativo, com convicção por prazo, níveis e porquê)
-const ADV_BASE = { headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], movers: [{ s: 'TSLA', why: 'Cai depois de resultados abaixo do esperado.' }], tldr: ['Mercado: venda em tecnologia, VIX 24.', 'Plano: manter 810 € VWCE + 90 € BTC.', 'Atenção: XRP −9%, sem reforço.'], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
+const ADV_BASE = { headline: 'Mercado nervoso: manter o plano no VWCE', market: 'Texto de mercado.', planNote: '900 € em 2 execuções', plan: [{ s: 'VWCE.DE', amount: '810 €', why: 'núcleo' }, { s: 'c:BTC', amount: '90 €', why: 'cripto · todos os meses' }], movers: [{ s: 'TSLA', why: 'Cai depois de resultados abaixo do esperado.' }], tldr: ['Mercado: venda em tecnologia, VIX 24.', 'Hoje: nada a fazer, o plano corre sozinho.', 'Atenção: XRP −9%, sem reforço.'], risks: ['S&P na média de 200 dias'], review: 'Primeiro dia.', lessons: ['Não perseguir subidas'] };
 const ADV_V1 = { date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z', ...ADV_BASE, actions: [{ s: 'c:BTC', key: 'wait', action: 'Esperar', why: 'abaixo das médias', plan: 'entrar acima de 71 000 €' }] };
 const ADV = { doc: null };
 const WATCH = ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA', 'AVGO', 'JPM', 'V', 'LLY', 'BRK-B', 'PLTR', 'AMD', 'ASML.AS', 'SAP.DE', 'MC.PA', 'SIE.DE', 'NOVO-B.CO', 'ALV.DE', 'TTE.PA', 'RHM.DE', 'TSM'];
@@ -428,7 +428,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('#mk-body h1.pg-t').textContent(), 'Painel');
     console.log('✓ Hoje: análise do Claude + plano | conselho nos meus ativos');
     assert.equal(await page.locator('.today .tldr .tl').count(), 3, 'resumo em 3 linhas');
-    assert.match(await page.locator('.today .tldr').textContent(), /Plano: manter 810/);
+    assert.match(await page.locator('.today .tldr').textContent(), /Hoje: nada a fazer/);
     assert.equal(await page.locator('.today .tldr .tl b').first().textContent(), 'Mercado:', 'a etiqueta de cada linha a negro');
     // o Cripto hoje e o Agora estão nos Destaques (conferidos lá), não no Painel
     assert.equal(await page.locator('#mk-body .sec:has(h2:text-is("Cripto hoje")), #mk-body .sec:has(h2:text-is("Agora")), #mk-body .cg, #mk-body .now-box').count(), 0, 'sem o Cripto hoje nem o Agora');
@@ -1085,7 +1085,7 @@ function proxyBody(u) {
     await page.waitForFunction(() => window.__mk && window.__mk.cfg.watchVer === 3);
     await page.waitForSelector('.today .cl-head', { state: 'attached' });
     assert.equal(await page.locator('details.today[open]').count(), 0, 'ao abrir a app: compacto');
-    assert.match(await page.locator('.today > summary .tldr').textContent(), /Plano: manter 810/, 'compacto mostra o resumo em 3 linhas');
+    assert.match(await page.locator('.today > summary .tldr').textContent(), /Hoje: nada a fazer/, 'compacto mostra o resumo em 3 linhas');
     if (SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(SHOTS, '7-painel-condensado.png') }); }
     // tocar para abrir funciona mesmo com o ecrã a atualizar logo a seguir (preços ao vivo)
     await page.evaluate(() => { document.querySelector('.today > summary').click(); window.__mk.render(); });

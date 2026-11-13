@@ -23,17 +23,8 @@
 : an_f ii>i i o @ an_p i o
 
 # ===== o que o JS tem em tabelas =====
-# FAM[k]: 0 sem família, 1 entrar, 2 ficar, 3 sair
-: an_fam i>i k ? || eh k $"buy" eh k $"scale" 1 ? || || || eh k $"hold" eh k $"wait" eh k $"neutral" eh k $"turn" 2
-  ? || || eh k $"reduce" eh k $"sell" eh k $"avoid" 3 0
-# rotulo(k, own) do JS (4.11): três famílias, e a palavra depende de já ter o ativo (o): entrar Comprar / Reforçar;
-# ficar Aguardar / Manter; sair Evitar / Vender (Vender parte no reduce). Na referência, a direção. Escreve-o e dá 1,
-# ou 0 se a chave não é conhecida
-: an_sht ii>i k o {
-  = f an_fam k
-  ? == f 1 { ? o "Reforçar" "Comprar" 1 } ? == f 2 { ? o "Manter" "Aguardar" 1 }
-  ? == f 3 { ? o `Vender{ Se eh k $"reduce" " parte" }` "Evitar" 1 }
-  ? eh k $"up" { "Em alta" 1 } ? eh k $"flat" { "Lateral" 1 } ? eh k $"down" { "Em queda" 1 } 0 }
+# FAM[k]: 0 sem família, 1 entrar, 2 ficar, 3 sair (a tabela dos veredictos é a do dc_fam, decisao.onda)
+: an_fam i>i k { = f dc_fam k ? == f 9 0 - 2 f }
 # ACT[order[j]] (as tabelas dos resultados)
 : an_act i>i j ? == j 0 "Comprar" ? == j 1 "Comprar aos poucos" ? == j 2 "Manter (não perseguir)" ? == j 3 "Esperar / reforçar"
   ? == j 4 "Manter, sem reforçar" ? == j 5 "Esperar confirmação" "Evitar"
@@ -118,9 +109,9 @@
 : an_ver i>i i {
   = c an_f i 1 = an an_f i 5 = h an_f i 2 = o ha _ar_get an_f i 0 $"own"
   `<div class="lbl `
-  ? c { = kk c.key `{ ln_tomk kk }-t">{ ? an_sht kk o 0 { = ac c.action Se ha ac esc ac } }` } {
+  ? c { = kk c.key `{ ln_tomk kk }-t">{ ? ln_sht kk o 0 { = ac c.action Se ha ac esc ac } }` } {
     = ad ? an an.adv 0
-    ? && ~ an_g 102 an_fam ad `{ ln_tomk ad }-t">{ an_sht ad o }`
+    ? && ~ an_g 102 an_fam ad `{ ln_tomk ad }-t">{ ln_sht ad o }`
       `{ esc h.tone }-t">{ esc _ar_get h ? an_g 102 $"tag" $"label" }` }
   "</div>" }
 # a marca no fim da linha de baixo: ≠ algoritmo (o veredicto do Claude é de outra família — entrar, ficar, sair — que o
@@ -209,7 +200,7 @@
   ? dsc `{ an_p1v r.dd } do máx.` ln_chg r.d
   `</div></div><div class="r-score">{ an_barv @f + _ar_get r km 1 }`
   = cd an_g 104 = c ? cd an_cl cd s 0
-  Se c { = kk c.key `<div class="lbl { ln_tomk kk }-t">{ ? an_sht kk 0 0 { = ac c.action Se ha ac esc ac } }</div>` }
+  Se c { = kk c.key `<div class="lbl { ln_tomk kk }-t">{ ? ln_sht kk 0 0 { = ac c.action Se ha ac esc ac } }</div>` }
   "</div></button>" }
 # algoRank(pool, hz): os 10 do pool com sinal automático, pela pontuação (só quando a lista de cima é a do Claude)
 : an_rank_prep >i {
