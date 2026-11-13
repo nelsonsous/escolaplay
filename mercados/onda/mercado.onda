@@ -8,42 +8,40 @@
 # (NaN quando não são números, como os recusa o Number.isFinite do JS). JSON: null ou {tone, label, hint, reasons}
 : humor i>i b {
   = s 0. = nr 0
-  = k 0 W < k 3 { = q + b * k 3 ? != @f q 0. { = nr + nr 1 = s + s ? > @f + q 1 @f + q 2 1. -1. } 0. = k + k 1 }
+  L k 3 { = q + b * k 3 ? != @f q 0. { = nr + nr 1 = s + s ? > @f + q 1 @f + q 2 1. -1. } 0. }
   = vx @f + b 9 = bd @f + b 10
-  ? _nu_fin vx { = nr + nr 1 = s ? < vx 16. + s 1. ? > vx 25. - s 1.5 s } 0.
-  ? _nu_fin bd { = nr + nr 1 = s ? >= bd 0.55 + s 1. ? <= bd 0.3 - s 1. s } 0.
+  ? fin vx { = nr + nr 1 = s ? < vx 16. + s 1. ? > vx 25. - s 1.5 s } 0.
+  ? fin bd { = nr + nr 1 = s ? >= bd 0.55 + s 1. ? <= bd 0.3 - s 1. s } 0.
   ? == nr 0 "null" {
     = t ? >= s 1.5 0 ? <= s -1.5 2 1
-    "{\"tone\":\"" ptom t "\",\"label\":\"" ? == t 0 "Otimista" ? == t 2 "Pessimista" "Misto"
-    "\",\"hint\":\"" ? == t 0 "Apetite pelo risco: a maioria dos mercados está em tendência de subida."
+    `\{"tone":"{ ptom t }","label":"{ ? == t 0 "Otimista" ? == t 2 "Pessimista" "Misto" }`
+    `","hint":"` ? == t 0 "Apetite pelo risco: a maioria dos mercados está em tendência de subida."
       ? == t 2 "Aversão ao risco: muitos mercados em tendência de descida." "Sinais contraditórios: uns mercados sobem, outros descem."
-    "\",\"reasons\":["
+    `","reasons":[`
     = c 0
-    = k 0
-    W < k 3 {
+    L k 3 {
       = q + b * k 3
-      ? != @f q 0. {
+      Se != @f q 0. {
           = up > @f + q 1 @f + q 2
-          ? c P ', 0 = c + c 1
-          "{\"tone\":\"" ? up "up" "down" "\",\"txt\":\"" ? == k 0 "S&P 500" ? == k 1 "Euro Stoxx 50" "Bitcoin"
-          ? up " acima" " abaixo" " da média de 50 dias\"}" } 0
-      = k + k 1 }
-    ? _nu_fin vx {
-        ? c P ', 0 = c + c 1
+          Se c P ', = c + c 1
+          `\{"tone":"{ ? up "up" "down" }","txt":"{ ? == k 0 "S&P 500" ? == k 1 "Euro Stoxx 50" "Bitcoin" }`
+          `{ ? up " acima" " abaixo" } da média de 50 dias"\}` } }
+    Se fin vx {
+        Se c P ', = c + c 1
         = v _nu_round vx
-        ? < vx 16. { "{\"tone\":\"up\",\"txt\":\"VIX " _nu_ps v ": mercado calmo\"}" }
-          ? > vx 25. { "{\"tone\":\"down\",\"txt\":\"VIX " _nu_ps v ": medo elevado\"}" }
-            { "{\"tone\":\"flat\",\"txt\":\"VIX " _nu_ps v ": nervosismo normal\"}" } } 0
-    ? _nu_fin bd {
-        ? c P ', 0 = c + c 1
+        ? < vx 16. { `\{"tone":"up","txt":"VIX { _nu_ps v }: mercado calmo"\}` }
+          ? > vx 25. { `\{"tone":"down","txt":"VIX { _nu_ps v }: medo elevado"\}` }
+            { `\{"tone":"flat","txt":"VIX { _nu_ps v }: nervosismo normal"\}` } }
+    Se fin bd {
+        Se c P ', = c + c 1
         = v _nu_round * bd 100.
-        ? >= bd 0.55 { "{\"tone\":\"up\",\"txt\":\"" _nu_ps v "% dos ativos seguidos com sinal positivo\"}" }
-          ? <= bd 0.3 { "{\"tone\":\"down\",\"txt\":\"Só " _nu_ps v "% dos ativos seguidos com sinal positivo\"}" }
-            { "{\"tone\":\"flat\",\"txt\":\"" _nu_ps v "% dos ativos seguidos com sinal positivo\"}" } } 0
+        ? >= bd 0.55 { `\{"tone":"up","txt":"{ _nu_ps v }% dos ativos seguidos com sinal positivo"\}` }
+          ? <= bd 0.3 { `\{"tone":"down","txt":"Só { _nu_ps v }% dos ativos seguidos com sinal positivo"\}` }
+            { `\{"tone":"flat","txt":"{ _nu_ps v }% dos ativos seguidos com sinal positivo"\}` } }
     "]}" } }
 
 # ---------- futuros em USD por galão americano → € por litro ----------
-: galao ff>i a e ? && && _nu_fin a _nu_fin e > e 0. { !f 59 / / a 3.785411784 e 1 } 0
+: galao ff>i a e ? && && fin a fin e > e 0. { !f 59 / / a 3.785411784 e 1 } 0
 
 # ---------- labelOf e riskOf ----------
 # labelOf(score, hz): hz 0 'mid' (e qualquer outro), 1 'short', 2 'long'
@@ -91,9 +89,9 @@
   ? < - len a 10 0 {
     = r A - len a
     = m 0 = i + a 1
-    W < i len { ? > @f + v - i 1 0. { !f + r m Lg / @f + v i @f + v - i 1 = m + m 1 } 0 = i + i 1 }
-    = s 0. = j 0 W < j m { = s + s @f + r j = j + j 1 }
+    W < i len { Se > @f + v - i 1 0. { !f + r m Lg / @f + v i @f + v - i 1 = m + m 1 } = i + i 1 }
+    = s 0. L j m = s + s @f + r j
     = mu / s F m
-    = q 0. = j 0 W < j m { = d - @f + r j mu = q + q * d d = j + j 1 }
+    = q 0. L j m { = d - @f + r j mu = q + q * d d }
     !f 59 * Sq / q F ? > - m 1 1 - m 1 1 Sq dias
     1 } }

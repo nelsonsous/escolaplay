@@ -13,7 +13,7 @@ const destino = path.join(raiz, 'mercados/analise-onda.js');
 // um só módulo: a biblioteca da Onda (onda/lib, toda: o -w só leva o que se usa), o motor (fase B), o resto do
 // analise.js (fase C) e o ecrã (fase D: os utilitários das vistas e as vistas), por esta ordem. O conselheiro
 // (mercados/conselheiro/onda/build.mjs) usa as mesmas listas BIBLIOTECA e ANALISE.
-export const BIBLIOTECA = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao'].map((m) => `../../onda/lib/${m}.onda`);
+export const BIBLIOTECA = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao', 'fala'].map((m) => `../../onda/lib/${m}.onda`);
 export const ANALISE = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda'];
 export const ECRA = ['ecra.onda', 'ajustes.onda', 'ecra-analise.onda', 'ecra-destaques.onda', 'ecra-painel.onda', 'ecra-carteira.onda'];
 export const FONTES = [...BIBLIOTECA, ...ANALISE, ...ECRA];

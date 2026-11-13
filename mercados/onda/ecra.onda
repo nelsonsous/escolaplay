@@ -12,79 +12,82 @@
 # A vista escreve no stdout (o analise-onda.js lê-o no fim).
 #
 # Globais (só durante a chamada de uma vista; a análise também só usa estes dentro das suas):
-#   53 o instantâneo   54 a tabela das chaves e dos textos fixos da vista (k_*, feita no início de cada chamada)
+#   53 o instantâneo   54 o estado da chamada de uma vista (a Análise: an_g / an_s)
 
 # ---- o instantâneo ----
 : es >i @ 53
 : sg i>i k _ar_get @ 53 k
-# chaves e textos fixos (até 16 bytes): k_x >i ekt N, e na função de chaves da vista `kdef N kab "x" O 0`
-: ekt i>i i @ + @ 54 i
-: kdef ii>i i t { ! + @ 54 i t 0 }
-: kab >i { = t _tx_novo 16 O t t }
 # a < b do JS para números, booleanos, null e undefined (o Number(v) dos primitivos: um texto, uma lista ou um objeto
 # dão NaN — no JS '3' < '10' compara os textos): as vistas só o usam onde os dados são números
-: vmenor ii>i a b < _ar_vnum a _ar_vnum b
+: vmenor ii>i a b < num a num b
 
 # ---- os números (as regras da app sobre o Intl.NumberFormat('pt-PT') da biblioteca) ----
 # fmtPct(v) e fmtPct1(v) do mercados.js para um número x: o sinal à parte (o − é U+2212; nada entre -0,005 e 0,005,
 # ou entre -0,05 e 0,05 com uma casa), |x| com 2 (1) casas e o %; — se não é finito. As versões …v são para um nó
 # (o fin(v) do JS: só um número finito)
-: fm_pct f>i x ? ~ _nu_fin x "—" { ? >= x 0.005 P '+ ? <= x -0.005 { P 226 P 136 P 146 0 } 0 _nu_intl Ab x 2 P '% }
-: fm_pct1 f>i x ? ~ _nu_fin x "—" { ? > x 0.05 P '+ ? < x -0.05 { P 226 P 136 P 146 0 } 0 _nu_intl Ab x 1 P '% }
-: fm_pctv i>i n ? == _ar_tipo n 4 fm_pct @f + n 1 "—"
+: fm_pct f>i x ? ~ fin x "—" { ? >= x 0.005 P '+ Se <= x -0.005 { P 226 P 136 P 146 } _nu_intl Ab x 2 P '% }
+: fm_pct1 f>i x ? ~ fin x "—" { ? > x 0.05 P '+ Se < x -0.05 { P 226 P 136 P 146 } _nu_intl Ab x 1 P '% }
+: fm_pctv i>i n ? == tipo n 4 fm_pct @f + n 1 "—"
 # fmtPx(v, a, cur) do mercados.js, com os campos do ativo já lidos: dn = a.decimals, pt = a.points (nós, 0 sem a) e
 # c = a moeda já escolhida pela ordem do JS (cur || Q[a.key].currency || cfg.fiat na cripto, ou 0). Uma moeda é um
 # código de 3 letras maiúsculas (o /^[A-Z]{3}$/ sobre String(c)): o número, U+00A0 e o símbolo do pt-PT; 'GBp'
 # (pence) não é moeda do Intl e leva " p". Os decimals têm de ser um inteiro de 0 a 100 (como na app: 0, 3 ou 4).
-: fm_px fiii>i v dn pt c ? ~ _nu_fin v "—" {
-  = d ? > _ar_tipo dn 1 I _ar_vnum dn { = x Ab v ? < x 1. 4 ? < x 10. 3 ? >= x 10000. 0 2 }
-  = cv ? _ar_verd pt 0 c
-  = t ? _ar_verd cv _ar_str cv 0
+: fm_px fiii>i v dn pt c ? ~ fin v "—" {
+  = d ? > tipo dn 1 I num dn { = x Ab v ? < x 1. 4 ? < x 10. 3 ? >= x 10000. 0 2 }
+  = cv ? ha pt 0 c
+  = t ? ha cv _ar_str cv 0
   = m && t && == _tx_len t 3 && fm_mai _tx_b t 0 && fm_mai _tx_b t 1 fm_mai _tx_b t 2
   _nu_intl v d
-  ? m { P 194 P 160 _nu_simb t 0 } 0
-  ? && == _ar_tipo cv 5 && == _tx_len t 3 && && == _tx_b t 0 'G == _tx_b t 1 'B == _tx_b t 2 'p " p" 0
-  0 }
+  Se m { P 194 P 160 _nu_simb t }
+  Se && == tipo cv 5 && == _tx_len t 3 && && == _tx_b t 0 'G == _tx_b t 1 'B == _tx_b t 2 'p " p" }
 : fm_mai i>i c && >= c 'A <= c 'Z
 # fmtPx(v, { decimals: 0 }, 'EUR') do mercados.js
-: peur0 f>i x ? ~ _nu_fin x "—" { _nu_intl x 0 P 194 P 160 "€" }
+: peur0 f>i x ? ~ fin x "—" { `{ _nu_intl x 0 }{ P 194 }{ P 160 }€` }
 # (x).toFixed(1).replace('.', ',') do JS (de 1e21 para cima o String(x), com a vírgula)
 : fm_fix1 f>i x _nu_fixos x 1 44
 # para os testes (AnaliseOnda._vista('fm_teste', lista)): cada [tipo, v, …] da lista numa linha — 0 fmtPct(v),
 # 1 fmtPct1(v), 2 fmtPx(v, a, cur) com [2, v, a, cur, Q[a.key].currency, cfg.fiat], 3 o número com d casas
 # [3, v, d], 4 toFixed(1) com vírgula, 5 fmtBig(v), 6 o número com até d casas [6, v, d]
 : fm_teste i>i s {
-  = kd kab "decimals" O 0 = kp kab "points" O 0 = kk kab "kind" O 0 = kc kab "crypto" O 0
-  = c _ar_prim s
+  = kd $"decimals" = kp $"points" = kk $"kind" = kc $"crypto"
+  = c pri s
   W c {
-    = y _ar_num _ar_idx c 0 = v _ar_idx c 1 = x _ar_vnum v
-    ? == y 0. fm_pctv v ? == y 1. ? == _ar_tipo v 4 fm_pct1 x "—"
+    = y _ar_num idx c 0 = v idx c 1 = x num v
+    ? == y 0. fm_pctv v ? == y 1. ? == tipo v 4 fm_pct1 x "—"
     ? == y 2. {
-        = a _ar_idx c 2 = cu _ar_idx c 3
+        = a idx c 2 = cu idx c 3
         # a moeda pela ordem do fmtPx: cur || Q[a.key].currency || (a && a.kind === 'crypto' ? cfg.fiat : null)
-        = m ? _ar_verd cu cu ? _ar_verd _ar_idx c 4 _ar_idx c 4 ? && _ar_verd a _ar_eqt _ar_get a kk kc _ar_idx c 5 0
-        ? == _ar_tipo v 4 fm_px x _ar_get a kd _ar_get a kp m "—" }
-    ? == y 3. _nu_intl x I _ar_num _ar_idx c 2
-    ? == y 5. ? && == _ar_tipo v 4 _nu_fin x _nu_compacto x "—"
-    ? == y 6. _nu_intlm x I _ar_num _ar_idx c 2 fm_fix1 x
-    P 10 = c _ar_prox c }
-  0 }
+        = m ? ha cu cu ? ha idx c 4 idx c 4 ? && ha a eh _ar_get a kk kc idx c 5 0
+        ? == tipo v 4 fm_px x _ar_get a kd _ar_get a kp m "—" }
+    ? == y 3. _nu_intl x I _ar_num idx c 2
+    ? == y 5. ? && == tipo v 4 fin x _nu_compacto x "—"
+    ? == y 6. _nu_intlm x I _ar_num idx c 2 fm_fix1 x
+    P 10 = c seg c } }
 
 # ---- a ordenação do JS: o sort do V8 do Chromium (o PowerSort, _or_power da biblioteca) ----
 # para os testes (AnaliseOnda._ordena): b = [n, modo, k1 (n reais), k2 (n reais), n palavras para o resultado]
 : ts_teste i>i b {
   = n @ b = k1 + b 2 = k2 + k1 n = w + k2 n
-  = i 0 W < i n { ! + w i i = i + i 1 }
+  L i n ! + w i i
   _or_power w n k1 k2 @ + b 1 }
 # ago(ms) do mercados.js para um ms verdadeiro, com ag = now(); tx é a data que o browser escreveu (no fuso e na
 # língua dele), para mais de uma hora; escapa-se aqui
 : pago ffi>i ms ag tx {
   = s _nu_round / - ag ms 1000.
-  ? < s 5. "agora" ? < s 60. { "há " _nu_ps s " s" 0 } ? < s 3600. { "há " _nu_ps _nu_round / s 60. " min" 0 } _tx_html tx }
+  ? < s 5. "agora" ? < s 60. `há { _nu_ps s } s` ? < s 3600. `há { _nu_ps _nu_round / s 60. } min` esct tx }
 
 # ---- as linhas das listas, como as do Painel (para todas as vistas): o ícone redondo e a variação ----
+# o ativo (um dos assets do instantâneo, pela ordem de Object.keys(REG)) com a chave do nó kn (k === kn), ou 0
+: ln_ativo i>i kn { = c pri es.assets = r 0 W && c ~ r { Se igual c.k kn = r c = c seg c } r }
+# … com a chave do texto t
+: ln_ativot i>i t { = c pri es.assets = r 0 W && c ~ r { Se eh c.k t = r c = c seg c } r }
+# um nó que é um número finito (o fin(v) do JS)
+: ln_fin i>i n && == tipo n 4 fin @f + n 1
+# o tom de um veredicto (o CL_TONE[k] || 'flat' do JS)
+: ln_tomk i>i k ? || || eh k $"buy" eh k $"scale" eh k $"up" "up"
+  ? || || || eh k $"reduce" eh k $"avoid" eh k $"sell" eh k $"down" "down" "flat"
 # o texto de um nó (o String(v) num texto novo, se não é texto)
-: ln_txt i>i n ? == _ar_tipo n 5 _ar_txt n _ar_str n
+: ln_txt i>i n ? == tipo n 5 txt n _ar_str n
 # o ícone redondo do Painel (o ico() do mercados.js): a cor pela chave k (h = (h * 31 + charCodeAt) % 360, carácter a
 # carácter; fora do BMP, a unidade alta), as iniciais do nome nm ou, na cripto, o símbolo cs
 : ln_cor i>i n {
@@ -98,7 +101,7 @@
   W && < j m < q 2 {
     = c _tx_cpj t j = j + j _tx_u8n _tx_b t j
     ? == c 32 = ini 1
-      ? || || || && >= c 'a <= c 'z && >= c 'A <= c 'Z && >= c '0 <= c '9 && >= c 192 <= c 255 { ? ini { _tx_mai c = q + q 1 0 } 0 = ini 0 } 0 }
+      Se || || || && >= c 'a <= c 'z && >= c 'A <= c 'Z && >= c '0 <= c '9 && >= c 192 <= c 255 { Se ini { _tx_mai c = q + q 1 } = ini 0 } }
   ? q 0 P '?
   0 }
 # o símbolo da cripto (os 4 primeiros caracteres, em maiúsculas e escapados); com st, só até ao "-" (ADA-EUR, na lista
@@ -107,9 +110,8 @@
   = t ln_txt n = m _tx_len t = j 0 = q 0
   W && && < j m < q 4 || ~ st != _tx_b t j '- {
     = c _tx_cpj t j = j + j _tx_u8n _tx_b t j = q + q 1
-    ? _tx_ent c 0 _tx_mai c }
-  0 }
-: ln_ico iiii>i k nm cs st { "<span class=\"r-ico\" style=\"--h:" N ln_cor k "\" aria-hidden=\"true\">" ? cs ln_isim cs st ln_inic nm "</span>" 0 }
+    ? _tx_ent c 0 _tx_mai c } }
+: ln_ico iiii>i k nm cs st `<span class="r-ico" style="--h:{ N ln_cor k }" aria-hidden="true">{ ? cs ln_isim cs st ln_inic nm }</span>`
 # o toneOf(v) do mercados.js para um real, e a variação (o chg(): a cor e o fmtPct; — se não é um número finito)
-: ln_tom f>i v ? ~ _nu_fin v "flat" ? > v 0.005 "up" ? < v -0.005 "down" "flat"
-: ln_chg i>i n { = x ? == _ar_tipo n 4 @f + n 1 / 0. 0. "<span class=\"chg " ln_tom x "\">" fm_pct x "</span>" 0 }
+: ln_tom f>i v ? ~ fin v "flat" ? > v 0.005 "up" ? < v -0.005 "down" "flat"
+: ln_chg i>i n { = x ? == tipo n 4 @f + n 1 / 0. 0. `<span class="chg { ln_tom x }">{ fm_pct x }</span>` }

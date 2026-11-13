@@ -7,125 +7,10 @@
 # Entrada: `ecra_analise s`, com s o instantâneo (ecra.onda); saída: o HTML no stdout.
 # As listas filtram-se e ordenam-se com o comparador que o JS usava e o sort do V8 (ts_ordena de ecra.onda): os empates
 # ficam pela mesma ordem.
-# Nomes: an_* e ka_*, para não chocarem com os k_* dos Ajustes.
+# Nomes: an_*.
 
-# ===== as chaves do instantâneo e os textos com que se compara =====
-: ka_horas >i ekt 0
-: ka_owner >i ekt 1
-: ka_claude >i ekt 2
-: ka_proxy >i ekt 3
-: ka_filter >i ekt 4
-: ka_hz >i ekt 5
-: ka_strategy >i ekt 6
-: ka_foldAn >i ekt 7
-: ka_foldUni >i ekt 8
-: ka_foldRes >i ekt 9
-: ka_foldSobre >i ekt 10
-: ka_uniN >i ekt 11
-: ka_when >i ekt 12
-: ka_assets >i ekt 13
-: ka_cl >i ekt 14
-: ka_uni >i ekt 15
-: ka_ev >i ekt 16
-: ka_bt >i ekt 17
-: ka_k >i ekt 18
-: ka_kind >i ekt 19
-: ka_temp >i ekt 20
-: ka_sym >i ekt 21
-: ka_name >i ekt 22
-: ka_chg >i ekt 23
-: ka_an >i ekt 24
-: ka_h >i ekt 25
-: ka_d >i ekt 26
-: ka_adv >i ekt 27
-: ka_score >i ekt 28
-: ka_tone >i ekt 29
-: ka_label >i ekt 30
-: ka_short >i ekt 31
-: ka_mid >i ekt 32
-: ka_long >i ekt 33
-: ka_dd >i ekt 34
-: ka_tag >i ekt 35
-: ka_opp >i ekt 36
-: ka_missing >i ekt 37
-: ka_review >i ekt 38
-: ka_lessons >i ekt 39
-: ka_rank >i ekt 40
-: ka_actions >i ekt 41
-: ka_s >i ekt 42
-: ka_key >i ekt 43
-: ka_action >i ekt 44
-: ka_error >i ekt 45
-: ka_rows >i ekt 46
-: ka_days >i ekt 47
-: ka_since >i ekt 48
-: ka_acc >i ekt 49
-: ka_n >i ekt 50
-: ka_xs >i ekt 51
-: ka_xn >i ekt 52
-: ka_running >i ekt 53
-: ka_sum >i ekt 54
-: ka_yrs >i ekt 55
-: ka_ticket >i ekt 56
-: ka_byKind >i ekt 57
-: ka_worst >i ekt 58
-: ka_best >i ekt 59
-: ka_n63 >i ekt 60
-: ka_avg63 >i ekt 61
-: ka_hit63 >i ekt 62
-: ka_ex63 >i ekt 63
-: ka_v_disc >i ekt 64
-: ka_v_all >i ekt 65
-: ka_v_plan >i ekt 66
-: ka_v_aux >i ekt 67
-: ka_v_index >i ekt 68
-: ka_v_stock >i ekt 69
-: ka_v_fund >i ekt 70
-: ka_v_crypto >i ekt 71
-: ka_v_mix >i ekt 72
-: ka_v_etf >i ekt 73
-# as linhas de toda a Trade Republic: { s, n, t, m, l, o, dd, d }
-: ka_rt >i ekt 74
-: ka_rm >i ekt 75
-: ka_rl >i ekt 76
-: ka_ro >i ekt 77
-: ka_own >i ekt 78
-# os conselhos pela ordem das tabelas dos resultados (buy … avoid), e os outros
-: ka_o i>i j ekt + 80 j
-: ka_v_buy >i ekt 80
-: ka_v_scale >i ekt 81
-: ka_v_hold >i ekt 82
-: ka_v_wait >i ekt 83
-: ka_v_neutral >i ekt 84
-: ka_v_turn >i ekt 85
-: ka_v_avoid >i ekt 86
-: ka_v_reduce >i ekt 87
-: ka_v_sell >i ekt 88
-: ka_v_up >i ekt 89
-: ka_v_flat >i ekt 90
-: ka_v_down >i ekt 91
-: an_chaves >i {
-  ! 54 A 140
-  kdef 0 kab "horas" O 0  kdef 1 kab "owner" O 0  kdef 2 kab "claude" O 0  kdef 3 kab "proxy" O 0  kdef 4 kab "filter" O 0
-  kdef 5 kab "hz" O 0  kdef 6 kab "strategy" O 0  kdef 7 kab "foldAn" O 0  kdef 8 kab "foldUni" O 0  kdef 9 kab "foldRes" O 0
-  kdef 10 kab "foldSobre" O 0  kdef 11 kab "uniN" O 0  kdef 12 kab "when" O 0  kdef 13 kab "assets" O 0  kdef 14 kab "cl" O 0
-  kdef 15 kab "uni" O 0  kdef 16 kab "ev" O 0  kdef 17 kab "bt" O 0  kdef 18 kab "k" O 0  kdef 19 kab "kind" O 0
-  kdef 20 kab "temp" O 0  kdef 21 kab "sym" O 0  kdef 22 kab "name" O 0  kdef 23 kab "chg" O 0  kdef 24 kab "an" O 0
-  kdef 25 kab "h" O 0  kdef 26 kab "d" O 0  kdef 27 kab "adv" O 0  kdef 28 kab "score" O 0  kdef 29 kab "tone" O 0
-  kdef 30 kab "label" O 0  kdef 31 kab "short" O 0  kdef 32 kab "mid" O 0  kdef 33 kab "long" O 0  kdef 34 kab "dd" O 0
-  kdef 35 kab "tag" O 0  kdef 36 kab "opp" O 0  kdef 37 kab "missing" O 0  kdef 38 kab "review" O 0  kdef 39 kab "lessons" O 0
-  kdef 40 kab "rank" O 0  kdef 41 kab "actions" O 0  kdef 42 kab "s" O 0  kdef 43 kab "key" O 0  kdef 44 kab "action" O 0
-  kdef 45 kab "error" O 0  kdef 46 kab "rows" O 0  kdef 47 kab "days" O 0  kdef 48 kab "since" O 0  kdef 49 kab "acc" O 0
-  kdef 50 kab "n" O 0  kdef 51 kab "xs" O 0  kdef 52 kab "xn" O 0  kdef 53 kab "running" O 0  kdef 54 kab "sum" O 0
-  kdef 55 kab "yrs" O 0  kdef 56 kab "ticket" O 0  kdef 57 kab "byKind" O 0  kdef 58 kab "worst" O 0  kdef 59 kab "best" O 0
-  kdef 60 kab "n63" O 0  kdef 61 kab "avg63" O 0  kdef 62 kab "hit63" O 0  kdef 63 kab "ex63" O 0  kdef 64 kab "disc" O 0
-  kdef 65 kab "all" O 0  kdef 66 kab "plan" O 0  kdef 67 kab "aux" O 0  kdef 68 kab "index" O 0  kdef 69 kab "stock" O 0
-  kdef 70 kab "fund" O 0  kdef 71 kab "crypto" O 0  kdef 72 kab "mix" O 0  kdef 73 kab "etf" O 0  kdef 74 kab "t" O 0
-  kdef 75 kab "m" O 0  kdef 76 kab "l" O 0  kdef 77 kab "o" O 0  kdef 78 kab "own" O 0
-  kdef 80 kab "buy" O 0  kdef 81 kab "scale" O 0  kdef 82 kab "hold" O 0  kdef 83 kab "wait" O 0  kdef 84 kab "neutral" O 0
-  kdef 85 kab "turn" O 0  kdef 86 kab "avoid" O 0  kdef 87 kab "reduce" O 0  kdef 88 kab "sell" O 0  kdef 89 kab "up" O 0
-  kdef 90 kab "flat" O 0  kdef 91 kab "down" O 0
-  0 }
+# a chave do veredicto j, pela ordem das tabelas dos resultados (buy … avoid) e os outros
+: ka_o i>i j ? == j 0 $"buy" ? == j 1 $"scale" ? == j 2 $"hold" ? == j 3 $"wait" ? == j 4 $"neutral" ? == j 5 $"turn" ? == j 6 $"avoid" ? == j 7 $"reduce" ? == j 8 $"sell" ? == j 9 $"up" ? == j 10 $"flat" $"down"
 # o estado da chamada, a seguir às chaves: 100 hz  101 filtro  102 desconto (hz === 'disc')  103 useCl (a lista é a do
 # Claude)  104 clDoc (a lista actions, ou 0)  105 CLAUDE  107 quantos ativos  108 os ativos  109 o texto do hz (ou 0)
 # 110/111 clRows (índices, quantos)  112/113 autoRows  114/115 as oportunidades  116/117 a base de longo prazo
@@ -138,97 +23,88 @@
 : an_f ii>i i o @ an_p i o
 
 # ===== o que o JS tem em tabelas =====
-# CL_TONE[k] || 'flat'
-: an_tom i>i k ? || || _ar_eqt k ka_v_buy _ar_eqt k ka_v_scale _ar_eqt k ka_v_up "up"
-  ? || || || _ar_eqt k ka_v_reduce _ar_eqt k ka_v_avoid _ar_eqt k ka_v_sell _ar_eqt k ka_v_down "down" "flat"
 # FAM[k]: 0 sem família, 1 entrar, 2 ficar, 3 sair
-: an_fam i>i k ? || _ar_eqt k ka_v_buy _ar_eqt k ka_v_scale 1 ? || || || _ar_eqt k ka_v_hold _ar_eqt k ka_v_wait _ar_eqt k ka_v_neutral _ar_eqt k ka_v_turn 2
-  ? || || _ar_eqt k ka_v_reduce _ar_eqt k ka_v_sell _ar_eqt k ka_v_avoid 3 0
+: an_fam i>i k ? || eh k $"buy" eh k $"scale" 1 ? || || || eh k $"hold" eh k $"wait" eh k $"neutral" eh k $"turn" 2
+  ? || || eh k $"reduce" eh k $"sell" eh k $"avoid" 3 0
 # rotulo(k, own) do JS (4.11): três famílias, e a palavra depende de já ter o ativo (o): entrar Comprar / Reforçar;
 # ficar Aguardar / Manter; sair Evitar / Vender (Vender parte no reduce). Na referência, a direção. Escreve-o e dá 1,
 # ou 0 se a chave não é conhecida
 : an_sht ii>i k o {
   = f an_fam k
   ? == f 1 { ? o "Reforçar" "Comprar" 1 } ? == f 2 { ? o "Manter" "Aguardar" 1 }
-  ? == f 3 { ? o { "Vender" ? _ar_eqt k ka_v_reduce " parte" 0 0 } "Evitar" 1 }
-  ? _ar_eqt k ka_v_up { "Em alta" 1 } ? _ar_eqt k ka_v_flat { "Lateral" 1 } ? _ar_eqt k ka_v_down { "Em queda" 1 } 0 }
+  ? == f 3 { ? o `Vender{ Se eh k $"reduce" " parte" }` "Evitar" 1 }
+  ? eh k $"up" { "Em alta" 1 } ? eh k $"flat" { "Lateral" 1 } ? eh k $"down" { "Em queda" 1 } 0 }
 # ACT[order[j]] (as tabelas dos resultados)
 : an_act i>i j ? == j 0 "Comprar" ? == j 1 "Comprar aos poucos" ? == j 2 "Manter (não perseguir)" ? == j 3 "Esperar / reforçar"
   ? == j 4 "Manter, sem reforçar" ? == j 5 "Esperar confirmação" "Evitar"
 # HZ_PT[hz]
-: an_hzpt >i { = h an_g 100 ? _ar_eqt h ka_short "curto" ? _ar_eqt h ka_mid "médio" ? _ar_eqt h ka_long "longo" "undefined" }
+: an_hzpt >i { = h an_g 100 ? eh h $"short" "curto" ? eh h $"mid" "médio" ? eh h $"long" "longo" "undefined" }
 
 # ===== pedaços =====
 # o pc e o tone das tabelas dos resultados para um real x (nul: o x é null)
-: an_pc if>i nul x ? || nul ~ _nu_fin x "—" fm_pct * x 100.
+: an_pc if>i nul x ? || nul ~ fin x "—" fm_pct * x 100.
 : an_tn if>i nul x ? nul "flat" ln_tom * x 100.
 # … e para um nó (null e undefined são o null do JS; o que não é número não é finito)
-: an_pcv i>i n ? || == _ar_tipo n 0 == _ar_tipo n 1 "—" ? == _ar_tipo n 4 an_pc 0 @f + n 1 "—"
-: an_tnv i>i n ? || == _ar_tipo n 0 == _ar_tipo n 1 "flat" ln_tom * _ar_vnum n 100.
+: an_pcv i>i n ? || == tipo n 0 == tipo n 1 "—" ? == tipo n 4 an_pc 0 @f + n 1 "—"
+: an_tnv i>i n ? || == tipo n 0 == tipo n 1 "flat" ln_tom * num n 100.
 # v === 1
-: an_um i>i n && == _ar_tipo n 4 == @f + n 1 1.
+: an_um i>i n && == tipo n 4 == @f + n 1 1.
 # o fmtPct1 de um nó (um número já em %)
-: an_p1v i>i n ? == _ar_tipo n 4 fm_pct1 @f + n 1 "—"
+: an_p1v i>i n ? == tipo n 4 fm_pct1 @f + n 1 "—"
 # scoreBar({ score: v, tone: scoreTone(v) }) para um número
-: an_t3 i>i t ? == t 0 "up" ? == t 1 "flat" "down"
 : an_barv f>i v { = t ? >= v 58. 0 ? <= v 42. 2 1
-  "<div class=\"score\"><div class=\"bar\"><i class=\"" an_t3 t "\" style=\"width:" _nu_ps v "%\"></i></div><span class=\"val num " an_t3 t "-t\">" _nu_ps v "</span></div>" 0 }
+  `<div class="score"><div class="bar"><i class="{ ptom t }" style="width:{ _nu_ps v }%"></i></div><span class="val num { ptom t }-t">{ _nu_ps v }</span></div>` }
 # clNow: o primeiro conselho a da lista l com a && a.s === k
-: an_cl ii>i l k { = c _ar_prim l = r 0 W && c ~ r { ? && _ar_verd c _ar_igual _ar_get c ka_s k = r c 0 = c _ar_prox c } r }
+: an_cl ii>i l k { = c pri l = r 0 W && c ~ r { Se && ha c igual c.s k = r c = c seg c } r }
 # clScored: algum a && fin(a.mid)
-: an_mid i>i l { = c _ar_prim l = r 0 W && c ~ r { = v _ar_get c ka_mid = r && _ar_verd c && == _ar_tipo v 4 _nu_fin @f + v 1 = c _ar_prox c } r }
+: an_mid i>i l { = c pri l = r 0 W && c ~ r { = v c.mid = r && ha c && == tipo v 4 fin @f + v 1 = c seg c } r }
 # rk(k): a posição de k na classificação do Claude (r.indexOf(k), com ===), ou 1000
-: an_rk ii>i rl k { = c ? == _ar_tipo rl 6 _ar_prim rl 0 = i 0 = r -1 W && c < r 0 { ? _ar_igual c k = r i 0 = c _ar_prox c = i + i 1 } ? < r 0 1000 r }
+: an_rk ii>i rl k { = c ? == tipo rl 6 pri rl 0 = i 0 = r -1 W && c < r 0 { Se igual c k = r i = c seg c = i + i 1 } ? < r 0 1000 r }
 # o prazo h (texto) do AN[k]: r.horizons && r.horizons[h]
-: an_hzn ii>i an h { = x _ar_get an ka_h = y ? && _ar_verd x h _ar_get x h 0 ? _ar_verd y y 0 }
+: an_hzn ii>i an h { = x an.h = y ? && ha x h _ar_get x h 0 ? ha y y 0 }
 # os tipos de toda a Trade Republic de cada filtro (ty: 1 etf, 2 crypto, 4 stock)
-: an_tipo ii>i t ty ? _ar_eqt t ka_v_etf & ty 1 ? _ar_eqt t ka_v_crypto & ty 2 ? _ar_eqt t ka_v_stock & ty 4 0
+: an_tipo ii>i t ty ? eh t $"etf" & ty 1 ? eh t $"crypto" & ty 2 ? eh t $"stock" & ty 4 0
 
 # ===== os ativos e as listas =====
 : an_prep >i {
-  = l sg ka_assets = n _ar_n l = b A * 8 + n 1
+  = l es.assets = n quantos l = b A * 8 + n 1
   an_s 107 n an_s 108 b
   = disc an_g 102 = cd an_g 104 = f an_g 101 = ht an_g 109
-  = c _ar_prim l = i 0
+  = c pri l = i 0
   W c {
     = p + b * 8 i
-    = k _ar_get c ka_k = kd _ar_get c ka_kind = an0 _ar_get c ka_an
-    = an ? _ar_verd an0 an0 0
+    = k c.k = kd c.kind = an0 c.an
+    = an ? ha an0 an0 0
     ! p c ! + p 5 an ! + p 7 kd
     = cn ? cd an_cl cd k 0
     ! + p 1 cn
-    = al ? an { ? disc { = d _ar_get an ka_d ? _ar_verd d d 0 } ? ht an_hzn an ht 0 } 0
+    = al ? an { ? disc { = d an.d ? ha d d 0 } ? ht an_hzn an ht 0 } 0
     ! + p 2 al
     # listed, investable e inPlan: o que entra na lista (keys) e em cada filtro (pool)
-    = li && ~ _ar_verd _ar_get c ka_temp ~ _ar_eqt kd ka_v_aux
-    = iv && li || || _ar_eqt kd ka_v_stock _ar_eqt kd ka_v_fund _ar_eqt kd ka_v_crypto
-    = ip || _ar_eqt kd ka_v_fund _ar_eqt kd ka_v_crypto
-    = ky && && li ~ _ar_eqt kd ka_v_index || an cn
-    = po ? _ar_eqt f ka_v_all iv ? _ar_eqt f ka_v_plan && iv ip _ar_igual kd f
+    = li && ~ ha c.temp ~ eh kd $"aux"
+    = iv && li || || eh kd $"stock" eh kd $"fund" eh kd $"crypto"
+    = ip || eh kd $"fund" eh kd $"crypto"
+    = ky && && li ~ eh kd $"index" || an cn
+    = po ? eh f $"all" iv ? eh f $"plan" && iv ip igual kd f
     = fl | ? ky 1 0 | ? && && ky iv an 2 0 ? && ky po 4 0
     # clScore(k, hz): c && fin(c[hz])
     = v ? && cn ht _ar_get cn ht 0
-    ? && == _ar_tipo v 4 _nu_fin @f + v 1 { !f + p 4 @f + v 1 = fl | fl 16 0 } 0
+    Se && == tipo v 4 fin @f + v 1 { !f + p 4 @f + v 1 = fl | fl 16 }
     ! + p 3 fl
-    = c _ar_prox c = i + i 1 }
-  0 }
+    = c seg c = i + i 1 } }
 : an_listas >i {
   = n an_g 107 = k1 A + n 1 = k2 A + n 1
   # clRows: os que o Claude pontuou, pela convicção (a descer) e, nos empates, pela classificação dele
   = cr + A + n 2 1 = nc 0
-  ? an_g 103 {
-      = rl _ar_get an_g 105 ka_rank = ht an_g 109 = rh ? && _ar_verd rl ht _ar_get rl ht 0
-      = i 0 W < i n {
-        ? == & an_f i 3 20 20 { ! + cr nc i = nc + nc 1 !f + k1 i @f an_p i 4 !f + k2 i F an_rk rh _ar_get an_f i 0 ka_k 0 } 0
-        = i + i 1 }
+  Se an_g 103 {
+      = rl _ar_get an_g 105 $"rank" = ht an_g 109 = rh ? && ha rl ht _ar_get rl ht 0
+      L i n Se == & an_f i 3 20 20 { ! + cr nc i = nc + nc 1 !f + k1 i @f an_p i 4 !f + k2 i F an_rk rh _ar_get an_f i 0 $"k" }
       _or_power cr nc k1 k2 6
-      = j 0 W < j nc { = i @ + cr j ! an_p i 3 | an_f i 3 8 = j + j 1 } 0 } 0
+      L j nc { = i @ + cr j ! an_p i 3 | an_f i 3 8 } }
   an_s 110 cr an_s 111 nc
   # autoRows: os outros do pool com sinal automático, pela pontuação (a descer)
   = ar + A + n 2 1 = na 0
-  = i 0 W < i n {
-    ? && == & an_f i 3 12 4 an_f i 2 { ! + ar na i = na + na 1 !f + k1 i _ar_vnum _ar_get an_f i 2 ka_score 0 } 0
-    = i + i 1 }
+  L i n Se && == & an_f i 3 12 4 an_f i 2 { ! + ar na i = na + na 1 !f + k1 i num _ar_get an_f i 2 $"score" }
   _or_power ar na k1 0 0
   an_s 112 ar an_s 113 na
   0 }
@@ -236,267 +112,260 @@
 # ===== as linhas: as do Painel (ícone, nome, símbolo e variação do dia: ln_ico e ln_chg de ecra.onda), com a pontuação
 # e o veredicto à direita =====
 # a pontuação da linha do ativo i: a convicção do Claude (clRows) ou a do algoritmo (a do prazo, ou a do desconto)
-: an_nota i>f i ? & an_f i 3 8 @f an_p i 4 _ar_vnum _ar_get an_f i 2 ka_score
+: an_nota i>f i ? & an_f i 3 8 @f an_p i 4 num _ar_get an_f i 2 $"score"
 # o veredicto: o do Claude, se o há; senão o do algoritmo — no desconto a etiqueta do desconto; nos prazos o conselho
 # automático (AN[k].advice, com as etiquetas curtas) ou, sem ele, a etiqueta do prazo
 : an_ver i>i i {
-  = c an_f i 1 = an an_f i 5 = h an_f i 2 = o _ar_verd _ar_get an_f i 0 ka_own
-  "<div class=\"lbl "
-  ? c { = kk _ar_get c ka_key an_tom kk "-t\">" ? an_sht kk o 0 { = ac _ar_get c ka_action ? _ar_verd ac _ar_ps ac 1 0 } 0 } {
-    = ad ? an _ar_get an ka_adv 0
-    ? && ~ an_g 102 an_fam ad { an_tom ad "-t\">" an_sht ad o 0 }
-      { _ar_ps _ar_get h ka_tone 1 "-t\">" _ar_ps _ar_get h ? an_g 102 ka_tag ka_label 1 0 } }
-  "</div>" 0 }
+  = c an_f i 1 = an an_f i 5 = h an_f i 2 = o ha _ar_get an_f i 0 $"own"
+  `<div class="lbl `
+  ? c { = kk c.key `{ ln_tomk kk }-t">{ ? an_sht kk o 0 { = ac c.action Se ha ac esc ac } }` } {
+    = ad ? an an.adv 0
+    ? && ~ an_g 102 an_fam ad `{ ln_tomk ad }-t">{ an_sht ad o }`
+      `{ esc h.tone }-t">{ esc _ar_get h ? an_g 102 $"tag" $"label" }` }
+  "</div>" }
 # a marca no fim da linha de baixo: ≠ algoritmo (o veredicto do Claude é de outra família — entrar, ficar, sair — que o
 # do algoritmo; não no desconto, em que a lista já é a do algoritmo) ou auto (o veredicto é do algoritmo, com a análise
 # do Claude ligada)
 : an_marca i>i i {
   = c an_f i 1 = an an_f i 5
-  ? c { = fc an_fam _ar_get c ka_key = fa ? an an_fam _ar_get an ka_adv 0
-        ? && && && ~ an_g 102 fc fa != fc fa " · <span class=\"alg-diff\">≠ algoritmo</span>" 0 }
-    ? an_g 104 " · <span class=\"an-auto\">auto</span>" 0 }
+  ? c { = fc an_fam c.key = fa ? an an_fam an.adv 0
+        Se && && && ~ an_g 102 fc fa != fc fa ` · <span class="alg-diff">≠ algoritmo</span>` }
+    Se an_g 104 ` · <span class="an-auto">auto</span>` }
 : an_linha i>i i {
-  = a an_f i 0 = k _ar_get a ka_k
-  "\n            <button type=\"button\" class=\"row an-row\" data-open=\"" _ar_ps k 1 "\" data-key=\"" _ar_ps k 1 "\" data-chg=\"day\">"
-  ln_ico k _ar_get a ka_name ? _ar_eqt an_f i 7 ka_v_crypto _ar_get a ka_sym 0 0
-  "<div class=\"r-main\"><div class=\"r-name\">" _ar_ps _ar_get a ka_name 1 "</div><div class=\"r-sub\">" _ar_ps _ar_get a ka_sym 1 " · "
-  ? an_g 102 { fm_pct1 * _ar_vnum _ar_get an_f i 2 ka_dd 100. " do máx." 0 } ln_chg _ar_get a ka_chg
+  = a an_f i 0 = k a.k
+  `\n            <button type="button" class="row an-row" data-open="{ esc k }" data-key="{ esc k }" data-chg="day">`
+  ln_ico k a.name ? eh an_f i 7 $"crypto" a.sym 0 0
+  `<div class="r-main"><div class="r-name">{ esc a.name }</div><div class="r-sub">{ esc a.sym } · `
+  ? an_g 102 `{ fm_pct1 * num _ar_get an_f i 2 $"dd" 100. } do máx.` ln_chg a.chg
   an_marca i
-  "</div></div><div class=\"r-score\">" an_barv an_nota i an_ver i "</div></button>" 0 }
+  `</div></div><div class="r-score">{ an_barv an_nota i }{ an_ver i }</div></button>` }
 
 # ===== em cima: o prazo, o filtro e a lista =====
 : an_botoes >i {
   = hz an_g 100 = f an_g 101
-  "<div class=\"seg hz\" role=\"group\" aria-label=\"Prazo\">"
-  "<button type=\"button\" data-hz=\"short\" class=\"" ? _ar_eqt hz ka_short "on" 0 "\">Curto</button>"
-  "<button type=\"button\" data-hz=\"mid\" class=\"" ? _ar_eqt hz ka_mid "on" 0 "\">Médio</button>"
-  "<button type=\"button\" data-hz=\"long\" class=\"" ? _ar_eqt hz ka_long "on" 0 "\">Longo</button>"
-  "<button type=\"button\" data-hz=\"disc\" class=\"" ? _ar_eqt hz ka_v_disc "on" 0 "\">Desconto</button>"
-  "</div>\n        <div class=\"chips an-fil\" role=\"group\" aria-label=\"Filtro\">"
-  "<button type=\"button\" data-filter=\"plan\" class=\"" ? _ar_eqt f ka_v_plan "on" 0 "\">ETF + cripto</button>"
-  "<button type=\"button\" data-filter=\"all\" class=\"" ? _ar_eqt f ka_v_all "on" 0 "\">Tudo</button>"
-  "<button type=\"button\" data-filter=\"fund\" class=\"" ? _ar_eqt f ka_v_fund "on" 0 "\">ETF</button>"
-  "<button type=\"button\" data-filter=\"crypto\" class=\"" ? _ar_eqt f ka_v_crypto "on" 0 "\">Cripto</button>"
-  "<button type=\"button\" data-filter=\"stock\" class=\"" ? _ar_eqt f ka_v_stock "on" 0 "\">Ações</button>"
-  "</div>" 0 }
+  `<div class="seg hz" role="group" aria-label="Prazo">`
+  `<button type="button" data-hz="short" class="{ Se eh hz $"short" "on" }">Curto</button>`
+  `<button type="button" data-hz="mid" class="{ Se eh hz $"mid" "on" }">Médio</button>`
+  `<button type="button" data-hz="long" class="{ Se eh hz $"long" "on" }">Longo</button>`
+  `<button type="button" data-hz="disc" class="{ Se eh hz $"disc" "on" }">Desconto</button>`
+  `</div>\n        <div class="chips an-fil" role="group" aria-label="Filtro">`
+  `<button type="button" data-filter="plan" class="{ Se eh f $"plan" "on" }">ETF + cripto</button>`
+  `<button type="button" data-filter="all" class="{ Se eh f $"all" "on" }">Tudo</button>`
+  `<button type="button" data-filter="fund" class="{ Se eh f $"fund" "on" }">ETF</button>`
+  `<button type="button" data-filter="crypto" class="{ Se eh f $"crypto" "on" }">Cripto</button>`
+  `<button type="button" data-filter="stock" class="{ Se eh f $"stock" "on" }">Ações</button>`
+  "</div>" }
 # de onde vem a classificação, numa linha pequena: o Claude e a hora da análise, ou o algoritmo
-: an_fonte >i ? an_g 103 { "<b>Claude</b>" = w sg ka_when ? _ar_verd w { " · " _ar_ps w 1 0 } 0 }
-  { "Algoritmo" ? an_g 104 " · veredicto do Claude" 0 }
+: an_fonte >i ? an_g 103 { "<b>Claude</b>" = w es.when Se ha w ` · { esc w }` }
+  { "Algoritmo" Se an_g 104 " · veredicto do Claude" }
 : an_lista >i {
   = cr an_g 110 = nc an_g 111 = ar an_g 112 = na an_g 113 = f an_g 101
   ? + nc na {
-    "\n        <p class=\"an-src" ? an_g 103 " cl" 0 "\">" an_fonte "</p>\n        <div class=\"list an-list\">"
-    = j 0 W < j nc { an_linha @ + cr j = j + j 1 }
-    = j 0 W < j na { an_linha @ + ar j = j + j 1 }
-    "</div>" 0 }
-  { "\n        <div class=\"empty\">" ? || || _ar_verd sg ka_proxy _ar_eqt f ka_v_crypto _ar_eqt f ka_v_all "A calcular…" "Liga o conector para ver as ações e os ETF." "</div>" 0 } }
+    `\n        <p class="an-src{ Se an_g 103 " cl" }">{ an_fonte }</p>\n        <div class="list an-list">`
+    L j nc an_linha @ + cr j
+    L j na an_linha @ + ar j
+    "</div>" }
+  `\n        <div class="empty">{ ? || || ha es.proxy eh f $"crypto" eh f $"all" "A calcular…" "Liga o conector para ver as ações e os ETF." }</div>` }
 
 # ===== em baixo, em linhas fechadas (details com data-fold: ficam como o utilizador as deixou) =====
 # toda a Trade Republic, na app do dono: as linhas dos tipos do filtro, pela pontuação do prazo (médio, ou longo) ou pelo
 # desconto; as primeiras 25 (st.uniN) e o "Ver mais"
-: an_uni >i ? ~ _ar_verd sg ka_owner 0 {
+: an_uni >i ? ~ ha es.owner 0 {
   = f an_g 101
-  = ty ? _ar_eqt f ka_v_plan 3 ? _ar_eqt f ka_v_all 7 ? _ar_eqt f ka_v_fund 1 ? _ar_eqt f ka_v_crypto 2 ? _ar_eqt f ka_v_stock 4 0
-  = u sg ka_uni = rs _ar_get u ka_rows
-  ? || || ~ ty ~ _ar_verd u ~ _ar_verd rs {
-      ? && && _ar_verd u _ar_verd _ar_get u ka_error ty { "\n        <p class=\"an-src\">Toda a Trade Republic: ainda sem classificação (" _ar_ps _ar_get u ka_error 1 ")</p>" 0 } 0 }
+  = ty ? eh f $"plan" 3 ? eh f $"all" 7 ? eh f $"fund" 1 ? eh f $"crypto" 2 ? eh f $"stock" 4 0
+  = u es.uni = rs u.rows
+  ? || || ~ ty ~ ha u ~ ha rs {
+      Se && && ha u ha u.error ty `\n        <p class="an-src">Toda a Trade Republic: ainda sem classificação ({ esc u.error })</p>` }
     an_unil u rs ty }
 : an_unil iii>i u rs ty {
-  = hz an_g 100 = dsc an_g 102 = km ? _ar_eqt hz ka_mid ka_rm ka_rl
-  = nr _ar_n rs = w A + nr 1 = k1 A + nr 1 = k2 A + nr 1 = ix A + nr 1
-  = c _ar_prim rs = i 0 = m 0
+  = hz an_g 100 = dsc an_g 102 = km ? eh hz $"mid" $"m" $"l"
+  = nr quantos rs = w A + nr 1 = k1 A + nr 1 = k2 A + nr 1 = ix A + nr 1
+  = c pri rs = i 0 = m 0
   W c {
     ! + ix i c
     = v _ar_get c km
-    ? && an_tipo _ar_get c ka_rt ty && == _ar_tipo v 4 _nu_fin @f + v 1 {
+    Se && an_tipo c.t ty && == tipo v 4 fin @f + v 1 {
         ! + w m i = m + m 1
-        ? dsc { !f + k1 i _ar_vnum _ar_get c ka_ro !f + k2 i _ar_vnum _ar_get c ka_dd 0 } { !f + k1 i @f + v 1 0 } } 0
-    = c _ar_prox c = i + i 1 }
+        ? dsc { !f + k1 i num c.o !f + k2 i num c.dd 0 } { !f + k1 i @f + v 1 0 } }
+    = c seg c = i + i 1 }
   # rows.sort(disc ? (a, b) => b.o - a.o || a.dd - b.dd : (a, b) => b[key] - a[key])
   _or_power w m k1 k2 ? dsc 6 0
   # rows.slice(0, st.uniN || 25)
-  = un sg ka_uniN = nn ? _ar_verd un _ar_vnum un 25.
+  = un es.uniN = nn ? ha un num un 25.
   = ie ? < nn 0. * -1. Fl * -1. nn Fl nn
   = ne I ? < ie 0. _nu_max + F m ie 0. _nu_min ie F m
-  ? m {
-    "\n        <details class=\"an-f uni\" data-fold=\"uni\" " ? _ar_verd sg ka_foldUni "open" 0 "><summary><span class=\"f-t\">Toda a Trade Republic</span><span class=\"f-n num\">" _nu_intl F m 0 "</span></summary>\n            <div class=\"list\">"
-    = j 0 W < j ne { an_unirow @ + ix @ + w j km dsc = j + j 1 }
+  Se m {
+    `\n        <details class="an-f uni" data-fold="uni" { Se ha es.foldUni "open" }><summary><span class="f-t">Toda a Trade Republic</span><span class="f-n num">{ _nu_intl F m 0 }</span></summary>\n            <div class="list">`
+    L j ne an_unirow @ + ix @ + w j km dsc
     "</div>"
-    ? > F m nn { "<div class=\"sec-f\"><button type=\"button\" class=\"lnk\" data-act=\"uni-more\">Ver mais (" _nu_ps - F m nn ")</button></div>" 0 } 0
-    "</details>" 0 } 0 }
+    Se > F m nn `<div class="sec-f"><button type="button" class="lnk" data-act="uni-more">Ver mais ({ _nu_ps - F m nn })</button></div>`
+    "</details>" } }
 # uma linha de toda a TR, como as de cima; o veredicto só se o Claude a analisou
 : an_unirow iii>i r km dsc {
-  = s _ar_get r ka_s = nm _ar_get r ka_n
-  "\n            <button type=\"button\" class=\"row an-row\" data-open=\"" _ar_ps s 1 "\" data-name=\"" _ar_ps nm 1 "\" data-ut=\"" _ar_ps _ar_get r ka_rt 1 "\">"
-  ln_ico s nm ? _ar_eqt _ar_get r ka_rt ka_v_crypto s 0 1
-  "<div class=\"r-main\"><div class=\"r-name\">" _ar_ps nm 1 "</div><div class=\"r-sub\">" _ar_ps s 1 " · "
-  ? dsc { an_p1v _ar_get r ka_dd " do máx." 0 } ln_chg _ar_get r ka_d
-  "</div></div><div class=\"r-score\">" an_barv @f + _ar_get r km 1
+  = s r.s = nm r.n
+  `\n            <button type="button" class="row an-row" data-open="{ esc s }" data-name="{ esc nm }" data-ut="{ esc r.t }">`
+  ln_ico s nm ? eh r.t $"crypto" s 0 1
+  `<div class="r-main"><div class="r-name">{ esc nm }</div><div class="r-sub">{ esc s } · `
+  ? dsc `{ an_p1v r.dd } do máx.` ln_chg r.d
+  `</div></div><div class="r-score">{ an_barv @f + _ar_get r km 1 }`
   = cd an_g 104 = c ? cd an_cl cd s 0
-  ? c { = kk _ar_get c ka_key "<div class=\"lbl " an_tom kk "-t\">" ? an_sht kk 0 0 { = ac _ar_get c ka_action ? _ar_verd ac _ar_ps ac 1 0 } "</div>" 0 } 0
-  "</div></button>" 0 }
+  Se c { = kk c.key `<div class="lbl { ln_tomk kk }-t">{ ? an_sht kk 0 0 { = ac c.action Se ha ac esc ac } }</div>` }
+  "</div></button>" }
 # algoRank(pool, hz): os 10 do pool com sinal automático, pela pontuação (só quando a lista de cima é a do Claude)
 : an_rank_prep >i {
-  = n an_g 107 = w A + n 1 = k1 A + n 1 = m 0 = i 0
-  W < i n { ? && & an_f i 3 4 an_f i 2 { ! + w m i = m + m 1 !f + k1 i _ar_vnum _ar_get an_f i 2 ka_score 0 } 0 = i + i 1 }
+  = n an_g 107 = w A + n 1 = k1 A + n 1 = m 0 L i n Se && & an_f i 3 4 an_f i 2 { ! + w m i = m + m 1 !f + k1 i num _ar_get an_f i 2 $"score" }
   _or_power w m k1 0 0
   an_s 120 w an_s 121 ? > m 10 10 m
   0 }
 : an_rank >i {
   = w an_g 120 = m an_g 121
-  "<div class=\"ideas\"><div class=\"m-l\">Pontuação automática a " an_hzpt " prazo</div>"
-  = j 0 W < j m {
+  `<div class="ideas"><div class="m-l">Pontuação automática a { an_hzpt } prazo</div>`
+  L j m {
     = i @ + w j = h an_f i 2 = a an_f i 0
-    "<button type=\"button\" class=\"idea\" data-open=\"" _ar_ps _ar_get a ka_k 1 "\"><span class=\"i-n\">" _ar_ps _ar_get a ka_name 1 "</span><span class=\"i-t " _ar_ps _ar_get h ka_tone 1 "-t num\">" _ar_ps _ar_get h ka_score 0 " · " _ht_min _ar_txt _ar_get h ka_label "</span></button>"
-    = j + j 1 }
-  "</div>" 0 }
+    `<button type="button" class="idea" data-open="{ esc a.k }"><span class="i-n">{ esc a.name }</span><span class="i-t { esc h.tone }-t num">{ cru h.score } · { _ht_min txt h.label }</span></button>` }
+  "</div>" }
 # ideasCard(inv): a base de longo prazo (3), as oportunidades (5) e o evitar por agora (4), já ordenadas e cortadas
 : an_ideias_prep >i {
   = n an_g 107 = kl A + n 1 = kd A + n 1
-  = etf ~ _ar_eqt sg ka_strategy ka_v_mix
+  = etf ~ eh es.strategy $"mix"
   = wb A + n 1 = nb 0 = wo A + n 1 = no 0 = wa A + n 1 = na 0
-  = i 0 W < i n {
-    ? & an_f i 3 2 {
+  L i n {
+    Se & an_f i 3 2 {
       = an an_f i 5 = k an_f i 7
-      = lh an_hzn an ka_long = mh an_hzn an ka_mid = d0 _ar_get an ka_d = dh ? _ar_verd d0 d0 0
-      ? lh { !f + kl i _ar_vnum _ar_get lh ka_score 0 } 0
-      ? dh { !f + kd i _ar_vnum _ar_get dh ka_score 0 } 0
-      ? && _ar_eqt k ka_v_fund lh { ! + wb nb i = nb + nb 1 0 } 0
-      ? || ~ etf || _ar_eqt k ka_v_fund _ar_eqt k ka_v_crypto {
-          ? && dh _ar_verd _ar_get dh ka_opp { ! + wo no i = no + no 1 0 } 0
-          ? && && && lh < _ar_vnum _ar_get lh ka_score 42. mh < _ar_vnum _ar_get mh ka_score 42. { ! + wa na i = na + na 1 0 } 0 } 0 } 0
-    = i + i 1 }
+      = lh an_hzn an $"long" = mh an_hzn an $"mid" = d0 an.d = dh ? ha d0 d0 0
+      Se lh !f + kl i num lh.score
+      Se dh !f + kd i num dh.score
+      Se && eh k $"fund" lh { ! + wb nb i = nb + nb 1 }
+      Se || ~ etf || eh k $"fund" eh k $"crypto" {
+          Se && dh ha dh.opp { ! + wo no i = no + no 1 }
+          Se && && && lh < num lh.score 42. mh < num mh.score 42. { ! + wa na i = na + na 1 } } } }
   _or_power wb nb kl 0 0 _or_power wo no kd 0 0 _or_power wa na kl 0 1
   an_s 114 wo an_s 115 ? > no 5 5 no an_s 116 wb an_s 117 ? > nb 3 3 nb an_s 118 wa an_s 119 ? > na 4 4 na
   0 }
-: an_item i>i i { = a an_f i 0 "<button type=\"button\" class=\"idea\" data-open=\"" _ar_ps _ar_get a ka_k 1 "\"><span class=\"i-n\">" _ar_ps _ar_get a ka_name 1 "</span><span class=\"i-t " 0 }
+: an_item i>i i { = a an_f i 0 `<button type="button" class="idea" data-open="{ esc a.k }"><span class="i-n">{ esc a.name }</span><span class="i-t ` }
 : an_ideias >i {
   = wb an_g 116 = nb an_g 117 = wo an_g 114 = no an_g 115 = wa an_g 118 = na an_g 119
-  ? || || nb no na {
-    "<div class=\"ideas\">"
-    ? nb { "<div class=\"i-blk\"><div class=\"i-h\">Base de longo prazo<small>ETF para o plano mensal</small></div>"
-        = j 0 W < j nb { = i @ + wb j = an an_f i 5 = lh an_hzn an ka_long = dh _ar_get an ka_d
-          an_item i _ar_ps _ar_get lh ka_tone 1 "-t\">" _ar_ps _ar_get lh ka_score 2 " · " ? _ar_verd dh _ht_min _ar_txt _ar_get dh ka_tag 0 "</span></button>" = j + j 1 }
-        "</div>" 0 } 0
-    ? no { "<div class=\"i-blk\"><div class=\"i-h\">Oportunidades agora<small>desconto com a tendência longa a subir — comprar aos poucos</small></div>"
-        = j 0 W < j no { = i @ + wo j an_item i "up-t\">" fm_pct * _ar_vnum _ar_get _ar_get an_f i 5 ka_d ka_dd 100. " do máx.</span></button>" = j + j 1 }
-        "</div>" 0 } 0
-    ? na { "<div class=\"i-blk\"><div class=\"i-h\">Evitar por agora<small>a descer a médio e a longo prazo</small></div>"
-        = j 0 W < j na { = i @ + wa j = lh an_hzn an_f i 5 ka_long
-          an_item i "down-t\">" _ar_ps _ar_get lh ka_score 2 " · " _ht_min _ar_txt _ar_get lh ka_label "</span></button>" = j + j 1 }
-        "</div>" 0 } 0
-    "</div>" 0 } 0 }
+  Se || || nb no na {
+    `<div class="ideas">`
+    Se nb { `<div class="i-blk"><div class="i-h">Base de longo prazo<small>ETF para o plano mensal</small></div>`
+        L j nb { = i @ + wb j = an an_f i 5 = lh an_hzn an $"long" = dh an.d
+          `{ an_item i }{ esc lh.tone }-t">{ _ar_ps lh.score 2 } · { Se ha dh _ht_min txt dh.tag }</span></button>` }
+        "</div>" }
+    Se no { `<div class="i-blk"><div class="i-h">Oportunidades agora<small>desconto com a tendência longa a subir — comprar aos poucos</small></div>`
+        L j no { = i @ + wo j `{ an_item i }up-t">{ fm_pct * num _ar_get _ar_get an_f i 5 $"d" $"dd" 100. } do máx.</span></button>` }
+        "</div>" }
+    Se na { `<div class="i-blk"><div class="i-h">Evitar por agora<small>a descer a médio e a longo prazo</small></div>`
+        L j na { = i @ + wa j = lh an_hzn an_f i 5 $"long"
+          `{ an_item i }down-t">{ _ar_ps lh.score 2 } · { _ht_min txt lh.label }</span></button>` }
+        "</div>" }
+    "</div>" } }
 # os sinais automáticos (o algoritmo): numa linha, as oportunidades de agora; lá dentro a pontuação do prazo e as ideias
 : an_auto >i {
   an_ideias_prep
   = nr ? an_g 103 { an_rank_prep an_g 121 } 0
   = no an_g 115
-  ? || || || nr an_g 117 no an_g 119 {
-    "\n        <details class=\"an-f\" data-fold=\"an-auto\" " ? _ar_verd sg ka_foldAn "open" 0 "><summary><span class=\"f-t\">Sinais automáticos<small>"
-    ? no { "Oportunidades: " = wo an_g 114 = j 0 W && < j no < j 3 { ? j ", " 0 _ar_ps _ar_get an_f @ + wo j 0 ka_name 1 = j + j 1 } 0 } "Regras fixas, para comparar"
+  Se || || || nr an_g 117 no an_g 119 {
+    `\n        <details class="an-f" data-fold="an-auto" { Se ha es.foldAn "open" }><summary><span class="f-t">Sinais automáticos<small>`
+    ? no { "Oportunidades: " = wo an_g 114 = j 0 W && < j no < j 3 { Se j ", " esc _ar_get an_f @ + wo j 0 $"name" = j + j 1 } } "Regras fixas, para comparar"
     "</small></span></summary>"
-    ? nr an_rank 0
+    Se nr an_rank
     an_ideias
-    "</details>" 0 } 0 }
+    "</details>" } }
 # os resultados: os conselhos do Claude, o diário (as regras automáticas) e o teste no passado
-: an_jconta i>i ac { = n 0 = j 0 W < j 7 { ? _ar_verd _ar_get ac ka_o j = n + n 1 0 = j + j 1 } n }
-: an_diario ii>i px ev ? ~ px "<div class=\"note\">Liga o conector para guardar o diário.</div>" ? ~ _ar_verd ev "<div class=\"note\">A ler o diário…</div>" {
-  = ac _ar_get ev ka_acc = dy _ar_get ev ka_days
-  ? ? _ar_verd ac ~ an_jconta ac 1 {
-      "<div class=\"note\">A app guarda as sugestões de cada dia em que a abres (" ? _ar_verd dy _ar_ps dy 0 P '0 " dia" ? an_um dy 0 "s"
-      " até agora). Os primeiros resultados aparecem a partir de amanhã; ao fim de 1–3 meses ficam significativos.</div>" 0 } {
-    "<div class=\"tt-w\"><table class=\"tt\"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>"
-    = j 0 W < j 7 {
+: an_jconta i>i ac { = n 0 L j 7 Se ha _ar_get ac ka_o j = n + n 1 n }
+: an_diario ii>i px ev ? ~ px `<div class="note">Liga o conector para guardar o diário.</div>` ? ~ ha ev `<div class="note">A ler o diário…</div>` {
+  = ac ev.acc = dy ev.days
+  ? ? ha ac ~ an_jconta ac 1 {
+      `<div class="note">A app guarda as sugestões de cada dia em que a abres ({ ? ha dy cru dy P '0 } dia{ ? an_um dy 0 "s" }`
+      " até agora). Os primeiros resultados aparecem a partir de amanhã; ao fim de 1–3 meses ficam significativos.</div>" } {
+    `<div class="tt-w"><table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>Desde então</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>`
+    L j 7 {
       = a _ar_get ac ka_o j
-      ? _ar_verd a {
-          = x / _ar_vnum _ar_get a ka_s _ar_vnum _ar_get a ka_n = xn _ar_get a ka_xn = q _ar_verd xn = y ? q / _ar_vnum _ar_get a ka_xs _ar_vnum xn 0.
-          "<tr><td>" an_act j "</td><td class=\"num\">" _ar_ps _ar_get a ka_n 0 "</td><td class=\"num " an_tn 0 x "-t\">" an_pc 0 x "</td><td class=\"num\">"
-          ? || || == j 0 == j 1 == j 6 an_pc 0 / _ar_vnum _ar_get a ka_h _ar_vnum _ar_get a ka_n "—"
-          "</td><td class=\"num " an_tn ~ q y "-t\">" an_pc ~ q y "</td></tr>" 0 } 0
-      = j + j 1 }
-    "</tbody></table></div><p class=\"note\">Desde " _ar_ps _ar_get ev ka_since 1 " · " _ar_ps dy 0 " dia" ? an_um dy 0 "s" " guardado" ? an_um dy 0 "s" ".</p>\n                "
-    ? < _ar_vnum dy 20. { "<p class=\"adv-ev\">Ainda é cedo (" _ar_ps dy 0 " dia" ? an_um dy 0 "s" "): diferenças de décimas não querem dizer nada. A tabela começa a valer ao fim de 1 a 3 meses.</p>" 0 } 0
-    "\n                <details class=\"how in\"><summary>Como ler esta tabela</summary><ul>\n                    <li>Todos os dias a app guarda o que as regras automáticas sugeriam para cada ativo e o preço desse dia.</li>\n                    <li><b>Casos</b>: quantas vezes a regra sugeriu isto (um ativo num dia conta 1).</li>\n                    <li><b>Desde então</b>: quanto esses ativos subiram ou desceram, em média, desde o dia da sugestão até agora.</li>\n                    <li><b>Acerto</b>: em \"Comprar\", a % de vezes em que o preço subiu depois; em \"Evitar\", a % em que desceu. 80% = acertou 4 em 5.</li>\n                    <li><b>vs VWCE</b>: o mesmo resultado menos o que o VWCE fez no mesmo tempo. Positivo = teria sido melhor do que pôr o dinheiro no VWCE; negativo = pior.</li>\n                    <li>Uma regra só vale a pena se \"Comprar\" ficar acima do VWCE e \"Evitar\" abaixo, durante meses.</li></ul></details>" 0 } }
+      Se ha a {
+          = x / num a.s num a.n = xn a.xn = q ha xn = y ? q / num a.xs num xn 0.
+          `<tr><td>{ an_act j }</td><td class="num">{ cru a.n }</td><td class="num { an_tn 0 x }-t">{ an_pc 0 x }</td><td class="num">`
+          ? || || == j 0 == j 1 == j 6 an_pc 0 / num a.h num a.n "—"
+          `</td><td class="num { an_tn ~ q y }-t">{ an_pc ~ q y }</td></tr>` } }
+    `</tbody></table></div><p class="note">Desde { esc ev.since } · { cru dy } dia{ ? an_um dy 0 "s" } guardado{ ? an_um dy 0 "s" }.</p>\n                `
+    Se < num dy 20. `<p class="adv-ev">Ainda é cedo ({ cru dy } dia{ ? an_um dy 0 "s" }): diferenças de décimas não querem dizer nada. A tabela começa a valer ao fim de 1 a 3 meses.</p>`
+    `\n                <details class="how in"><summary>Como ler esta tabela</summary><ul>\n                    <li>Todos os dias a app guarda o que as regras automáticas sugeriam para cada ativo e o preço desse dia.</li>\n                    <li><b>Casos</b>: quantas vezes a regra sugeriu isto (um ativo num dia conta 1).</li>\n                    <li><b>Desde então</b>: quanto esses ativos subiram ou desceram, em média, desde o dia da sugestão até agora.</li>\n                    <li><b>Acerto</b>: em "Comprar", a % de vezes em que o preço subiu depois; em "Evitar", a % em que desceu. 80% = acertou 4 em 5.</li>\n                    <li><b>vs VWCE</b>: o mesmo resultado menos o que o VWCE fez no mesmo tempo. Positivo = teria sido melhor do que pôr o dinheiro no VWCE; negativo = pior.</li>\n                    <li>Uma regra só vale a pena se "Comprar" ficar acima do VWCE e "Evitar" abaixo, durante meses.</li></ul></details>` } }
 # os nomes do BT.worst / BT.best ([nameOf(x.k), x.a])
-: an_nomes i>i l { = c _ar_prim l = f 1 W c { ? f 0 ", " = f 0 = a _ar_idx c 1 _ar_ps _ar_idx c 0 1 " <span class=\"" an_tnv a "-t\">" an_pcv a "</span>" = c _ar_prox c } 0 }
+: an_nomes i>i l { = c pri l = f 1 W c { ? f 0 ", " = f 0 = a idx c 1 `{ esc idx c 0 } <span class="{ an_tnv a }-t">{ an_pcv a }</span>` = c seg c } }
 # Object.entries(BT.byKind || {}).filter(([, v]) => v.n): quantos e as partes
-: an_nk i>i bk { = c ? == _ar_tipo bk 7 _ar_prim bk 0 = n 0 W c { ? _ar_verd _ar_get c ka_n = n + n 1 0 = c _ar_prox c } n }
-: an_kinds i>i bk { = c ? == _ar_tipo bk 7 _ar_prim bk 0 = f 1
+: an_nk i>i bk { = c ? == tipo bk 7 pri bk 0 = n 0 W c { Se ha c.n = n + n 1 = c seg c } n }
+: an_kinds i>i bk { = c ? == tipo bk 7 pri bk 0 = f 1
   W c {
-    ? _ar_verd _ar_get c ka_n {
+    Se ha c.n {
         ? f 0 " · " = f 0
-        = k @ + c 2 ? _tx_igual k ka_v_stock "ações" ? _tx_igual k ka_v_fund "outros ETF" ? _tx_igual k ka_v_crypto "cripto" _tx_p k
-        = x / _ar_vnum _ar_get c ka_s _ar_vnum _ar_get c ka_n
-        " <span class=\"" an_tn 0 x "-t\">" an_pc 0 x "</span>" 0 } 0
-    = c _ar_prox c }
-  0 }
+        = k @ + c 2 ? mesmo k $"stock" "ações" ? mesmo k $"fund" "outros ETF" ? mesmo k $"crypto" "cripto" crut k
+        = x / num c.s num c.n
+        ` <span class="{ an_tn 0 x }-t">{ an_pc 0 x }</span>` }
+    = c seg c } }
 : an_btsum i>i b {
-  = su _ar_get b ka_sum
-  "<div class=\"tt-w\"><table class=\"tt\"><thead><tr><th>Sugestão</th><th>Casos</th><th>3 meses</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>"
-  = j 0 W < j 7 {
+  = su b.sum
+  `<div class="tt-w"><table class="tt"><thead><tr><th>Sugestão</th><th>Casos</th><th>3 meses</th><th>Acerto</th><th>vs VWCE</th></tr></thead><tbody>`
+  L j 7 {
     = a _ar_get su ka_o j
-    ? _ar_verd a { "<tr><td>" an_act j "</td><td class=\"num\">" _ar_ps _ar_get a ka_n63 0 "</td><td class=\"num " an_tnv _ar_get a ka_avg63 "-t\">" an_pcv _ar_get a ka_avg63 "</td><td class=\"num\">"
-        ? || || == j 0 == j 1 == j 6 an_pcv _ar_get a ka_hit63 "—"
-        "</td><td class=\"num " an_tnv _ar_get a ka_ex63 "-t\">" an_pcv _ar_get a ka_ex63 "</td></tr>" 0 } 0
-    = j + j 1 }
+    Se ha a { `<tr><td>{ an_act j }</td><td class="num">{ cru a.n63 }</td><td class="num { an_tnv a.avg63 }-t">{ an_pcv a.avg63 }</td><td class="num">`
+        ? || || == j 0 == j 1 == j 6 an_pcv a.hit63 "—"
+        `</td><td class="num { an_tnv a.ex63 }-t">{ an_pcv a.ex63 }</td></tr>` } }
   "</tbody></table></div>\n                "
-  = bk _ar_get b ka_byKind
-  ? an_nk bk { "<p class=\"note\">Em média, face ao VWCE a 3 meses: " an_kinds bk ".</p>" 0 } 0
+  = bk b.byKind
+  Se an_nk bk `<p class="note">Em média, face ao VWCE a 3 meses: { an_kinds bk }.</p>`
   "\n                "
-  ? _ar_n _ar_get b ka_worst { "<p class=\"note\">Onde \"comprar\" correu pior: " an_nomes _ar_get b ka_worst ". Melhor: " an_nomes _ar_get b ka_best ".</p>" 0 } 0
-  "\n                <p class=\"note\"><b>Leitura:</b> a lista são as empresas que hoje são grandes (viés de sobrevivência), por isso quase tudo parece bater o VWCE a olhar para trás. O que conta é a diferença entre sugestões: se \"Evitar\" corre tão bem ou melhor do que \"Comprar\", as regras não preveem nada. Por isso o núcleo é o VWCE e as decisões são do Claude, com o diário real a medir se acerta.</p>"
-  0 }
+  Se quantos b.worst `<p class="note">Onde "comprar" correu pior: { an_nomes b.worst }. Melhor: { an_nomes b.best }.</p>`
+  `\n                <p class="note"><b>Leitura:</b> a lista são as empresas que hoje são grandes (viés de sobrevivência), por isso quase tudo parece bater o VWCE a olhar para trás. O que conta é a diferença entre sugestões: se "Evitar" corre tão bem ou melhor do que "Comprar", as regras não preveem nada. Por isso o núcleo é o VWCE e as decisões são do Claude, com o diário real a medir se acerta.</p>` }
 : an_track >i {
-  = px _ar_verd sg ka_proxy = ev sg ka_ev = b sg ka_bt
-  = cc an_g 105 = c ? && _ar_verd cc ~ _ar_verd _ar_get cc ka_missing cc 0
-  "\n            <div class=\"box cl-box\"><h3>Conselhos do Claude</h3>\n                "
-  = rv _ar_get c ka_review
-  ? && c _ar_verd rv { "<p class=\"muted\">" _ar_ps rv 1 "</p>" 0 }
-    { "<div class=\"note\">" ? px "Ainda sem revisão: o Claude compara os conselhos com o que aconteceu a partir do segundo dia." "Liga o conector para ver a análise do Claude." "</div>" 0 }
+  = px ha es.proxy = ev es.ev = b es.bt
+  = cc an_g 105 = c ? && ha cc ~ ha cc.missing cc 0
+  `\n            <div class="box cl-box"><h3>Conselhos do Claude</h3>\n                `
+  = rv c.review
+  ? && c ha rv `<p class="muted">{ esc rv }</p>`
+    `<div class="note">{ ? px "Ainda sem revisão: o Claude compara os conselhos com o que aconteceu a partir do segundo dia." "Liga o conector para ver a análise do Claude." }</div>`
   "\n                "
-  = ls _ar_get c ka_lessons
-  ? && && c == _ar_tipo ls 6 _ar_n ls { "<details class=\"how in\"><summary>O que o Claude aprendeu até agora (" N _ar_n ls ")</summary><ul>" = l _ar_prim ls W l { "<li>" _ar_ps l 1 "</li>" = l _ar_prox l } "</ul></details>" 0 } 0
-  "\n            </div>\n            <div class=\"box\"><h3>Diário real (regras automáticas)</h3>\n                "
+  = ls c.lessons
+  Se && && c == tipo ls 6 quantos ls { `<details class="how in"><summary>O que o Claude aprendeu até agora ({ N quantos ls })</summary><ul>` = l pri ls W l { `<li>{ esc l }</li>` = l seg l } "</ul></details>" }
+  `\n            </div>\n            <div class="box"><h3>Diário real (regras automáticas)</h3>\n                `
   an_diario px ev
-  "\n            </div>\n            <div class=\"box\"><h3>Teste no passado (regras atuais)</h3>"
-  = vb _ar_verd b = su ? vb _ar_verd _ar_get b ka_sum 0
-  ? su { "<p class=\"note\" style=\"margin-top:0\">" _ar_ps _ar_get b ka_n 0 " ativos · " = y _ar_get b ka_yrs ? _ar_verd y _ar_ps y 0 P '5
-    " anos · preços ajustados (dividendos incluídos) · comissão de 1 € por compra manual de " = tk _ar_get b ka_ticket ? == _ar_tipo tk 4 peur0 @f + tk 1 "—"
-    " (" fm_fix1 / 100. _ar_vnum tk "%); ETF por plano de poupança, sem comissão. Não inclui impostos.</p>" 0 } 0
-  ? && vb _ar_verd _ar_get b ka_running "<div class=\"note\">A testar as regras atuais nos últimos 2 anos…</div>"
-  ? && vb _ar_verd _ar_get b ka_error { "<div class=\"note\">Não deu: " _ar_ps _ar_get b ka_error 1 "</div>" 0 }
+  `\n            </div>\n            <div class="box"><h3>Teste no passado (regras atuais)</h3>`
+  = vb ha b = su ? vb ha b.sum 0
+  Se su { `<p class="note" style="margin-top:0">{ cru b.n } ativos · ` = y b.yrs ? ha y cru y P '5
+    " anos · preços ajustados (dividendos incluídos) · comissão de 1 € por compra manual de " = tk b.ticket ? == tipo tk 4 peur0 @f + tk 1 "—"
+    ` ({ fm_fix1 / 100. num tk }%); ETF por plano de poupança, sem comissão. Não inclui impostos.</p>` }
+  ? && vb ha b.running `<div class="note">A testar as regras atuais nos últimos 2 anos…</div>`
+  ? && vb ha b.error `<div class="note">Não deu: { esc b.error }</div>`
   ? su an_btsum b
-  { "<button type=\"button\" class=\"btn\" data-act=\"backtest\" " ? px 0 "disabled" ">Testar as regras nos últimos 5 anos</button>" 0 }
-  "</div>" 0 }
+  `<button type="button" class="btn" data-act="backtest" { ? px 0 "disabled" }>Testar as regras nos últimos 5 anos</button>`
+  "</div>" }
 # numa linha: o que o "Comprar" das regras fez face ao VWCE (o diário), ou a revisão do Claude, ou o que lá está
 : an_resumo >i {
-  = ev sg ka_ev = b _ar_get _ar_get ev ka_acc ka_v_buy = xn _ar_get b ka_xn
-  ? && _ar_verd b _ar_verd xn { "Regras: comprar " an_pc 0 / _ar_vnum _ar_get b ka_xs _ar_vnum xn " vs VWCE · " _ar_ps _ar_get ev ka_days 0 " dia" ? an_um _ar_get ev ka_days 0 "s" 0 } {
-    = cc an_g 105 = c ? && _ar_verd cc ~ _ar_verd _ar_get cc ka_missing cc 0 = rv _ar_get c ka_review
-    ? && c _ar_verd rv _ar_ps rv 1 "Como têm corrido os conselhos" 0 } }
+  = ev es.ev = b ev.acc.buy = xn b.xn
+  ? && ha b ha xn `Regras: comprar { an_pc 0 / num b.xs num xn } vs VWCE · { cru ev.days } dia{ ? an_um ev.days 0 "s" }` {
+    = cc an_g 105 = c ? && ha cc ~ ha cc.missing cc 0 = rv c.review
+    ? && c ha rv esc rv "Como têm corrido os conselhos" 0 } }
 : an_res >i {
-  "\n        <details class=\"an-f\" data-fold=\"an-res\" " ? _ar_verd sg ka_foldRes "open" 0 "><summary><span class=\"f-t\">Resultados<small>" an_resumo "</small></span></summary>"
+  `\n        <details class="an-f" data-fold="an-res" { Se ha es.foldRes "open" }><summary><span class="f-t">Resultados<small>{ an_resumo }</small></span></summary>`
   an_track
-  "</details>" 0 }
+  "</details>" }
 : an_sobre >i {
-  "\n        <details class=\"an-f\" data-fold=\"an-sobre\" " ? _ar_verd sg ka_foldSobre "open" 0 "><summary><span class=\"f-t\">Sobre as pontuações</span></summary><ul class=\"an-sobre\">"
-  "<li><b>Claude</b>: convicção de 0 a 100 por prazo, às " _ar_ps sg ka_horas 1 "; 50 é neutro, 70 ou mais é forte a favor.</li>"
+  `\n        <details class="an-f" data-fold="an-sobre" { Se ha es.foldSobre "open" }><summary><span class="f-t">Sobre as pontuações</span></summary><ul class="an-sobre">`
+  `<li><b>Claude</b>: convicção de 0 a 100 por prazo, às { esc es.horas }; 50 é neutro, 70 ou mais é forte a favor.</li>`
   "<li><b>Algoritmo</b> (auto): regras fixas sobre os fechos diários; ≠ quando discorda do Claude.</li>"
-  "<li><b>Desconto</b>: quanto o preço está abaixo do máximo do ano, com a tendência longa.</li></ul></details>" 0 }
+  "<li><b>Desconto</b>: quanto o preço está abaixo do máximo do ano, com a tendência longa.</li></ul></details>" }
 
 # ===== a vista =====
 : ecra_analise i>i s {
   ! 53 s
-  an_chaves
-  = hz sg ka_hz = f sg ka_filter
+  ! 54 A 122
+  = hz es.hz = f es.filter
   an_s 100 hz an_s 101 f
-  = disc _ar_eqt hz ka_v_disc an_s 102 disc
-  an_s 109 ? == _ar_tipo hz 5 _ar_txt hz 0
+  = disc eh hz $"disc" an_s 102 disc
+  an_s 109 ? == tipo hz 5 txt hz 0
   # claudeOn() e clDoc(): claudeOn() && CLAUDE && !CLAUDE.missing && Array.isArray(CLAUDE.actions)
-  = con || _ar_verd sg ka_owner _ar_verd sg ka_claude
-  = cc sg ka_cl an_s 105 cc
-  = ac _ar_get cc ka_actions
-  an_s 104 ? && && && con _ar_verd cc ~ _ar_verd _ar_get cc ka_missing == _ar_tipo ac 6 ac 0
+  = con || ha es.owner ha es.claude
+  = cc es.cl an_s 105 cc
+  = ac cc.actions
+  an_s 104 ? && && && con ha cc ~ ha cc.missing == tipo ac 6 ac 0
   # a lista é a do Claude fora do desconto, quando ele deu a convicção (clScored)
   = cd an_g 104 an_s 103 && ~ disc ? cd an_mid cd 0
   an_prep an_listas

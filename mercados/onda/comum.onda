@@ -15,4 +15,4 @@
 
 # um real no JSON, exato: o -0 sai "-0" e ±Infinity sai ±1e999 (o JSON.parse devolve-os); o NaN não tem forma em JSON:
 # sai o texto "\u0000NaN" e M[60] = 1, para o anfitrião o trocar por NaN
-: pj f>i x ? != x x { ! 60 1 "\"\\u0000NaN\"" } ? ~ _nu_fin x { ? < x 0. P '- 0 "1e999" } pnum x
+: pj f>i x ? != x x { ! 60 1 `"\\u0000NaN"` } ? ~ fin x { `{ Se < x 0. P '- }1e999` } pnum x

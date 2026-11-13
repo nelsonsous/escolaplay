@@ -2681,3 +2681,25 @@ biblioteca junta e as entradas ditas). Agora cada entrada sabe o seu lugar na di
 compilador de antes.
 
 **Verificado.** Pontos fixos: WebAssembly (519 155 bytes), x86-64 e a ponte C. `node --test test/*.test.js`.
+
+## Iteração 143: a Mercados na Onda fluida, por um conversor automático
+
+**`tools/fluir.mjs`.** Um conversor que lê o código Onda em árvore (as assinaturas vêm dos ficheiros de contexto) e
+reescreve cada função sem lhe mudar o significado: textos e código da mesma linha passam a um molde; `_ar_get c $"k"`
+passa a `c.k` (e um atalho da app, `sg $"k"` → `es.k`); os nomes da biblioteca com palavra na fala passam à palavra
+(menos onde um local tem esse nome); `? c { … 0 } 0` passa a `Se` quando o valor não conta ou é sempre 0;
+`= i 0 W < i n { … = i + i 1 }` passa a `L i n` quando n é um literal ou um local que o corpo não muda; e sai o 0 que
+sobra no fim de um bloco. Os comentários e o espaçamento ficam, e converter outra vez não muda nada
+(`test/fluir.test.js`: o programa convertido escreve o mesmo, byte a byte).
+
+**Na Mercados (`mercados/onda`, 13 ficheiros).**
+- Antes do conversor, saíram as tabelas de chaves das vistas: 159 funções `k_*`/`ka_*` e duas funções que refaziam
+  esses textos em cada desenho do ecrã. São textos constantes desde a it.138; o módulo ficou 13 KB mais pequeno.
+- O conversor fez ~725 moldes, 478 pontos, ~845 palavras da fala, 410 `Se`, 96 `L` e tirou 136 zeros. As linhas com
+  `\"` nos ecrãs passaram de 364 para 0.
+- Cinco ajudas repetidas entre vistas (`pn_ativo`/`hl_ativo`, `pn_tom`/`an_tom`…) ficaram uma vez, no `ecra.onda`.
+- De 3 244 para 2 926 linhas de Onda (−10 %); o módulo de 383 020 para 371 478 bytes.
+
+**Verificado.** Os 90 testes da Mercados (a paridade de cada vista com a referência em JavaScript, estado a estado, e a
+do motor ao bit) e o teste de interface, também na versão minificada. O conselheiro usa a mesma análise e continua
+igual ao JavaScript, byte a byte; os scripts dele (`conselheiro/onda`) ficam para a volta do conselheiro.

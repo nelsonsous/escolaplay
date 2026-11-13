@@ -33,23 +33,22 @@
   = fim @ w
   = e A * 5 130
   = h A 26
-  = j 0 W < j 26 { ! + h j -1 = j + j 1 }
+  L j 26 ! + h j -1
   ! 56 e ! 57 h ! 58 0
   # cada palavra: início, comprimento, sinal (+1 POS, -1 NEG), a seguinte com a mesma primeira letra, marca
   = q + w 1 = nw 0 = sg 1 = i0 q
   W <= q fim {
     = c ? < q fim @ q 124
-    ? || == c 124 == c 35 {
+    Se || == c 124 == c 35 {
         = en + e * nw 5
         ! en i0 ! + en 1 - q i0 ! + en 2 sg
         = l - @ i0 97
         ! + en 3 @ + h l ! + h l nw
         ! + en 4 0
         = nw + nw 1
-        ? == c 35 = sg -1 0
-        = i0 + q 1 } 0
-    = q + q 1 }
-  0 }
+        Se == c 35 = sg -1
+        = i0 + q 1 }
+    = q + q 1 } }
 
 # ---------- norm ----------
 : nlet i>i c ? == c 46 128 c
@@ -69,7 +68,7 @@
       = cp ? == k 2 & c 31 ? == k 3 & c 15 & c 7
       = j 1 = ok > k 0
       W && ok < j k { = d ? < + i j len @ + b + i j 0 = ok && >= d 128 <= d 191 = cp | << cp 6 & d 63 = j + j 1 }
-      ? ok { = r mapcp cp ? r { ! + o m r = m + m 1 } 0 = i + i k } { ! + o m 128 = m + m 1 = i + i 1 } } }
+      ? ok { = r mapcp cp Se r { ! + o m r = m + m 1 } = i + i k } { ! + o m 128 = m + m 1 = i + i 1 } } }
   m }
 
 # ---------- hitWord e sentiment ----------
@@ -79,36 +78,33 @@
 : tom ii>f t m {
   = id + @ 58 1 ! 58 id
   = e @ 56 = h @ 57
-  = p 0 = n 0 = s 0
-  W < s m {
+  = p 0 = n 0 L s m {
     = c @ + t s
-    ? && && >= c 97 <= c 122 || == s 0 ~ anum @ + t - s 1 {
+    Se && && >= c 97 <= c 122 || == s 0 ~ anum @ + t - s 1 {
         = w @ + h - c 97
         W >= w 0 {
           = en + e * w 5
-          ? != @ + en 4 id {
+          Se != @ + en 4 id {
               = wl @ + en 1
-              ? <= + s wl m {
+              Se <= + s wl m {
                   = pp @ en = j 1 = ok 1
                   W && ok < j wl { = ok == @ + t + s j @ + pp j = j + j 1 }
-                  ? && ok || > wl 4 || == + s wl m ~ anum @ + t + s wl { ! + en 4 id ? > @ + en 2 0 = p + p 1 = n + n 1 } 0 } 0 } 0
-          = w @ + en 3 } } 0
-    = s + s 1 }
+                  Se && ok || > wl 4 || == + s wl m ~ anum @ + t + s wl { ! + en 4 id ? > @ + en 2 0 = p + p 1 = n + n 1 } } }
+          = w @ + en 3 } } }
   ? + p n / F - p n F + p n 0. }
 : psent f>i sc {
-  "{\"score\":" pj sc
-  ",\"tone\":\"" ? > sc 0.15 "up" ? < sc -0.15 "down" "flat"
-  "\",\"label\":\"" ? > sc 0.15 "Boa notícia" ? < sc -0.15 "Má notícia" "Neutra"
-  "\"}" }
+  `\{"score":{ pj sc }`
+  `,"tone":"{ ? > sc 0.15 "up" ? < sc -0.15 "down" "flat" }`
+  `","label":"{ ? > sc 0.15 "Boa notícia" ? < sc -0.15 "Má notícia" "Neutra" }`
+  `"\}` }
 # o maior dos nt textos UTF-8 seguidos em q ([n, bytes...] cada um)
-: tmaior ii>i q nt { = mx 1 = j 0 W < j nt { = l @ q = mx ? > l mx l mx = q + + q 1 l = j + j 1 } mx }
+: tmaior ii>i q nt { = mx 1 L j nt { = l @ q = mx ? > l mx l mx = q + + q 1 l } mx }
 # sentiment de cada texto do lote b = [nt, textos...]: JSON [{score, tone, label}, ...]
 : sent i>i b {
   = nt @ b
   = o A tmaior + b 1 nt
   P '[
-  = q + b 1 = j 0
-  W < j nt { = l @ q ? j P ', 0 psent tom o nrm + q 1 l o = q + + q 1 l = j + j 1 }
+  = q + b 1 L j nt { = l @ q Se j P ', psent tom o nrm + q 1 l o = q + + q 1 l }
   P '] 0 }
 # newsTone: b = [ln, nt, textos...] com ln = items.slice(0, 8).length e os títulos que o map visita (nt ≤ ln);
 # a média das pontuações vai para M[59]; devolve 0 (null) se ln = 0
@@ -116,8 +112,7 @@
   = ln @ b = nt @ + b 1
   ? == ln 0 0 {
     = o A tmaior + b 2 nt
-    = s 0. = q + b 2 = j 0
-    W < j nt { = l @ q = s + s tom o nrm + q 1 l o = q + + q 1 l = j + j 1 }
+    = s 0. = q + b 2 L j nt { = l @ q = s + s tom o nrm + q 1 l o = q + + q 1 l }
     !f 59 / s F ln
     1 } }
 # para os testes: os textos do lote normalizados, como textos JSON (o byte 128, uma fronteira, sai \u0080)
@@ -125,16 +120,13 @@
   = nt @ b
   = o A tmaior + b 1 nt
   P '[
-  = q + b 1 = j 0
-  W < j nt {
-    = l @ q ? j P ', 0
+  = q + b 1 L j nt {
+    = l @ q Se j P ',
     = m nrm + q 1 l o
     P 34
-    = i 0
-    W < i m {
+    L i m {
       = c @ + o i
-      ? == c 128 "\\u0080" ? == c 34 { P 92 P 34 } ? == c 92 { P 92 P 92 } ? < c 32 { "\\u00" _tx_hex >> c 4 _tx_hex & c 15 } P c
-      = i + i 1 }
+      ? == c 128 "\\u0080" ? == c 34 { P 92 P 34 } ? == c 92 { P 92 P 92 } ? < c 32 { `\\u00{ _tx_hex >> c 4 }{ _tx_hex & c 15 }` } P c }
     P 34
-    = q + + q 1 l = j + j 1 }
+    = q + + q 1 l }
   P '] 0 }
