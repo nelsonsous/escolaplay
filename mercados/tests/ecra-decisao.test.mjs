@@ -52,6 +52,7 @@ function fonte(s, d, x, i) {
         const n = Math.trunc(f.an.n);
         por = `${n} ${n === 1 ? 'analista' : 'analistas'}`;
         if (e(s.anD)) por += ` · alvo ${pct(s.anD)}` + (x.fam > 0 && s.anD < 0 ? ' · o preço já passou o alvo' : x.fam < 0 && s.anD > 0 ? ' · o alvo está acima do preço' : '');
+        if (e(f.an.up) && e(f.an.down) && f.an.up + f.an.down > 0) por += ` · revisões ${Math.round(f.an.up) || 0}↑ ${Math.round(f.an.down) || 0}↓`;
     }
     if (x.f === 'noticias' && e(s.nn)) por = `${Math.trunc(s.nn)} ${Math.trunc(s.nn) === 1 ? 'título' : 'títulos'} recentes`;
     if (x.f === 'fundamentos') por = [e(f.fun.pe) && f.fun.pe > 0 ? `P/E ${pt1.format(f.fun.pe)}` : '', e(f.fun.cr) ? `vendas ${pc(f.fun.cr, true)}` : '', e(f.fun.mg) ? `margem ${pc(f.fun.mg, false)}` : ''].filter(Boolean).join(' · ');
@@ -101,7 +102,8 @@ function caso(r) {
     const pz = (o) => { for (const h of ['short', 'mid', 'long']) if (r() < 0.8) o[h] = pt(); return o; };
     const d = {};
     if (r() < 0.75) d.cl = pz({ key: r() < 0.93 ? um(KEYS) : um(['up', '', null, 3]), ...(r() < 0.25 ? { old: true } : {}) });
-    if (r() < 0.5) d.an = { key: r() < 0.93 ? um(AKEYS) : um(['none', null]), n: r() < 0.06 ? um([0, null, NaN]) : um([1, 2, 5, 9, 10, 25, 58, 2.5]), ...(r() < 0.8 ? { mean: 1 + r() * 4 } : {}), ...(r() < 0.7 ? { target: 50 + r() * 100, price: 100 } : {}) };
+    if (r() < 0.5) d.an = { key: r() < 0.93 ? um(AKEYS) : um(['none', null]), n: r() < 0.06 ? um([0, null, NaN]) : um([1, 2, 5, 9, 10, 25, 58, 2.5]), ...(r() < 0.8 ? { mean: 1 + r() * 4 } : {}), ...(r() < 0.7 ? { target: 50 + r() * 100, price: 100 } : {}),
+        ...(r() < 0.5 ? { up: um([0, 0, 1, 4, 12, null]), down: um([0, 0, 2, 7, 'x']) } : {}) };
     if (r() < 0.8) d.tec = pz({ key: r() < 0.93 ? um(KEYS.slice(0, 6).concat('avoid')) : um(['x', null]) });
     if (r() < 0.6) d.news = r() < 0.08 ? um([NaN, null, 'x']) : r() * 2 - 1;
     if (r() < 0.4) d.fun = { ...(r() < 0.85 ? { pe: r() < 0.1 ? um([0, -4, null, NaN]) : um([8, 12.5, 15, 22, 28, 28.44, 61]) } : {}), ...(r() < 0.85 ? { cr: r() < 0.08 ? null : Math.round((r() * 70 - 20) * 10) / 10 } : {}), ...(r() < 0.85 ? { mg: r() < 0.08 ? 'x' : Math.round((r() * 60 - 12) * 10) / 10 } : {}) };

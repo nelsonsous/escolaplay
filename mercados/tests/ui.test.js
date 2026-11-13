@@ -89,7 +89,7 @@ function proxyBody(u) {
     if (p === '/health') return { ok: true };
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
-    if (p === '/consensus') return { items: u.searchParams.get('symbols').split(',').map((s) => (s === 'NVDA' ? { symbol: s, key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, low: 150, high: 300, price: 196, currency: 'USD', votes: [20, 30, 6, 1, 1], f: { pe: 28.4, cr: 0.6, mg: 0.55 } } : s === 'TSLA' ? { symbol: s, key: 'hold', mean: 2.8, n: 40, target: 300, low: 120, high: 500, price: 250, currency: 'USD', votes: [5, 10, 18, 5, 2] } : { symbol: s, none: true })) };
+    if (p === '/consensus') return { items: u.searchParams.get('symbols').split(',').map((s) => (s === 'NVDA' ? { symbol: s, key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, low: 150, high: 300, price: 196, currency: 'USD', votes: [20, 30, 6, 1, 1], votes3: [14, 28, 12, 2, 2], f: { pe: 28.4, cr: 0.6, mg: 0.55, roe: 0.9 }, rev: { up: 12, down: 2, chg: 0.084 }, sur: { n: 4, beats: 4, avg: 0.062 } } : s === 'TSLA' ? { symbol: s, key: 'hold', mean: 2.8, n: 40, target: 300, low: 120, high: 500, price: 250, currency: 'USD', votes: [5, 10, 18, 5, 2] } : s === 'VWCE.DE' ? { symbol: s, none: true, fund: { pe: 21.5, pb: 3.2, ter: 0.0022, top: [['NVIDIA Corp', 0.051], ['Apple <b>Inc</b>', 0.043]] } } : { symbol: s, none: true })) };
     if (p === '/movers') return { gainers: [{ symbol: 'XYZ', name: 'Xyz Therapeutics', price: 12.3, changePct: 38.2, volume: 9e6, currency: 'USD' }], losers: [{ symbol: 'ABCD', name: 'Abcd Corp', price: 4.1, changePct: -22.5, volume: 3e6, currency: 'USD' }], actives: [] };
     if (p === '/fuel' && u.searchParams.get('list') === '1') return { fuels: [{ id: +u.searchParams.get('tipos'), name: 'Gasolina simples 95', n: 3, median: 1.739, max: 1.799, updated: '2026-11-05 09:30',
         stations: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', addr: 'Rua A, Torres Novas', lat: 39.48, lon: -8.54 }, { price: 1.739, name: 'Galp Centro', brand: 'Galp', addr: 'Av. B', lat: null, lon: null }, { price: 1.799, name: 'BP Norte', brand: 'BP', place: 'Porto, Porto' }] }] };
@@ -641,7 +641,7 @@ function proxyBody(u) {
     assert.deepEqual([dec.d.manda, dec.d.fam, dec.d.key], ['claude', 1, dec.e.cl.key], 'manda o Claude');
     assert.deepEqual(dec.d.f.map((x) => x.f), ['claude', 'analistas', 'fundamentos', 'tecnica', 'noticias', 'sentimento'], 'as seis fontes, pela ordem');
     const dAn = dec.d.f.find((x) => x.f === 'analistas');
-    assert.deepEqual([dAn.p, dAn.fam, dAn.w, dAn.d, dAn.key], [90, 1, 2, 1, 'strong_buy'], 'nota 1,4 → 90; com 58 analistas, o peso inteiro');
+    assert.deepEqual([dAn.p, dAn.fam, dAn.w, dAn.d, dAn.key], [97, 1, 2, 1, 'strong_buy'], 'nota 1,4 → 90, mais 7 das revisões (12 para cima, 2 para baixo); com 58 analistas, o peso inteiro');
     assert.deepEqual(dec.e.fun, { pe: 28.4, cr: 60, mg: 55 }, 'os fundamentos vêm com o consenso, em %');
     assert.ok(dec.d.n === dec.d.f.length && Number.isInteger(dec.d.p) && dec.d.conf === 2, 'o Claude e os analistas a favor, ninguém contra: confiança alta');
     assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar' + (dec.d.forte ? ' forte' : ''), 'rótulo da família; forte: média de 70 ou mais e ninguém contra');
@@ -654,7 +654,7 @@ function proxyBody(u) {
     const fontes = await page.locator(adv + ' .dec-f li').evaluateAll((ls) => ls.map((l) => [...l.querySelectorAll('.dec-r b, .dec-r .dec-l, .dec-r em, .dec-s .val, .dec-s small')].map((x) => x.textContent)));
     assert.deepEqual(fontes.map((x) => x[0]), ['Claude', 'Analistas', 'Fundamentos', 'Técnica', 'Notícias', 'Sentimento']);
     assert.deepEqual(fontes[0].slice(1), ['Comprar', 'decide', String(dec.d.f[0].p), 'C48 · M88 · L81'], 'o Claude: o veredicto, quem decide e a convicção por prazo');
-    assert.deepEqual(fontes[1].slice(1), ['Compra forte', 'a favor', '90', '58 analistas · alvo +17,60%'], 'os analistas: a recomendação, quantos e o alvo');
+    assert.deepEqual(fontes[1].slice(1), ['Compra forte', 'a favor', '97', '58 analistas · alvo +17,60% · revisões 12↑ 2↓'], 'os analistas: a recomendação, quantos, o alvo e as revisões das estimativas');
     assert.deepEqual(fontes[2].slice(1), ['fortes', 'a favor', '65', 'P/E 28,4 · vendas +60% · margem 55%'], 'os fundamentos: o P/E, as vendas e a margem');
     assert.match(fontes[3][4], /^C\d+ · M\d+ · L\d+$/, 'a técnica: as pontuações por prazo');
     assert.deepEqual(fontes.map((x) => x[2]), dec.d.f.map((x, i) => (i === 0 ? 'decide' : x.d > 0 ? 'a favor' : x.d < 0 ? 'contra' : 'ao lado')), 'de que lado fica cada uma');
@@ -701,7 +701,10 @@ function proxyBody(u) {
     assert.deepEqual(await page.locator(shAuto + ' .cons-box .cons-leg i').evaluateAll((is) => is.map((i) => i.className)), ['c0', 'c1', 'c2', 'c3', 'c4'], 'a cor de cada pedaço da barra');
     const cm = await page.locator(shAuto + ' .cons-box .adv-meta').allTextContents();
     assert.match(cm[0], /^Nota média 1,4, numa escala de 1 \(compra forte\) a 5 \(venda forte\)\.$/);
-    assert.match(cm[1], /^Preço-alvo médio a 12 meses, de 58 analistas: .+€ \(230,50\sUS\$\) \+17,60% face a hoje · o mais baixo .+€ \(150,00\sUS\$\), o mais alto .+€ \(300,00\sUS\$\)\.$/, 'em euros e em dólares: ' + cm[1]);
+    assert.equal(cm[1], 'Há 3 meses, 72 % diziam comprar; agora 86 %.', 'para onde vão as recomendações');
+    assert.match(cm[2], /^Preço-alvo médio a 12 meses, de 58 analistas: .+€ \(230,50\sUS\$\) \+17,60% face a hoje · o mais baixo .+€ \(150,00\sUS\$\), o mais alto .+€ \(300,00\sUS\$\)\.$/, 'em euros e em dólares: ' + cm[2]);
+    assert.equal(cm[3], 'Estimativas de lucro deste ano: 12 analistas subiram e 2 desceram em 30 dias; em 90 dias a estimativa mudou +8,4%.', 'as revisões das estimativas');
+    assert.equal(cm[4], 'Resultados: acima do esperado em 4 de 4 trimestres, em média +6,2%.', 'as surpresas dos resultados');
     assert.equal(await page.locator(shAuto + ' .cons-box .adv-alg').count(), 0, 'quem concorda com quem está no cartão');
     assert.equal(await page.locator(shAuto + ' .box:has-text("Análise técnica") .hzb').count(), 3, 'pontuações automáticas por prazo');
     assert.equal(await page.locator(shAuto + ' .algo-box .adv-act').count(), 1, 'sinal automático lá dentro');
@@ -715,6 +718,16 @@ function proxyBody(u) {
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ ficha da Nvidia: Comprar aos poucos', lv.map((x) => x.replace(/\s+/g, ' ')).join(' | '));
+
+    // um fundo por dentro (conector 1.8.0): o P/E das empresas que tem, o custo e as maiores posições, nos pormenores
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.locator('.row[data-open="VWCE.DE"]').first().click();
+    await page.waitForSelector('#mk-sheet details.sh-auto .fund-box', { state: 'attached' });
+    assert.equal((await page.locator('#mk-sheet .fund-box .adv-meta').allTextContents()).join(' | '), 'As empresas do fundo valem 21,5 vezes os lucros (P/E) e 3,2 vezes o valor contabilístico. | Custo: 0,22 % por ano. | Maiores posições: NVIDIA Corp 5,1 % · Apple <b>Inc</b> 4,3 %.');
+    assert.equal(await page.locator('#mk-sheet .fund-box b:has-text("Inc")').count(), 0, 'o nome de uma posição sai escapado');
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    console.log('✓ ficha de um fundo: o que tem por dentro');
 
     // detalhe da Bitcoin
     await page.click('#mk-nav [data-tab="painel"]');

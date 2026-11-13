@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, upsertJournal, cleanLots, parseCryptoGlobal, cleanSyms } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, parseCryptoGlobal, cleanSyms } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -198,6 +198,72 @@ test('/consensus: o consenso dos analistas com crumb', async () => {
     assert.deepEqual(r.body.items[1], { symbol: 'VWCE.DE', none: true }, 'um ETF não tem consenso');
     assert.deepEqual(r.body.items[2], { symbol: 'BAD', none: true });
     assert.equal((await call('/consensus')).status, 400);
+});
+
+test('/consensus (1.8.0): revisões das estimativas, surpresas, mais fundamentos e os votos de há 3 meses', async () => {
+    const rico = { quoteSummary: { result: [{
+        financialData: { recommendationKey: 'buy', recommendationMean: { raw: 1.9 }, numberOfAnalystOpinions: { raw: 40 }, targetMeanPrice: { raw: 120 }, currentPrice: { raw: 100 }, financialCurrency: 'USD',
+            revenueGrowth: { raw: 0.18 }, profitMargins: { raw: 0.41 }, returnOnEquity: { raw: 0.33 }, debtToEquity: { raw: 45.2 }, earningsGrowth: { raw: 0.22 } },
+        summaryDetail: { forwardPE: { raw: 21.6 }, beta: { raw: 1.1 }, dividendYield: { raw: 0.008 } },
+        defaultKeyStatistics: { pegRatio: { raw: 1.7 }, priceToBook: { raw: 9.5 }, shortPercentOfFloat: { raw: 0.012 }, beta: { raw: 9 } },
+        recommendationTrend: { trend: [{ period: '0m', strongBuy: 10, buy: 20, hold: 8, sell: 1, strongSell: 1 }, { period: '-3m', strongBuy: 6, buy: 18, hold: 14, sell: 2, strongSell: 0 }] },
+        earningsTrend: { trend: [{ period: '0q', epsRevisions: { upLast30days: { raw: 1 } } },
+            { period: '0y', epsRevisions: { upLast30days: { raw: 12 }, downLast30days: { raw: 2 } }, epsTrend: { current: { raw: 5.4 }, '90daysAgo': { raw: 5 } } }] },
+        earningsHistory: { history: [{ surprisePercent: { raw: 0.05 } }, { surprisePercent: { raw: -0.02 } }, { surprisePercent: { raw: 0.09 } }, { surprisePercent: {} }, { surprisePercent: { raw: 0.04 } }] },
+    }] } };
+    const x = parseConsensus(rico, 'MSFT');
+    assert.deepEqual(x.f, { pe: 21.6, cr: 0.18, mg: 0.41, roe: 0.33, de: 45.2, eg: 0.22, peg: 1.7, pb: 9.5, beta: 1.1, short: 0.012, dy: 0.008 }, 'os fundamentos que há (o beta do resumo primeiro)');
+    assert.deepEqual(x.rev, { up: 12, down: 2, chg: 0.08 }, 'as revisões do ano em curso e a estimativa face a há 90 dias');
+    assert.deepEqual(x.sur, { n: 4, beats: 3, avg: 0.04 }, 'os resultados: 3 de 4 acima do esperado, em média +4 %');
+    assert.deepEqual([x.votes, x.votes3], [[10, 20, 8, 1, 1], [6, 18, 14, 2, 0]]);
+    // sem o ano em curso, o próximo; sem estimativa de há 90 dias, só as contagens; nada → sem rev
+    const so = (trend) => parseConsensus({ quoteSummary: { result: [{ financialData: { recommendationKey: 'hold', numberOfAnalystOpinions: { raw: 3 } }, earningsTrend: { trend } }] } }, 'X').rev;
+    assert.deepEqual(so([{ period: '+1y', epsRevisions: { downLast30Days: { raw: 4 } } }]), { up: 0, down: 4, chg: null }, 'a chave com outra maiúscula também serve');
+    assert.equal(so([{ period: '0y', epsRevisions: {}, epsTrend: { current: { raw: 1 }, '90daysAgo': { raw: -2 } } }]), undefined, 'uma estimativa negativa não dá variação: fica sem rev');
+    assert.equal(so([]), undefined);
+
+    // o pedido: os módulos novos; se o Yahoo recusar o pedido maior, repete com os de sempre e o consenso não se perde
+    const pedidos = mockFetch((u) => {
+        if (u.startsWith('https://fc.yahoo.com')) return res('', 404, { 'Set-Cookie': 'A3=abc; Path=/' });
+        if (u.includes('getcrumb')) return res('crumb1');
+        if (u.includes('quoteSummary/MSFT')) return res(rico);
+        if (u.includes('quoteSummary/TEIMA')) return u.includes('earningsTrend') ? res('erro', 500) : res({ quoteSummary: { result: [{ financialData: { recommendationKey: 'hold', recommendationMean: { raw: 3 }, numberOfAnalystOpinions: { raw: 5 } } }] } });
+        // um fundo: sem analistas nem fundamentos no primeiro pedido; os dados do fundo no segundo
+        if (u.includes('quoteSummary/VWCE.DE')) {
+            return u.includes('topHoldings') ? res({ quoteSummary: { result: [{ topHoldings: { equityHoldings: { priceToEarnings: { raw: 0.0465 }, priceToBook: { raw: 0.31 } },
+                holdings: [{ holdingName: 'NVIDIA Corp', holdingPercent: { raw: 0.051 } }, { symbol: 'AAPL', holdingPercent: { raw: 0.043 } }, { holdingName: 'Sem peso' }] },
+                fundProfile: { feesExpensesInvestment: { annualReportExpenseRatio: { raw: 0.0022 } } } }] } })
+                : res({ quoteSummary: { result: [{ financialData: { recommendationKey: 'none' } }] } });
+        }
+        return res({ quoteSummary: { result: null } }, 404);
+    });
+    const r = await call('/consensus?symbols=MSFT,TEIMA,VWCE.DE,NADA');
+    assert.equal(r.status, 200);
+    assert.ok(pedidos.some((u) => u.includes('quoteSummary/MSFT') && u.includes('modules=financialData,recommendationTrend,summaryDetail,defaultKeyStatistics,earningsTrend,earningsHistory')));
+    assert.deepEqual(r.body.items[0].rev, { up: 12, down: 2, chg: 0.08 });
+    assert.deepEqual(r.body.items[1], { symbol: 'TEIMA', key: 'hold', mean: 3, n: 5, target: null, low: null, high: null, price: null, currency: null, votes: null }, 'o pedido maior falhou: fica o consenso de sempre');
+    assert.equal(pedidos.filter((u) => u.includes('quoteSummary/TEIMA')).length, 2);
+    assert.deepEqual(r.body.items[2], { symbol: 'VWCE.DE', none: true, fund: { pe: 21.50538, pb: 3.225806, ter: 0.0022, top: [['NVIDIA Corp', 0.051], ['AAPL', 0.043]] } }, 'o fundo: o P/E e o P/B vêm ao contrário e invertem-se');
+    assert.deepEqual(r.body.items[3], { symbol: 'NADA', none: true });
+    assert.equal(parseFund({}), null);
+    assert.deepEqual(parseFund({ quoteSummary: { result: [{ topHoldings: { equityHoldings: { priceToEarnings: { raw: 18.2 } } } }] } }), { pe: 18.2, pb: null, ter: null, top: [] }, 'um P/E já direito fica como vem');
+});
+
+test('/quotes: uma segunda tentativa quando o Yahoo recusa por excesso de pedidos', async () => {
+    let vezes = 0;
+    const pedidos = mockFetch((u) => {
+        if (u.includes('/chart/LENTO')) { vezes++; return vezes <= 2 ? res('too many', 429) : res(chart('LENTO', 50, 49)); }
+        if (u.includes('/chart/MORTO')) return res('fora', 503);
+        if (u.includes('/chart/NAOHA')) return res({ chart: { result: null, error: { description: 'No data found' } } }, 404);
+        return res(chart('AAPL', 110, 100));
+    });
+    const r = await call('/quotes?symbols=LENTO,AAPL,NAOHA,MORTO&range=5d');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.quotes[0].price, 50, 'à segunda volta respondeu');
+    assert.equal(pedidos.filter((u) => u.includes('/chart/LENTO')).length, 3, 'query1, query2 e outra vez o query1');
+    assert.equal(pedidos.filter((u) => u.includes('/chart/NAOHA')).length, 2, 'um 404 não se repete: o símbolo não existe');
+    assert.match(r.body.quotes[3].error, /HTTP 503/);
+    assert.ok(pedidos.filter((u) => u.includes('/chart/MORTO')).length <= 4, 'e insiste uma só vez');
 });
 
 test('/journal guarda e lê o diário (KV simulado)', async () => {

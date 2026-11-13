@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.22.3';
+    const VERSION = '4.23.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1445,11 +1445,13 @@
     const CONS_LBL = { strong_buy: 'Compra forte', buy: 'Comprar', hold: 'Manter', underperform: 'Abaixo do mercado', sell: 'Vender', strong_sell: 'Venda forte' };
     const CONS_FAM = { strong_buy: 1, buy: 1, hold: 0, underperform: -1, sell: -1, strong_sell: -1 };
     async function loadConsensus(k) {
-        if (!REG[k] || REG[k].kind !== 'stock' || !cfg.proxy || now() - (consAt[k] || 0) < 6 * 3600 * 1000) return;
+        // as ações (analistas, fundamentos, revisões) e os fundos (o P/E, o custo e as maiores posições)
+        if (!REG[k] || !['stock', 'fund'].includes(REG[k].kind) || !cfg.proxy || now() - (consAt[k] || 0) < 6 * 3600 * 1000) return;
         consAt[k] = now();
         try {
-            // &f=1: um endereço novo desde o conector 1.7.0, para não vir da cache uma resposta antiga, sem os fundamentos
-            const r = await px(`/consensus?symbols=${encodeURIComponent(k)}&f=1`, 15000);
+            // &f=2: um endereço novo a cada versão do conector que junta dados ao consenso (1.7.0: fundamentos; 1.8.0:
+            // revisões, surpresas, fundos), para não vir da cache da Cloudflare uma resposta antiga, sem eles
+            const r = await px(`/consensus?symbols=${encodeURIComponent(k)}&f=2`, 15000);
             CONS[k] = (r.items || []).find((x) => x.symbol === k) || null;
         } catch { CONS[k] = null; }
         if (sheetKey === k) renderSheet(true);
@@ -1465,7 +1467,7 @@
         const f = c && !c.error ? c.f : null, vix = Q['^VIX'] && Q['^VIX'].price, fg = CG && CG.fng ? CG.fng.v : null;
         return {
             cl: cl ? { key: cl.key, short: cl.short, mid: cl.mid, long: cl.long, old: !!cl.old } : null,
-            an: c && !c.none && !c.error ? { key: c.key, mean: c.mean, n: c.n, target: c.target, price: c.price } : null,
+            an: c && !c.none && !c.error ? { key: c.key, mean: c.mean, n: c.n, target: c.target, price: c.price, ...(c.rev ? { up: c.rev.up, down: c.rev.down } : {}) } : null,
             fun: f ? { pe: f.pe, cr: fin(f.cr) ? Math.round(f.cr * 1000) / 10 : null, mg: fin(f.mg) ? Math.round(f.mg * 1000) / 10 : null } : null,
             tec: r && r.advice ? { key: r.advice.key, short: sc(h.short), mid: sc(h.mid), long: sc(h.long) } : null,
             news: n ? tomNoticias(n) : null,
@@ -1499,7 +1501,7 @@
         const conv = c ? HZ.filter(([h]) => fin(c[h])).map(([h, l]) => `<div class="cv"><small>${l} prazo</small>${scoreBar({ score: c[h], tone: scoreTone(c[h]) })}</div>`).join('') : '';
         return `<details class="auto sh-auto" data-fold="sheet-auto" ${foldAttr('sheet-auto')}><summary>Pormenores de cada fonte<small>o que cada uma viu, e os impostos</small></summary>
             ${conv ? `<div class="box cl-box"><h3>Claude <small>convicção por prazo</small></h3><div class="cl-conv" role="group" aria-label="Convicção do Claude por prazo">${conv}</div></div>` : ''}
-            ${consBox(k)}${algoAdvice(k, q)}${techBox(k)}${discountBox(k, q)}
+            ${consBox(k)}${fundBox(k)}${algoAdvice(k, q)}${techBox(k)}${discountBox(k, q)}
             ${facts.trim() ? `<div class="box fx-box"><h3>Impostos e dividendos</h3>${facts}</div>` : ''}</details>`;
     }
     function consBox(k) {
@@ -1523,9 +1525,25 @@
                 + (f > 0 && d < 0 ? '<div class="adv-meta cons-av">Dizem comprar, mas o preço já passou o alvo médio deles: a subida que esperavam já aconteceu.</div>'
                     : f < 0 && d > 0 ? '<div class="adv-meta cons-av">Dizem vender, mas o alvo médio está acima do preço de hoje.</div>' : '');
         }
+        // desde o conector 1.8.0: para onde vão as recomendações, as revisões das estimativas e as surpresas dos resultados
+        const v3 = Array.isArray(c.votes3) ? c.votes3.map((x) => Math.max(0, +x || 0)) : null, t3 = v3 ? v3.reduce((a, b) => a + b, 0) : 0;
+        const tend = tot && t3 ? `<div class="adv-meta">Há 3 meses, <b>${Math.round(((v3[0] + v3[1]) / t3) * 100)} %</b> diziam comprar; agora <b>${Math.round((cp / tot) * 100)} %</b>.</div>` : '';
+        const rv = c.rev && fin(c.rev.up) && fin(c.rev.down) ? c.rev : null, su = c.sur && c.sur.n > 0 ? c.sur : null;
+        const rev = rv && (rv.up + rv.down > 0 || fin(rv.chg)) ? `<div class="adv-meta">Estimativas de lucro deste ano: ${rv.up + rv.down > 0 ? `<b>${rv.up}</b> ${rv.up === 1 ? 'analista subiu' : 'analistas subiram'} e <b>${rv.down}</b> ${rv.down === 1 ? 'desceu' : 'desceram'} em 30 dias` : 'ninguém as mexeu em 30 dias'}${fin(rv.chg) ? `; em 90 dias a estimativa mudou <span class="${toneOf(rv.chg * 100)}-t">${fmtPct1(rv.chg * 100)}</span>` : ''}.</div>` : '';
+        const sur = su ? `<div class="adv-meta">Resultados: acima do esperado em <b>${su.beats} de ${su.n}</b> ${su.n === 1 ? 'trimestre' : 'trimestres'}${fin(su.avg) ? `, em média <span class="${toneOf(su.avg * 100)}-t">${fmtPct1(su.avg * 100)}</span>` : ''}.</div>` : '';
         return `<div class="box cons-box"><h3>Analistas <small>Yahoo Finance</small></h3>
             <div class="adv-act ${tone}-t">${CONS_LBL[c.key]} <small class="cons-n">${tot ? `${tot} ${tot === 1 ? 'recomendação' : 'recomendações'} este mês` : `consenso de ${c.n} ${c.n === 1 ? 'analista' : 'analistas'}`}</small></div>
-            ${bar}${alvo}</div>`;
+            ${bar}${tend}${alvo}${rev}${sur}</div>`;
+    }
+    // um fundo por dentro (o conector 1.8.0): quanto valem as empresas que tem, o custo por ano e as maiores posições
+    function fundBox(k) {
+        const fd = CONS[k] && !CONS[k].error ? CONS[k].fund : null;
+        if (!fd) return '';
+        const n1 = (x) => NF({ maximumFractionDigits: 1 }).format(x), top = Array.isArray(fd.top) ? fd.top.filter((x) => Array.isArray(x) && fin(x[1])) : [];
+        return `<div class="box fund-box"><h3>O fundo por dentro <small>Yahoo Finance</small></h3>
+            ${fin(fd.pe) ? `<div class="adv-meta">As empresas do fundo valem <b>${n1(fd.pe)}</b> vezes os lucros (P/E)${fin(fd.pb) ? ` e <b>${n1(fd.pb)}</b> vezes o valor contabilístico` : ''}.</div>` : ''}
+            ${fin(fd.ter) ? `<div class="adv-meta">Custo: <b>${NF({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(fd.ter * 100)} %</b> por ano.</div>` : ''}
+            ${top.length ? `<div class="adv-meta">Maiores posições: ${top.map(([n, w]) => `${esc(n)} ${n1(w * 100)} %`).join(' · ')}.</div>` : ''}</div>`;
     }
     // o sinal automático (regras fixas de analise.js), nos pormenores: a ação, o plano em preços e quando a ideia falha
     function algoAdvice(k, q) {

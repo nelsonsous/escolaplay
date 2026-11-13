@@ -73,7 +73,11 @@
       = a num es.anD
       ` · alvo { fm_pct a }`
       Se && > f 0 < a 0. " · o preço já passou o alvo"
-      Se && < f 0 > a 0. " · o alvo está acima do preço" } }
+      Se && < f 0 > a 0. " · o alvo está acima do preço" }
+    # as revisões das estimativas de lucro em 30 dias: quantos as subiram e desceram
+    Se && ln_fin d.an.up ln_fin d.an.down {
+      = u num d.an.up = w num d.an.down
+      Se > + u w 0. ` · revisões { _nu_ps _nu_round u }↑ { _nu_ps _nu_round w }↓` } }
   Se == q 2 dv_pz d.tec
   Se && == q 3 ln_fin es.nn { plural I num es.nn $"título" $"títulos" " recentes" }
   Se == q 4 dv_fun d.fun
