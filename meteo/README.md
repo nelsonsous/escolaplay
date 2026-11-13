@@ -85,6 +85,14 @@ Avançado). A análise também não fala de si («os meus números»): fala da p
 e subido**, como o º: o nome («Análiseᴵᴬ») e cada valor que ela muda à vista (máxima, mínima, chuva e rajada nos dias e
 na folha do dia); a nota dos dias explica-o.
 
+**Mais e melhores dados (1.24).** Os pluviómetros avariados ficam de fora: cada estação IPMA até 40 km é comparada,
+dia a dia e nas mesmas horas, com as vizinhas (ex.: Guimarães deu 2,6 mm com 29 mm à volta) e a chuva dela deixa de contar
+no observado, na aprendizagem e no «agora». O histórico das estações passa a 60 dias e a 10 estações por local, e a
+tarefa verifica os últimos 14 dias (a app, 7). A análise vai buscar a Proteção Civil diretamente ao fogos.pt (que recusa o
+conector e limita pedidos sem chave: até 3 tentativas). O conector espera no máximo 17 s pelo Open-Meteo e, se a fonte
+falhar ou demorar, serve a última resposta boa (até 6 h). A análise devolve também `dados`: notas técnicas sobre o que
+faltou ou parece errado, que voltam na corrida seguinte e só o dono vê.
+
 **Probabilidade de chuva calibrada (1.22).** Medido contra 5 estações do IPMA e os aeroportos do Porto, Lisboa e Faro
 (11/2026): com a regra «um modelo dá ≥ 0,1 mm, logo chove», os modelos tinham chuva em 1,6 a 3,3 vezes mais horas do que
 as observadas, e quando a app dizia 96% chovia em 59% das horas. Agora cada modelo vota pela quantidade que dá

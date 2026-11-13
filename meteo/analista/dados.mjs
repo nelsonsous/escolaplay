@@ -11,7 +11,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { loadForecast, buildSummary, perModelTable } from '../lib/data.js';
 import { satUrl, FOGOS_URL, IPMA } from '../lib/sources.js';
-import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns } from '../lib/engine.js';
+import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns, ipmaByPosition } from '../lib/engine.js';
 import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { selectPlaces, isOwnerPlace, placeOwner, placeMembers, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
 import { mergeMemory } from '../lib/learn.js';
@@ -50,12 +50,21 @@ console.log(`Análise dos outros: ${OTHERS[plan.others]} · corrida ${plan.morni
 if (plan.skip.length) console.log(`Ficam de fora: ${plan.skip.map((p) => `${p.id} (${p.name}, ${KIND_PT[p.kind]}): ${p.reason}`).join('; ')}.`);
 if (!places.length) { console.log('Sem locais a analisar — nada a fazer.'); process.exit(0); }
 
-// Ocorrências da Proteção Civil: o fogos.pt recusa o Worker, por isso guardamos aqui uma cópia para a app (válida 6 h)
-try {
-    const f = await getJSON(FOGOS_URL, 20000, { 'user-agent': 'meteo-preciso/1.0 (app pessoal)' });
-    await kvPut('fogos:latest', { savedAt: new Date().toISOString(), data: f }, { ttl: 6 * 3600 });
-    console.log(`fogos.pt: ${Array.isArray(f.data) ? f.data.length : 0} ocorrências ativas guardadas.`);
-} catch (e) { console.log(`fogos.pt indisponível (${e.message}).`); }
+// Ocorrências da Proteção Civil: o fogos.pt recusa o Worker e limita pedidos sem chave (429, muitas vezes por causa de
+// outros no mesmo endereço de saída) — até 3 tentativas espaçadas; a cópia vai para a análise de cada local (sem
+// depender do conector) e para a app (KV, válida 6 h)
+let fogos = null;
+for (let k = 0; k < 3 && !fogos; k++) {
+    if (k) await new Promise((r) => setTimeout(r, k * 20000));
+    try {
+        const f = await getJSON(FOGOS_URL, 20000, { 'user-agent': 'meteo-preciso/1.0 (app pessoal)' });
+        if (Array.isArray(f?.data)) fogos = { ...f, savedAt: new Date().toISOString() };
+    } catch (e) { console.log(`fogos.pt: tentativa ${k + 1} falhou (${e.message}).`); }
+}
+if (fogos) {
+    await kvPut('fogos:latest', { savedAt: fogos.savedAt, data: fogos }, { ttl: 6 * 3600 }).catch(() => {});
+    console.log(`fogos.pt: ${fogos.data.length} ocorrências ativas.`);
+} else console.log('fogos.pt indisponível: a análise segue sem as ocorrências da Proteção Civil.');
 
 console.log(`\n# REGRAS DA ANÁLISE\n${SYSTEM_PROMPT}\n`);
 {
@@ -79,9 +88,9 @@ for (const [i, place] of places.entries()) {
         let reports30 = [];
         try { reports30 = recentReports(await kvGet('reports:' + place.id), place.lat, place.lon, { hours: 720, maxKm: 3 }); } catch { /* sem avisos */ }
         const { fc, raw } = await loadForecast({ lat: place.lat, lon: place.lon, name: place.name, base: WORKER, preferProxy: true, withRaw: true,
-            ipmaPrev: ipmaPrevFromRuns(runs), memory, reports: reports30 });
+            ipmaPrev: ipmaPrevFromRuns(runs), memory, reports: reports30, fogos, prevDays: 14 });
         await saveLearning(place, memory, fc).catch((e) => out.push(`(memória da aprendizagem não gravada: ${e.message})`));
-        await saveObsHistories(raw, fc).catch((e) => out.push(`(histórico IPMA não gravado: ${e.message})`));
+        await saveObsHistories(raw, fc, place).catch((e) => out.push(`(histórico IPMA não gravado: ${e.message})`));
         if (raw.ipma?.forecast) await saveIpmaRun(raw.ipma.forecast, runs).catch((e) => out.push(`(previsão IPMA não arquivada: ${e.message})`));
         const prev = await kvGet('analysis:' + place.id).catch(() => null);
         const lessons = (await kvGet('lessons:' + place.id).catch(() => null)) || [];
@@ -97,7 +106,8 @@ for (const [i, place] of places.entries()) {
         out.push(observed(raw, fc));
         out.push(fc.radar ? `Radar no ponto: ${fc.radar.text}${fc.radar.compare ? ` ${fc.radar.compare.text}` : ''}` : `Radar no ponto: indisponível (${fc.status.radar || 'sem dados'}).`);
         out.push(reports.length ? `Avisos do utilizador (48 h): ${reports.length}, o último «${reports[0].kind}» há ${reports[0].ageMin} min (lista em "## Avisos do utilizador").` : 'Avisos do utilizador (48 h): nenhum.');
-        if (prev) out.push(`\n## Análise anterior (${prev.generatedAt})\nTítulo: ${prev.titulo}\nResumo: ${prev.resumo}\nHoje: ${prev.hoje}\nAmanhã: ${prev.amanha}`);
+        if (prev) out.push(`\n## Análise anterior (${prev.generatedAt})\nTítulo: ${prev.titulo}\nResumo: ${prev.resumo}\nHoje: ${prev.hoje}\nAmanhã: ${prev.amanha}` +
+            (prev.dados?.length ? `\nNotas sobre os dados nessa análise (diz em "dados" se continuam): ${prev.dados.join(' | ')}` : ''));
         else out.push('\n## Análise anterior: nenhuma (primeira análise deste local).');
         out.push(lessons.length ? `\n## Lições sobre este local\n- ${lessons.join('\n- ')}` : '\n## Lições: ainda nenhuma.');
         out.push('\n' + buildSummary(fc, { perModel: perModelTable(raw.det), reports }));
@@ -143,10 +153,12 @@ function observed(raw, fc) {
     return lines.length ? `\n## Observado nas últimas 24 h (valores medidos, sem ajuste de altitude)\n- ${lines.join('\n- ')}` : '\n## Observado nas últimas 24 h: sem estação próxima.';
 }
 
-// Acumula as observações horárias das estações IPMA usadas no ponto (a fonte só dá 24 h) — 14 dias, até 6 por local
-async function saveObsHistories(raw, fc) {
+// Acumula as observações horárias das estações IPMA (a fonte só dá 24 h) — 60 dias: as usadas no ponto e as outras até
+// 40 km (até 10 por local; as vizinhas apanham pluviómetros avariados e dão aprendizagem a locais novos)
+async function saveObsHistories(raw, fc, place) {
     const ids = (fc.now.obs?.stations || []).filter((x) => x.source === 'IPMA' && x.used).slice(0, 6).map((x) => x.id);
     if (raw.station?.source === 'IPMA' && !ids.includes(raw.station.id)) ids.push(raw.station.id);
+    for (const s of ipmaByPosition(raw.ipma?.stations, place.lat, place.lon, { radiusKm: 40, max: 10 })) if (ids.length < 10 && !ids.includes(s.id)) ids.push(s.id);
     for (const id of ids) {
         if (savedStations.has(id)) continue;
         savedStations.add(id);
@@ -156,7 +168,7 @@ async function saveObsHistories(raw, fc) {
         const old = (await kvGet(key)) || [];
         const map = new Map((Array.isArray(old) ? old : []).map((o) => [o.ms, o]));
         for (const o of series) if (Number.isFinite(o.temp)) map.set(o.ms, { ms: o.ms, temp: o.temp, rh: o.rh, wind: o.wind, precip1h: o.precip1h });
-        const keep = [...map.values()].filter((o) => o.ms >= Date.now() - 14 * 864e5).sort((a, b) => a.ms - b.ms);
+        const keep = [...map.values()].filter((o) => o.ms >= Date.now() - 60 * 864e5).sort((a, b) => a.ms - b.ms);
         await kvPut(key, keep);
     }
 }
