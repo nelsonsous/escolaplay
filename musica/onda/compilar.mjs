@@ -52,7 +52,7 @@ export async function ondac(compilador, fonte, flags) {
 }
 
 // A biblioteca da Onda que a app junta, por esta ordem (cada módulo só usa os de cima; no -w só entra o que a app usa)
-export const MODULOS = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao', 'fala'];
+export const MODULOS = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'grafico', 'anfitriao', 'fala'];
 
 // As entradas da app: o main e as funções que o anfitrião chama pelo nome (cliques, campos, respostas da rede,
 // relógios). Na fonte são textos constantes com o nome de uma função da app — $"clique", $"lido_estado"… —, por isso

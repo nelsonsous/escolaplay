@@ -1,0 +1,46 @@
+# grafico.onda — gráficos em SVG: o caminho (o atributo d de um <path>) de uma série de valores inteiros, à escala de
+# uma caixa. Escreve-se dentro de um molde, como o resto do ecrã:
+#   `<svg viewBox="0 0 320 80"><path d="{ _gr_curva v n 320 80 8 0 1000 0 }"/></svg>`
+# Só inteiros (as coordenadas vão em décimas e escrevem-se com uma casa: «12.5»), por isso o WebAssembly, o x86 e o
+# arm64 dão o mesmo texto, e o teste confere-o contra a mesma conta em JavaScript. Não precisa de mais nenhum módulo.
+#
+#   _gr_linha v n w h m lo hi fecha   a linha quebrada pelos n valores de v (um por palavra): «M x y L x y …»
+#   _gr_curva v n w h m lo hi fecha   o mesmo, em curva suave (Catmull-Rom em Bézier cúbicas: «M x y C … …»); a curva
+#                                     não sai da caixa
+#     w h: a largura e a altura da caixa (as do viewBox); m: a margem a toda a volta; lo hi: os valores que ficam em
+#     baixo e em cima (os de fora ficam na borda); fecha = 1 fecha o caminho até à base (para encher por baixo).
+#     Com n = 0 não escreve nada; com n = 1, um traço de lado a lado à altura desse valor.
+#   _gr_x i n w m       o x (em décimas) do ponto i de n          _gr_y v h m lo hi   o y (em décimas) do valor v
+#   _gr_d x             escreve décimas com uma casa: 125 → «12.5», 120 → «12», -5 → «-0.5»
+# Globais: nenhum.
+
+: _gr_x iiii>i i n w m ? > n 1 + * m 10 / * * i - w * 2 m 10 - n 1 * 5 w
+: _gr_y iiiii>i v h m lo hi { = a Mx lo Mn hi v ? > hi lo - * - h m 10 / * * - a lo - h * 2 m 10 - hi lo * 5 h }
+: _gr_d i>i x { Se < x 0 { P '- = x - 0 x } N / x 10 = r % x 10 Se r { P '. N r } }
+: _gr_pt ii>i x y { _gr_d x P 32 _gr_d y }
+# o fim: com fecha, desce à base no último ponto, volta ao primeiro e fecha
+: _gr_fim iiiii>i n w h m fecha Se fecha { P 'L _gr_pt _gr_x - n 1 n w m * - h m 10 P 'L _gr_pt _gr_x 0 n w m * - h m 10 P 'Z }
+# com um ponto só: um traço de lado a lado
+: _gr_um iiiiiii>i v w h m lo hi fecha {
+  = y _gr_y @ v h m lo hi
+  P 'M _gr_pt * m 10 y P 'L _gr_pt * - w m 10 y
+  Se fecha { P 'L _gr_pt * - w m 10 * - h m 10 P 'L _gr_pt * m 10 * - h m 10 P 'Z } }
+: _gr_linha iiiiiiii>i v n w h m lo hi fecha ? < n 1 0 ? == n 1 _gr_um v w h m lo hi fecha {
+  P 'M _gr_pt _gr_x 0 n w m _gr_y @ v h m lo hi
+  = i 1 W < i n { P 'L _gr_pt _gr_x i n w m _gr_y @ + v i h m lo hi = i + i 1 }
+  _gr_fim n w h m fecha }
+# o y do ponto i, com as pontas repetidas (o ponto antes do primeiro é o primeiro; depois do último, o último)
+: _gr_yi iiiiiii>i v i n h m lo hi _gr_y @ + v Mx 0 Mn - n 1 i h m lo hi
+: _gr_xi iiii>i i n w m _gr_x Mx 0 Mn - n 1 i n w m
+: _gr_curva iiiiiiii>i v n w h m lo hi fecha ? < n 1 0 ? == n 1 _gr_um v w h m lo hi fecha {
+  = t * m 10 = b * - h m 10
+  P 'M _gr_pt _gr_x 0 n w m _gr_y @ v h m lo hi
+  = i 0 W < i - n 1 {
+    # do ponto i ao i+1: os pontos de controlo vêm dos vizinhos (um sexto da corda), sem sair da caixa
+    = x1 + _gr_xi i n w m / - _gr_xi + i 1 n w m _gr_xi - i 1 n w m 6
+    = y1 + _gr_yi v i n h m lo hi / - _gr_yi v + i 1 n h m lo hi _gr_yi v - i 1 n h m lo hi 6
+    = x2 - _gr_xi + i 1 n w m / - _gr_xi + i 2 n w m _gr_xi i n w m 6
+    = y2 - _gr_yi v + i 1 n h m lo hi / - _gr_yi v + i 2 n h m lo hi _gr_yi v i n h m lo hi 6
+    P 'C _gr_pt x1 Mx t Mn b y1 P 32 _gr_pt x2 Mx t Mn b y2 P 32 _gr_pt _gr_x + i 1 n w m _gr_y @ + v + i 1 h m lo hi
+    = i + i 1 }
+  _gr_fim n w h m fecha }

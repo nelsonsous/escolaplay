@@ -39,7 +39,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.20.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.20.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -403,12 +403,21 @@ test('trocar e tirar uma faixa, na hora: no mesmo sítio, logo no Tidal; a que s
     const v5 = await (await post(`/api/playlists/${so.id}/trocar`, { sai: '101', entra: '106' }, chave)).json();
     assert.deepEqual(v5.faixas.map((x) => x.id), ['106', '102']);
     assert.equal(sim.chamadas.length, antes, 'sem chamadas ao Tidal');
-    // desfazer sem nada para desfazer; e só as 5 últimas mudanças guardam a faixa que saiu
-    await post(`/api/playlists/${so.id}/trocar`, { desfazer: true }, chave);
+    // acrescentar uma faixa pelo id (a pessoa procurou-a): entra no fim e fica segura nas candidatas — o afinar não a tira;
+    // a parecida que o Tidal escolhe não fica segura
+    const v5b = await (await post(`/api/playlists/${so.id}/trocar`, { entra: '103' }, chave)).json();
+    assert.deepEqual(v5b.faixas.map((x) => x.id), ['106', '102', '103']);
+    assert.deepEqual([v5b.candidatas.at(-1).faixa.id, v5b.candidatas.at(-1).sinais.fixa, v5b.candidatas.at(-1).motivo], ['103', true, 'Escolhida por ti.']);
+    assert.ok(!v2.candidatas[4].sinais.fixa);
+    // uma faixa acrescentada não se desfaz (não saiu nada): tira-se; e tirar desfaz-se
     assert.deepEqual([(await post(`/api/playlists/${so.id}/trocar`, { desfazer: true }, chave)).status], [400]);
+    await post(`/api/playlists/${so.id}/trocar`, { sai: '103' }, chave);
+    assert.deepEqual((await (await post(`/api/playlists/${so.id}/trocar`, { desfazer: true }, chave)).json()).faixas.map((x) => x.id), ['106', '102', '103']);
+    // só as 5 últimas mudanças guardam a faixa que saiu
+    await post(`/api/playlists/${so.id}/trocar`, { sai: '106', entra: '101' }, chave);
     for (let i = 0; i < 7; i++) await post(`/api/playlists/${so.id}/trocar`, i % 2 ? { sai: '106', entra: '101' } : { sai: '101', entra: '106' }, chave);
     const v6 = await (await get('/api/playlists/' + so.id, chave)).json();
-    assert.deepEqual([v6.trocas.length, v6.trocas.filter((x) => x.faixa).length, !!v6.trocas.at(-1).faixa], [7, 5, true]);
+    assert.deepEqual([v6.trocas.length, v6.trocas.filter((x) => x.faixa).length, !!v6.trocas.at(-1).faixa], [10, 5, true]);
 });
 
 test('mais como esta: uma playlist de faixas parecidas, logo no Tidal', async () => {

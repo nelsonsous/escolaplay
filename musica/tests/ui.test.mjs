@@ -89,7 +89,6 @@ async function esperado(doc, op, { tiradas = new Set(), fixas = new Set(), junta
     const { ordem } = await curar(CURADOR, { k: Math.min(op.faixas, usadas.length), maxArtista: op.maxArtista, estilo: op.estilo, arco: op.arco }, usadas.map((u) => u.s));
     return ordem.map((o) => usadas[o.i].id);
 }
-const mostradas = (page) => page.$$eval('#faixas .mu-faixa .mu-tocar', (as) => as.map((a) => a.href.split('/').pop()));
 const naFolha = (page) => page.$$eval('.mu-folha .mu-xf li[data-esq]', (ls) => ls.map((l) => l.dataset.esq.split('\t')[1]));
 const heap = (page) => page.evaluate(() => Number(new BigInt64Array(window.app.exports.memory.buffer, 15 * 8, 1)[0]));
 
@@ -284,74 +283,108 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await foto('1-sobre');
     await page.locator('.mu-folha').evaluate((f) => { f.scrollTop = 0; });
 
-    // 3) afinar: o motor Onda dentro da app, e o juiz em cada mudança
-    const op = { faixas: 5, maxArtista: 1, estilo: 'equilibrado', arco: 'onda' };
-    const tiradas = new Set(), fixas = new Set(), juntadas = [];
-    const juiz = async (msg) => assert.deepEqual(await mostradas(page), await esperado(doc, op, { tiradas, fixas, juntadas }), msg);
-    await page.getByRole('button', { name: 'Afinar no telemóvel' }).click();
-    await page.locator('#af-motor').filter({ hasText: 'motor Onda (WASM): 4 faixas de 6' }).waitFor();
-    await juiz('afinar: as opções guardadas');
-    await page.locator('[data-onda="af-mx\t2"]').click(); op.maxArtista = 2;
-    await page.locator('#af-motor').filter({ hasText: '5 faixas de 6' }).waitFor();
-    await juiz('máximo 2 por artista');
-    await page.locator('[data-onda="af-es\t4"]').click(); op.estilo = 'audiofilo';
-    await page.locator('[data-onda="af-ar\t2"]').click(); op.arco = 'desce';
-    await juiz('audiófilo, a acalmar');
-    const primeira = await page.locator('#faixas [data-onda^="tirar"]').first().getAttribute('data-onda');
-    await page.locator(`#faixas [data-onda="${primeira}"]`).click(); tiradas.add(Number(primeira.split('\t')[1]));
-    await page.locator('#af-motor').filter({ hasText: 'faixas de 5' }).waitFor();
-    await juiz('sem a primeira');
-    const ultima = await page.locator('#faixas [data-onda^="fixar"]').last().getAttribute('data-onda');
-    await page.locator(`#faixas [data-onda="${ultima}"]`).click(); fixas.add(Number(ultima.split('\t')[1]));
-    assert.equal(await page.locator('#faixas .mu-faixa.fixa').count(), 1);
-    await juiz('com uma fixada');
-    // juntar uma faixa do Tidal
+    // 3) afinar na folha: o motor Onda dentro da app, e o juiz em cada mudança
+    // antes: tira-se uma faixa (fica de fora do afinar) e acrescenta-se outra do Tidal (fica segura)
+    await page.locator('.mu-folha .mu-xf button.tx').first().click();
+    await page.locator('.mu-folha .mu-xf-mais').getByRole('button', { name: 'Tirar' }).click();
+    await page.locator('.mu-folha .mu-xf-nota').getByText(`Tiraste «${doc.faixas[0].titulo}».`).waitFor();
+    assert.equal(await page.locator('.mu-junta').count(), 0, 'a procura começa fechada');
+    await page.getByRole('button', { name: 'Acrescentar uma faixa' }).click();
     await page.locator('[data-onda="q"]').fill('Amália Barco Negro');
     await page.getByRole('button', { name: 'Procurar no Tidal' }).click();
     await page.locator('[data-onda="juntar\t0"]').click();
-    await page.locator('#mu-aviso').getByText('entra (fixada)').waitFor();
+    await page.locator('#mu-aviso').getByText('Faixa acrescentada.').waitFor();
     const barco = (await worker.fetch(new Request(WORKER + '/api/pesquisa?q=barco%20negro', { headers: { authorization: `Bearer ${await env.KV.get('agente:chave')}` } }), env, {}).then((r) => r.json())).faixas[0];
-    juntadas.push(barco);
-    op.faixas = Math.min(op.faixas + 1, doc.candidatas.length - tiradas.size + juntadas.length);
-    await juiz('com a faixa juntada');
-    assert.ok((await mostradas(page)).includes(barco.id));
-    // o deslizador (eventos "input", entre 5 e o número de candidatas): o motor corre a cada passo; e o monte não cresce
-    const h0 = await heap(page);
-    for (let i = 0; i < 60; i++) await page.evaluate((v) => { const e = document.querySelector('[data-onda="af-n"]'); e.value = String(v); e.dispatchEvent(new Event('input', { bubbles: true })); }, 6 - (i % 2));
-    await page.evaluate(() => { const e = document.querySelector('[data-onda="af-n"]'); e.value = '5'; e.dispatchEvent(new Event('input', { bubbles: true })); });
-    op.faixas = 5;
-    await page.locator('#af-motor').filter({ hasText: 'motor Onda (WASM): 5 faixas de 6' }).waitFor();
-    await juiz('5 faixas pelo deslizador');
-    assert.ok((await heap(page)) - h0 < 200, `o monte cresceu ${(await heap(page)) - h0} palavras em 61 eventos`);
-    await foto('2-afinar');
-
-    // 4) guardar e enviar para o Tidal: a app manda a decisão; o Worker monta a versão
-    const ordemFinal = await mostradas(page);
-    // (conta quantas vezes uma folha entra na página: ao voltar tem de subir uma vez só, mesmo com as respostas a chegar)
+    const docA = JSON.parse(await env.KV.get('playlist:' + doc.id));
+    assert.deepEqual(docA.faixas.map((f) => f.id), [...doc.faixas.slice(1).map((f) => f.id), barco.id], 'entra no fim');
+    assert.deepEqual(await naFolha(page), docA.faixas.map((f) => f.id));
+    assert.equal(await page.locator('.mu-junta').count(), 0, 'acrescentada, a procura fecha');
+    assert.deepEqual([docA.candidatas.length, docA.candidatas.at(-1).faixa.id, docA.candidatas.at(-1).sinais.fixa], [7, barco.id, true]);
+    const op = { faixas: 5, maxArtista: 1, estilo: 'equilibrado', arco: 'onda' };
+    const tiradas = new Set([docA.candidatas.findIndex((c) => c.faixa.id === doc.faixas[0].id)]), fixas = new Set();
+    const afinadas = () => page.$$eval('.mu-folha .mu-xf li.af', (ls) => ls.map((l) => l.dataset.id));
+    const conta = page.locator('.mu-af-graf .mu-nota');
+    const juiz = async (msg) => {
+        const esp = await esperado(docA, op, { tiradas, fixas });
+        await conta.filter({ hasText: new RegExp(`^${esp.length} faixa`) }).waitFor();
+        assert.deepEqual(await afinadas(), esp, msg);
+    };
     await page.evaluate(() => {
         window.__folhas = 0;
         new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1 && (n.matches('.mu-folha') || n.querySelector('.mu-folha'))) window.__folhas++; })
             .observe(document.getElementById('mu-body'), { childList: true, subtree: true });
     });
-    await page.getByRole('button', { name: 'Guardar e enviar para o Tidal' }).click();
-    await page.locator('#mu-aviso').getByText('Guardada no Tidal').waitFor();
-    // volta-se à lista, com a folha da playlist aberta e já com a ordem nova
+    await page.getByRole('button', { name: 'Afinar', exact: true }).click();
+    // aberto: ainda se vê a playlist como está, com o gráfico da energia (a linha, a área e o arco pedido a tracejado)
+    await page.locator('.mu-afina .mu-graf path.linha').waitFor();
+    assert.deepEqual(await afinadas(), docA.faixas.map((f) => f.id));
+    assert.equal(await page.locator('[data-onda="af-guardar"]').isDisabled(), true, 'sem mudanças não há nada para guardar');
+    assert.match(await page.locator('.mu-afina .mu-graf path.linha').getAttribute('d'), /^M8 [\d.]+(C[\d. ]+){3}$/, 'uma curva por 4 faixas');
+    assert.match(await page.locator('.mu-afina .mu-graf path.area').getAttribute('d'), /Z$/);
+    assert.equal(await page.locator('.mu-afina .mu-graf path.alvo').count(), 1);
+    assert.match(await conta.textContent(), /^4 faixas · \d+ min$/);
+    assert.equal(await page.locator('.mu-folha .mu-trocar, .mu-folha [data-onda="enviar"]').count(), 0, 'a afinar, a folha é só o afinar');
+    // cada mudança corre o motor: o juiz (o curador.wasm com as mesmas entradas) tem de dar a mesma ordem
+    await page.locator('[data-onda="af-mx\t2"]').click(); op.maxArtista = 2;
+    await juiz('máximo 2 por artista');
+    assert.match(await conta.textContent(), /^5 faixas · .+ · \d+ entram?, \d+ sa(i|em)$/);
+    assert.equal(await page.locator('[data-onda="af-guardar"]').isDisabled(), false);
+    assert.ok(await page.locator('.mu-folha .mu-xf li.af.nova').count() >= 1, 'as que entram vêm marcadas');
+    assert.ok((await afinadas()).includes(barco.id), 'a que acrescentaste fica (está segura)');
+    await page.locator('[data-onda="af-es\t4"]').click(); op.estilo = 'audiofilo';
+    await page.locator('[data-onda="af-ar\t2"]').click(); op.arco = 'desce';
+    await juiz('audiófilo, a acalmar');
+    // sem arco, o tracejado sai do gráfico
+    await page.locator('[data-onda="af-ar\t3"]').click();
+    await page.locator('.mu-afina .mu-graf path.alvo').waitFor({ state: 'detached' });
+    await page.locator('[data-onda="af-ar\t2"]').click();
+    await page.locator('.mu-afina .mu-graf path.alvo').waitFor();
+    // o alfinete segura uma faixa
+    const ultima = await page.locator('.mu-folha .mu-xf [data-onda^="fixar"]').last().getAttribute('data-onda');
+    await page.locator(`.mu-folha .mu-xf [data-onda="${ultima}"]`).click(); fixas.add(Number(ultima.split('\t')[1]));
+    await page.locator('.mu-folha .mu-xf li.af.fixa').first().waitFor();
+    await juiz('com uma fixada');
+    // o deslizador (eventos "input"): o motor corre a cada passo, o deslizador não é redesenhado e o monte não cresce
+    await page.locator('[data-onda="af-n"]').evaluate((e) => { e.dataset.marca = '1'; });
+    const h0 = await heap(page);
+    for (let i = 0; i < 60; i++) await page.evaluate((v) => { const e = document.querySelector('[data-onda="af-n"]'); e.value = String(v); e.dispatchEvent(new Event('input', { bubbles: true })); }, 6 - (i % 2));
+    await page.evaluate(() => { const e = document.querySelector('[data-onda="af-n"]'); e.value = '5'; e.dispatchEvent(new Event('input', { bubbles: true })); });
+    op.faixas = 5;
+    await juiz('5 faixas pelo deslizador');
+    assert.equal(await page.locator('#af-nv').textContent(), '5');
+    assert.equal(await page.locator('[data-onda="af-n"]').getAttribute('data-marca'), '1', 'o deslizador é o mesmo (não se perde o dedo)');
+    assert.ok((await heap(page)) - h0 < 200, `o monte cresceu ${(await heap(page)) - h0} palavras em 61 eventos`);
+    await foto('2-afinar');
+
+    // 4) guardar: a app manda a decisão e o Worker monta a versão; depois envia-se para o Tidal
+    const ordemFinal = await afinadas();
+    await page.locator('[data-onda="af-guardar"]').click();
+    await page.locator('#mu-aviso').getByText('Guardada.').waitFor();
+    await page.locator('.mu-afina').waitFor({ state: 'detached' });
+    assert.deepEqual(await naFolha(page), ordemFinal, 'a folha fica com a playlist nova');
+    assert.equal(sim.criadas.length, 0, 'ainda só na app');
+    await page.getByRole('button', { name: 'Enviar para o Tidal' }).click();
+    await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
     await page.locator('.mu-folha').getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
     assert.equal(sim.criadas.length, 1);
     assert.equal(sim.criadas[0].name, 'Som para o carro', 'a mesma playlist, sem «· afinada»');
     assert.deepEqual(sim.itens, ordemFinal, 'o Tidal recebe a ordem do motor Onda');
-    await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
-    assert.deepEqual(await naFolha(page), ordemFinal);
     await page.locator('.mu-folha .mu-xf [data-onda^="ouvir"]').first().waitFor();
     await page.waitForTimeout(300);
-    assert.equal(await page.evaluate(() => window.__folhas), 1, 'a folha sobe uma vez só');
+    assert.equal(await page.evaluate(() => window.__folhas), 0, 'nada disto fez a folha subir outra vez');
     const idx = JSON.parse(await env.KV.get('playlists'));
     const nova = JSON.parse(await env.KV.get('playlist:' + idx[0].id));
     assert.equal(idx.length, 1, 'sem cópias na biblioteca');
     assert.ok(nova.afinadaEm);
     assert.deepEqual(nova.opcoes, { faixas: 5, maxArtista: 2, estilo: 'audiofilo', arco: 'desce' });
     assert.equal(nova.faixas.find((f) => f.id === barco.id).motivo, 'Escolhida por ti.');
-    assert.equal(nova.candidatas.length, 7, 'as candidatas da original e a juntada');
+    assert.equal(nova.candidatas.length, 7, 'as candidatas da original e a acrescentada');
+    // fechar o afinar sem guardar deixa tudo como estava
+    await page.getByRole('button', { name: 'Afinar', exact: true }).click();
+    await page.locator('[data-onda="af-es\t1"]').click();
+    await page.locator('.mu-af-guarda').getByRole('button', { name: 'Cancelar' }).click();
+    await page.locator('.mu-afina').waitFor({ state: 'detached' });
+    assert.deepEqual(await naFolha(page), ordemFinal);
 
     // 5) a biblioteca, o gosto e os ajustes — com uma vista descida, a vista nova abre no topo
     await page.locator('.mu-folha .mu-fechar').click();
@@ -624,7 +657,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-folha .mu-xf-nota').getByText(/^Tiraste «/).waitFor();
     assert.equal((await naFolha(page)).length, nAntes - 1, 'tirar é na hora');
     await page.locator('[data-onda="af-tx"]').fill('Mais vozes, menos jazz');
-    await page.getByRole('button', { name: 'Afinar', exact: true }).click();
+    await page.getByRole('button', { name: 'Pedir ao Maestro' }).click();
     await page.locator('#mu-aviso').getByText(/Pedido de afinação enviado/).waitFor();
     assert.equal(await page.locator('[data-onda="af-tx"]').inputValue(), '', 'enviado, o campo fica limpo');
     const af = JSON.parse(await env.KV.get('pedidos'))[0];
@@ -858,13 +891,21 @@ test('trocar uma faixa (⇄): o motor escolhe a substituta no telemóvel, vê-se
     await gravada();
     env.KV.cheia = false;
     assert.deepEqual(await naFolha(page), (await kvDoc()).faixas.map((f) => f.id));
-    // 7) no afinador, as que saíram começam tiradas: não voltam
+    // 7) afinar uma playlist que está no Tidal: as que saíram ficam de fora, e guardar grava lá (a mesma playlist)
     const d5 = await kvDoc();
-    await page.getByRole('button', { name: 'Afinar no telemóvel' }).click();
-    await page.locator('#af-motor').waitFor();
+    await page.getByRole('button', { name: 'Afinar', exact: true }).click();
     const usaveis = d5.candidatas.length - d5.candidatas.filter((c) => d5.rejeitadas.includes(c.faixa.id)).length;
-    await page.locator('#af-motor').filter({ hasText: `faixas de ${usaveis} ` }).waitFor();
-    assert.ok((await mostradas(page)).every((x) => !d5.rejeitadas.includes(x)));
+    assert.equal(await page.locator('[data-onda="af-n"]').getAttribute('max'), String(usaveis));
+    await page.locator('[data-onda="af-mx\t3"]').click();
+    await page.locator('.mu-af-guarda').getByRole('button', { name: 'Guardar no Tidal' }).waitFor();
+    const afinadas = await page.$$eval('.mu-folha .mu-xf li.af', (ls) => ls.map((l) => l.dataset.id));
+    assert.ok(afinadas.length && afinadas.every((x) => !d5.rejeitadas.includes(x)), 'as que saíram não voltam');
+    const criadas = sim.criadas.length;
+    await page.locator('.mu-af-guarda').getByRole('button', { name: 'Guardar no Tidal' }).click();
+    await page.locator('#mu-aviso').getByText('Guardada no Tidal.').waitFor();
+    assert.deepEqual(noTidal(), afinadas);
+    assert.equal(sim.criadas.length, criadas, 'sem playlists novas no Tidal');
+    assert.deepEqual(await naFolha(page), afinadas);
     assert.deepEqual(erros, []);
     await ctx.close();
 });

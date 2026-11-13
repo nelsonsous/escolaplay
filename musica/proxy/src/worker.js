@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.20.0';
+const VERSION = '1.20.1';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -942,7 +942,9 @@ async function trocar(env, id, c) {
         if (!escolhida) throw new Erro(404, entra ? 'nao_encontrada' : 'sem_parecidas', entra ? 'Essa faixa já não está no Tidal.' : 'Não encontrei outra faixa parecida com esta.');
         entra = String(escolhida.id);
         const de = sai ? d.faixas[p] : null;
-        const q = { artista: escolhida.artistas[0] || '', titulo: escolhida.titulo, motivo: c.parecida === true && de ? `Parecida com «${de.titulo}».` : 'Escolhida por ti.' };
+        // (a que a pessoa escolheu pelo id fica fixa: quando afinar, o motor não a tira; a parecida do Tidal não)
+        const q = c.parecida === true && de ? { artista: escolhida.artistas[0] || '', titulo: escolhida.titulo, motivo: `Parecida com «${de.titulo}».` }
+            : { artista: escolhida.artistas[0] || '', titulo: escolhida.titulo, motivo: 'Escolhida por ti.', fixa: true };
         nova = daqui(entra) || { ...q, faixa: escolhida, sinais: sinais(q, escolhida, perfilGosto((await env.KV.get('perfil', 'json')) || {})) };
         if (!daqui(entra)) cands.push(nova);
     }

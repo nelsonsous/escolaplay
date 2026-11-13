@@ -7,7 +7,7 @@
 # («MÉTODO caminho» + nova linha + corpo JSON), sair para o login do Tidal («IR url») e o regresso dele.
 #
 # Globais (M[1..59] são da app; M[63] é da biblioteca):
-#   fixos (criados no main): 1 vista (1 playlists, 2 afinar no telemóvel, 3 pedir, 4 gosto, 5 ajustes),
+#   fixos (criados no main): 1 vista (1 playlists, 3 pedir, 4 gosto, 5 ajustes),
 #     2 base do monte (navegar solta tudo o que veio depois), 20 texto do pedido, 21 client id, 22 conector,
 #     23 pesquisa, 24..27 pedido: faixas, max por artista, estilo, arco, 29 relogio do aviso, 30 id da playlist,
 #     36 pesos dos estilos, 38 codigo de ligacao (colado), 45 pedido sem letras explicitas, 46 47 nome e descricao
@@ -17,11 +17,10 @@
 #     («,id,id,»)
 #   da folha de uma playlist (na vista 1): 50 o id da que está aberta, 51 o documento, 52 as pré-escutas e as capas,
 #     28 o «⋯» (1 a perguntar se apaga, 2 a mudar o nome, 4 aberto), 40 a faixa aberta (posição + 1), 55 o que toca,
-#     60 a faixa que está a ser trocada (posição + 1) e 61 a candidata que entra (0: espera-se uma parecida do Tidal)
-#   da vista (a zero ao navegar): 3 estado, 4 dados da vista, 5 pedidos, 6 afinar ligado, 7 faixas, 8 max por
-#     artista, 9 estilo, 10 arco, 11 candidatas, 12 faixas das candidatas, 13 ordem, 14 m, 15 motivos,
-#     16 custo, 17 fixas, 18 tiradas, 19 pesquisa, 28 a confirmar, 31 ocupado, 32 pontos, 33 ms do motor,
-#     34 escrita em curso, 35 candidatas + extras, 37 n candidatas da playlist
+#     60 a faixa que está a ser trocada (posição + 1) e 61 a candidata que entra (0: espera-se uma parecida do Tidal),
+#     6 o afinar (0 fechado, 1 aberto, 2 com mudanças; ver «afinar na folha»), 62 a procura de «acrescentar uma faixa»
+#   da vista (a zero ao navegar): 3 estado, 4 dados da vista, 5 pedidos, 19 a procura de faixas, 28 a confirmar,
+#     31 ocupado, 33 ms do motor, 34 escrita em curso; o afinar (na folha): 6 7 8 9 10 11 13 14 15 16 17 32 37
 
 # ===== utilitarios =====
 : tvazio i>i d { ! d + d 1 0 }
@@ -74,7 +73,6 @@
 : arco_json i>i a ? == a 0 "onda" ? == a 1 "sobe" ? == a 2 "desce" "plano"
 : idx_arco i>i t ? mesmo t $"sobe" 1 ? mesmo t $"desce" 2 ? mesmo t $"plano" 3 0
 : arco_val i>i a ? == a 0 1 ? == a 1 2 ? == a 2 3 0
-: pporque i>i q ? == q 1 "o teu gosto" ? == q 2 "som" ? == q 3 "na moda" ? == q 4 "Claude" ? == q 5 "novidade" "fixada"
 : porque_json i>i q ? == q 1 "gosto" ? == q 2 "qualidade" ? == q 3 "tendencia" ? == q 4 "claude" ? == q 5 "novidade" "fixa"
 # de dia (07h-20h, pela hora de Portugal no inverno; no verao difere uma hora) ou de noite
 # de dia (7h–20h) pela hora local: a casca guarda no armazém o fuso do aparelho («fuso», minutos a somar ao UTC)
@@ -110,34 +108,6 @@
   "</svg>" }
 : pill >i ? ligado `<button type="button" class="mu-pill on" data-onda="ir&#9;5">{ esct txt _ar_get @ 3 $"utilizador" }</button>` `<button type="button" class="mu-pill off" data-onda="ir&#9;5">Tidal desligado</button>`
 : carregar >i ? @ 3 `<p class="mu-nota mu-a-carregar">A carregar…</p>` `<p class="mu-nota mu-a-carregar">A ligar ao conector…</p>`
-# qualidade do som pelas etiquetas do Tidal
-: pqual i>i l { = c pri l = h 0 = q 0 W c { = t txt c ? mesmo t $"HIRES_LOSSLESS" { = h 1 0 } Se mesmo t $"LOSSLESS" = q 1 = c seg c }
-  ? h `<span class="mu-chip hires">Hi-Res</span>` Se q `<span class="mu-chip lossless">Sem perdas</span>` }
-: qual_tags i>i l { = c pri l = h 0 = q 0 = a 0
-  W c { = t txt c ? mesmo t $"HIRES_LOSSLESS" { = h 1 0 } ? mesmo t $"LOSSLESS" { = q 1 0 } Se mesmo t $"DOLBY_ATMOS" = a 1 = c seg c }
-  = v ? h 1000 ? q 750 350
-  Mn 1000 + v ? a 100 0 }
-# ano . genero . bpm . tom (Camelot) . duracao
-: meta ii>i f g {
-  = s 0
-  = a int f.ano Se a { N a = s 1 }
-  Se _tx_len g { Se s " · " esct g = s 1 }
-  = b int f.bpm Se b { `{ Se s " · " }{ N b } bpm` = s 1 }
-  = t int f.tom Se t { Se s " · " N + % - t 1 12 1 ? > t 12 "B" "A" = s 1 }
-  = du int f.duracao Se du { Se s " · " pmin du } }
-# uma faixa no afinador: p posição, f faixa (JSON), g género, mo motivo, pq porquê (1..6), po pontos, fx fixada, ci candidata
-: linha iiiiiiii>i p f g mo pq po fx ci {
-  `<li class="mu-faixa{ Se fx " fixa" }"><span class="n">{ N + p 1 }</span><div>`
-  `<div class="t">{ esct txt f.titulo }`
-  Se _tx_len txt f.versao ` <span class="mu-nota">({ esct txt f.versao })</span>`
-  `</div><div class="a">{ partistas f.artistas }</div><div class="m">{ meta f g }</div>`
-  Se _tx_len mo `<div class="mot">{ esct mo }</div>`
-  `<div class="ctl"><button type="button" data-onda="fixar&#9;{ N ci }" aria-pressed="{ ? fx "true" "false" }">{ ic 13 }fixar</button><button type="button" data-onda="tirar&#9;{ N ci }">{ ic 14 }tirar</button></div>`
-  `</div><div class="dir">`
-  Se txt f.url `<a class="mu-tocar" href="{ esct txt f.url }" target="_blank" rel="noopener" aria-label="Ouvir «{ esct txt f.titulo }» no Tidal">{ ic 4 }</a>`
-  pqual f.tags
-  Se pq `<span class="why">{ pporque pq } { N / po 10 }</span>`
-  "</div></li>" }
 
 # ===== boas-vindas (ligar o Tidal) =====
 : campo_codigo >i `<label class="mu-campo"><span>Código de ligação</span><input data-onda="cod" autocapitalize="off" autocomplete="off" spellcheck="false" value="{ esct @ 38 }"></label><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="usar">{ ic 15 }Usar este código</button></div>`
@@ -190,7 +160,8 @@
 # Sobe de baixo e ocupa o ecrã; ao fechar desce e a lista fica onde estava. Cada pedaço tem a sua função e o seu
 # lugar, e um evento redesenha só os que mudam (refolha): a folha não salta nem perde o teclado.
 #   .mu-folha-cv a capa · .mu-fo-tx o nome · .mu-fo-gerir o «⋯» (mudar o nome, atualizar sozinha, apagar) ·
-#   .mu-fo-acoes os botões · .mu-cx-xf as faixas · .mu-fo-sobre o porquê, como correu e a mistura ·
+#   .mu-fo-acoes os botões · .mu-fo-afina o afinar (com .mu-af-graf o gráfico e .mu-af-guarda o guardar) ·
+#   .mu-cx-xf as faixas · .mu-fo-junta acrescentar uma faixa · .mu-fo-sobre o porquê, como correu e a mistura ·
 #   .mu-fo-hist os pedidos · .mu-fo-afinar afinar com o Maestro
 # c é a playlist no índice (está lá logo: a folha abre com o tamanho certo); d = @51 é o documento, que chega a
 # seguir com as faixas, e @52 as pré-escutas e as capas. @28: 1 a perguntar se apaga, 2 a mudar o nome, 4 o «⋯»
@@ -199,7 +170,7 @@
   `<div class="mu-folha" role="dialog" aria-modal="true" aria-label="{ esct txt c.nome }">`
   `<div class="mu-folha-topo"><button type="button" class="mu-fechar" data-onda="exp&#9;{ esct txt c.id }" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button type="button" class="mu-mais" data-onda="menu" aria-label="Mais opções"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button></div>`
   `<div class="mu-folha-cab"><div class="mu-folha-cv">{ cx_capa c }</div><div class="tx mu-fo-tx">{ fo_tx c }</div></div>`
-  `<div class="mu-cx"><div class="mu-fo-gerir">{ fo_gerir c }</div><div class="mu-acoes mu-fo-acoes">{ fo_acoes c }</div><div class="mu-cx-xf">{ fo_faixas c }</div><div class="mu-fo-sobre">{ fo_sobre c }</div><div class="mu-fo-hist">{ Se @ 51 hist_pl @ 51 }</div><div class="mu-fo-afinar">{ fo_afinar }</div></div></div>` }
+  `<div class="mu-cx"><div class="mu-fo-gerir">{ fo_gerir c }</div><div class="mu-acoes mu-fo-acoes">{ fo_acoes c }</div><div class="mu-fo-afina">{ fo_afina c }</div><div class="mu-cx-xf">{ fo_faixas c }</div><div class="mu-fo-junta">{ fo_junta c }</div><div class="mu-fo-sobre">{ fo_sobre c }</div><div class="mu-fo-hist">{ Se @ 51 hist_pl @ 51 }</div><div class="mu-fo-afinar">{ fo_afinar }</div></div></div>` }
 # o nome e o resumo (do documento, quando ele já chegou: um nome acabado de mudar ou uma faixa tirada veem-se logo)
 : dur_de i>i fx { = s 0 = f pri fx W f { = s + s int f.duracao = f seg f } s }
 : fo_tx i>i c { = d @ 51 = nm ? d txt d.nome 0
@@ -217,12 +188,12 @@
       `<div class="mu-card mu-menu"><button type="button" class="mu-btn sec" data-onda="renomear">Mudar o nome</button>`
       `<div class="mu-interruptor"><div><b>Atualizar sozinha</b><span class="mu-nota">Toda a semana o Maestro renova-a com o mesmo critério, no mesmo link do Tidal: ficam as que guardaste, saem as que tiraste.{ Se d Se txt d.renovadaEm ` Última: { pdia txt d.renovadaEm }.` }</span></div><button type="button" class="mu-btn sec peq" data-onda="renovar" aria-pressed="{ ? rv "true" "false" }">{ ? rv "Ligado" "Desligado" }</button></div>`
       `<button type="button" class="mu-btn perigo" data-onda="apagar">{ ic 9 }Apagar</button></div>` } }
-# os botões: ouvir no Tidal (ou enviar para lá) e afinar no telemóvel (se o Maestro deixou candidatas)
-: fo_acoes i>i c { = d @ 51 = td ? d d.tidal 0
+# os botões: ouvir no Tidal (ou enviar para lá) e afinar (se o Maestro deixou candidatas); a afinar, dão lugar ao afinar
+: fo_acoes i>i c Se ~ @ 6 { = d @ 51 = td ? d d.tidal 0
   ? && td == tipo td 7 `<a class="mu-btn peq" href="{ esct txt td.url }" target="_blank" rel="noopener">{ ic 4 }Ouvir no Tidal</a>`
     { ? txt c.tidal `<a class="mu-btn peq" href="{ esct txt c.tidal }" target="_blank" rel="noopener">{ ic 4 }Ouvir no Tidal</a>`
       `<button type="button" class="mu-btn peq" data-onda="enviar">{ ic 3 }Enviar para o Tidal</button>` }
-  Se && d quantos d.candidatas `<button type="button" class="mu-btn sec peq" data-onda="afinar">{ ic 5 }Afinar no telemóvel</button>` }
+  Se && d quantos d.candidatas `<button type="button" class="mu-btn sec peq" data-onda="afinar">{ ic 5 }Afinar</button>` }
 # o porquê da playlist, como correu (o conector avalia-a sozinho) e a mistura: fechado até se querer ver
 : fo_sobre i>i c { = d @ 51
   Se d {
@@ -242,7 +213,7 @@
       Se quantos a.eco ` · nas tuas mixes: { partistas a.eco }`
       `</p><p class="mu-nota">Sem perguntar nada: as faixas que guardas nas favoritas, as que tiras ou juntas no Tidal, e os artistas que o Tidal passa a pôr nas tuas mixes.</p>` }
     `<h3>A mistura</h3>{ mistura_de d.faixas }</details>` } }
-: fo_afinar >i `<div class="mu-cx-afinar"><label class="mu-campo"><span>Afinar com o Maestro</span><textarea data-onda="af-tx" maxlength="500" rows="2" placeholder="Ex.: menos eletrónica, mais vozes femininas">{ esct @ 49 }</textarea></label><button type="button" class="mu-btn sec peq" data-onda="afinar_pedir">{ ic 2 }Afinar</button></div>`
+: fo_afinar >i `<div class="mu-cx-afinar"><label class="mu-campo"><span>Afinar com o Maestro</span><textarea data-onda="af-tx" maxlength="500" rows="2" placeholder="Ex.: menos eletrónica, mais vozes femininas">{ esct @ 49 }</textarea></label><button type="button" class="mu-btn sec peq" data-onda="afinar_pedir">{ ic 2 }Pedir ao Maestro</button></div>`
 # a capa grande da folha: as 4 primeiras capas diferentes das faixas (160 px), ou 1; enquanto nao chegam, as do indice
 : cx_img i>i u `<img src="{ esct u }" alt="" decoding="async">`
 : cx_capa i>i c {
@@ -286,9 +257,10 @@
     `<ol class="mu-xf" aria-busy="true" aria-label="A carregar as faixas">`
     L p n `<li class="sk"><span class="cp"></span><div class="tx"><b>&nbsp;</b><span>&nbsp;</span></div><span class="mu-ouvir vazio"></span><span class="mu-ouvir vazio"></span></li>`
     "</ol>" } {
-    `<ol class="mu-xf">`
-    = f pri d.faixas = p 0
-    W f {
+    `<ol class="mu-xf{ Se @ 6 " a-afinar" }">`
+    Se == @ 6 2 L p @ 14 { = ci @ + @ 13 p = g _ar_get cn ci $"faixa" af_linha g ci ~ na_doc d txt g.id }
+    = f ? == @ 6 2 0 pri d.faixas = p 0
+    W f ? @ 6 { af_linha f cand_de d txt f.id 0 = f seg f = p + p 1 } {
       = id txt f.id = ab == @ 40 + p 1 = tr == @ 60 + p 1
       # a trocar: a linha já mostra a que entra (se o motor a escolheu aqui); sem ela, espera pela parecida do Tidal
       = g ? && tr @ 61 _ar_get @ 61 $"faixa" f
@@ -301,7 +273,7 @@
       "</li>"
       = f seg f = p + p 1 }
     "</ol>"
-    troca_nota d } }
+    Se ~ @ 6 troca_nota d } }
 # milissegundos desde 1970 de «AAAA-MM-DDTHH:MM:SS…» (UTC)
 : ms_de i>i t ? < _tx_len t 19 0 + * dias_de t 86400000 * 1000 + + * dnum t 11 2 3600 * dnum t 14 2 60 dnum t 17 2
 # a última troca ou faixa tirada (nos últimos 10 minutos, se o conector ainda guarda a faixa que saiu), com «Desfazer»
@@ -314,7 +286,8 @@
 # a playlist do cartao aberto, no indice
 : pl_aberta >i { = r 0 Se && @ 4 _tx_len @ 50 { = c pri @ 4 W && c ~ r { Se mesmo txt c.id @ 50 = r c = c seg c } } r }
 # redesenha pedaços da folha aberta sem mexer no resto (m, somados: 1 o nome, 2 o «⋯», 4 os botões, 8 as faixas,
-# 16 o porquê e os pedidos, 32 a capa, 64 afinar com o Maestro). Se a folha ainda não está no ecrã, desenha tudo
+# 16 o porquê e os pedidos, 32 a capa, 64 afinar com o Maestro, 128 o afinar, 256 só o gráfico e o guardar do
+# afinar, 512 acrescentar uma faixa). Se a folha ainda não está no ecrã, desenha tudo
 : refolha i>i m {
   = c pl_aberta
   ? ~ c render {
@@ -326,6 +299,9 @@
     Se && ok & m 16 { = h _ht_ini 40000 fo_sobre c = ok _ht_poe $".mu-folha .mu-fo-sobre" h = h _ht_ini 40000 Se @ 51 hist_pl @ 51 _ht_poe $".mu-folha .mu-fo-hist" h }
     Se && ok & m 32 { = h _ht_ini 4000 cx_capa c = ok _ht_poe $".mu-folha .mu-folha-cv" h }
     Se && ok & m 64 { = h _ht_ini 6000 fo_afinar = ok _ht_poe $".mu-folha .mu-fo-afinar" h }
+    Se && ok & m 128 { = h _ht_ini 40000 fo_afina c = ok _ht_poe $".mu-folha .mu-fo-afina" h }
+    Se && && ok & m 256 @ 6 { = h _ht_ini 30000 af_graf = ok _ht_poe $".mu-folha .mu-af-graf" h = h _ht_ini 3000 af_guarda _ht_poe $".mu-folha .mu-af-guarda" h }
+    Se && ok & m 512 { = h _ht_ini 20000 fo_junta c = ok _ht_poe $".mu-folha .mu-fo-junta" h }
     _me_solta mk
     ? ok 0 render } }
 # a lista agrupa-se pela data; os filtros mostram so um tipo, genero, Tidal ou avaliacao (q: 0 data, 1 tipo, 2 genero,
@@ -438,16 +414,12 @@
       ? @ 4 lista_pl @ 4 carregar } }
   0 }
 
-# ===== afinar no telemóvel (a vista 2): o motor de curadoria escolhe e ordena outra vez, aqui =====
+# ===== afinar na folha: o motor de curadoria escolhe e ordena outra vez, aqui no telemóvel =====
+# @6: 0 fechado, 1 aberto (ainda se vê a playlist guardada), 2 com mudanças (vê-se o que o motor escolheu). As opções:
+# @7 n.º de faixas, @8 máximo por artista, @9 estilo, @10 arco. @11 as candidatas (nós), @17 as fixadas (por
+# candidata). O resultado: @13 a ordem (índices das candidatas), @14 quantas, @15 o porquê, @32 os pontos, @16 o
+# custo. As faixas que saíram da playlist (tiradas ou trocadas) ficam de fora.
 : cn i>i i @ + @ 11 i
-: cf i>i i @ + @ 12 i
-: c_sin i>i i ? < i @ 37 _ar_get cn i $"sinais" 0
-: art_txt i>i i ? < i @ 37 txt _ar_get c_sin i $"artista" txt pri _ar_get cf i $"artistas"
-: gen_txt i>i i ? < i @ 37 txt _ar_get c_sin i $"genero" txt pri _ar_get cf i $"generos"
-: mot_txt i>i i ? < i @ 37 txt _ar_get cn i $"motivo" $"Escolhida por ti."
-: usaveis >i { = n 0 = i 0 W < i @ 35 { Se ~ @ + @ 18 i = n + n 1 = i + i 1 } n }
-: dur_itens >i { = s 0 L p @ 14 = s + s int _ar_get cf @ + @ 13 p $"duracao" s }
-: lista_afinada >i L p @ 14 { = i @ + @ 13 p linha p cf i gen_txt i mot_txt i @ + @ 15 p @ + @ 32 p @ + @ 17 i i }
 # barras de uma contagem (tx textos ou decadas, ct contagens), ordenadas, no maximo 6
 : barras_arr iiiii>i tx ct n tot modo {
   `<div class="mu-mix">`
@@ -474,133 +446,137 @@
   ! + b 6 + @ + b 6 1 }
 : mix_fim i>i b Se @ + b 6 { barras_arr @ b @ + b 1 @ + b 2 @ + b 6 0 barras_arr @ + b 3 @ + b 4 @ + b 5 @ + b 6 1 }
 : mistura_de i>i fx { = b mix_ini quantos fx = f pri fx W f { mix_mais b txt f.genero int f.ano = f seg f } mix_fim b }
-: mistura >i { = b mix_ini @ 14 L p @ 14 { = i @ + @ 13 p mix_mais b gen_txt i int _ar_get cf i $"ano" } mix_fim b }
-: motor_txt >i { `motor Onda (WASM): { N @ 14 } faixas de { N usaveis } em { ? @ 33 `{ N @ 33 } ms` "menos de 1 ms" } · { pmin dur_itens } · custo das transições { N @ 16 }` 0 }
-: resultados >i {
-  = r @ 19
-  Se r {
-    = l r.faixas
-    ? ~ quantos l `<p class="mu-nota">Nada encontrado.</p>` {
-      `<ol class="mu-faixas">` = c pri l = q 0
-      W && c < q 6 {
-        `<li class="mu-faixa"><span class="n">{ N + q 1 }</span><div><div class="t">{ esct txt c.titulo }</div><div class="a">{ partistas c.artistas }</div><div class="m">{ meta c 0 }</div></div><div class="dir"><button type="button" class="mu-btn peq" data-onda="juntar&#9;{ N q }">{ ic 12 }juntar</button></div></li>`
-        = c seg c = q + q 1 }
-      "</ol>" } } }
 : seg_af iiii>i nome n ini atual {
   = q ini W < q + ini n {
     `<button type="button" data-onda="{ ? == nome 1 "af-mx" ? == nome 2 "af-es" ? == nome 3 "af-ar" ? == nome 4 "pd-mx" ? == nome 5 "pd-es" "pd-ar" }&#9;{ N q }" aria-pressed="{ ? == q atual "true" "false" }">`
     ? || == nome 1 == nome 4 N q ? || == nome 2 == nome 5 nome_estilo q nome_arco q
     "</button>" = q + q 1 } }
-: afinador >i {
-  `<div class="mu-card mu-afinar"><h3>Afinar com o motor Onda</h3><p>{ N usaveis } candidatas. Muda as regras e o motor escolhe e ordena outra vez, aqui no telemóvel.</p>`
-  `<label class="mu-campo"><span>Faixas</span><div class="mu-range"><input type="range" data-onda="af-n" min="5" max="{ N Mx 5 usaveis }" value="{ N @ 7 }"><output id="af-nv">{ N @ 7 }</output></div></label>`
-  `<div class="mu-campo"><span>Máximo por artista</span><div class="mu-seg" data-seg="maxArtista">{ seg_af 1 4 1 @ 8 }</div></div>`
-  `<div class="mu-campo"><span>Estilo</span><div class="mu-seg" data-seg="estilo">{ seg_af 2 5 0 @ 9 }</div></div>`
-  `<div class="mu-campo"><span>Energia ao longo da playlist</span><div class="mu-seg" data-seg="arco">{ seg_af 3 4 0 @ 10 }</div></div>`
-  `<label class="mu-campo"><span>Acrescentar do Tidal</span><input type="search" data-onda="q" placeholder="artista e título" value="{ esct @ 23 }"></label><div class="mu-acoes"><button type="button" class="mu-btn sec peq" data-onda="procurar">{ ic 8 }Procurar no Tidal</button></div><div id="af-res">{ resultados }</div>`
-  `<div class="mu-motor" id="af-motor">{ motor_txt }</div>`
-  `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="guardar&#9;1">{ ic 3 }{ ? == tipo _ar_get @ 4 $"tidal" 7 "Atualizar no Tidal" "Guardar e enviar para o Tidal" }</button><button type="button" class="mu-btn sec" data-onda="guardar&#9;0">{ ic 16 }Só guardar na app</button></div></div>` }
-: v_playlist >i {
-  `<button type="button" class="mu-voltar" data-onda="voltar">‹ Voltar</button>`
-  = d @ 4
-  ? ~ d { ? && @ 3 ~ acesso boas_vindas carregar 0 } {
-    `<header class="mu-head"><div><h1>{ esct txt d.nome }</h1><div class="sub">Afinar no telemóvel</div></div></header>`
-    ? @ 6 { afinador `<h2 class="mu-sec">Faixas</h2><ol class="mu-faixas" id="faixas">{ lista_afinada }</ol><div class="mu-card" style="margin-top:12px"><h3>A mistura</h3>{ mistura }</div>` 0 }
-      `<p class="mu-nota">Esta playlist não tem candidatas para afinar.</p>` } }
-
-# o motor de curadoria (motor.onda) aqui dentro: escolhe e ordena as candidatas que nao foram tiradas
-: energia_bpm i>i b ? b lim / + * 2000 - b 60 110 220 100 950 500
-: afinar_correr >i {
-  = t0 _an_agora
-  = mk _me_marca
-  = tot @ 35
-  = u A + tot 1 = nu 0 L i tot Se ~ @ + @ 18 i { ! + u nu i = nu + nu 1 }
-  = c ctx_novo nu Mn @ 7 nu @ 8
-  = e @ 9 L w 5 cs c + 3 w @ + @ 36 + * e 5 w
+# o contexto do motor para as candidatas do documento d marcadas em us (1 = entra na conta), a escolher k, com o
+# máximo por artista mx, o estilo e e o arco a; fx (ou 0) diz as fixadas. Os ids do artista e do género são densos,
+# pela ordem em que aparecem (sem nome: um artista só dela; sem género: 0). Na casa 34 do contexto fica o mapa:
+# posição no contexto → índice da candidata
+: ctx_cands iiiiiii>i d us fx k mx e a {
+  = ks d.candidatas = n quantos ks
+  = nu 0 L i n Se @ + us i = nu + nu 1
+  = c ctx_novo nu Mn k nu mx
+  L w 5 cs c + 3 w @ + @ 36 + * e 5 w
   cs c 8 300 cs c 9 250 cs c 10 200
-  cs c 11 arco_val @ 10
+  cs c 11 arco_val a
+  = mp A + nu 1 cs c 34 mp
   = at A + nu 1 = na 0 = gt A + nu 1 = ng 0
-  L j nu {
-    = i @ + u j
-    # artista e genero: ids densos pela ordem em que aparecem (sem nome: um artista so dela; sem genero: 0)
-    = x art_txt i = id -1
-    Se _tx_len x { = q 0 W && < q na < id 0 { Se mesmo @ + at q x = id q = q + q 1 } }
-    Se < id 0 { ! + at na x = id na = na + na 1 }
-    ap c 12 j Mn id nu
-    = y gen_txt i = gi 0
-    Se _tx_len y { = q 0 = gi -1 W && < q ng < gi 0 { Se mesmo @ + gt q y = gi + q 1 = q + q 1 }
-        Se < gi 0 { ! + gt ng y = ng + ng 1 = gi ng } }
-    ap c 13 j Mn gi nu
-    ? < i @ 37 {
-        = s c_sin i
-        ap c 29 j lim int s.gosto 0 1000 ap c 30 j lim int s.qualidade 0 1000 ap c 31 j lim int s.tendencia 0 1000
-        ap c 32 j lim int s.claude 0 1000 ap c 33 j lim int s.novidade 0 1000 ap c 15 j lim int s.energia 0 1000
-        ap c 16 j lim int s.bpm 0 400 ap c 17 j lim int s.tom 0 24 ap c 14 j decada lim int s.ano 0 2100
-        ap c 18 j || == tipo s.fixa 3 @ + @ 17 i
-        0 } {
-        = f cf i = b lim int f.bpm 0 400
-        ap c 29 j 0 ap c 30 j qual_tags f.tags ap c 31 j lim int f.popularidade 0 1000 ap c 32 j 700 ap c 33 j 1000
-        ap c 15 j energia_bpm b ap c 16 j b ap c 17 j lim int f.tom 0 24 ap c 14 j decada lim int f.ano 0 2100
-        ap c 18 j 1
-        0 } }
+  = x pri ks = i 0 = j 0
+  W x {
+    Se @ + us i {
+      = s x.sinais
+      = t txt s.artista = id -1
+      Se _tx_len t { = q 0 W && < q na < id 0 { Se mesmo @ + at q t = id q = q + q 1 } }
+      Se < id 0 { ! + at na t = id na = na + na 1 }
+      ap c 12 j Mn id nu
+      = y txt s.genero = gi 0
+      Se _tx_len y { = q 0 = gi -1 W && < q ng < gi 0 { Se mesmo @ + gt q y = gi + q 1 = q + q 1 }
+          Se < gi 0 { ! + gt ng y = ng + ng 1 = gi ng } }
+      ap c 13 j Mn gi nu
+      ap c 29 j lim int s.gosto 0 1000 ap c 30 j lim int s.qualidade 0 1000 ap c 31 j lim int s.tendencia 0 1000
+      ap c 32 j lim int s.claude 0 1000 ap c 33 j lim int s.novidade 0 1000 ap c 15 j lim int s.energia 0 1000
+      ap c 16 j lim int s.bpm 0 400 ap c 17 j lim int s.tom 0 24 ap c 14 j decada lim int s.ano 0 2100
+      ap c 18 j || == tipo s.fixa 3 ? fx @ + fx i 0
+      ! + mp j i
+      = j + j 1 }
+    = x seg x = i + i 1 }
+  c }
+# as candidatas que contam: as que não saíram da playlist (1 em cada casa); devolve o vetor
+: af_usam i>i d { = us A + quantos d.candidatas 1 = x pri d.candidatas = i 0 W x { Se ~ fora_de d txt x.faixa.id ! + us i 1 = x seg x = i + i 1 } us }
+: af_usaveis i>i d { = n 0 = x pri d.candidatas W x { Se ~ fora_de d txt x.faixa.id = n + n 1 = x seg x } n }
+# o motor: escolhe e ordena com as opções de agora; o resultado fica em @13.. (o que se reservou aqui volta ao monte)
+: afina_correr >i {
+  = t0 _an_agora = mk _me_marca
+  = d @ 51
+  = c ctx_cands d af_usam d @ 17 @ 7 @ 8 @ 9 @ 10
   ! 16 curar c
-  = m cg c 27 ! 14 m
-  L p m { = j ag c 28 p ! + @ 13 p @ + u j ! + @ 15 p ag c 20 j ! + @ 32 p ag c 26 j }
+  = m cg c 27 ! 14 m = mp cg c 34
+  L p m { = j ag c 28 p ! + @ 13 p @ + mp j ! + @ 15 p ag c 20 j ! + @ 32 p ag c 26 j }
   _me_solta mk
   ! 33 - _an_agora t0
   0 }
-: afinar_abrir >i {
-  = d @ 4
-  = cs d.candidatas = n quantos cs
-  ? ~ n { render 0 } {
-    ! 37 n ! 35 n
-    = cap + n 21
-    ! 11 A cap ! 12 A cap ! 13 A cap ! 15 A cap ! 17 A cap ! 18 A cap ! 32 A cap
-    = c pri cs = i 0
-    # as que a pessoa tirou ou trocou na folha começam tiradas: não voltam a entrar
-    W c { ! + @ 11 i c ! + @ 12 i c.faixa Se fora_de d txt c.faixa.id ! + @ 18 i 1 = c seg c = i + i 1 }
-    = op d.opcoes
-    = f int op.faixas ! 7 ? && > f 0 < f n f n
+# abrir o afinar: as opções são as da playlist; enquanto não se mexe em nada vê-se a playlist como está
+: afina_abrir >i {
+  = d @ 51 = n quantos d.candidatas
+  Se n {
+    ! 37 n ! 11 A + n 1 ! 13 A + n 1 ! 15 A + n 1 ! 17 A + n 1 ! 32 A + n 1
+    = x pri d.candidatas = i 0 W x { ! + @ 11 i x = x seg x = i + i 1 }
+    = op d.opcoes = us af_usaveis d
+    = f int op.faixas ! 7 ? && > f 0 < f us f us
     = mx int op.maxArtista ! 8 ? > mx 0 mx 2
-    ! 9 idx_estilo txt op.estilo
-    ! 10 idx_arco txt op.arco
-    ! 6 1
-    afinar_correr
-    render 0 } }
-: parcial_afinar >i {
-  = m _me_marca
-  = h _ht_ini 250000 lista_afinada _ht_poe $"#faixas" h
-  = g _ht_ini 40 N @ 7 _ht_poe $"#af-nv" g
-  = x _ht_ini 800 motor_txt _ht_poe $"#af-motor" x
-  _me_solta m }
-: juntar_faixa i>i f {
-  = id txt f.id
-  = i 0 = ach -1 W && < i @ 35 < ach 0 { Se mesmo txt _ar_get cf i $"id" id = ach i = i + i 1 }
-  Se && < ach 0 < @ 35 + @ 37 20 { = ach @ 35 ! + @ 11 ach 0 ! + @ 12 ach f ! 35 + @ 35 1 }
-  ? >= ach 0 {
-    ! + @ 17 ach 1 ! + @ 18 ach 0 ! 7 Mn + @ 7 1 usaveis
-    ! 19 0 tvazio @ 23
-    afinar_correr render
-    aviso`«{ crut txt f.titulo }» entra (fixada).` 0 }
-    { aviso $"Já não cabem mais faixas." 0 } }
+    ! 9 idx_estilo txt op.estilo ! 10 idx_arco txt op.arco
+    ! 6 1 ! 14 0 ! 40 0 ! 62 0
+    refolha 652 } }
+# mudou uma opção ou uma fixada: o motor corre e a folha mostra o resultado (o gráfico, a lista e o «Guardar»)
+: afina_muda i>i m { ! 6 2 afina_correr refolha m }
+# a faixa (id) está na playlist guardada?
+: na_doc ii>i d id { = r 0 = f pri d.faixas W && f ~ r { = r mesmo txt f.id id = f seg f } r }
+# o gráfico da energia: a de cada faixa pela ordem (a linha cheia) e o arco pedido (o tracejado), e por baixo as
+# contas — quantas faixas, quanto dura, e o que entra e sai em relação à playlist guardada
+: af_graf >i {
+  = d @ 51 = m ? == @ 6 2 @ 14 quantos d.faixas
+  = v A + m 1 = du 0 = en 0
+  ? == @ 6 2 { L p m { = x cn @ + @ 13 p ! + v p int x.sinais.energia = du + du int x.faixa.duracao Se ~ na_doc d txt x.faixa.id = en + en 1 } 0 }
+    { = f pri d.faixas = p 0 W f { = j cand_de d txt f.id ! + v p ? >= j 0 int _ar_get _ar_get cn j $"sinais" $"energia" 500 = du + du int f.duracao = f seg f = p + p 1 } 0 }
+  `<svg class="mu-graf" viewBox="0 0 320 76" preserveAspectRatio="none" role="img" aria-label="A energia ao longo da playlist">`
+  = a arco_val @ 10
+  Se a { = al A + m 1 L p m ! + al p alvo a p m `<path class="alvo" d="{ _gr_curva al m 320 76 8 0 1000 0 }"/>` }
+  `<path class="area" d="{ _gr_curva v m 320 76 8 0 1000 1 }"/><path class="linha" d="{ _gr_curva v m 320 76 8 0 1000 0 }"/></svg>`
+  `<p class="mu-nota"><span id="af-conta">{ N m }{ ? == m 1 " faixa" " faixas" } · { pmin du }</span>{ Se == @ 6 2 { = sa - + quantos d.faixas en m ` · { N en }{ ? == en 1 " entra" " entram" }, { N sa }{ ? == sa 1 " sai" " saem" }` } }</p>` }
+: af_guarda >i { = d @ 51
+  `<button type="button" class="mu-btn" data-onda="af-guardar"{ Se != @ 6 2 " disabled" }>{ ic 3 }{ ? == tipo d.tidal 7 "Guardar no Tidal" "Guardar" }</button><button type="button" class="mu-btn sec" data-onda="af-fechar">{ ? == @ 6 2 "Cancelar" "Fechar" }</button>` }
+# o afinar na folha: o gráfico, quatro escolhas (estilo, energia, quantas faixas, quantas por artista) e guardar
+: fo_afina i>i c Se @ 6 { = us af_usaveis @ 51
+  `<div class="mu-card mu-afina"><h3>Afinar</h3><p class="mu-nota">Muda as regras e o motor escolhe e ordena outra vez, aqui no telemóvel. O alfinete de uma faixa segura-a na playlist.</p>`
+  `<div class="mu-af-graf">{ af_graf }</div>`
+  `<div class="mu-campo"><span>Estilo</span><div class="mu-seg" data-seg="estilo">{ seg_af 2 5 0 @ 9 }</div></div>`
+  `<div class="mu-campo"><span>Energia ao longo da playlist</span><div class="mu-seg" data-seg="arco">{ seg_af 3 4 0 @ 10 }</div></div>`
+  `<label class="mu-campo"><span>Faixas</span><div class="mu-range"><input type="range" data-onda="af-n" min="{ N Mn 5 us }" max="{ N us }" value="{ N @ 7 }"><output id="af-nv">{ N @ 7 }</output></div></label>`
+  `<div class="mu-campo"><span>Máximo por artista</span><div class="mu-seg" data-seg="maxArtista">{ seg_af 1 4 1 @ 8 }</div></div>`
+  `<div class="mu-acoes mu-af-guarda">{ af_guarda }</div></div>` }
+# uma faixa da folha a afinar: capa, título, artista e o alfinete (fixar)
+: af_linha iii>i f ci nova {
+  = id txt f.id = cv txt _ar_get _ar_get @ 52 $"capas" id = fx ? >= ci 0 @ + @ 17 ci 0
+  `<li class="af{ Se fx " fixa" }{ Se nova " nova" }" data-id="{ esct id }"><span class="cp">{ Se cv `<img src="{ esct cv }" alt="" loading="lazy" decoding="async">` }</span><div class="tx"><b>{ esct txt f.titulo }</b><span>{ Se nova `<i>nova</i> · ` }{ partistas f.artistas }</span></div><span class="mu-ouvir vazio"></span>`
+  ? >= ci 0 `<button type="button" class="mu-fixar" data-onda="fixar&#9;{ N ci }" aria-pressed="{ ? fx "true" "false" }" aria-label="{ ? fx "Deixar de fixar" "Fixar" } «{ esct txt f.titulo }»"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l-1 6 3.5 3.5h-11L10 9.5z"/><path d="M12 13v7.5"/></svg></button>` `<span class="mu-ouvir vazio"></span>`
+  "</li>" }
+# acrescentar uma faixa do Tidal: procura-se (artista e título) e a escolhida entra no fim da playlist, logo
+: fo_junta i>i c Se && @ 51 ~ @ 6 {
+  ? ~ @ 62 `<button type="button" class="mu-junta-a" data-onda="junta_abre">{ ic 12 }Acrescentar uma faixa</button>` {
+    `<div class="mu-junta"><label class="mu-campo"><span>Acrescentar do Tidal</span><input type="search" data-onda="q" placeholder="artista e título" value="{ esct @ 23 }"></label><div class="mu-acoes"><button type="button" class="mu-btn sec peq" data-onda="procurar">{ ic 8 }Procurar no Tidal</button><button type="button" class="mu-btn sec peq" data-onda="junta_abre">Fechar</button></div><div id="af-res">`
+    = r @ 19
+    Se r { = l r.faixas
+      ? ~ quantos l `<p class="mu-nota">Nada encontrado.</p>` {
+        `<ol class="mu-xf">` = x pri l = q 0
+        W && x < q 6 {
+          `<li><span class="cp"></span><div class="tx"><b>{ esct txt x.titulo }</b><span>{ partistas x.artistas }</span></div><span class="mu-ouvir vazio"></span><button type="button" class="mu-trocar" data-onda="juntar&#9;{ N q }" aria-label="Acrescentar «{ esct txt x.titulo }»"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></li>`
+          = x seg x = q + q 1 }
+        "</ol>" } }
+    "</div></div>" } }
+: junta_faixa i>i q ? ocupado 0 { = r @ 19 = f ? r idx r.faixas q 0
+  Se f pede`POST /api/playlists/{ purl @ 30 }/trocar{ P 10 }\{"entra":{ pjs txt f.id }\}` 23 }
 
 # ===== escritas no conector =====
 : ocupado >i ? @ 31 { aviso $"Um momento…" 1 } 0
 # uma escrita: r é «MÉTODO caminho» (com corpo: nova linha e o JSON) e m o que se está a fazer — o lido_escrita trata
 # a resposta por ele (1 config, 2 ligar, 3 enviar, 4/9 guardar versão, 5/11 apagar, 6 pedir, 7 cancelar, 8 desligar,
 # 10 aparelho, 12 mais, 13 convite, 14 código de aparelho, 15 renovar, 16 renomear, 18 afinar, 19 juntar, 20 trocar,
-# 21 tirar, 22 desfazer)
+# 21 tirar, 22 desfazer, 23 acrescentar)
 : pede ii>i r m { ! 31 1 ! 34 m _an_buscar r $"lido_escrita" }
-: guardar_versao i>i tidal {
-  ? ocupado 0 {
-    = r _tx_abre + 4000 * 40 @ 35 `POST /api/playlists/{ purl @ 30 }/versoes` P 10
-    `\{"ordem":[` = p 0 W < p @ 14 { Se p "," N @ + @ 13 p = p + p 1 }
-    `],"porque":[` = p 0 W < p @ 14 { Se p "," P 34 porque_json @ + @ 15 p P 34 = p + p 1 }
-    `],"pontos":[` = p 0 W < p @ 14 { Se p "," N @ + @ 32 p = p + p 1 }
-    `],"extras":[` = i @ 37 W < i @ 35 { Se > i @ 37 "," pjs txt _ar_get cf i $"id" = i + i 1 }
-    `],"opcoes":\{"faixas":{ N @ 7 },"maxArtista":{ N @ 8 },"estilo":"{ estilo_json @ 9 }","arco":"{ arco_json @ 10 }"\},"custo":{ N @ 16 },"tidal":{ ? tidal "true" "false" }\}`
-    pede _tx_fecha r ? tidal 9 4
-    aviso ? tidal $"A criar no Tidal…" $"A guardar…" 0 } }
+# guardar o que o motor escolheu: a app manda só a decisão (a ordem, o porquê e os pontos, por índice das candidatas)
+# e o conector monta a playlist — na app e, se ela lá está, no Tidal (a mesma playlist, no mesmo link)
+: guardar_versao >i ? ocupado 0 {
+    = d @ 51 = nt == tipo d.tidal 7
+    = r _tx_abre + 4000 * 40 @ 37 `POST /api/playlists/{ purl @ 30 }/versoes` P 10
+    `\{"ordem":[` L p @ 14 { Se p "," N @ + @ 13 p }
+    `],"porque":[` L p @ 14 { Se p "," P 34 porque_json @ + @ 15 p P 34 }
+    `],"pontos":[` L p @ 14 { Se p "," N @ + @ 32 p }
+    `],"opcoes":\{"faixas":{ N @ 7 },"maxArtista":{ N @ 8 },"estilo":"{ estilo_json @ 9 }","arco":"{ arco_json @ 10 }"\},"custo":{ N @ 16 },"tidal":{ ? nt "true" "false" }\}`
+    pede _tx_fecha r ? nt 9 4
+    aviso ? nt $"A gravar no Tidal…" $"A guardar…" 0 }
 : enviar >i ? ocupado 0 { pede`POST /api/playlists/{ purl @ 30 }/tidal{ P 10 }\{\}` 3 aviso $"A criar no Tidal…" 0 }
 : apagar_pl i>i t ? ocupado 0 { pede`DELETE /api/playlists/{ purl @ 30 }{ Se t "?tidal=1" }` ? t 11 5 0 }
 : mais_criar i>i b ? ocupado 0 { pede`POST /api/mais{ P 10 }\{"faixa":"{ crut b }"{ Se == tipo _ar_get _ar_get @ 51 $"opcoes" $"limpa" 3 `,"limpa":true` }\}` 12 aviso $"A procurar faixas parecidas…" 0 }
@@ -634,8 +610,14 @@
     ? == modo 1 { aviso $"Client ID guardado. Agora liga o Tidal." _an_buscar $"/api/estado" $"lido_estado" 0 }
     ? == modo 2 { = u txt r.url Se u { = q _tx_abre + _tx_len u 8 `IR { crut u }` _tx_fecha q _an_buscar q $"nada" } }
     ? == modo 3 { ! 51 r ! 28 0 refolha 6 _an_buscar $"/api/playlists" $"lido_pl" aviso $"Criada no Tidal." 0 }
-    # guardar no afinador: volta-se à lista, com a folha dessa playlist aberta
-    ? || == modo 4 == modo 9 { tcopia @ 30 txt r.id 70 ir 1 abre_folha @ 30 aviso ? == modo 9 $"Guardada no Tidal." $"Guardada na app." 0 }
+    # guardar o afinar: a playlist nova vem na resposta e o afinar fecha
+    ? || == modo 4 == modo 9 { ! 51 r ! 6 0 refolha 159
+      _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl"
+      aviso ? == modo 9 $"Guardada no Tidal." $"Guardada." 0 }
+    # acrescentar uma faixa (23): entra no fim; a procura fecha
+    ? == modo 23 { ! 51 r ! 19 0 ! 62 0 tvazio @ 23 refolha 521
+      _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl"
+      aviso $"Faixa acrescentada." 0 }
     ? == modo 14 { = c txt r.codigo Se c { tcopia @ 43 c 40 = w texto`Abre a Música (na app do ecrã principal, se a usares) e cola este código em «Código de ligação»: { crut c } — serve uma vez, durante 24 h.` = x _tx_abre 1800 purl w _tx_fecha x tcopia @ 44 x 580 render aviso $"Código criado: usa-o no outro aparelho." } }
     ? == modo 13 { = l txt r.url Se l { tcopia @ 41 l 200 = w texto`Experimenta a Música: playlists de qualidade no teu Tidal, feitas pelo Claude. Abre este link no iPhone (serve uma vez): { crut l }` = x _tx_abre 1800 purl w _tx_fecha x tcopia @ 42 x 880 render aviso $"Convite criado: envia o link." } }
     # trocar (20), tirar (21) e desfazer (22): a playlist nova vem na resposta; pedem-se as capas e as pré-escutas
@@ -660,7 +642,7 @@
       # o codigo guardado (de um convite ou link ja usado) nao serve: esquece-o, para aparecer o campo do codigo
       Se && == modo 2 == s 401 _an_gravar $"codigo" 0
       # com a folha aberta redesenham-se só os pedaços dela (a página toda fazia a folha subir outra vez)
-      ? && == @ 1 1 _tx_len @ 50 refolha 15 render
+      ? && == @ 1 1 _tx_len @ 50 refolha 143 render
       erro_ped t s 0 } }
 
 # ===== Pedir =====
@@ -702,6 +684,8 @@
   Se quantos @ 5 `<h2 class="mu-sec" id="mu-pedidos">Os teus pedidos</h2><div class="mu-card mu-pedidos">{ lista_pedidos @ 5 }</div>` }
 
 # ===== Gosto =====
+# uma favorita: o número, o título, quem toca e ouvir no Tidal
+: linha_fav ii>i p f `<li class="mu-faixa"><span class="n">{ N + p 1 }</span><div><div class="t">{ esct txt f.titulo }</div><div class="a">{ partistas f.artistas }</div></div><div class="dir">{ Se txt f.url `<a class="mu-tocar" href="{ esct txt f.url }" target="_blank" rel="noopener" aria-label="Ouvir «{ esct txt f.titulo }» no Tidal">{ ic 4 }</a>` }</div></li>`
 : barra_j iii>i c modo mx `<div class="mu-barra"><span>{ ? modo `{ N int c.decada }s` esct txt c.nome }</span><span class="b"><i style="width:{ N / + * 200 int c.n mx * 2 mx }%"></i></span><span class="v">{ N int c.n }</span></div>`
 : barras_j ii>i l modo {
   = mx 1 = c pri l W c { = mx Mx mx int c.n = c seg c }
@@ -734,39 +718,13 @@
         Se quantos ar { `<div class="mu-card"><h3>Artistas que segues</h3><div class="mu-chips">` = c pri ar = q 0 W && c < q 40 { `<span class="mu-chip">{ esct txt c.nome }</span>` = c seg c = q + q 1 } "</div></div>" }
         `<h2 class="mu-sec">Favoritas mais recentes</h2><ol class="mu-faixas">`
         = fv p.favoritas
-        ? quantos fv { = c pri fv = q 0 W && c < q 25 { linha q c txt pri c.generos 0 0 0 0 0 0 = c seg c = q + q 1 } } `<li class="mu-vazio">Sem favoritas.</li>`
+        ? quantos fv { = c pri fv = q 0 W && c < q 25 { linha_fav q c = c seg c = q + q 1 } } `<li class="mu-vazio">Sem favoritas.</li>`
         "</ol>"
         = pl p.playlists
         Se quantos pl { `<h2 class="mu-sec">As tuas playlists no Tidal</h2><div class="mu-card">` = c pri pl = q 0 W && c < q 20 { `<div class="mu-pedido"><div class="tx">{ esct txt c.nome }</div><a class="mu-btn sec peq" href="{ esct txt c.url }" target="_blank" rel="noopener">Abrir</a></div>` = c seg c = q + q 1 } "</div>" } } } }
   0 }
 
 # ===== trocar uma faixa: o motor escolhe a substituta entre as candidatas que o Maestro deixou =====
-# o contexto do motor para as candidatas todas do documento d, com as opções dele (estilo, máximo por artista, arco)
-: ctx_doc i>i d {
-  = ks d.candidatas = n quantos ks
-  = op d.opcoes = mx int op.maxArtista
-  = c ctx_novo n n ? > mx 0 mx 2
-  = e idx_estilo txt op.estilo L w 5 cs c + 3 w @ + @ 36 + * e 5 w
-  cs c 8 300 cs c 9 250 cs c 10 200
-  cs c 11 arco_val idx_arco txt op.arco
-  = at A + n 1 = na 0 = gt A + n 1 = ng 0
-  = x pri ks = j 0
-  W x {
-    = s x.sinais = f x.faixa
-    # artista e género: ids densos pela ordem em que aparecem (sem nome: um artista só dela; sem género: 0)
-    = a txt s.artista Se ~ _tx_len a = a txt pri f.artistas
-    = id -1 Se _tx_len a { = q 0 W && < q na < id 0 { Se mesmo @ + at q a = id q = q + q 1 } }
-    Se < id 0 { ! + at na a = id na = na + na 1 }
-    ap c 12 j Mn id n
-    = y txt s.genero = gi 0
-    Se _tx_len y { = q 0 = gi -1 W && < q ng < gi 0 { Se mesmo @ + gt q y = gi + q 1 = q + q 1 }
-        Se < gi 0 { ! + gt ng y = ng + ng 1 = gi ng } }
-    ap c 13 j Mn gi n
-    ap c 29 j lim int s.gosto 0 1000 ap c 30 j lim int s.qualidade 0 1000 ap c 31 j lim int s.tendencia 0 1000
-    ap c 32 j lim int s.claude 0 1000 ap c 33 j lim int s.novidade 0 1000 ap c 15 j lim int s.energia 0 1000
-    ap c 16 j lim int s.bpm 0 400 ap c 17 j lim int s.tom 0 24 ap c 14 j decada lim int s.ano 0 2100
-    = x seg x = j + j 1 }
-  c }
 # a faixa (id) saiu da playlist do documento d (tirada ou trocada)?
 : fora_de ii>i d id { = c pri d.rejeitadas = r 0 W && c ~ r { = r mesmo txt c id = c seg c } r }
 # a candidata (índice) cuja faixa tem o id t; -1 se não há
@@ -776,7 +734,9 @@
 # menos o que custa encaixá-la ali (a energia do arco nessa posição e as transições com as vizinhas: BPM, tom, época).
 # Devolve o nó da candidata, ou 0 se não sobra nenhuma
 : troca_escolhe ii>i d p {
-  = c ctx_doc d = n cg c 0
+  = n quantos d.candidatas = us A + n 1 L j n ! + us j 1
+  = op d.opcoes = mx int op.maxArtista
+  = c ctx_cands d us 0 n ? > mx 0 mx 2 idx_estilo txt op.estilo idx_arco txt op.arco
   L j n ap c 19 j base c j
   # as que estão na playlist contam como escolhidas (menos a que sai, que só fica fora); ant e dep são as vizinhas
   = ant -1 = dep -1 = f pri d.faixas = q 0
@@ -809,14 +769,14 @@
 # abre a folha da playlist b: uma de cada vez; pede as faixas e as pré-escutas (ficam 10 minutos na memória do
 # anfitrião: abrir outra vez não vai à rede)
 : abre_folha i>i b {
-  ! 51 0 ! 52 0 ! 28 0 ! 40 0 ! 60 0 ! 61 0
+  ! 51 0 ! 52 0 ! 28 0 ! 40 0 ! 60 0 ! 61 0 ! 6 0 ! 62 0 ! 19 0 tvazio @ 23
   tcopia @ 50 b 70 tcopia @ 30 b 70 tcopia @ 57 b 70 render
   = u texto`/api/playlists/{ purl b }`
   = cu _an_lembrar u 600000 ? cu { exp_doc cu 1 0 } { _an_buscar u $"lido_exp" 0 }
   = v texto`/api/playlists/{ purl b }/previas`
   = cv _an_lembrar v 600000 ? cv { exp_prev cv 1 0 } { _an_buscar v $"lido_prev" 0 } }
 # tocar num cartão abre a folha; tocar no «fechar» (o mesmo id) fecha-a
-: exp_alternar i>i b ? mesmo b @ 50 { ! 51 0 ! 52 0 ! 28 0 ! 40 0 ! 60 0 ! 61 0 tvazio @ 50 render 0 } abre_folha b
+: exp_alternar i>i b ? mesmo b @ 50 { ! 51 0 ! 52 0 ! 28 0 ! 40 0 ! 60 0 ! 61 0 ! 6 0 ! 62 0 ! 19 0 tvazio @ 50 render 0 } abre_folha b
 # depois de mexer no «⋯» (@28): na folha redesenha-se só esse pedaço; nos Ajustes, a vista
 : redes >i ? && == @ 1 1 _tx_len @ 50 refolha 2 render
 # ouvir 30 s: um só leitor (o do anfitrião); tocar outra vez a que está a tocar pára-a
@@ -913,12 +873,11 @@
         "</div>" }
     `<div class="mu-card"><h3>Conector de dados</h3><label class="mu-campo"><span>Endereço</span><input data-onda="px" value="{ esct @ 22 }" inputmode="url" autocapitalize="off" spellcheck="false"></label><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="px-ok">Guardar</button><button type="button" class="mu-btn sec" data-onda="px-rep">Repor</button></div></div>`
     `<div class="mu-card"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="motor">{ ic 7 }Testar o motor</button></div><p class="mu-motor" id="aj-motor-r"></p></div>`
-    `<p class="mu-nota">Música 2.28.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.29.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
-: ativo i>i v ? == @ 1 2 == v 1 == v @ 1
-: nb i>i v `<button type="button" data-onda="ir&#9;{ N v }"{ Se ativo v ` aria-current="page"` }>`
+: nb i>i v `<button type="button" data-onda="ir&#9;{ N v }"{ Se == v @ 1 ` aria-current="page"` }>`
 : nav >i {
   `{ nb 1 }<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h11M4 16h7"/><circle cx="17.5" cy="16.5" r="2.5"/><path d="M20 16.5V5l2 1"/></svg><span>Playlists</span></button>`
   `{ nb 3 }<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c.7 4.6 2.9 6.8 7.5 7.5-4.6.7-6.8 2.9-7.5 7.5-.7-4.6-2.9-6.8-7.5-7.5 4.6-.7 6.8-2.9 7.5-7.5z"/></svg><span>Pedir</span></button>`
@@ -928,7 +887,7 @@
   = m _me_marca
   = h _ht_ini 250000
   = v @ 1
-  ? == v 1 v_playlists ? == v 2 v_playlist ? == v 3 v_pedir ? == v 4 v_gosto v_ajustes
+  ? == v 1 v_playlists ? == v 3 v_pedir ? == v 4 v_gosto v_ajustes
   _ht_poe $"#mu-body" h
   = g _ht_ini 4000 nav _ht_poe $"#mu-nav" g
   _me_solta m }
@@ -938,19 +897,17 @@
   Se == v @ 1 _an_esquecer
   _me_solta @ 2
   = q 3 W <= q 19 { ! q 0 = q + q 1 }
-  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 ! 60 0 ! 61 0 tvazio @ 50 tvazio @ 54 ! 56 0 tvazio @ 58
+  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 ! 60 0 ! 61 0 ! 62 0 tvazio @ 50 tvazio @ 54 ! 56 0 tvazio @ 58
   ! 1 v
   render
   # cada vista abre no topo (sem isto ficava onde a anterior estava, se as duas fossem altas)
   _an_rolar 0
   _an_buscam $"/api/estado" $"lido_estado" 60000
   0 }
-: abrir i>i b { tcopia @ 30 b 70 ir 2 }
 : carregar_vista >i {
   = v @ 1
   Se acesso {
     ? == v 1 { _an_buscam $"/api/playlists" $"lido_pl" 30000 _an_buscam $"/api/pedidos" $"lido_ped" 30000 0 }
-    ? == v 2 { _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_doc" 0 }
     ? == v 3 { _an_buscam $"/api/pedidos" $"lido_ped" 30000 _an_buscam $"/api/ideias" $"lido_ideias" 300000 0 }
     Se == v 4 { _an_buscam $"/api/perfil" $"lido_perfil" 300000 _an_buscam $"/api/tendencias" $"lido_tend" 300000 } } }
 
@@ -960,27 +917,26 @@
 : lido_pl ii>i t s Se == @ 1 1 ? == s 200 { ! 4 _ar_json t ? _tx_len @ 50 refolha 7 render 0 } { erro_ped t s 0 }
 # os pedidos: com a folha aberta não se redesenha a página (a folha voltava a subir); vêem-se ao fechá-la
 : lido_ped ii>i t s Se || == @ 1 1 == @ 1 3 Se == s 200 { ! 5 _ar_json t Se ~ && == @ 1 1 _tx_len @ 50 render }
-: lido_doc ii>i t s Se == @ 1 2 {
-    ? == s 200 { = d _ar_json t Se mesmo txt d.id @ 30 { ! 4 d afinar_abrir } }
-      { erro_ped t s Se == s 404 ir 1 0 } }
 : lido_perfil ii>i t s Se == @ 1 4 ? == s 200 { ! 4 _ar_json t render 0 } { erro_ped t s 0 }
-: exp_doc ii>i t mem { = d _ar_json t Se mesmo txt d.id @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }` t } ! 51 d refolha 63 } }
+: exp_doc ii>i t mem { = d _ar_json t Se mesmo txt d.id @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }` t } ! 51 d refolha 575 } }
 : exp_prev ii>i t mem Se mesmo @ 57 @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }/previas` t } ! 52 _ar_json t refolha 40 }
 : lido_exp ii>i t s Se && == @ 1 1 == s 200 exp_doc t 0
 : lido_prev ii>i t s Se && == @ 1 1 == s 200 exp_prev t 0
 : lido_ideias ii>i t s Se && == @ 1 3 == s 200 { ! 48 _ar_json t render }
 : lido_tend ii>i t s Se && == @ 1 4 == s 200 { ! 11 _ar_json t render }
-: lido_pesq ii>i t s Se && == @ 1 2 @ 6 ? == s 200 { ! 19 _ar_json t render 0 } { erro_ped t s 0 }
+: lido_pesq ii>i t s Se && == @ 1 1 _tx_len @ 50 ? == s 200 { ! 19 _ar_json t refolha 512 0 } { erro_ped t s 0 }
 
 # ===== eventos =====
 : clique i>i t {
   = a _tx_campo t 0 9 = b _tx_campo t 1 9
   = fica 0
   ? mesmo a $"ir" { ir _tx_int b = fica 1 0 }
-  ? mesmo a $"abrir" { abrir b = fica 1 0 }
   ? mesmo a $"enviar" { enviar 0 }
-  ? mesmo a $"afinar" { abrir @ 30 = fica 1 0 }
-  ? mesmo a $"voltar" { ir 1 abre_folha @ 30 = fica 1 0 }
+  # (o que o afinar reserva — as candidatas, as fixadas, o resultado — tem de ficar para os eventos seguintes)
+  ? mesmo a $"afinar" { afina_abrir = fica 1 0 }
+  ? mesmo a $"af-fechar" { ! 6 0 refolha 652 0 }
+  ? mesmo a $"af-guardar" { guardar_versao 0 }
+  ? mesmo a $"junta_abre" { ! 62 ~ @ 62 ! 19 0 refolha 512 0 }
   ? mesmo a $"menu" { ! 28 ? == @ 28 4 0 4 refolha 2 0 }
   ? mesmo a $"apagar" { ! 28 1 redes 0 }
   ? mesmo a $"apagar_sim" { apagar_pl 0 0 }
@@ -991,14 +947,13 @@
   ? mesmo a $"convidar" { convidar_pedir 0 }
   ? mesmo a $"ligar_outro" { codaparelho_pedir 0 }
   ? mesmo a $"nao" { ! 28 0 redes 0 }
-  ? mesmo a $"fixar" { = i _tx_int b ! + @ 17 i ~ @ + @ 17 i afinar_correr render 0 }
-  ? mesmo a $"tirar" { = i _tx_int b ! + @ 18 i 1 ! + @ 17 i 0 afinar_correr render 0 }
-  ? mesmo a $"af-mx" { ! 8 _tx_int b afinar_correr render 0 }
-  ? mesmo a $"af-es" { ! 9 _tx_int b afinar_correr render 0 }
-  ? mesmo a $"af-ar" { ! 10 _tx_int b afinar_correr render 0 }
+  # fixar: enquanto não há mudanças só se marca; depois, o motor corre outra vez com ela segura
+  ? mesmo a $"fixar" { Se @ 6 { = i _tx_int b ! + @ 17 i ~ @ + @ 17 i Se == @ 6 2 afina_correr refolha 264 } 0 }
+  ? mesmo a $"af-mx" { Se @ 6 { ! 8 _tx_int b afina_muda 136 } 0 }
+  ? mesmo a $"af-es" { Se @ 6 { ! 9 _tx_int b afina_muda 136 } 0 }
+  ? mesmo a $"af-ar" { Se @ 6 { ! 10 _tx_int b afina_muda 136 } 0 }
   ? mesmo a $"procurar" { ? < _tx_len @ 23 2 { aviso $"Escreve pelo menos 2 letras." 0 } { = u _tx_abre + 40 * 3 _tx_len @ 23 `/api/pesquisa?q={ purl @ 23 }` _tx_fecha u _an_buscar u $"lido_pesq" aviso $"A procurar no Tidal…" 0 } }
-  ? mesmo a $"juntar" { = r @ 19 = f ? r idx r.faixas _tx_int b 0 Se f juntar_faixa f 0 }
-  ? mesmo a $"guardar" { guardar_versao _tx_int b 0 }
+  ? mesmo a $"juntar" { junta_faixa _tx_int b 0 }
   ? mesmo a $"sug" { tvazio @ 20 Oc @ 20 1990 sugestao _tx_int b O 0 render 0 }
   ? mesmo a $"pd-mx" { ! 25 _tx_int b render 0 }
   ? mesmo a $"pd-es" { ! 26 _tx_int b render 0 }
@@ -1053,7 +1008,8 @@
   ? mesmo a $"rn-nome" { tcopia @ 46 b 250 0 }
   ? mesmo a $"rn-desc" { tcopia @ 47 b 1250 0 }
   ? mesmo a $"af-tx" { tcopia @ 49 b 1990 0 }
-  ? mesmo a $"af-n" { Se @ 6 { ! 7 _tx_int b afinar_correr parcial_afinar } }
+  # o deslizador: o motor corre a cada passo; redesenha-se o gráfico, o guardar e a lista (o deslizador fica quieto)
+  ? mesmo a $"af-n" { Se @ 6 { ! 7 _tx_int b afina_muda 264 = h _ht_ini 8 N @ 7 _ht_poe $"#af-nv" h } 0 }
   Se mesmo a $"pd-n" { ! 24 _tx_int b = h _ht_ini 8 N @ 24 _ht_poe $"#pd-nv" h }
   _me_solta t }
 
