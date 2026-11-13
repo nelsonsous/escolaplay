@@ -175,6 +175,9 @@ Formato:
     // consenso dava na véspera (corridas de 1 dia antes); null sem histórico das estações. Vai no resumo para o Claude
     { "date": "2026-11-12", "tmax": 17.6, "tmin": 15.0, "nT": 5, "rain": 15.2, "rainLo": 9.4, "rainHi": 17.7, "nR": 3,
       "model": { "tmax": 16.9, "tmin": 14.4, "rain": 30.4 } } ] },
+  "qc": { "rain": [ // pluviómetros avariados (1.24; null se nenhum): cada estação IPMA até 40 km, dia a dia, contra as
+    // vizinhas nas mesmas horas; a chuva destas não conta no observado, na aprendizagem nem no «agora» (vai no resumo)
+    { "id": "1210625", "name": "Guimarães", "days": [{ "date": "2026-11-09", "mm": 2.6, "ref": 28.9, "n": 3 }] } ] },
   "warnings": [ // avisos oficiais IPMA (só Portugal; vazio se nenhum)
     { "source": "IPMA", "type": "Agitação Marítima", "level": "yellow", "start": "2026-11-07T06:00", "end": "2026-11-07T18:00", "text": "Ondas de noroeste com 4 a 5 metros." }
   ],
@@ -335,8 +338,10 @@ selecionado, avisa e oferece «Mudar a análise diária para este ponto» (`PATC
   // a app junta-os à média ponderada dos modelos (máx., mín., chuva do dia, rajada máx.); obrigatório ao publicar
   "consenso": [{ "data": "2026-11-14", "tmax": 16.8, "tmin": 13.7, "chuva": 9, "rajada": 28 }], // o que os modelos davam
   // na mesma corrida (junto pelo publicar.mjs): a verificação compara os dois com o observado
-  "pesos": { "tmax": 0.58, "tmin": 0.5, "chuva": 0.44, "rajada": 0.5, "n": 6 } } // peso do Claude em cada número (1.22):
+  "pesos": { "tmax": 0.58, "tmin": 0.5, "chuva": 0.44, "rajada": 0.5, "n": 6 }, // peso do Claude em cada número (1.22):
   // afinado em nums:<id> pelos dias verificados (0,2 a 0,8; sem ele, 0,5 = a meias)
+  "dados": ["Proteção Civil: sem dados nesta corrida"] } // notas técnicas sobre os dados (1.24; opcional, ≤ 4 × 160):
+  // o que faltou, chegou atrasado ou parece errado; voltam na corrida seguinte e só o dono as vê (Análise completa)
 ```
 
 ## POST /api/analysis/refresh?lat=..&lon=..
