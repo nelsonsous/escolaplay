@@ -520,6 +520,20 @@
   = k fby k3 '_ 'm 'b
   ? < k 0 { ! 7 - @ 7 1 ebeg "o ponto (a.b) precisa da funcao _mb: junta a lib/arvore.onda" eend } 0
   ccall k }
+# f`...` (o leitor da o nome, uma ` e o molde): o molde com nome. A ` abre um texto novo (_ta), corre o molde -- o que
+# ele escrever vai para o texto -- e fecha-o (_tf), que o devolve: e o 1.o argumento de f. As funcoes _ta e _tf sao as
+# da biblioteca que o programa juntou (lib/texto.onda). i e o token da crase; o nome vem antes
+: cmol i>i i {
+  = a fby k3 '_ 't 'a
+  = f fby k3 '_ 't 'f
+  ? || < a 0 < f 0 { ! 7 i ebeg "o molde com nome precisa das funcoes _ta e _tf: junta a lib/texto.onda" eend } 0
+  ? || != @ fe a 2 0 != @ fe f 2 0 { ! 7 i ebeg "_ta e _tf nao levam argumentos" eend } 0
+  = t - i 1
+  = k ? >= floc t 0 -1 ffun t
+  ? || < k 0 == @ fe k 2 0 { ! 7 t ebeg "antes da crase de um molde com nome vem uma funcao que leva o texto: f`...`" eend } 0
+  ccall a
+  cx
+  ccall f }
 : cblk >i {
   = r -1
   W { ? >= @ 7 @ 4 { ebeg "falta }" eend } 0 != tcode @ 7 '} } = r cx

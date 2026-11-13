@@ -321,6 +321,7 @@
       ? == o k2 'E 'x wrun k3 '_ 'x 'p
       ? == o k2 'L 'g wrun k3 '_ 'l 'g
       ? == o '. wrun k3 '_ 'm 'b
+      ? == o 96 { wrun k3 '_ 't 'a wrun k3 '_ 't 'f }
       ? == o k2 'P 'w wrun k3 '_ 'p 'w
       ? == o k2 'A 't wrun k3 '_ 'a 't 0 }
     0 }

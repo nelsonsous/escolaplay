@@ -35,7 +35,7 @@ moldes e o ponto da linguagem (`onda/SPEC.md`), um pedaço de ecrã escreve-se c
 |---|---|
 | ler um nó da árvore | `a.b` (da linguagem), `ha n`, `eh n t`, `igual a b`, `num n`, `int n`, `txt n`, `tipo n`, `pri n`, `seg c`, `quantos n`, `idx n i` |
 | escrever | `esc n` (escapado), `cru n`, `esct t`, `crut t`, `plural n um muitos` |
-| textos e números pt-PT | `mesmo a b`, `fin x`, `casas x d`, `ate x d`, `inteiro x`, `moeda x d c` |
+| textos e números pt-PT | `mesmo a b`, `` texto`…` ``, `fin x`, `casas x d`, `ate x d`, `inteiro x`, `moeda x d c` |
 | ações dos botões (`data-onda="ação:número"`) | `acao t`, `arg t`, `eacao t nome` |
 
 Uma app que a junta não pode ter funções com estes nomes, e monta-se com as entradas ditas (`ondac -w main clique …`)
@@ -58,7 +58,7 @@ começam nomes por `_` (são do runtime e das bibliotecas), por isso nunca colid
 | `data.onda` | `_dt_` | dia civil ⇄ dias, `toISOString`, dia da semana, Lisboa (`Europe/Lisbon`) |
 | `ordenar.onda` | `_or_` | o `sort` do V8: o PowerSort do Chromium (`_or_power`) e o TimSort do Node 22 (`_or_tim`) |
 | `html.onda` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
-| `anfitriao.onda` | `_an_` | as portas dos anfitriões: apps (`rt/anfitriao.js`, `Y 100–110`) e scripts (`rt/anfitriao-node.js`, `Y 200–214`) |
+| `anfitriao.onda` | `_an_` | as portas dos anfitriões: apps (`rt/anfitriao.js`, `Y 100–117`) e scripts (`rt/anfitriao-node.js`, `Y 200–214`) |
 
 Cada ficheiro começa com a lista das suas funções, o que fazem e a que função do JS são iguais.
 
@@ -80,6 +80,16 @@ O formato é o do `O t`: `M[t]` = fim e os bytes (UTF-8, um por palavra) em `M[t
 imprimir para ele. `_tx_abre n` / `_tx_fecha t` fazem um texto novo de até `n` bytes (com a guarda do `Oc`) e, ao
 contrário do `O t … O 0`, **repõem a saída de antes**: abrem-se uns dentro dos outros, e uma função da biblioteca que
 faz um texto (o `String(v)` de um valor, por exemplo) pode ser chamada a meio de outra saída.
+
+**Molde com nome** (da linguagem): quando o texto é para dar a uma função, não é preciso abrir nem fechar —
+`` f`…{ código }…` `` dá a `f`, como 1.º argumento, o texto que o molde escreve (até 2000 bytes; para mais, o
+`_tx_abre n`). Com a fala, `` texto`…` `` é só o texto:
+
+```
+aviso`Guardado: { esct nome }`                                        (o texto é o argumento de aviso)
+_an_buscar`/api/itens/{ N id }?q={ _tx_uri q }` $"lido_itens"          (e os outros argumentos vêm a seguir)
+= u texto`/api/itens/{ N id }`                                        (só o texto)
+```
 
 ```
 = t _tx_abre 200  "Total: " _nu_moeda 1234.5 2 $"EUR"  _tx_fecha t     -> "Total: 1234,50 €"

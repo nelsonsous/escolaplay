@@ -1,4 +1,5 @@
-// A Onda fluida (it.141): moldes de texto com crase e interpolacao, o ponto (a.b), Se, L e parenteses conferidos.
+// A Onda fluida (it.141): moldes de texto com crase e interpolacao, o ponto (a.b), Se, L e parenteses conferidos;
+// e o molde com nome: f`...`, o texto de um molde como argumento.
 // Tudo desce a representacao intermedia que ja havia, por isso tem de dar o mesmo em C, WebAssembly, x86 e arm64
 // (-a, no qemu, quando ha); os erros dizem a linha e a coluna; o significado le a mesma sintaxe.
 const { test } = require('node:test');
@@ -126,6 +127,56 @@ test('a.b: o leitor troca por _mb a $"b"; a.b.c encadeia; textos constantes igua
   }
 });
 
+test('molde com nome: f`...` da o texto do molde como 1.o argumento de f; igual em todas as formas', () => {
+  // com um _ta e um _tf do proprio programa (um texto de cada vez, guardado em M[0]): o compilador so os chama
+  const src = `
+: _ta >i { = t A 200 ! 0 t ! t + t 1 O t 0 }
+: _tf >i { O 0 @ 0 }
+: len i>i t - - @ t t 1
+: mostra i>i t { P '[ = j 0 W < j len t { P @ + + t 1 j = j + j 1 } P '] N len t P 10 }
+: dois ii>i t n { mostra t N n P 10 }
+: main >i {
+  mostra\`ola\`
+  = n 7
+  mostra\`Erro { N n } do "conector" \\{x\\}.\`
+  dois\`a{ N * n 2 }\` 5
+  mostra\`\`
+  0 }
+`;
+  const o = corre(src);
+  assert.strictEqual(o.c, '[ola]3\n[Erro 7 do "conector" {x}.]25\n[a14]3\n5\n[]0\n');
+  iguais(o, 'molde com nome');
+  // com a biblioteca (lib/texto.onda): abrem-se uns dentro dos outros, os outros argumentos vem a seguir, a saida
+  // volta a ser a de antes, e o texto\`...\` da fala da so o texto
+  const src2 = lib('memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao', 'fala') + `
+: mostra i>i t { "[" _tx_p t "]" N _tx_len t P 10 }
+: junta ii>i a b { _tx_p a P '+ _tx_p b P 10 }
+: main >i {
+  = n 7
+  = u texto\`/api/itens/{ N n }?q={ _tx_uri $"á b" }\`
+  mostra u
+  mostra\`fora { crut texto\`dentro { N n }\` } fim\`
+  junta\`x\` texto\`y{ N 1 }\`
+  = g _tx_abre 50 \`antes { crut texto\`meio\` } depois\` _tx_fecha g mostra g
+  = c A 1 L i 3000 P 'a = z texto\`{ L i 3000 P 'a }\` N _tx_len z P 10
+  N @ -2 P 10
+  0 }
+`;
+  for (const m of ['-w', '-x']) {
+    const f = path.join(t, m === '-w' ? 'm.wasm' : 'mx');
+    fs.writeFileSync(f, execFileSync(ondac, [m, 'main'], { input: src2, maxBuffer: 1 << 26 }), { mode: 0o755 });
+    const out = m === '-w' ? execFileSync('node', [path.join(R, 'wasm/host.js'), f]).toString() : execFileSync(f).toString();
+    assert.strictEqual(out, '[/api/itens/7?q=%C3%A1%20b]25\n[fora dentro 7 fim]17\nx+y1\n[antes meio depois]17\n' + 'a'.repeat(3000) + '2000\n0\n', m);
+  }
+  // no -w, o _ta e o _tf so entram num modulo que usa um molde com nome
+  const base = lib('memoria', 'texto') + ': f i>i t _tx_len t\n';
+  const sem = execFileSync(ondac, ['-w', 'main'], { input: base + ': main >i { N f $"ola" 0 }\n' });
+  const com = execFileSync(ondac, ['-w', 'main'], { input: base + ': main >i { N f`ola` 0 }\n' });
+  assert.ok(com.length > sem.length + 100, 'com o molde entram o _ta, o _tf e o _tx_abre');
+  fs.writeFileSync(path.join(t, 'c.wasm'), com);
+  assert.strictEqual(execFileSync('node', [path.join(R, 'wasm/host.js'), path.join(t, 'c.wasm')]).toString(), '3');
+});
+
 test('erros: a linha e a coluna do sitio, tambem dentro de um molde', () => {
   assert.strictEqual(erro(': main >i {\n  `sem fim\n 0 }\n'), 'molde sem fim (linha 2, coluna 3)');
   assert.strictEqual(erro(': main >i { `a{ N 1 ` 0 }\n'), 'molde sem fim (linha 1, coluna 21)');
@@ -141,6 +192,14 @@ test('erros: a linha e a coluna do sitio, tambem dentro de um molde', () => {
   assert.strictEqual(erro(': main >i { = x 1.0 L x 3 0 }\n'), 'a variavel do L tem de ser inteira: x (linha 1, coluna 23)');
   assert.strictEqual(erro(': main >i { L i 2.0 0 }\n'), 'esperava inteiro (linha 1, coluna 17)');
   assert.strictEqual(erro(': main >i { Se 1.0 0 }\n'), 'condicao deve ser inteira (linha 1, coluna 16)');
+  // o molde com nome: a funcao tem de existir e de levar o texto; o programa tem de ter o _ta e o _tf
+  const tt = ': _ta >i 0\n: _tf >i 0\n: f i>i t t\n: g >i 1\n';
+  assert.strictEqual(erro(tt + ': main >i { = x 1 x`ola` 0 }\n'), 'antes da crase de um molde com nome vem uma funcao que leva o texto: f`...` (linha 5, coluna 19)');
+  assert.strictEqual(erro(tt + ': main >i { g`ola` 0 }\n'), 'antes da crase de um molde com nome vem uma funcao que leva o texto: f`...` (linha 5, coluna 13)');
+  assert.strictEqual(erro(': f i>i t t\n: main >i { f`ola` 0 }\n'), 'o molde com nome precisa das funcoes _ta e _tf: junta a lib/texto.onda (linha 2, coluna 14)');
+  assert.strictEqual(erro(tt + ': _mb ii>i a b a\n: main >i { = a 0 a.b`ola` 0 }\n'), 'o nome de um molde com nome nao leva pontos (linha 6, coluna 22)');
+  assert.strictEqual(erro(tt + ': main >i { f`ola 0 }\n'), 'molde sem fim (linha 5, coluna 14)');
+  assert.match(erro(tt + ': main >i { zzz`ola` 0 }\n'), /^nome desconhecido.* \(linha 5, coluna 13\)$/);
   // o codigo de uma interpolacao e codigo como o outro: os erros de la apontam para la
   assert.strictEqual(erro(': main >i {\n  `<b>{ N zzz }</b>` 0 }\n'), 'nome desconhecido (linha 2, coluna 11)');
 });
@@ -157,6 +216,10 @@ test('na GPU e no JavaScript: Se, L e ( ) existem (sao puros); os moldes e o pon
   assert.strictEqual(S.funcao(src, 'soma')(0, 3), 3);
   assert.throws(() => S.funcao(': f i>i x { `a{N x}` x }\n', 'f'), /texto so existe na CPU/);
   assert.throws(() => S.funcao(': f i>i x x.a\n', 'f'), /operacao so de CPU/);
+  assert.throws(() => S.funcao(': g i>i t t\n: f i>i x g`a{N x}`\n', 'f'), /operacao so de CPU: molde com nome/);
+  assert.match(execFileSync(ondac, ['-g', 'px'], { input: ': _ta >i 0\n: _tf >i 0\n: g i>i t t\n: px ii>i x y g`a`\n' }).toString(), /#error onda/);
+  assert.deepStrictEqual(S.tokens('f`a{N x}b` g`c` \'` h').map((k) => [k.k, k.x]),
+    [[0, 'f'], [5, '`'], [5, '{'], [3, '`a{'], [5, 'N'], [0, 'x'], [3, '}b`'], [5, '}'], [0, 'g'], [5, '`'], [3, '`c`'], [4, "'`"], [0, 'h']]);
   // o leitor do significado da os mesmos tokens que o do compilador
   assert.deepStrictEqual(S.tokens('`a{N c.d}b` (+ 1 2) {x} \'{').map((k) => [k.k, k.x]),
     [[5, '{'], [3, '`a{'], [5, 'N'], [5, '.'], [0, 'c'], [6, '.d}'], [3, '}b`'], [5, '}'], [5, '('], [5, '+'], [1, '1'], [1, '2'], [5, ')'], [5, '{'], [0, 'x'], [5, '}'], [4, "'{"]]);

@@ -22,7 +22,9 @@ const FIM = (c) => WS(c) || c === 123 || c === 125 || c === 40 || c === 41 || Nu
 export function tokens(src, visita) {
   const t = [], n = src.length;
   const texto = (s) => { const q = src.charCodeAt(s); let j = s + 1; while (j < n && src.charCodeAt(j) !== q) { if (src.charCodeAt(j) === 92) j++; j++; } if (j >= n) throw new Error('texto sem fim'); return j + 1; };
-  const palavra = (s) => { let j = s + 1; if (src.charCodeAt(s) === 39 && j < n) j++; while (j < n && !FIM(src.charCodeAt(j))) j++; return j; };
+  // um nome acaba também numa crase: f`…` é um molde com nome (o molde, colado, é o 1.º argumento de f)
+  const eNm = (c) => (c >= 97 && c <= 122) || c === 95;
+  const palavra = (s) => { const nm = eNm(src.charCodeAt(s)); let j = s + 1; if (src.charCodeAt(s) === 39 && j < n) j++; while (j < n && !FIM(src.charCodeAt(j)) && !(nm && src.charCodeAt(j) === 96)) j++; return j; };
   // o código de uma interpolação, até à } que a fecha (devolve o índice a seguir a ela)
   const interp = (s) => {
     let j = s, pf = 0;
