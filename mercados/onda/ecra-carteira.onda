@@ -11,12 +11,11 @@
 : cs_tx ii>f s q ? == q 0 ? == s 0 0.03 ? == s 1 0.06 0.09 ? == s 0 0.0 ? == s 1 0.10 0.25
 : cs_mes f>f r - Pw + 1.0 r / 1.0 12.0 1.0
 # a parte em cripto do que já se tem (c0: a da carteira real); sem ela, a do plano (c)
-: cs_c0 f>f c { = v _ar_vnum sg $"c0" ? && _nu_fin v && >= v 0.0 <= v 1.0 v c }
+: cs_c0 f>f c { = v num es.c0 ? && fin v && >= v 0.0 <= v 1.0 v c }
 # o valor ao fim de n meses no cenário s: m € por mês, a fração c em cripto, st € no início
 : cs_val iifff>f s n m c st {
   = ra cs_mes cs_tx s 0 = rb cs_mes cs_tx s 1
-  = a * st - 1.0 cs_c0 c = b * st cs_c0 c = i 0
-  W < i n { = a + * a + 1.0 ra * m - 1.0 c = b + * b + 1.0 rb * m c = i + i 1 }
+  = a * st - 1.0 cs_c0 c = b * st cs_c0 c L i n { = a + * a + 1.0 ra * m - 1.0 c = b + * b + 1.0 rb * m c }
   + a b }
 # os meses até chegar ao objetivo g no cenário s (até 100 anos; -1 se não chega)
 : cs_meta iiffff>i s h m c st g {
@@ -41,17 +40,16 @@
 
 # ---- escrever ----
 : cs_eur f>i x _nu_moeda x 0 $"EUR"
-: cs_mil f>i x { _nu_compacto x P 194 P 160 "€" 0 }
+: cs_mil f>i x `{ _nu_compacto x }{ P 194 }{ P 160 }€`
 # "12 anos e 4 meses"
 : cs_tempo i>i n {
   = a / n 12 = m % n 12
-  ? > a 0 { N a ? == a 1 " ano" " anos" 0 } 0
-  ? && > a 0 > m 0 " e " 0
-  ? > m 0 { N m ? == m 1 " mês" " meses" 0 } 0
-  ? == n 0 "já" 0
-  0 }
+  Se > a 0 { N a ? == a 1 " ano" " anos" }
+  Se && > a 0 > m 0 " e "
+  Se > m 0 { N m ? == m 1 " mês" " meses" }
+  Se == n 0 "já" }
 # um número do instantâneo (0 se não é um número finito e positivo)
-: cs_num i>f k { = v _ar_vnum sg k ? && _nu_fin v > v 0.0 v 0.0 }
+: cs_num i>f k { = v num sg k ? && fin v > v 0.0 v 0.0 }
 : cs_x ii>f t y + 34.0 / * 296.0 F t F y
 : cs_y ff>f v vm - 186.0 / * 172.0 v vm
 # euros de hoje (h = 1): o que vale daqui a n meses dividido pela inflação de 2 % ao ano; h = 0, o valor do futuro
@@ -66,65 +64,64 @@
   W <= k y {
     = t ? r - y k k = n * t 12
     = v ? == s 3 cs_inv h n m st cs_vh s h n m c st
-    ? k " L" 0 _nu_fixo cs_x t y 1 P 32 _nu_fixo cs_y v vm 1
-    = k + k 1 }
-  0 }
+    Se k " L" _nu_fixo cs_x t y 1 P 32 _nu_fixo cs_y v vm 1
+    = k + k 1 } }
 # o gráfico: a faixa entre o pessimista e o otimista (com as duas linhas), o base, o que se investe e o objetivo
 : cs_graf iiiffff>i h y n m c st g {
   = vm * 1.06 Mx Mx cs_vh 2 h n m c st g cs_inv h n m st
-  "<svg class=\"sim-g\" viewBox=\"0 0 340 208\" role=\"img\" aria-label=\"Evolução do valor nos três cenários: arrasta para ver cada ano\">"
-  "<path class=\"sim-band\" d=\"M" cs_pts 2 h y 0 m c st vm " L" cs_pts 0 h y 1 m c st vm " Z\"/>"
-  "<path class=\"sim-otim\" d=\"M" cs_pts 2 h y 0 m c st vm "\"/>"
-  "<path class=\"sim-pess\" d=\"M" cs_pts 0 h y 0 m c st vm "\"/>"
-  "<path class=\"sim-inv\" d=\"M" cs_pts 3 h y 0 m c st vm "\"/>"
-  "<path class=\"sim-base\" d=\"M" cs_pts 1 h y 0 m c st vm "\"/>"
-  ? > g 0.0 {
+  `<svg class="sim-g" viewBox="0 0 340 208" role="img" aria-label="Evolução do valor nos três cenários: arrasta para ver cada ano">`
+  `<path class="sim-band" d="M{ cs_pts 2 h y 0 m c st vm } L{ cs_pts 0 h y 1 m c st vm } Z"/>`
+  `<path class="sim-otim" d="M{ cs_pts 2 h y 0 m c st vm }"/>`
+  `<path class="sim-pess" d="M{ cs_pts 0 h y 0 m c st vm }"/>`
+  `<path class="sim-inv" d="M{ cs_pts 3 h y 0 m c st vm }"/>`
+  `<path class="sim-base" d="M{ cs_pts 1 h y 0 m c st vm }"/>`
+  Se > g 0.0 {
     = gy cs_y g vm
-    "<line class=\"sim-goal\" x1=\"34\" x2=\"330\" y1=\"" _nu_fixo gy 1 "\" y2=\"" _nu_fixo gy 1 "\"/>"
-    "<text class=\"sim-t\" x=\"36\" y=\"" _nu_fixo - gy 4.0 1 "\">objetivo</text>" 0 } 0
-  "<text class=\"sim-t\" x=\"30\" y=\"18\" text-anchor=\"end\">" _nu_compacto vm "</text>"
-  "<text class=\"sim-t\" x=\"30\" y=\"189\" text-anchor=\"end\">0</text>"
-  "<text class=\"sim-t\" x=\"34\" y=\"203\">hoje</text>"
-  ? > y 3 { "<text class=\"sim-t\" x=\"" _nu_fixo cs_x / y 2 y 1 "\" y=\"203\" text-anchor=\"middle\">" N / y 2 " anos</text>" 0 } 0
-  "<text class=\"sim-t\" x=\"330\" y=\"203\" text-anchor=\"end\">" N y ? == y 1 " ano" " anos" "</text>"
+    `<line class="sim-goal" x1="34" x2="330" y1="{ _nu_fixo gy 1 }" y2="{ _nu_fixo gy 1 }"/>`
+    `<text class="sim-t" x="36" y="{ _nu_fixo - gy 4.0 1 }">objetivo</text>` }
+  `<text class="sim-t" x="30" y="18" text-anchor="end">{ _nu_compacto vm }</text>`
+  `<text class="sim-t" x="30" y="189" text-anchor="end">0</text>`
+  `<text class="sim-t" x="34" y="203">hoje</text>`
+  Se > y 3 `<text class="sim-t" x="{ _nu_fixo cs_x / y 2 y 1 }" y="203" text-anchor="middle">{ N / y 2 } anos</text>`
+  `<text class="sim-t" x="330" y="203" text-anchor="end">{ N y }{ ? == y 1 " ano" " anos" }</text>`
   # o dedo: uma faixa invisível por ano, com o texto desse ano (a casca mostra-o e põe a linha lá)
-  "<line class=\"sim-cur\" x1=\"-9\" x2=\"-9\" y1=\"10\" y2=\"186\"/>"
+  `<line class="sim-cur" x1="-9" x2="-9" y1="10" y2="186"/>`
   = w / 296.0 F y = t 0
   W <= t y {
     = x cs_x t y = n * t 12
-    "<rect class=\"sim-hit\" x=\"" _nu_fixo - x / w 2.0 1 "\" y=\"0\" width=\"" _nu_fixo w 1 "\" height=\"208\" data-x=\"" _nu_fixo x 1 "\" data-tx=\""
-    ? t { "Em " N t ? == t 1 " ano" " anos" 0 } "Hoje"
-    ": " cs_eur cs_vh 1 h n m c st " · entre " cs_mil cs_vh 0 h n m c st " e " cs_mil cs_vh 2 h n m c st " · investido " cs_eur cs_inv h n m st "\"/>"
+    `<rect class="sim-hit" x="{ _nu_fixo - x / w 2.0 1 }" y="0" width="{ _nu_fixo w 1 }" height="208" data-x="{ _nu_fixo x 1 }" data-tx="`
+    ? t `Em { N t }{ ? == t 1 " ano" " anos" }` "Hoje"
+    `: { cs_eur cs_vh 1 h n m c st } · entre { cs_mil cs_vh 0 h n m c st } e { cs_mil cs_vh 2 h n m c st } · investido { cs_eur cs_inv h n m st }"/>`
     = t + t 1 }
-  "</svg>" 0 }
+  "</svg>" }
 
 # uma linha da tabela: ao fim de t anos
 : cs_linha iiffff>i t h m c st s0 {
   = n * t 12
-  "<tr><td>" N t ? == t 1 " ano" " anos" "</td><td class=\"num\">" cs_eur cs_inv h n m st "</td><td class=\"num\"><b>"
-  cs_eur cs_vh 1 h n m c st "</b></td><td class=\"num sim-r\">" cs_mil cs_vh 0 h n m c st " – " cs_mil cs_vh 2 h n m c st "</td></tr>" 0 }
+  `<tr><td>{ N t }{ ? == t 1 " ano" " anos" }</td><td class="num">{ cs_eur cs_inv h n m st }</td><td class="num"><b>`
+  `{ cs_eur cs_vh 1 h n m c st }</b></td><td class="num sim-r">{ cs_mil cs_vh 0 h n m c st } – { cs_mil cs_vh 2 h n m c st }</td></tr>` }
 
 # um controlo: o nome e o valor por cima; a barra com − e + (passo d) por baixo. k = a chave nos Ajustes (data-cfg);
 # f = 0 euros, 1 anos, 2 euros ou "sem objetivo" (o JS escreve o mesmo enquanto se arrasta: data-fmt)
 : cs_ctl iiffffi>i k nome v mn mx d f {
-  "<div class=\"sim-c\"><div class=\"sim-ch\"><span>" _tx_p nome "</span><b class=\"num\" data-out=\"" _tx_p k "\">"
-  ? == f 1 { N I v ? == I v 1 " ano" " anos" 0 } ? && == f 2 <= v 0.0 "sem objetivo" cs_eur v
-  "</b></div><div class=\"sim-cr\"><button type=\"button\" class=\"sim-pm\" data-act=\"sim-step\" data-k=\"" _tx_p k "\" data-d=\"-" _nu_ps d "\" aria-label=\"Menos\">−</button>"
-  "<input type=\"range\" class=\"sim-rg\" min=\"" _nu_ps mn "\" max=\"" _nu_ps mx "\" step=\"" _nu_ps d "\" value=\"" _nu_ps v "\" data-cfg=\"" _tx_p k "\" data-fmt=\"" N f "\" aria-label=\"" _tx_p nome "\">"
-  "<button type=\"button\" class=\"sim-pm\" data-act=\"sim-step\" data-k=\"" _tx_p k "\" data-d=\"" _nu_ps d "\" aria-label=\"Mais\">+</button></div></div>" 0 }
+  `<div class="sim-c"><div class="sim-ch"><span>{ crut nome }</span><b class="num" data-out="{ crut k }">`
+  ? == f 1 { N I v ? == I v 1 " ano" " anos" } ? && == f 2 <= v 0.0 "sem objetivo" cs_eur v
+  `</b></div><div class="sim-cr"><button type="button" class="sim-pm" data-act="sim-step" data-k="{ crut k }" data-d="-{ _nu_ps d }" aria-label="Menos">−</button>`
+  `<input type="range" class="sim-rg" min="{ _nu_ps mn }" max="{ _nu_ps mx }" step="{ _nu_ps d }" value="{ _nu_ps v }" data-cfg="{ crut k }" data-fmt="{ N f }" aria-label="{ crut nome }">`
+  `<button type="button" class="sim-pm" data-act="sim-step" data-k="{ crut k }" data-d="{ _nu_ps d }" aria-label="Mais">+</button></div></div>` }
 
 # ===== o rendimento real (4.13): o que já investiu, pelo plano e pelas compras avulsas =====
 # Instantâneo real: now (s), desde (texto), loading, bench {name, px, h}, ativos [{k, name, px, h, b, plan, pm, pmDef}]:
 # h = [[t, preço em €]] (semanal até há 5 anos, diário no último), b = [[t, €]] as compras (as do plano já expandidas).
 # Cada compra compra e / preço(t) unidades; o preço num dia é o último fecho até esse dia.
 : cr_vec i>i h {
-  = n _ar_n h = v A + 1 * 2 n ! v n = c _ar_prim h = i 0
-  W c { !f + + v 1 i _ar_num _ar_idx c 0 !f + + + v 1 n i _ar_num _ar_idx c 1 = c _ar_prox c = i + i 1 }
+  = n quantos h = v A + 1 * 2 n ! v n = c pri h = i 0
+  W c { !f + + v 1 i _ar_num idx c 0 !f + + + v 1 n i _ar_num idx c 1 = c seg c = i + i 1 }
   v }
 # as compras b = [[t, €, unidades (0 = pelo preço do dia)]] em [n, t…, €…, unidades…]
 : cr_vec3 i>i b {
-  = n _ar_n b = v A + 1 * 3 n ! v n = c _ar_prim b = i 0
-  W c { !f + + v 1 i _ar_num _ar_idx c 0 !f + + + v 1 n i _ar_num _ar_idx c 1 !f + + + v 1 * 2 n i _ar_num _ar_idx c 2 = c _ar_prox c = i + i 1 }
+  = n quantos b = v A + 1 * 3 n ! v n = c pri b = i 0
+  W c { !f + + v 1 i _ar_num idx c 0 !f + + + v 1 n i _ar_num idx c 1 !f + + + v 1 * 2 n i _ar_num idx c 2 = c seg c = i + i 1 }
   v }
 : cr_px if>f v t {
   = n @ v = lo 0 = hi - n 1
@@ -137,270 +134,254 @@
 # datado (1 se as compras têm datas e preços: entra no gráfico, no por ano e na referência)]. Um ativo entra com compras
 # datadas (o plano, as avulsas) ou com o que tem hoje (q unidades e cost € investidos, como na TR): aí q e cost mandam
 : cr_prep if>i l tf {
-  = n _ar_n l = tb A + 1 * 8 n ! tb 0 = c _ar_prim l
+  = n quantos l = tb A + 1 * 8 n ! tb 0 = c pri l
   W c {
-    = b _ar_get c $"b" = h _ar_get c $"h" = pa _ar_vnum _ar_get c $"px"
-    = q _ar_vnum _ar_get c $"q" = co _ar_vnum _ar_get c $"cost"
-    = tem && && _nu_fin q > q 0.0 && _nu_fin co > co 0.0
-    = dat && > _ar_n b 0 > _ar_n h 0
-    ? && || dat tem && _nu_fin pa > pa 0.0 {
+    = b c.b = h c.h = pa num c.px
+    = q num c.q = co num c.cost
+    = tem && && fin q > q 0.0 && fin co > co 0.0
+    = dat && > quantos b 0 > quantos h 0
+    Se && || dat tem && fin pa > pa 0.0 {
       = p + + tb 1 * 8 @ tb
       ! p c !f + p 3 pa !f + p 6 tf ! + p 7 dat
       ? dat { ! + p 1 cr_vec h ! + p 2 cr_vec3 b 0 } { = z A 1 ! z 0 ! + p 1 z ! + p 2 z 0 }
       = u 0.0 = e 0.0 = i 0 = nb @ @ + p 2
       W < i nb { = u + u cr_ub p i = e + e @f + + + @ + p 2 1 nb i = i + i 1 }
-      ? tem { = u q = e co 0 } 0
+      Se tem { = u q = e co }
       !f + p 4 u !f + p 5 e
-      ! tb + @ tb 1 0 } 0
-    = c _ar_prox c }
+      ! tb + @ tb 1 }
+    = c seg c }
   tb }
 : cr_p ii>i tb j + + tb 1 * 8 j
 # as unidades da compra i: as que vieram, ou o valor pelo preço desse dia
 : cr_ub ii>f p i { = bv @ + p 2 = nb @ bv = u @f + + + bv 1 * 2 nb i ? != u 0.0 u / @f + + + bv 1 nb i cr_px @ + p 1 @f + + bv 1 i }
 # o valor do ativo (a linha p da tabela) no instante t (agora: com o preço de agora), e o que tinha investido até lá
 : cr_vt if>f p t ? >= t @f + p 6 * @f + p 3 @f + p 4 {
-  = bv @ + p 2 = nb @ bv = u 0.0 = i 0
-  W < i nb { ? <= @f + + bv 1 i t { = u + u cr_ub p i 0 } 0 = i + i 1 }
+  = bv @ + p 2 = nb @ bv = u 0.0 L i nb Se <= @f + + bv 1 i t = u + u cr_ub p i
   * u cr_px @ + p 1 t }
 : cr_it if>f p t ? >= t @f + p 6 @f + p 5 {
-  = bv @ + p 2 = nb @ bv = e 0.0 = i 0
-  W < i nb { ? <= @f + + bv 1 i t { = e + e @f + + + bv 1 nb i 0 } 0 = i + i 1 }
+  = bv @ + p 2 = nb @ bv = e 0.0 L i nb Se <= @f + + bv 1 i t = e + e @f + + + bv 1 nb i
   e }
 # quantos dos ativos j0..j1-1 não têm datas (com algum, não há gráfico, por ano nem referência do conjunto)
 : cr_semdata iii>i tb j0 j1 { = k 0 = j j0 W < j j1 { ? @ + cr_p tb j 7 0 = k + k 1 = j + j 1 } k }
 # o primeiro dia de compra dos ativos j0..j1-1
 : cr_t0 iii>f tb j0 j1 {
   = m 99999999999.0 = j j0
-  W < j j1 { = bv @ + cr_p tb j 2 = nb @ bv = i 0 W < i nb { = m Mn m @f + + bv 1 i = i + i 1 } = j + j 1 }
+  W < j j1 { = bv @ + cr_p tb j 2 = nb @ bv L i nb = m Mn m @f + + bv 1 i = j + j 1 }
   m }
 # o que as compras dos ativos j0..j1-1 valeriam em T a render r por ano (dinheiro ponderado: a TIR)
 : cr_fv iiiff>f tb j0 j1 r tf {
   = s 0.0 = j j0
   W < j j1 {
-    = bv @ + cr_p tb j 2 = nb @ bv = i 0
-    W < i nb { = s + s * @f + + + bv 1 nb i Pw + 1.0 r / - tf @f + + bv 1 i 31557600.0 = i + i 1 }
+    = bv @ + cr_p tb j 2 = nb @ bv L i nb = s + s * @f + + + bv 1 nb i Pw + 1.0 r / - tf @f + + bv 1 i 31557600.0
     = j + j 1 }
   s }
 : cr_tir iiiff>f tb j0 j1 vv tf {
-  = lo -0.95 = hi 5.0 = k 0
-  W < k 90 { = md * 0.5 + lo hi ? > cr_fv tb j0 j1 md tf vv { = hi md 0 } { = lo md 0 } = k + k 1 }
+  = lo -0.95 = hi 5.0 L k 90 { = md * 0.5 + lo hi ? > cr_fv tb j0 j1 md tf vv { = hi md 0 } { = lo md 0 } }
   * 0.5 + lo hi }
 # o que as mesmas compras valeriam no fundo de referência (vb: os preços, pb: o preço agora)
 : cr_bench iif>f tb vb pb {
   = s 0.0 = j 0
-  W < j @ tb { = bv @ + cr_p tb j 2 = nb @ bv = i 0
-    W < i nb { = s + s / @f + + + bv 1 nb i cr_px vb @f + + bv 1 i = i + i 1 } = j + j 1 }
+  W < j @ tb { = bv @ + cr_p tb j 2 = nb @ bv L i nb = s + s / @f + + + bv 1 nb i cr_px vb @f + + bv 1 i = j + j 1 }
   * s pb }
 # "03/2024"
 : cr_mes f>i t { _dt_civil _dt_dia I * t 1000.0 = c _dt_cv _nu_pzk @ + c 1 2 P '/ N @ c 0 }
-: cr_pc f>i x { ? >= x 0.0 P '+ { P 226 P 136 P 146 0 } _nu_intl * Ab x 100.0 1 " %" 0 }
+: cr_pc f>i x `{ ? >= x 0.0 P '+ { P 226 P 136 P 146 0 } }{ _nu_intl * Ab x 100.0 1 } %`
 : cr_eursg f>i x { ? >= x 0.0 P '+ { P 226 P 136 P 146 0 } cs_eur Ab x 0 }
 
 # o gráfico da evolução: o valor (com a área) e o que foi investido, com o dedo (data-tx) como no simulador
 : cr_graf iiff>i tb na t0 tf {
-  = kk 60 = vm 1.0 = k 0
-  W < k kk { = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 = e 0.0 = j 0
-    W < j na { = v + v cr_vt cr_p tb j t = e + e cr_it cr_p tb j t = j + j 1 }
-    = vm Mx vm Mx v e = k + k 1 }
+  = kk 60 = vm 1.0 L k kk { = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 = e 0.0 L j na { = v + v cr_vt cr_p tb j t = e + e cr_it cr_p tb j t }
+    = vm Mx vm Mx v e }
   = vm * vm 1.06
-  "<svg class=\"sim-g real-g\" viewBox=\"0 0 340 208\" role=\"img\" aria-label=\"Evolução da carteira: arrasta para ver cada mês\">"
-  "<path class=\"real-a\" d=\"M34 186" = k 0
-  W < k kk { = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 = j 0 W < j na { = v + v cr_vt cr_p tb j t = j + j 1 }
-    " L" _nu_fixo + 34.0 / * 296.0 F k F - kk 1 1 P 32 _nu_fixo cs_y v vm 1 = k + k 1 }
-  " L330 186 Z\"/><path class=\"sim-inv\" d=\"M" = k 0
-  W < k kk { = t + t0 * - tf t0 / F k F - kk 1 = e 0.0 = j 0 W < j na { = e + e cr_it cr_p tb j t = j + j 1 }
-    ? k " L" 0 _nu_fixo + 34.0 / * 296.0 F k F - kk 1 1 P 32 _nu_fixo cs_y e vm 1 = k + k 1 }
-  "\"/><path class=\"real-v\" d=\"M" = k 0
-  W < k kk { = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 = j 0 W < j na { = v + v cr_vt cr_p tb j t = j + j 1 }
-    ? k " L" 0 _nu_fixo + 34.0 / * 296.0 F k F - kk 1 1 P 32 _nu_fixo cs_y v vm 1 = k + k 1 }
-  "\"/>"
-  "<text class=\"sim-t\" x=\"30\" y=\"18\" text-anchor=\"end\">" _nu_compacto vm "</text>"
-  "<text class=\"sim-t\" x=\"30\" y=\"189\" text-anchor=\"end\">0</text>"
-  "<text class=\"sim-t\" x=\"34\" y=\"203\">" cr_mes t0 "</text>"
-  "<text class=\"sim-t\" x=\"330\" y=\"203\" text-anchor=\"end\">hoje</text>"
-  "<line class=\"sim-cur\" x1=\"-9\" x2=\"-9\" y1=\"10\" y2=\"186\"/>"
-  = w / 296.0 F - kk 1 = k 0
-  W < k kk { = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 = e 0.0 = j 0
-    W < j na { = v + v cr_vt cr_p tb j t = e + e cr_it cr_p tb j t = j + j 1 }
+  `<svg class="sim-g real-g" viewBox="0 0 340 208" role="img" aria-label="Evolução da carteira: arrasta para ver cada mês">`
+  `<path class="real-a" d="M34 186` L k kk { = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 L j na = v + v cr_vt cr_p tb j t
+    ` L{ _nu_fixo + 34.0 / * 296.0 F k F - kk 1 1 }{ P 32 }{ _nu_fixo cs_y v vm 1 }` }
+  ` L330 186 Z"/><path class="sim-inv" d="M` L k kk { = t + t0 * - tf t0 / F k F - kk 1 = e 0.0 L j na = e + e cr_it cr_p tb j t
+    Se k " L" _nu_fixo + 34.0 / * 296.0 F k F - kk 1 1 P 32 _nu_fixo cs_y e vm 1 }
+  `"/><path class="real-v" d="M` L k kk { = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 L j na = v + v cr_vt cr_p tb j t
+    Se k " L" _nu_fixo + 34.0 / * 296.0 F k F - kk 1 1 P 32 _nu_fixo cs_y v vm 1 }
+  `"/>`
+  `<text class="sim-t" x="30" y="18" text-anchor="end">{ _nu_compacto vm }</text>`
+  `<text class="sim-t" x="30" y="189" text-anchor="end">0</text>`
+  `<text class="sim-t" x="34" y="203">{ cr_mes t0 }</text>`
+  `<text class="sim-t" x="330" y="203" text-anchor="end">hoje</text>`
+  `<line class="sim-cur" x1="-9" x2="-9" y1="10" y2="186"/>`
+  = w / 296.0 F - kk 1 L k kk { = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 = e 0.0 L j na { = v + v cr_vt cr_p tb j t = e + e cr_it cr_p tb j t }
     = x + 34.0 * w F k
-    "<rect class=\"sim-hit\" x=\"" _nu_fixo - x / w 2.0 1 "\" y=\"0\" width=\"" _nu_fixo w 1 "\" height=\"208\" data-x=\"" _nu_fixo x 1 "\" data-tx=\""
-    ? == k - kk 1 "Hoje" cr_mes t ": " cs_eur v " · investido " cs_eur e ? > e 0.0 { " · " cr_pc - / v e 1.0 0 } 0 "\"/>"
-    = k + k 1 }
-  "</svg>" 0 }
+    `<rect class="sim-hit" x="{ _nu_fixo - x / w 2.0 1 }" y="0" width="{ _nu_fixo w 1 }" height="208" data-x="{ _nu_fixo x 1 }" data-tx="`
+    `{ ? == k - kk 1 "Hoje" cr_mes t }: { cs_eur v } · investido { cs_eur e }{ Se > e 0.0 ` · { cr_pc - / v e 1.0 }` }"/>` }
+  "</svg>" }
 
 # o editor: desde quando compra pelo plano e quanto por mês, ativo a ativo
 : cr_campo iii>i k nome t {
-  = v _ar_vnum _ar_get k nome ? && _nu_fin v > v 0.0 _nu_ps v 0 0 }
+  = v num _ar_get k nome Se && fin v > v 0.0 _nu_ps v }
 # um campo de data do editor (f: "qd" ou "plan"), com um ✕ para a apagar quando tem data (no iPhone não há outra maneira)
 : cr_data iii>i c k f {
   = v _ar_get c f
-  "<span class=\"dt\"><input class=\"inp\" type=\"date\" data-lot=\"" _tx_p f "\" data-k=\"" _ar_ps k 1 "\" value=\"" _ar_ps v 1 "\">"
-  ? _ar_verd v { "<button type=\"button\" class=\"dt-x\" data-act=\"lot-clear\" data-k=\"" _ar_ps k 1 "\" data-f=\"" _tx_p f "\" aria-label=\"Apagar a data\">✕</button>" 0 } 0
+  `<span class="dt"><input class="inp" type="date" data-lot="{ crut f }" data-k="{ esc k }" value="{ esc v }">`
+  Se ha v `<button type="button" class="dt-x" data-act="lot-clear" data-k="{ esc k }" data-f="{ crut f }" aria-label="Apagar a data">✕</button>`
   "</span>" }
 : cr_editor ii>i l aberto {
-  "<details class=\"how real-ed\" data-fold=\"real-ed\"" ? aberto " open" 0 "><summary>O que tens e as tuas compras</summary>"
-  "<div class=\"real-imp\"><small class=\"real-gt\">Colar de uma vez</small><textarea class=\"inp\" id=\"lot-imp\" rows=\"4\" autocomplete=\"off\" spellcheck=\"false\" placeholder=\"Uma linha por ativo: símbolo, quantidade, preço médio de compra e, se quiseres, desde quando. Ex.: VWCE.DE 5,486463 169,86 02/11/2026\"></textarea>"
-  "<button type=\"button\" class=\"btn sm\" data-act=\"lot-import\">Importar</button></div>"
-  = c _ar_prim l
+  `<details class="how real-ed" data-fold="real-ed"{ Se aberto " open" }><summary>O que tens e as tuas compras</summary>`
+  `<div class="real-imp"><small class="real-gt">Colar de uma vez</small><textarea class="inp" id="lot-imp" rows="4" autocomplete="off" spellcheck="false" placeholder="Uma linha por ativo: símbolo, quantidade, preço médio de compra e, se quiseres, desde quando. Ex.: VWCE.DE 5,486463 169,86 02/11/2026"></textarea>`
+  `<button type="button" class="btn sm" data-act="lot-import">Importar</button></div>`
+  = c pri l
   W c {
-    = k _ar_get c $"k"
-    "<div class=\"real-in\"><b>" _ar_ps _ar_get c $"name" 1 "</b>"
-    "<small class=\"real-gt\">O que tens hoje (como na Trade Republic)</small><div class=\"real-g3\">"
-    "<label><small>Quantidade</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"any\" data-lot=\"qty\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"q" 0 "\"></label>"
-    "<label><small>Preço médio de compra (€)</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" data-lot=\"avg\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"avg" 0 "\"></label>"
-    "<label><small>Desde (opcional)</small>" cr_data c k $"qd" "</label></div>"
-    "<small class=\"real-gt\">O plano mensal</small><div class=\"real-g2\">"
-    "<label><small>Desde</small>" cr_data c k $"plan" "</label>"
-    "<label><small>€ por mês</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" min=\"0\" step=\"10\" data-lot=\"pm\" data-k=\"" _ar_ps k 1 "\" value=\"" cr_campo c $"pm" 0
-    "\" placeholder=\"" = pd _ar_vnum _ar_get c $"pmDef" ? && _nu_fin pd > pd 0.0 _nu_ps pd 0 "\"></label></div></div>"
-    = c _ar_prox c }
-  "<p class=\"note\">Copia da Trade Republic, na posição de cada ativo, os «Ativos» (a quantidade) e o «Preço médio de compra»: a app calcula o investido. Com eles, conta o que tens hoje (a TR já inclui as compras do plano); a data, se a puseres, entra no gráfico e no rendimento por ano. Sem eles, conta o plano: nos dias de execução dos Ajustes, com o valor do mês dividido por eles, mais as compras avulsas da cripto (na ficha).</p></details>" 0 }
+    = k c.k
+    `<div class="real-in"><b>{ esc c.name }</b>`
+    `<small class="real-gt">O que tens hoje (como na Trade Republic)</small><div class="real-g3">`
+    `<label><small>Quantidade</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" min="0" step="any" data-lot="qty" data-k="{ esc k }" value="{ cr_campo c $"q" 0 }"></label>`
+    `<label><small>Preço médio de compra (€)</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-lot="avg" data-k="{ esc k }" value="{ cr_campo c $"avg" 0 }"></label>`
+    `<label><small>Desde (opcional)</small>{ cr_data c k $"qd" }</label></div>`
+    `<small class="real-gt">O plano mensal</small><div class="real-g2">`
+    `<label><small>Desde</small>{ cr_data c k $"plan" }</label>`
+    `<label><small>€ por mês</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" min="0" step="10" data-lot="pm" data-k="{ esc k }" value="{ cr_campo c $"pm" 0 }`
+    `" placeholder="` = pd num c.pmDef `{ Se && fin pd > pd 0.0 _nu_ps pd }"></label></div></div>`
+    = c seg c }
+  `<p class="note">Copia da Trade Republic, na posição de cada ativo, os «Ativos» (a quantidade) e o «Preço médio de compra»: a app calcula o investido. Com eles, conta o que tens hoje (a TR já inclui as compras do plano); a data, se a puseres, entra no gráfico e no rendimento por ano. Sem eles, conta o plano: nos dias de execução dos Ajustes, com o valor do mês dividido por eles, mais as compras avulsas da cripto (na ficha).</p></details>` }
 
 # registar (4.20) sem escrever tudo outra vez: uma compra (só os euros; a data e o preço do dia vêm feitos) e o acerto
 # com a TR (escreve-se a quantidade que a TR mostra: a diferença são os arredondamentos e o cashback). Depois, a lista.
 : cr_reg i>i g {
-  = ka _ar_get g $"k"
-  "<div class=\"reg\"><div class=\"reg-h\"><b>Registar</b><small>o plano mensal junta-se sozinho</small></div>"
-  "<label><small>Ativo</small><select class=\"inp\" data-reg=\"k\">"
-  = c _ar_prim _ar_get g $"ks"
-  W c { = k _ar_get c $"k" "<option value=\"" _ar_ps k 1 "\"" ? _ar_igual k ka " selected" 0 ">" _ar_ps _ar_get c $"name" 1 "</option>" = c _ar_prox c }
+  = ka g.k
+  `<div class="reg"><div class="reg-h"><b>Registar</b><small>o plano mensal junta-se sozinho</small></div>`
+  `<label><small>Ativo</small><select class="inp" data-reg="k">`
+  = c pri g.ks
+  W c { = k c.k `<option value="{ esc k }"{ Se igual k ka " selected" }>{ esc c.name }</option>` = c seg c }
   "</select></label>"
-  "<small class=\"real-gt\">Uma compra</small><div class=\"real-g2\">"
-  "<label><small>€ investidos</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" data-reg=\"e\" value=\"" _ar_ps _ar_get g $"e" 1
-  "\" placeholder=\"" = pm _ar_vnum _ar_get g $"pm" ? && _nu_fin pm > pm 0.0 _nu_ps pm 0 0 "\"></label>"
-  "<label><small>Data</small><input class=\"inp\" type=\"date\" data-reg=\"d\" max=\"" _ar_ps _ar_get g $"hoje" 1 "\" value=\"" _ar_ps _ar_get g $"d" 1 "\"></label></div>"
-  "<button type=\"button\" class=\"btn sm reg-bt\" data-act=\"reg-compra\">+ Juntar compra</button>"
-  "<small class=\"real-gt\">Acertar com a TR (arredondamentos e cashback)</small><div class=\"real-g2\">"
-  "<label><small>Quantidade na TR</small><input class=\"inp\" type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" data-reg=\"q\" value=\"" _ar_ps _ar_get g $"q" 1
-  "\" placeholder=\"" = qa _ar_vnum _ar_get g $"qApp" ? && _nu_fin qa > qa 0.0 _nu_intlm qa 6 0 "\"></label>"
-  "<button type=\"button\" class=\"btn sm reg-bt reg-ac\" data-act=\"reg-acerto\">Acertar</button></div>"
-  "<p class=\"note\">A compra entra ao preço de fecho desse dia. No acerto, a diferença para a app entra hoje, ao preço de hoje.</p>"
-  = l _ar_get g $"lista"
-  ? > _ar_n l 0 {
-    "<div class=\"reg-l\">"
-    = c _ar_prim l
+  `<small class="real-gt">Uma compra</small><div class="real-g2">`
+  `<label><small>€ investidos</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="e" value="{ esc g.e }`
+  = pm num g.pm
+  `" placeholder="{ Se && fin pm > pm 0.0 _nu_ps pm }"></label>`
+  `<label><small>Data</small><input class="inp" type="date" data-reg="d" max="{ esc g.hoje }" value="{ esc g.d }"></label></div>`
+  `<button type="button" class="btn sm reg-bt" data-act="reg-compra">+ Juntar compra</button>`
+  `<small class="real-gt">Acertar com a TR (arredondamentos e cashback)</small><div class="real-g2">`
+  `<label><small>Quantidade na TR</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="q" value="{ esc g.q }`
+  = qa num g.qApp
+  `" placeholder="{ Se && fin qa > qa 0.0 _nu_intlm qa 6 }"></label>`
+  `<button type="button" class="btn sm reg-bt reg-ac" data-act="reg-acerto">Acertar</button></div>`
+  `<p class="note">A compra entra ao preço de fecho desse dia. No acerto, a diferença para a app entra hoje, ao preço de hoje.</p>`
+  = l g.lista
+  Se > quantos l 0 {
+    `<div class="reg-l">`
+    = c pri l
     W c {
-      = tp I _ar_vnum _ar_get c $"t" = q _ar_vnum _ar_get c $"q"
-      "<div class=\"reg-i\"><span>" _ar_ps _ar_get c $"d" 1 " · " _ar_ps _ar_get c $"name" 1 "<small>"
+      = tp I num c.t = q num c.q
+      `<div class="reg-i"><span>{ esc c.d } · { esc c.name }<small>`
       ? == tp 0 "plano (estimado)" ? == tp 1 "compra" "acerto com a TR"
-      "</small></span><span class=\"num\">" cr_eursg _ar_vnum _ar_get c $"e" "<small>" ? > q 0.0 "+" 0 _nu_intlm q 6 "</small></span>"
-      ? > tp 0 { "<button type=\"button\" class=\"xbtn\" data-act=\"reg-rm\" data-k=\"" _ar_ps _ar_get c $"k" 1 "\" data-i=\"" _nu_ps _ar_vnum _ar_get c $"i" 0 "\" aria-label=\"Apagar\">✕</button>" 0 } 0
-      "</div>" = c _ar_prox c }
-    "</div>" 0 } 0
-  "</div>" 0 }
+      `</small></span><span class="num">{ cr_eursg num c.e }<small>{ Se > q 0.0 "+" }{ _nu_intlm q 6 }</small></span>`
+      Se > tp 0 { `<button type="button" class="xbtn" data-act="reg-rm" data-k="{ esc c.k }" data-i="{ _nu_ps num c.i }` 0 `" aria-label="Apagar">✕</button>` }
+      "</div>" = c seg c }
+    "</div>" }
+  "</div>" }
 : cr_real i>i r {
-  = l _ar_get r $"ativos"
-  "\n        <section class=\"sec real\"><div class=\"sec-h\"><h2>A tua carteira</h2><button type=\"button\" class=\"lnk real-edit\" data-act=\"real-ed\">Editar o que tenho</button>"
-  ? _ar_verd _ar_get r $"desde" { "<span class=\"sub\">desde " _ar_ps _ar_get r $"desde" 1 "</span>" 0 } 0 "</div>"
-  = tb cr_prep l _ar_vnum _ar_get r $"now" = na @ tb
+  = l r.ativos
+  `\n        <section class="sec real"><div class="sec-h"><h2>A tua carteira</h2><button type="button" class="lnk real-edit" data-act="real-ed">Editar o que tenho</button>`
+  `{ Se ha r.desde `<span class="sub">desde { esc r.desde }</span>` }</div>`
+  = tb cr_prep l num r.now = na @ tb
   ? == na 0 {
-    ? _ar_verd _ar_get r $"loading" "<div class=\"empty\">A carregar os preços…</div>"
-      "<div class=\"empty\">Diz desde quando compras pelo plano (e quanto por mês) para veres quanto vale hoje, quanto ganhaste e a evolução.</div>"
-    cr_editor l 1 "</section>" 0 } {
-    = tf _ar_vnum _ar_get r $"now"
-    = vv 0.0 = ee 0.0 = j 0 W < j na { = p cr_p tb j = vv + vv * @f + p 3 @f + p 4 = ee + ee @f + p 5 = j + j 1 }
+    ? ha r.loading `<div class="empty">A carregar os preços…</div>`
+      `<div class="empty">Diz desde quando compras pelo plano (e quanto por mês) para veres quanto vale hoje, quanto ganhaste e a evolução.</div>`
+    `{ cr_editor l 1 }</section>` } {
+    = tf num r.now
+    = vv 0.0 = ee 0.0 L j na { = p cr_p tb j = vv + vv * @f + p 3 @f + p 4 = ee + ee @f + p 5 }
     = sd cr_semdata tb 0 na
     = t0 ? sd tf cr_t0 tb 0 na
     = umano && == sd 0 >= - tf t0 31557600.0
-    "<div class=\"sim-big\"><small>Vale hoje</small><b class=\"num\">" cs_eur vv "</b>"
-    "<div class=\"sim-rng " ? >= vv ee "up-t" "down-t" "\">" cr_eursg - vv ee " (" cr_pc - / vv ee 1.0 ")"
-    ? umano { " · " cr_pc cr_tir tb 0 na vv tf " por ano" 0 } 0 "</div></div>"
+    `<div class="sim-big"><small>Vale hoje</small><b class="num">{ cs_eur vv }</b>`
+    `<div class="sim-rng { ? >= vv ee "up-t" "down-t" }">{ cr_eursg - vv ee } ({ cr_pc - / vv ee 1.0 })`
+    `{ Se umano ` · { cr_pc cr_tir tb 0 na vv tf } por ano` }</div></div>`
     ? sd 0 {
       cr_graf tb na t0 tf
-      "<div class=\"sim-tip\">Arrasta o dedo no gráfico para ver cada mês.</div>"
-      "<div class=\"sim-leg\"><span><i class=\"b\"></i>vale</span><span><i class=\"v\"></i>investido</span></div>" 0 }
-    "<div class=\"stats sim-st\">"
-    "<div><small>Investido</small><b class=\"num\">" cs_eur ee "</b></div>"
-    "<div><small>Ganho</small><b class=\"num " ? >= vv ee "up-t" "down-t" "\">" cr_eursg - vv ee "</b></div>"
-    "<div><small>Por ano</small><b class=\"num\">" ? umano cr_pc cr_tir tb 0 na vv tf "—" "</b></div>"
-    = bn _ar_get r $"bench" = bh _ar_get bn $"h" = bp _ar_vnum _ar_get bn $"px"
-    ? && && == sd 0 > _ar_n bh 0 && _nu_fin bp > bp 0.0 {
+      `<div class="sim-tip">Arrasta o dedo no gráfico para ver cada mês.</div>`
+      `<div class="sim-leg"><span><i class="b"></i>vale</span><span><i class="v"></i>investido</span></div>` }
+    `<div class="stats sim-st">`
+    `<div><small>Investido</small><b class="num">{ cs_eur ee }</b></div>`
+    `<div><small>Ganho</small><b class="num { ? >= vv ee "up-t" "down-t" }">{ cr_eursg - vv ee }</b></div>`
+    `<div><small>Por ano</small><b class="num">{ ? umano cr_pc cr_tir tb 0 na vv tf "—" }</b></div>`
+    = bn r.bench = bh bn.h = bp num bn.px
+    Se && && == sd 0 > quantos bh 0 && fin bp > bp 0.0 {
       = vb cr_bench tb cr_vec bh bp
-      "<div><small>Tudo em " _ar_ps _ar_get bn $"name" 1 "</small><b class=\"num\">" cs_eur vb "</b></div>" 0 } 0
+      `<div><small>Tudo em { esc bn.name }</small><b class="num">{ cs_eur vb }</b></div>` }
     "</div>"
     # ativo a ativo
-    "<div class=\"list real-l\">" = j 0
-    W < j na {
+    `<div class="list real-l">` L j na {
       = p cr_p tb j = c @ p = v * @f + p 3 @f + p 4 = e @f + p 5
-      "<button type=\"button\" class=\"row\" data-open=\"" _ar_ps _ar_get c $"k" 1 "\"><div class=\"r-main\"><div class=\"r-name\">" _ar_ps _ar_get c $"name" 1
-      "</div><div class=\"r-sub\">investido " cs_eur e
-      ? && @ + p 7 >= - tf cr_t0 tb j + j 1 31557600.0 { " · " cr_pc cr_tir tb j + j 1 v tf " por ano" 0 } 0
-      "</div></div><div class=\"r-px num\"><span class=\"px\">" cs_eur v "</span><span class=\"chg " ? >= v e "up" "down" "\">" cr_pc - / v e 1.0 "</span></div></button>"
-      = j + j 1 }
+      `<button type="button" class="row" data-open="{ esc c.k }"><div class="r-main"><div class="r-name">{ esc c.name }`
+      `</div><div class="r-sub">investido { cs_eur e }`
+      Se && @ + p 7 >= - tf cr_t0 tb j + j 1 31557600.0 ` · { cr_pc cr_tir tb j + j 1 v tf } por ano`
+      `</div></div><div class="r-px num"><span class="px">{ cs_eur v }</span><span class="chg { ? >= v e "up" "down" }">{ cr_pc - / v e 1.0 }</span></div></button>` }
     "</div>"
-    = rg _ar_get r $"reg" ? _ar_verd rg cr_reg rg 0
-    ? sd "<p class=\"note\">Põe a data em «Desde» nos ativos que tens para veres o gráfico e o rendimento por ano.</p>"
-      ? ~ umano "<p class=\"note\">O rendimento por ano aparece quando a primeira compra fizer 1 ano.</p>" 0
-    cr_editor l _ar_verd _ar_get r $"edOpen" "</section>" 0 }
-  0 }
+    = rg r.reg Se ha rg cr_reg rg
+    ? sd `<p class="note">Põe a data em «Desde» nos ativos que tens para veres o gráfico e o rendimento por ano.</p>`
+      Se ~ umano `<p class="note">O rendimento por ano aparece quando a primeira compra fizer 1 ano.</p>`
+    `{ cr_editor l ha r.edOpen }</section>` } }
 
 : ecra_carteira i>i s {
   ! 53 s
-  = rl sg $"real" ? _ar_verd rl cr_real rl 0
-  = m cs_num $"budget" = st cs_num $"start" = g cs_num $"goal" = h _ar_verd sg $"hoje"
+  = rl es.real Se ha rl cr_real rl
+  = m cs_num $"budget" = st cs_num $"start" = g cs_num $"goal" = h ha es.hoje
   = c / Mn 100.0 cs_num $"cp" 100.0
   = y I cs_num $"years"
-  ? < y 1 { = y 20 0 } 0
-  ? > y 60 { = y 60 0 } 0
+  Se < y 1 = y 20
+  Se > y 60 = y 60
   = n * y 12
-  "\n        <section class=\"sec sim\"><div class=\"sec-h\"><h2>Simulador</h2><span class=\"sub\">o teu plano daqui a uns anos</span></div>"
+  `\n        <section class="sec sim"><div class="sec-h"><h2>Simulador</h2><span class="sub">o teu plano daqui a uns anos</span></div>`
   # os controlos (gravam ao largar: data-cfg; − e + num passo)
-  "<div class=\"sim-ctl\">"
+  `<div class="sim-ctl">`
   # quando os valores se afastam da carteira ou do plano dos Ajustes: um botão repõe tudo de uma vez
-  ? _ar_verd sg $"mexido" { "<button type=\"button\" class=\"btn sm sim-repor\" data-act=\"sim-carteira\">↺ " ? _ar_verd sg $"temReal" "Usar a tua carteira e o teu plano" "Usar o teu plano" "</button>" 0 } 0
+  Se ha es.mexido `<button type="button" class="btn sm sim-repor" data-act="sim-carteira">↺ { ? ha es.temReal "Usar a tua carteira e o teu plano" "Usar o teu plano" }</button>`
   cs_ctl $"simBudget" $"Por mês" m 0.0 Mx 3000.0 m 50.0 0
-  cs_ctl $"simStart" ? _ar_verd sg $"startReal" $"Já tens (a tua carteira)" $"Já investido" st 0.0 Mx 200000.0 st 1000.0 0
-  ? _ar_verd sg $"startReal" { "<p class=\"note sim-real\">O valor de hoje da tua carteira, com a divisão real: " _nu_intl * 100.0 cs_c0 c 0 " % em cripto. O dinheiro novo segue o plano.</p>" 0 } 0
+  cs_ctl $"simStart" ? ha es.startReal $"Já tens (a tua carteira)" $"Já investido" st 0.0 Mx 200000.0 st 1000.0 0
+  Se ha es.startReal `<p class="note sim-real">O valor de hoje da tua carteira, com a divisão real: { _nu_intl * 100.0 cs_c0 c 0 } % em cripto. O dinheiro novo segue o plano.</p>`
   cs_ctl $"simYears" $"Anos" F y 1.0 Mx 40.0 F y 1.0 1
   cs_ctl $"simGoal" $"Objetivo" g 0.0 Mx 1000000.0 g 10000.0 2
   "</div>"
   # o valor do futuro ou em euros de hoje
-  "<div class=\"seg sim-seg\" role=\"group\" aria-label=\"Como mostrar os valores\"><button type=\"button\" data-act=\"sim-hoje\" data-v=\"0\"" ? h 0 " class=\"on\"" ">Valor no futuro</button>"
-  "<button type=\"button\" data-act=\"sim-hoje\" data-v=\"1\"" ? h " class=\"on\"" 0 ">Em euros de hoje</button></div>"
-  "<p class=\"note sim-infl\">Com 2 % de inflação por ano, 1000 € daqui a " N y ? == y 1 " ano" " anos" " compram o mesmo que " cs_eur / 1000.0 Pw 1.02 F y " hoje.</p>"
+  `<div class="seg sim-seg" role="group" aria-label="Como mostrar os valores"><button type="button" data-act="sim-hoje" data-v="0"{ ? h 0 ` class="on"` }>Valor no futuro</button>`
+  `<button type="button" data-act="sim-hoje" data-v="1"{ Se h ` class="on"` }>Em euros de hoje</button></div>`
+  `<p class="note sim-infl">Com 2 % de inflação por ano, 1000 € daqui a { N y }{ ? == y 1 " ano" " anos" } compram o mesmo que { cs_eur / 1000.0 Pw 1.02 F y } hoje.</p>`
   ? && == m 0.0 == st 0.0 {
-    "<div class=\"empty\">Escolhe quanto investes por mês (ou quanto já tens investido) para ver onde chegas.</div></section>" 0 } {
+    `<div class="empty">Escolhe quanto investes por mês (ou quanto já tens investido) para ver onde chegas.</div></section>` } {
     = vb cs_vh 1 h n m c st = vp cs_vh 0 h n m c st = vo cs_vh 2 h n m c st
     = inv cs_inv h n m st
-    "<div class=\"sim-big\"><small>Daqui a " N y ? == y 1 " ano" " anos" ", no cenário base" ? h ", em euros de hoje" 0 "</small><b class=\"num\">" cs_eur vb "</b>"
-    "<div class=\"sim-rng\">entre " cs_eur vp " e " cs_eur vo "</div>"
-    "<div class=\"sim-split\">" ? > m 0.0 { cs_eur m " por mês · " 0 } 0
-    ? > c 0.0 { _nu_intl * 100.0 - 1.0 c 0 " % " _ar_ps sg $"core" 1 " · " _nu_intl * 100.0 c 0 " % cripto" 0 } { "100 % " _ar_ps sg $"core" 1 0 } "</div></div>"
+    `<div class="sim-big"><small>Daqui a { N y }{ ? == y 1 " ano" " anos" }, no cenário base{ Se h ", em euros de hoje" }</small><b class="num">{ cs_eur vb }</b>`
+    `<div class="sim-rng">entre { cs_eur vp } e { cs_eur vo }</div>`
+    `<div class="sim-split">{ Se > m 0.0 `{ cs_eur m } por mês · ` }`
+    `{ ? > c 0.0 { `{ _nu_intl * 100.0 - 1.0 c 0 } % { esc es.core } · { _nu_intl * 100.0 c 0 } % cripto` 0 } { `100 % { esc es.core }` 0 } }</div></div>`
     cs_graf h y n m c st g
-    "<div class=\"sim-tip\" id=\"sim-tip\">Arrasta o dedo no gráfico para ver cada ano.</div>"
-    "<div class=\"sim-leg\"><span><i class=\"o\"></i>otimista</span><span><i class=\"b\"></i>base</span><span><i class=\"p\"></i>pessimista</span><span><i class=\"v\"></i>investido</span></div>"
+    `<div class="sim-tip" id="sim-tip">Arrasta o dedo no gráfico para ver cada ano.</div>`
+    `<div class="sim-leg"><span><i class="o"></i>otimista</span><span><i class="b"></i>base</span><span><i class="p"></i>pessimista</span><span><i class="v"></i>investido</span></div>`
     # o resumo: investido, ganho, o outro valor (de hoje ou do futuro), imposto no fim
     = imp / cs_imp n m c st cs_df h n
-    "<div class=\"stats sim-st\">"
-    "<div><small>Investes" ? h ", em euros de hoje" 0 "</small><b class=\"num\">" cs_eur inv "</b></div>"
-    "<div><small>Ganho" ? h " real" " (base)" "</small><b class=\"num up-t\">" cs_eur - vb inv "</b></div>"
-    ? h { "<div><small>Valor no futuro</small><b class=\"num\">" cs_eur cs_val 1 n m c st "</b></div>" 0 }
-      { "<div><small>Em euros de hoje</small><b class=\"num\">" cs_eur / vb Pw 1.02 F y "</b></div>" 0 }
-    "<div><small>Imposto se venderes tudo</small><b class=\"num\">" cs_eur imp "</b></div>"
+    `<div class="stats sim-st">`
+    `<div><small>Investes{ Se h ", em euros de hoje" }</small><b class="num">{ cs_eur inv }</b></div>`
+    `<div><small>Ganho{ ? h " real" " (base)" }</small><b class="num up-t">{ cs_eur - vb inv }</b></div>`
+    ? h `<div><small>Valor no futuro</small><b class="num">{ cs_eur cs_val 1 n m c st }</b></div>`
+      `<div><small>Em euros de hoje</small><b class="num">{ cs_eur / vb Pw 1.02 F y }</b></div>`
+    `<div><small>Imposto se venderes tudo</small><b class="num">{ cs_eur imp }</b></div>`
     "</div>"
     # o objetivo (em euros de hoje, se é assim que se mostra)
-    ? > g 0.0 {
+    Se > g 0.0 {
       = mb cs_meta 1 h m c st g = mp cs_meta 0 h m c st g = mo cs_meta 2 h m c st g
-      "<div class=\"box sim-meta\"><h3>Objetivo: " cs_eur g ? h " de hoje" 0 "</h3>"
+      `<div class="box sim-meta"><h3>Objetivo: { cs_eur g }{ Se h " de hoje" }</h3>`
       ? < mb 0 "<p>Com este plano, não chegas lá em 100 anos no cenário base. Sobe o valor por mês ou o que já tens investido.</p>"
-      { "<p>Chegas lá em <b>" cs_tempo mb "</b> no cenário base"
-        ? && >= mo 0 >= mp 0 { " (entre " cs_tempo mo " e " cs_tempo mp ")" 0 } ? >= mo 0 { " (no otimista, em " cs_tempo mo ")" 0 } 0
+      { `<p>Chegas lá em <b>{ cs_tempo mb }</b> no cenário base`
+        ? && >= mo 0 >= mp 0 ` (entre { cs_tempo mo } e { cs_tempo mp })` Se >= mo 0 ` (no otimista, em { cs_tempo mo })`
         ".</p>"
-        ? > mb n { "<p class=\"note\">Mais do que os " N y " anos simulados: o gráfico não chega lá.</p>" 0 } 0 0 }
-      "</div>" 0 } 0
+        Se > mb n `<p class="note">Mais do que os { N y } anos simulados: o gráfico não chega lá.</p>` }
+      "</div>" }
     # os marcos
-    "<div class=\"box\"><h3>Ao longo do tempo" ? h " <small>em euros de hoje</small>" 0 "</h3><table class=\"sim-tab\"><thead><tr><th></th><th>Investido</th><th>Base</th><th>Intervalo</th></tr></thead><tbody>"
-    = k 0 W < k 6 {
+    `<div class="box"><h3>Ao longo do tempo{ Se h " <small>em euros de hoje</small>" }</h3><table class="sim-tab"><thead><tr><th></th><th>Investido</th><th>Base</th><th>Intervalo</th></tr></thead><tbody>`
+    L k 6 {
       = t ? == k 0 5 ? == k 1 10 ? == k 2 15 ? == k 3 20 ? == k 4 30 40
-      ? < t y cs_linha t h m c st 0.0 0
-      = k + k 1 }
+      Se < t y cs_linha t h m c st 0.0 }
     cs_linha y h m c st 0.0
     "</tbody></table></div>"
-    "<details class=\"how\" data-fold=\"sim-how\"" ? _ar_verd sg $"howOpen" " open" 0 "><summary>Como é feita a conta</summary><ul>"
+    `<details class="how" data-fold="sim-how"{ Se ha es.howOpen " open" }><summary>Como é feita a conta</summary><ul>`
     "<li>Mês a mês: o que já tens rende e entra o valor do plano, dividido como no plano do mês.</li>"
     "<li>Ações (o fundo núcleo): 3 % por ano no pessimista, 6 % no base e 9 % no otimista. As ações do mundo renderam cerca de 8 % por ano nos últimos 50 anos, antes da inflação.</li>"
     "<li>Cripto: 0 %, 10 % e 25 % por ano. Pode também cair muito mais.</li>"
     "<li>Em euros de hoje: tudo dividido pela inflação de 2 % por ano até à data — é o que esse dinheiro compra hoje.</li>"
     "<li>Imposto, se venderes tudo no fim: cada compra paga pela idade — 28 % até 2 anos, 25,2 % de 2 a 5, 22,4 % de 5 a 8 e 19,6 % com 8 ou mais; a cripto com 1 ano ou mais está isenta.</li>"
-    "</ul></details></section>" 0 }
-  0 }
+    "</ul></details></section>" } }
