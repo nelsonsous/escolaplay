@@ -24,6 +24,9 @@
 #   plural n um mt  "1 dia" ou "3 dias": o inteiro n, um espaço e o texto um (n = 1) ou mt
 # TEXTOS
 #   mesmo a b       dois textos com os mesmos bytes
+#   texto`…`        o texto que o molde escreve (um texto novo, até 2000 bytes): = u texto`/api/itens/{ N id }`
+#                   Qualquer função serve de nome a um molde — aviso`Guardado: { esct nome }` —; o texto é para
+#                   quando se quer só o texto
 # NÚMEROS — o Intl.NumberFormat('pt-PT')
 #   fin x           é finito (nem NaN nem ±Infinity)
 #   casas x d       com d casas: 1234,50                       ate x d      até d casas (sem zeros à direita)
@@ -53,6 +56,7 @@
 : plural iii>i n um mt { N n P 32 _tx_p ? == n 1 um mt }
 
 : mesmo ii>i a b _tx_igual a b
+: texto i>i t t
 
 : fin f>i x _nu_fin x
 : casas fi>i x d _nu_intl x d

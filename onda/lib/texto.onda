@@ -13,6 +13,11 @@
 #   _tx_abre n        abre um texto novo de até n bytes e põe nele a saída (guarda do Oc); _tx_fecha t fecha-o,
 #                     repõe a saída de antes (abrem-se uns dentro dos outros) e devolve ao monte o que sobrou
 #   _tx_copia t       cópia;  _tx_sub t a b: os bytes [a, b) num texto novo
+#   f`…{ código }…`   um MOLDE COM NOME (é da linguagem): o que o molde escrever fica num texto novo, que é o 1.º
+#                     argumento da função f — aviso`Erro { N s } do conector.` abre um texto, escreve nele o molde,
+#                     fecha-o e chama aviso com ele; os outros argumentos vêm a seguir (_an_buscar`/api/x/{ N id }` fn).
+#                     O compilador chama o _ta (abre) e o _tf (fecha e devolve o texto). Leva até 2000 bytes (o resto
+#                     fica de fora): para textos maiores, _tx_abre n … _tx_fecha t. Abrem-se uns dentro dos outros
 # Ler e comparar
 #   _tx_len t (0 para t = 0)   _tx_b t j (o byte j)   _tx_igual a b   _tx_comeca t p   _tx_em t i p (p no byte i)
 #   _tx_acha t p i    o primeiro byte >= i onde está p (o indexOf de bytes), ou -1
@@ -49,6 +54,10 @@
   ! -2 @ h ! -15 @ + h 1
   ? == @ -1 + + t 1 @ + h 2 ! -1 @ t 0
   t }
+# o molde com nome (f`…`): o compilador abre com o _ta e fecha com o _tf, que devolve o texto. Com a guarda do Oc o
+# desvio da saída vem negativo (M[-2] = -t)
+: _ta >i _tx_abre 2000
+: _tf >i { = s @ -2 _tx_fecha ? < s 0 - 0 s s }
 : _tx_copia i>i t { = n _tx_len t = r A + n 1 = j 0 W < j n { ! + + r 1 j _tx_b t j = j + j 1 } ! r + + r 1 n r }
 : _tx_sub iii>i t a b { = r A + 1 - b a = j a W < j b { ! + + r 1 - j a _tx_b t j = j + j 1 } ! r + + r 1 - b a r }
 

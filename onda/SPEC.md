@@ -11,7 +11,8 @@ Não há runtime, GC nem VM. O compilador gera C (e daí código nativo ou WebAs
 - `"..."` imprime o texto e vale 0. Escapes: `\n \t \\ \"`; mudanças de linha literais são permitidas.
 - `$"..."` (o `$` colado às aspas) é um **texto constante**: vale o endereço de um texto fixo no formato do `O t` (M[t] = fim, um byte por palavra em M[t+1 .. M[t]-1]), posto uma vez na zona dos dados (a partir de M[64]). Os mesmos escapes. É só de leitura (não se escreve nele) e textos iguais dão o mesmo endereço. Existe em C, WebAssembly, x86 e arm64; na GPU e no JavaScript não há memória (erro do texto).
 - `` `...` `` (crases) é um **molde**: imprime o texto, como o `"..."`, mas as aspas não se escapam e cada `{ código }` corre nesse sítio — o que o código imprimir sai ali: `` `<b class="{ cls j }">{N j}</b>` ``. Vale 0, como o `"..."`. Dentro de uma interpolação cabe qualquer código (blocos, outros moldes). Uma chaveta ou uma crase a sério escrevem-se `\{`, `\}` e `` \` ``; os outros escapes são os do `"..."`. `` $`...` `` é um texto constante cru, sem interpolações (para JSON e seletores com aspas): `` $`{"a":1}` ``. Textos constantes com o mesmo conteúdo dão o mesmo endereço, seja qual for o delimitador.
-- Um nome é `[a-z_][a-zA-Z0-9_]*`. Qualquer outro token é um operador.
+- **Molde com nome:** um nome colado a um molde — `` f`...` `` — dá à função `f`, como 1.º argumento, **o texto que o molde escreve** (um texto novo, no formato do `O t`); os outros argumentos vêm a seguir: `` aviso`Erro { N s } do conector.` ``, `` _an_buscar`/api/itens/{ N id }` $"lido" ``. É abrir um texto, escrever nele o molde, fechá-lo e chamar `f` com ele, sem local nem tamanho à vista. O leitor dá o nome, uma `` ` `` (operador) e o molde; a crase chama `_ta` (abre) e `_tf` (fecha e devolve o texto), que são as da biblioteca que o programa juntou (as de `lib/texto.onda` levam até 2000 bytes e abrem-se umas dentro das outras). O nome tem de ser uma função que leva o texto (um local, um nome com pontos ou uma função sem argumentos são erros, e sem `_ta`/`_tf` também). Precisa de memória, como o ponto: não existe na GPU nem no JavaScript.
+- Um nome é `[a-z_][a-zA-Z0-9_]*` (e acaba também numa crase: é um molde com nome). Qualquer outro token é um operador.
 - **O ponto:** `a.b` é o membro `b` de `a`. O leitor troca-o por `_mb a $"b"`, e `a.b.c` por `_mb _mb a $"b" $"c"`; a função `_mb` ("membro") é a da biblioteca que o programa juntou (a de `lib/arvore.onda` dá o membro de um nó da árvore). A base é um local ou uma função sem argumentos. Sem `_mb` no programa, o ponto é um erro.
 
 ## Programa
@@ -161,8 +162,8 @@ cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala
 | `data` | `_dt_` | dia civil ⇄ dias, `toISOString`, dia da semana, Lisboa (as regras da UE) |
 | `ordenar` | `_or_` | o `sort` do V8, comparação a comparação: o PowerSort do Chromium e o TimSort do Node 22, com o comparador num código |
 | `html` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
-| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–110` e `Y 200–214`) com nomes |
-| `fala` | (sem `_`) | a fala das apps, opcional: nomes curtos para ler um nó (`ha`, `eh`, `num`, `int`, `txt`, `pri`, `seg`…), escrever (`esc`, `cru`, `plural`), números pt-PT (`casas`, `ate`, `inteiro`, `moeda`) e ações dos botões (`acao`, `arg`, `eacao`). Com os moldes e o ponto: `` `<b>{ esc c.nome }</b>` `` |
+| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–117` e `Y 200–214`) com nomes |
+| `fala` | (sem `_`) | a fala das apps, opcional: nomes curtos para ler um nó (`ha`, `eh`, `num`, `int`, `txt`, `pri`, `seg`…), escrever (`esc`, `cru`, `plural`), o texto de um molde (`` texto`…` ``), números pt-PT (`casas`, `ate`, `inteiro`, `moeda`) e ações dos botões (`acao`, `arg`, `eacao`). Com os moldes e o ponto: `` `<b>{ esc c.nome }</b>` `` |
 
 - **Nomes:** `_` + o prefixo do módulo + `_` + o nome. As apps não começam nomes por `_` e o runtime não usa um segundo `_`: não
   colidem. Como são privados no `-w`, só entra o que a app usa: com a biblioteca toda junta, o módulo sai igual ao byte

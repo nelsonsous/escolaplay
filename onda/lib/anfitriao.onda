@@ -1,4 +1,4 @@
-# anfitriao.onda — as portas dos anfitriões, com nomes: o das apps (rt/anfitriao.js, browser e Node: Y 100–110) e o
+# anfitriao.onda — as portas dos anfitriões, com nomes: o das apps (rt/anfitriao.js, browser e Node: Y 100–117) e o
 # dos scripts (rt/anfitriao-node.js: Y 200–214, e também 103/104/108/109). Um texto é o do texto.onda; um nome de
 # função (fn) é um texto com o nome de uma função da Onda que o anfitrião chama (não pode começar por _).
 #
@@ -9,6 +9,12 @@
 #   _an_buscar url fn  fetch(url); no fim chama fn(t, estado): o corpo e o estado HTTP (0 = falhou)
 #   _an_ler k / _an_gravar k t   o armazém do browser (localStorage): o texto (ou 0) / grava (t = 0 apaga)
 #   _an_log t          console.log;  _an_titulo t: document.title
+#   _an_buscam url fn ms   o _an_buscar com memória: se há uma resposta 200 desse url guardada há menos de ms, chama
+#                      logo fn com ela (sem ir à rede; devolve 1); senão vai buscar e guarda a que chegar (precisa de texto.onda)
+#   _an_guardar k t / _an_lembrar k ms   a mesma memória, à mão: guarda t com a chave k / o texto guardado há menos
+#                      de ms (ou 0);  _an_esquecer: esquece tudo (depois de uma escrita, p. ex.)
+#   _an_som url        toca o som do url (um leitor só para a app); com o url que já está a tocar, pára-o. 1 se começou
+#   _an_somfim fn      quando o som acaba, pára ou falha, chama fn(0);  _an_atocar: o url que está a tocar (ou 0)
 # Os dois anfitriões
 #   _an_relogio ms fn  chama fn(0) a cada ms (devolve o id);  _an_parar id
 #   _an_agora          ms desde 1970 (inteiro);  _an_agoraf: o mesmo em real;  _an_aleat n: inteiro em [0, n)
@@ -39,6 +45,13 @@
 : _an_agoraf >f F Y 108 0 0
 : _an_aleat i>i n Y 109 n 0
 : _an_titulo i>i t Y 110 t 0
+: _an_som i>i url Y 111 url 0
+: _an_somfim i>i fn Y 112 fn 0
+: _an_guardar ii>i k t Y 113 k t
+: _an_lembrar ii>i k ms Y 114 k ms
+: _an_esquecer >i Y 115 0 0
+: _an_atocar >i Y 116 0 0
+: _an_buscam iii>i url fn ms { = t _tx_abre + _tx_len url 24 _tx_p url P 9 N ms _tx_fecha t Y 117 t fn }
 : _an_arg i>i i Y 200 i 0
 : _an_env i>i t Y 201 t 0
 : _an_fich i>i t Y 202 t 0

@@ -35,8 +35,10 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   afinar na **mesma** playlist (troca as faixas no Tidal, sem cópias), **«Mais como esta»** (as faixas parecidas do
   Tidal), apagar também no Tidal e, para o Maestro, as tuas mixes e os álbuns novos dos artistas que segues.
   Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Maestro).
-- **App em Onda** ([`app/musica.onda`](app/musica.onda)) — monta-se com a biblioteca de apps da Onda e o motor
-  (`cat onda/lib/app.onda musica/onda/motor.onda musica/app/musica.onda | ondac -w`) e corre no anfitrião das apps Onda:
+- **App em Onda** ([`app/musica.onda`](app/musica.onda)) — na Onda fluida (moldes, o ponto, a fala e moldes com
+  nome), monta-se com a biblioteca da Onda (`onda/lib`) e o motor (`node musica/onda/compilar.mjs`, que tira da fonte
+  as funções que o anfitrião chama) e corre no anfitrião das apps Onda. O plano da revisão em dez voltas está em
+  [`PLANO.md`](PLANO.md). Os ecrãs:
   os ecrãs (Playlists com ▶ para ouvir no Tidal, a playlist com o porquê de cada faixa e a mistura — toca numa faixa
   para **«Mais como esta»** —, **Afinar no telemóvel**, Pedir, Gosto, Ajustes), o estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
   app a cada mudança (estilo, arco, número de faixas, máximo por artista, fixar, tirar, juntar do Tidal) em menos de

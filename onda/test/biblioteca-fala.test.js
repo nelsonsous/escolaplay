@@ -48,6 +48,7 @@ test('fala: os numeros pt-PT, o plural e as acoes dos botoes', () => {
   plural 1 $"dia" $"dias" P '| plural 0 $"dia" $"dias" P '| plural 12 $"lugar" $"lugares" P 10
   = t $"abre:42" crut acao t P '| N arg t P '| N eacao t $"abre" N eacao t $"abr" N eacao t $"abre:" P 10
   = u $"fecha" crut acao u P '| N arg u P '| N arg $"x:-7" P '| N arg $"x:" P 10
+  = n 3 = v texto\`/api/itens/{ N n }?q={ esct $"a&b" }\` crut v P '| N mesmo v $"/api/itens/3?q=a&amp;b" P '| N _tx_len texto\`{ N n }{ crut texto\`-{ N n }\` }\` P 10
   0 }`;
   const out = corre(src).split('\n');
   const f = (o) => new Intl.NumberFormat('pt-PT', o);
@@ -56,4 +57,7 @@ test('fala: os numeros pt-PT, o plural e as acoes dos botoes', () => {
   assert.strictEqual(out[xs.length], '1 dia|0 dias|12 lugares');
   assert.strictEqual(out[xs.length + 1], 'abre|42|100');
   assert.strictEqual(out[xs.length + 2], 'fecha|0|-7|0');
+  // o texto`...`: o que o molde escreve, num texto novo (com um JS template literal seria o mesmo texto)
+  const n = 3;
+  assert.strictEqual(out[xs.length + 3], `/api/itens/${n}?q=a&amp;b|1|${`${n}${`-${n}`}`.length}`);
 });
