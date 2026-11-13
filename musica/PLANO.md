@@ -24,7 +24,7 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 
 | # | O que muda para ti | Por dentro |
 |---|---|---|
-| **1** ✔ | Nada à vista. | `musica.onda` na Onda fluida e na biblioteca nova (1357 → 984 linhas). Onda it.151: o molde com nome. Este plano. |
+| **1** ✔ | Nada à vista. | `musica.onda` na Onda fluida e na biblioteca nova (1357 → 984 linhas). Onda it.152: o molde com nome. Este plano. |
 | **2** | Uma só folha por playlist. Mudar o nome, apagar e «atualizar sozinha» passam para a folha. As faixas ficam simples. | Sai a vista 2 (`v_playlist`) e o que só ela usava; a folha lê um só documento. |
 | **3** | **Trocar (⇄)** uma faixa, na hora e logo no Tidal. O ✕ passa a tirar a faixa (também na hora). | O motor escolhe a substituta entre as candidatas; o Worker dá as parecidas do Tidal; grava com `/versoes`. |
 | **4** | **Afinar** na folha com quatro botões e o gráfico da energia. | O afinador passa para a folha; o gráfico é SVG escrito pela Onda (uma função da app, depois da biblioteca). |

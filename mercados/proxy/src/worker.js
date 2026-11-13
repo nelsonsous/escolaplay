@@ -6,7 +6,7 @@
 // no CDN da Cloudflare (muitos pedidos iguais = uma ida à fonte).
 //
 //   GET /health                               → { ok, version }
-//   GET /consensus?symbols=NVDA,ALV.DE         → consenso dos analistas (recomendação, quantos, preço-alvo) e os fundamentos (P/E, vendas, margem) — ações
+//   GET /consensus?symbols=NVDA,ALV.DE,VWCE.DE → ações: consenso dos analistas, fundamentos, revisões das estimativas e surpresas dos resultados; fundos: P/E, custo e maiores posições
 //   GET /quotes?symbols=BZ=F,AAPL&range=1d    → cotações + série (até 40 símbolos)
 //   GET /news?q=Galp&lang=pt&sym=GALP.LS      → notícias (Google, Bing ou Yahoo, por esta ordem)
 //   GET /movers                               → maiores subidas/descidas/volume nos EUA (Yahoo)
@@ -30,7 +30,7 @@
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.7.0';
+const VERSION = '1.8.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -73,11 +73,18 @@ async function getJSON(url, init = {}) {
     return r.json();
 }
 
-// Tenta query1 e, se falhar, query2
-async function yahoo(path, init) {
+// Tenta query1 e, se falhar, query2. Se os dois recusarem por excesso de pedidos ou falha do servidor (429, 5xx),
+// espera um pouco e dá mais uma volta — enquanto houver tentativas em orc.n (cada pedido à app tem o seu orçamento,
+// para não passar o limite de pedidos de saída da Cloudflare quando o Yahoo está em baixo para todos os símbolos).
+async function yahoo(path, init, orc) {
     let err;
-    for (const base of YH) {
-        try { return await getJSON(base + path, init); } catch (e) { err = e; }
+    for (let volta = 0; volta < 2; volta++) {
+        for (const base of YH) {
+            try { return await getJSON(base + path, init); } catch (e) { err = e; }
+        }
+        if (!orc || orc.n <= 0 || !/HTTP (429|5\d\d)/.test(String(err && err.message))) break;
+        orc.n--;
+        await new Promise((r) => setTimeout(r, 300));
     }
     throw err;
 }
@@ -134,9 +141,10 @@ async function quotes(url) {
     if (symbols.length > MAX_SYMBOLS) return { status: 400, body: { error: `máximo ${MAX_SYMBOLS} símbolos por pedido` } };
     const range = RANGES[url.searchParams.get('range')] ? url.searchParams.get('range') : '1d';
     const interval = url.searchParams.get('interval') || RANGES[range].interval;
+    const orc = { n: 4 }; // segundas tentativas deste pedido (cada uma são mais dois pedidos ao Yahoo)
     const out = await Promise.all(symbols.map(async (s) => {
         try {
-            const d = await yahoo(`/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}&includePrePost=false`);
+            const d = await yahoo(`/v8/finance/chart/${encodeURIComponent(s)}?range=${range}&interval=${interval}&includePrePost=false`, undefined, orc);
             return parseChart(d, range, url.searchParams.get('adj') === '1');
         } catch (e) {
             return { symbol: s, error: String(e.message || e) };
@@ -290,39 +298,95 @@ async function calendar(url) {
 // analistas, o preço-alvo (médio, mínimo, máximo) e os votos do mês. ETF, índices e cripto não têm: none.
 // Desde a 1.7.0 também os fundamentos da empresa, em f (só se o Yahoo os dá): o P/E esperado (sem ele, o dos últimos
 // 12 meses), o crescimento das vendas num ano e a margem de lucro (frações: 0,12 = 12 %).
+// Desde a 1.8.0, no mesmo pedido ao Yahoo:
+//   f      mais fundamentos, só os que há: roe (rentabilidade do capital), de (dívida / capital, em %), eg (crescimento
+//          dos lucros), peg, pb (preço / valor contabilístico), beta, short (parte das ações vendidas a descoberto),
+//          dy (dividendo)
+//   rev    as estimativas de lucro deste ano: up e down (quantos analistas as subiram e desceram em 30 dias) e chg
+//          (quanto a estimativa mudou em 90 dias, em fração)
+//   sur    os últimos resultados (até 4 trimestres): n, beats (acima do esperado) e avg (a surpresa média, em fração)
+//   votes3 os votos de há 3 meses, para ver para onde vão as recomendações
+// E, para os fundos (um segundo pedido, só para o que não tem analistas nem fundamentos):
+//   fund   pe e pb (os das empresas que o fundo tem), ter (o custo por ano, em fração) e top (as 5 maiores posições:
+//          [nome, peso em fração])
+const numY = (x) => { const v = rawTs(x); return Number.isFinite(v) ? v : null; };
 export function parseConsensus(d, symbol) {
     const r = d && d.quoteSummary && d.quoteSummary.result && d.quoteSummary.result[0];
-    const f = r && r.financialData, t = r && r.recommendationTrend && Array.isArray(r.recommendationTrend.trend) ? r.recommendationTrend.trend.find((x) => x.period === '0m') : null;
-    const num = (x) => { const v = rawTs(x); return Number.isFinite(v) ? v : null; };
-    const sd = r && r.summaryDetail, fu = { pe: sd ? num(sd.forwardPE) ?? num(sd.trailingPE) : null, cr: f ? num(f.revenueGrowth) : null, mg: f ? num(f.profitMargins) : null };
-    const comF = fu.pe != null || fu.cr != null || fu.mg != null ? { f: fu } : {};
+    const f = r && r.financialData, sd = (r && r.summaryDetail) || {}, ks = (r && r.defaultKeyStatistics) || {}, num = numY;
+    const tr = r && r.recommendationTrend && Array.isArray(r.recommendationTrend.trend) ? r.recommendationTrend.trend : [];
+    const votos = (per) => { const t = tr.find((x) => x && x.period === per); return t ? [t.strongBuy, t.buy, t.hold, t.sell, t.strongSell].map((v) => (Number.isFinite(v) ? v : 0)) : null; };
+    const fu = { pe: num(sd.forwardPE) ?? num(ks.forwardPE) ?? num(sd.trailingPE), cr: f ? num(f.revenueGrowth) : null, mg: f ? num(f.profitMargins) : null };
+    const mais = { roe: f ? num(f.returnOnEquity) : null, de: f ? num(f.debtToEquity) : null, eg: f ? num(f.earningsGrowth) : null,
+        peg: num(ks.pegRatio), pb: num(ks.priceToBook), beta: num(sd.beta) ?? num(ks.beta), short: num(ks.shortPercentOfFloat), dy: num(sd.dividendYield) };
+    const temF = fu.pe != null || fu.cr != null || fu.mg != null || Object.values(mais).some((v) => v != null);
+    for (const [k, v] of Object.entries(mais)) if (v != null) fu[k] = v;
+    // as estimativas de lucro do ano em curso (sem ele, do próximo)
+    const et = r && r.earningsTrend && Array.isArray(r.earningsTrend.trend) ? r.earningsTrend.trend : [];
+    const ano = et.find((x) => x && x.period === '0y') || et.find((x) => x && x.period === '+1y');
+    let rev = null;
+    if (ano) {
+        // o Yahoo não escreve estas chaves sempre da mesma maneira (downLast30days, downLast30Days): sem olhar a maiúsculas
+        const sem = (o, nome) => { const k = Object.keys(o).find((x) => x.toLowerCase() === nome); return k ? o[k] : undefined; };
+        const er = ano.epsRevisions || {}, tt = ano.epsTrend || {};
+        const up = num(sem(er, 'uplast30days')), down = num(sem(er, 'downlast30days')), agora = num(tt.current), antes = num(sem(tt, '90daysago'));
+        const chg = agora != null && antes != null && antes > 0 ? round(agora / antes - 1) : null;
+        if (up != null || down != null || chg != null) rev = { up: up ?? 0, down: down ?? 0, chg };
+    }
+    const eh = r && r.earningsHistory && Array.isArray(r.earningsHistory.history) ? r.earningsHistory.history : [];
+    const ss = eh.map((x) => num(x && x.surprisePercent)).filter((v) => v != null).slice(-4);
+    const sur = ss.length ? { n: ss.length, beats: ss.filter((v) => v > 0).length, avg: round(ss.reduce((a, b) => a + b, 0) / ss.length) } : null;
+    const extra = { ...(temF ? { f: fu } : {}), ...(rev ? { rev } : {}), ...(sur ? { sur } : {}) };
     const n = f ? rawTs(f.numberOfAnalystOpinions) : null;
-    if (!f || !n || !f.recommendationKey || f.recommendationKey === 'none') return { symbol, none: true, ...comF };
+    if (!f || !n || !f.recommendationKey || f.recommendationKey === 'none') return { symbol, none: true, ...extra };
+    const v3 = votos('-3m');
     return {
         symbol, key: String(f.recommendationKey).slice(0, 20), mean: num(f.recommendationMean), n,
         target: num(f.targetMeanPrice), low: num(f.targetLowPrice), high: num(f.targetHighPrice), price: num(f.currentPrice),
         currency: typeof f.financialCurrency === 'string' ? f.financialCurrency.slice(0, 5) : null,
-        votes: t ? [t.strongBuy, t.buy, t.hold, t.sell, t.strongSell].map((v) => (Number.isFinite(v) ? v : 0)) : null,
-        ...comF,
+        votes: votos('0m'), ...(v3 ? { votes3: v3 } : {}),
+        ...extra,
     };
 }
+// os dados de um fundo (ETF): o Yahoo dá o P/E e o P/B das empresas do fundo ao contrário (lucros / preço), por
+// isso um valor entre 0 e 1 inverte-se
+export function parseFund(d) {
+    const r = d && d.quoteSummary && d.quoteSummary.result && d.quoteSummary.result[0];
+    const th = r && r.topHoldings, fp = r && r.fundProfile, num = numY;
+    if (!th && !fp) return null;
+    const eq = (th && th.equityHoldings) || {}, inv = (v) => (v == null || v <= 0 ? null : round(v < 1 ? 1 / v : v));
+    const top = th && Array.isArray(th.holdings) ? th.holdings.slice(0, 5).map((h) => [String((h && (h.holdingName || h.symbol)) || '').slice(0, 40), num(h && h.holdingPercent)]).filter((x) => x[0] && x[1] != null) : [];
+    const fees = fp && fp.feesExpensesInvestment;
+    const out = { pe: inv(num(eq.priceToEarnings)), pb: inv(num(eq.priceToBook)), ter: fees ? num(fees.annualReportExpenseRatio) : null, top };
+    return out.pe == null && out.pb == null && out.ter == null && !top.length ? null : out;
+}
 
+const CONS_MOD = 'financialData,recommendationTrend,summaryDetail', CONS_MAIS = ',defaultKeyStatistics,earningsTrend,earningsHistory';
 async function consensus(url) {
     const symbols = [...new Set((url.searchParams.get('symbols') || '').split(',').map((s) => s.trim()).filter(Boolean))];
     if (!symbols.length) return { status: 400, body: { error: 'falta symbols' } };
     if (symbols.length > MAX_SYMBOLS) return { status: 400, body: { error: `máximo ${MAX_SYMBOLS} símbolos por pedido` } };
     let auth = null;
     try { auth = await getCrumb(); } catch { /* tenta sem */ }
+    const pede = (s, modulos) => fetch(`${YH[1]}/v10/finance/quoteSummary/${encodeURIComponent(s)}?modules=${modulos}${auth ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`, { headers: { 'User-Agent': UA, ...(auth ? { Cookie: auth.cookie } : {}) } });
+    // a Cloudflare dá 50 pedidos de saída por pedido: os dos símbolos, os do crumb e uma folga para os segundos pedidos
+    const orc = { n: Math.max(0, 46 - symbols.length) };
     const items = await Promise.all(symbols.map(async (s) => {
         try {
-            const qs = `modules=financialData,recommendationTrend,summaryDetail${auth ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
-            const r = await fetch(`${YH[1]}/v10/finance/quoteSummary/${encodeURIComponent(s)}?${qs}`, { headers: { 'User-Agent': UA, ...(auth ? { Cookie: auth.cookie } : {}) } });
+            let r = await pede(s, CONS_MOD + CONS_MAIS);
+            // se o Yahoo recusar o pedido maior, o de sempre: o consenso não se perde por causa dos módulos novos
+            if (!r.ok && r.status !== 404 && orc.n > 0) { orc.n--; r = await pede(s, CONS_MOD); }
             if (r.status === 404) return { symbol: s, none: true };
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return parseConsensus(await r.json(), s);
         } catch (e) {
             return { symbol: s, error: String(e.message || e) };
         }
+    }));
+    // os fundos: o que não tem analistas nem fundamentos pode ser um ETF
+    await Promise.all(items.map(async (it) => {
+        if (!it.none || it.f || orc.n <= 0) return;
+        orc.n--;
+        try { const r = await pede(it.symbol, 'topHoldings,fundProfile'); if (r.ok) { const fd = parseFund(await r.json()); if (fd) it.fund = fd; } } catch { /* fica sem os dados do fundo */ }
     }));
     if (items.every((i) => i.error)) { crumbCache = null; return { status: 502, body: { error: 'Yahoo recusou o consenso', items } }; }
     return { body: { at: Math.floor(Date.now() / 1000), items }, ttl: 6 * 3600 };

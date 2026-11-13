@@ -36,7 +36,7 @@ antes (nenhum alvo novo, nenhum custo ao correr):
 - **Moldes** (crases): o texto sai como está, com as aspas à vontade, e cada `{ código }` corre nesse sítio.
 - **O ponto**: `c.nome` é o membro `nome` do nó `c` (da árvore que a ponte escreve, ou de um JSON lido).
 - **`Se c b`** e **`L i n b`**: o «se» sem ramo vazio e o ciclo de contar.
-- **Moldes com nome** (it.151): `` aviso`Erro { N s } do conector.` `` — o texto que o molde escreve é o 1.º argumento
+- **Moldes com nome** (it.152): `` aviso`Erro { N s } do conector.` `` — o texto que o molde escreve é o 1.º argumento
   da função, sem abrir nem fechar texto nenhum (`` texto`…` `` dá só o texto).
 - **A fala** (`lib/fala.onda`): `ha`, `eh`, `num`, `txt`, `esc`, `plural`, `moeda`… em vez dos nomes compridos da biblioteca.
 - **O conversor** (`tools/fluir.mjs`) passa código do estilo antigo para este, sem lhe mudar o significado. Os ecrãs da

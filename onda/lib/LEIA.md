@@ -81,7 +81,7 @@ imprimir para ele. `_tx_abre n` / `_tx_fecha t` fazem um texto novo de até `n` 
 contrário do `O t … O 0`, **repõem a saída de antes**: abrem-se uns dentro dos outros, e uma função da biblioteca que
 faz um texto (o `String(v)` de um valor, por exemplo) pode ser chamada a meio de outra saída.
 
-**Molde com nome** (da linguagem, it.151): quando o texto é para dar a uma função, não é preciso abrir nem fechar —
+**Molde com nome** (da linguagem, it.152): quando o texto é para dar a uma função, não é preciso abrir nem fechar —
 `` f`…{ código }…` `` dá a `f`, como 1.º argumento, o texto que o molde escreve (até 2000 bytes; para mais, o
 `_tx_abre n`). Com a fala, `` texto`…` `` é só o texto:
 
