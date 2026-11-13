@@ -87,6 +87,6 @@ Os pormenores de cada fonte (convicção por prazo, analistas, sinais automátic
 ## Testes
 
 ```bash
-node --test mercados/tests/*.test.*      # análise, Worker (fetch simulado), scripts do conselheiro, a app e os ecrãs em Onda (o mesmo HTML que o JS)
+node --test mercados/tests/*.test.*      # análise, decisão consolidada, Worker (fetch simulado), scripts do conselheiro, a app e os ecrãs em Onda
 node mercados/tests/ui.test.js            # app no Chromium com todas as fontes simuladas
 ```

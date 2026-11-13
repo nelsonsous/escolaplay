@@ -2826,3 +2826,19 @@ no Painel, outra no cartão). Fica uma tabela (`dc_fam`) e um rótulo (`ln_rot`/
 
 **No JS e no CSS.** 24 regras de estilo sem uso (a barra de topo antiga, cartões antigos, uma animação) e um ramo
 morto na leitura dos índices. Uma varredura às funções da Onda e aos nomes de topo do JS não achou mais nada por usar.
+
+## Iteração 150: fecho das dez voltas — documentação e auditoria
+
+**Documentação.** `ARQUITETURA.md` ganhou duas secções: como se escreve a Onda fluida, e as camadas da Mercados (dados,
+motor, decisão, vistas, casca, conselheiro), cada uma com o seu teste; os tamanhos e o estado de cada app ficaram em
+dia. `APPS.md` fecha com o que estas voltas fizeram à fase D. O `SPEC.md` regista o que o conversor passou a dar a
+quem monta um programa.
+
+**Auditoria.** A bateria da Onda (173 testes: 156 passam, 17 saltam por serem do Mac), os 95 da Mercados e o teste de
+interface na fonte e na versão minificada. Nenhuma função da Onda nem nome de topo do JS por usar. O conector
+publicado está na 1.6.0: a 1.7.0 (os fundamentos no consenso) espera a publicação.
+
+**O que as dez voltas deixaram.** Na linguagem: moldes, o ponto, `Se`, `L`, a fala e um conversor. Na Mercados: uma
+decisão por ativo a partir de seis fontes, com a confiança e quem discorda à vista; a ficha com um cartão em vez de
+três caixas; o Painel sem o plano repetido; as regras do conselheiro alinhadas com isso. No código: os ecrãs e os
+scripts do conselheiro na Onda fluida, uma só tabela de veredictos, e o que não se usava fora.
