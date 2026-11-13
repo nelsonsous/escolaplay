@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.23.1';
+const VERSION = '1.24.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -887,7 +887,7 @@ function viewAnalysis() {
             ${sec('A semana em resumo', a.semana, 'an-semana')}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
             ${a.fiabilidade ? `<div class="an-sec"><h4>Fiabilidade</h4><p><span class="badge">${sig(a.fiabilidade.curto, false)}Curto prazo: ${esc(a.fiabilidade.curto === 'media' ? 'média' : a.fiabilidade.curto)}</span><span class="badge">${sig(a.fiabilidade.medio, false)}Médio prazo: ${esc(a.fiabilidade.medio === 'media' ? 'média' : a.fiabilidade.medio)}</span></p>${a.fiabilidade.texto ? `<p style="margin-top:6px">${esc(a.fiabilidade.texto)}</p>` : ''}</div>` : ''}
-            ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}`)}
+            ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}${st.status?.owner && a.dados?.length ? sec('Notas sobre os dados (só para o dono)', a.dados.join('\n')) : ''}`)}
             <p class="an-meta">Feita ${esc(F.ago(r.ageMin ?? 0))} · próxima ${esc(nextRun())}.</p>
         </article>`;
     } else {

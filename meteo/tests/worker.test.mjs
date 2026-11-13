@@ -64,7 +64,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.8.2');
+    assert.equal(j.version, '1.8.3');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -760,4 +760,49 @@ test('1 análise por pessoa: um registo novo com o mesmo nome (histórico limpo,
     const seen = (await J('GET', '/api/places', { owner: CODE, d: dono })).body.map((p) => p.name);
     assert.ok(!seen.includes('Campanhã') && seen.includes('Braga'), JSON.stringify(seen));
     env.KV.m.set('places', before ?? '[]');
+});
+
+test('conector: o Open-Meteo a falhar ou a demorar → a cópia de reserva da última resposta boa (até 6 h)', async () => {
+    const store = new Map(), real = globalThis.caches;
+    globalThis.caches = { default: { match: async (r) => store.get(r.url)?.clone() ?? undefined, put: async (r, res) => { store.set(r.url, res); } } };
+    const pending = [];
+    const c = { waitUntil: (p) => pending.push(p) };
+    const path = '/api/raw/om/forecast?latitude=41.3354&longitude=-8.4745&hourly=temperature_2m';
+    try {
+        globalThis.fetch = async () => new Response('{"ok":1}', { status: 200 });
+        let r = await worker.fetch(new Request(ORIGIN + path), env, c);
+        assert.equal(r.headers.get('x-cache'), 'MISS');
+        await Promise.all(pending);
+        assert.equal(store.size, 2, 'a resposta (15 min) e a reserva (6 h)');
+        assert.match([...store.values()].map((x) => x.headers.get('cache-control')).join(' '), /max-age=900.*max-age=21600/);
+        // a cópia normal expirou e a fonte dá erro: serve a reserva
+        store.delete([...store.keys()].find((k) => !k.includes('__reserva')));
+        globalThis.fetch = async () => new Response('erro', { status: 503 });
+        r = await worker.fetch(new Request(ORIGIN + path), env, c);
+        assert.deepEqual([r.status, r.headers.get('x-cache'), r.headers.get('x-stale-reason'), await r.text()], [200, 'STALE', '503', '{"ok":1}']);
+        // a fonte não responde: desiste no limite e serve a reserva
+        globalThis.fetch = (u, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(init.signal.reason)));
+        const t0 = Date.now();
+        // o limite a 30 ms (o AbortSignal.timeout do Node não segura o processo à espera: um temporizador normal)
+        const realTimeout = AbortSignal.timeout;
+        AbortSignal.timeout = () => { const k = new AbortController(); setTimeout(() => k.abort(Object.assign(new Error('t'), { name: 'TimeoutError' })), 30); return k.signal; };
+        try { r = await worker.fetch(new Request(ORIGIN + path), env, c); } finally { AbortSignal.timeout = realTimeout; }
+        assert.deepEqual([r.headers.get('x-cache'), r.headers.get('x-stale-reason')], ['STALE', 'demora']);
+        assert.ok(Date.now() - t0 < 2000);
+        // sem reserva: o erro de sempre
+        store.clear();
+        globalThis.fetch = async () => new Response('erro', { status: 503 });
+        r = await worker.fetch(new Request(ORIGIN + path), env, c);
+        assert.equal(r.status, 502);
+    } finally { globalThis.caches = real; }
+});
+
+test('análise: notas sobre os dados (opcionais, até 4, cada uma até 160 caracteres)', () => {
+    const base = { titulo: 't', resumo: 'r', agora: 'a', hoje: 'h', amanha: 'm', tendencia: 't', fiabilidade: { curto: 'alta', medio: 'media', texto: 'f' }, tecnica: 't',
+        vestir: 'v', semana: 's', notificacao: { amanha: 'a', semana: 's' }, numeros: [] };
+    assert.deepEqual(validateAnalysis(base, { strict: true }).value.dados, [], 'sem notas: lista vazia (as análises antigas não as têm)');
+    const v = validateAnalysis({ ...base, dados: ['Proteção Civil: sem dados', '', 'Guimarães: pluviómetro com 0 mm sob chuva', 'x', 'y', 'z'] }, { strict: true });
+    assert.deepEqual(v.value.dados, ['Proteção Civil: sem dados', 'Guimarães: pluviómetro com 0 mm sob chuva', 'x']);
+    assert.deepEqual(validateAnalysis({ ...base, dados: ['d'.repeat(177)] }, { strict: true }).errors, ['dados[0] com 177 caracteres (máx. 160)']);
+    assert.ok(ANALYSIS_SCHEMA.properties.dados && /"dados"/.test(SYSTEM_PROMPT));
 });

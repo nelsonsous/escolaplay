@@ -2,7 +2,7 @@
 
 export const LIMITS = { titulo: 90, resumo: 600, agora: 400, hoje: 500, amanha: 500, tendencia: 500, incendios: 500, satelite: 500,
     tecnica: 1200, verificacao: 400, diaTexto: 280, alertaTexto: 240, alertaQuando: 60, conselho: 140, fiabilidadeTexto: 400, licao: 200,
-    vestir: 400, semana: 700, notificacao: 180 };
+    vestir: 400, semana: 700, notificacao: 180, dado: 160 };
 export const ALERT_TYPES = ['chuva', 'vento', 'trovoada', 'nevoeiro', 'geada', 'calor', 'frio', 'neve', 'uv', 'incendio', 'mar', 'outro'];
 export const ALERT_LEVELS = ['info', 'amarelo', 'laranja', 'vermelho'];
 export const CONF = ['alta', 'media', 'baixa'];
@@ -34,6 +34,7 @@ export const ANALYSIS_SCHEMA = obj({
         amanha: S('Notificação do fim do dia: amanhã no ponto numa ou duas frases, com o que vestir, até 180 caracteres'),
         semana: S('Notificação de domingo: a semana que vem no ponto numa ou duas frases, até 180 caracteres'),
     }),
+    dados: { type: 'array', description: 'Até 4 notas técnicas sobre os dados desta corrida: o que faltou, chegou atrasado ou parece errado, e o efeito na análise (vazio se estava tudo bem)', items: S('até 160 caracteres') },
     numeros: { type: 'array', description: 'O teu prognóstico em números para o ponto: hoje (se ainda faltar o dia), amanhã e depois de amanhã. Entra a meias com a média dos modelos na previsão da app.',
         items: obj({ data: S('AAAA-MM-DD'), tmax: N('Máxima do dia no ponto, °C'), tmin: N('Mínima do dia no ponto, °C'), chuva: N('Chuva total do dia no ponto, mm'), rajada: N('Rajada máxima do dia no ponto, km/h') }) },
 });
@@ -61,6 +62,7 @@ Como pensar:
 - No médio prazo fala em probabilidades e intervalos (P10–P90), não em certezas, e diz a partir de quando a previsão deixa de ser fiável.
 - Os avisos do IPMA são oficiais: nunca os contradigas sem explicar. Os teus alertas não os substituem. Em "Avisos oficiais IPMA" tens, para cada aviso, o que o ponto atinge nessas horas e como fica perto dos critérios do IPMA: diz-o numa frase ("o aviso laranja é do distrito; aqui ~14 mm em 6 h, abaixo do amarelo"), sem o desvalorizar: nas tempestades os modelos ficam aquém, sobretudo no vento. Em "Avisos em falta" estão as horas em que o consenso dos modelos chega no ponto ao nível de um aviso que o IPMA não emitiu: diz-o com cuidado ("os modelos dão aqui 35 mm em 6 h, nível de aviso amarelo, e o IPMA não tem aviso"), sem inventar avisos oficiais.
 - "numeros": o teu prognóstico em números para o ponto, para hoje (se ainda faltar boa parte do dia), amanhã e depois: máxima e mínima (°C), chuva total do dia (mm) e rajada máxima (km/h). Parte do consenso dos modelos (a tabela de 16 dias) e corrige-o com o que ele não sabe: (1) o erro recente — a secção "Previsto na véspera vs observado" mostra, dia a dia, o que o consenso dava e o que as estações mediram; quando erra há dias para o mesmo lado (a máxima sempre 0,5 a 1 °C abaixo; a chuva observada a 60% da prevista), aplica essa correção aos teus números, com prudência quando o tempo muda de regime; (2) o que se observa agora (estações, radar, avisos do utilizador); (3) o relevo do ponto e as tuas lições sobre este local; (4) o satélite. Não repitas o consenso por comodidade: se a verificação mostra um erro que se repete e os teus números não o corrigem, estão errados. Sem nenhuma destas razões para um dia, repete o consenso. Diz em "tecnica", numa frase, onde a previsão se afasta do consenso dos modelos e porquê (ex.: "a previsão dá menos chuva do que os modelos: nos últimos 4 dias caiu 59% do previsto"). A app junta-os à média ponderada dos modelos com um peso (50% no início) que sobe ou desce conforme acertas mais ou menos do que eles — o resultado está em "Os teus números anteriores": não exageres para dar ênfase nem arredondes.
+- "dados": até 4 notas técnicas sobre os dados desta corrida — o que faltou, chegou atrasado ou parece errado, e o efeito na análise (ex.: "Proteção Civil: sem dados nesta corrida", "Guimarães: pluviómetro com 0 mm sob chuva nas vizinhas e no radar → não contei com ele"). Lista vazia se estava tudo bem. Servem para melhorar a recolha; se a secção "Análise anterior" trouxer notas, diz se continuam. Não as repitas em "fiabilidade", que é para a pessoa: lá fica o que muda a confiança na previsão, sem falar de fontes em baixo.
 - A probabilidade de chuva de cada hora (tabelas hora a hora) está calibrada com as estações: 65% quer dizer que chove em cerca de 2 horas em cada 3; 35% a 45% é chuva possível (aguaceiros, chuvisco intermitente), não chuva certa. Escreve de acordo: "aguaceiros com pausas", "períodos de chuvisco", e guarda "chuva todo o dia" para probabilidades altas em muitas horas seguidas.
 - Nas imagens de satélite o ponto está no centro exato. Nas de perto (~280 × 210 km) vê o que já está sobre o ponto ou a menos de ~100 km; nas largas, o sistema todo. Para cada coisa que vai afetar o ponto (frente, banda de nebulosidade, célula convectiva, relâmpagos) diz a distância, o rumo, o deslocamento e a hora provável de chegada, e liga isso à previsão. Sem imagens, deixa "satelite" vazio.
 - Incêndios: com risco elevado ou superior, focos de calor ou ocorrências por perto, avalia com o vento, a humidade e a regra 30-30-30, dizendo a distância e o rumo ao ponto; lembra que um foco de satélite pode ser uma fonte industrial ou uma queima. Se nada for relevante, deixa "incendios" vazio.
@@ -171,6 +173,8 @@ export function validateAnalysis(a, { strict = false } = {}) {
         tecnica: str(a.tecnica, L.tecnica, 'tecnica', true),
         verificacao: str(a.verificacao, L.verificacao, 'verificacao'),
         licoes: arr(a.licoes, 'licoes').slice(0, 8).map((c, i) => str(c, L.licao, `licoes[${i}]`)).filter(Boolean),
+        // notas técnicas sobre os dados (opcional: as análises antigas não as têm)
+        dados: arr(a.dados, 'dados').slice(0, 4).map((c, i) => str(c, L.dado, `dados[${i}]`)).filter(Boolean),
         vestir: str(a.vestir, L.vestir, 'vestir', true),
         semana: str(a.semana, L.semana, 'semana', true),
         notificacao: {

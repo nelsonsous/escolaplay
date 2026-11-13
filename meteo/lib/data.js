@@ -261,7 +261,7 @@ export async function loadForecast(o = {}) {
     }
     const ctx = { base: o.base ?? PROXY, preferProxy: !!o.preferProxy };
     const pt = inPortugal(lat, lon), eu = inEuropeFirms(lat, lon);
-    const q = omQueries(lat, lon);
+    const q = omQueries(lat, lon, { prevDays: o.prevDays });
     const B = ctx.base;
     const T = {
         det: settle(om('forecast', q.forecast, ctx, 20000)),
@@ -281,7 +281,8 @@ export async function loadForecast(o = {}) {
             rcm1: settle(cached('ipma:rcm1', 36e5, () => request(IPMA.rcm1))),
             districts: settle(cached('ipma:districts', 7 * 864e5, () => request(IPMA.districts))),
             // a ANEPC recusa o conector e bloqueia pedidos de outros sites: depois de uma falha, pausa de 12 h
-            fogos: fogosPaused() ? { ok: false, e: new Error('em pausa: a ANEPC não aceita o conector (nova tentativa daqui a umas horas)') }
+            // a tarefa da análise traz a sua cópia (vai diretamente ao fogos.pt, que recusa o conector)
+            fogos: o.fogos ? { ok: true, v: o.fogos } : fogosPaused() ? { ok: false, e: new Error('em pausa: a ANEPC não aceita o conector (nova tentativa daqui a umas horas)') }
                 : settle(request(`${B}/api/raw/fogos`, { timeout: 10000 }).catch((e) => { pauseFogos(); throw e; })),
             ipmaFc: settle(ipmaOfficial(lat, lon)),
         } : {}),
@@ -302,7 +303,8 @@ export async function loadForecast(o = {}) {
             // estações IPMA perto pela posição, mesmo sem observações recentes (o IPMA às vezes falha): o histórico
             // guardado no conector continua a servir para a verificação e a aprendizagem
             for (const s of ipmaByPosition(ipmaStations, lat, lon)) if (ipmaC.length < 6 && !ipmaC.some((c) => c.id === s.id)) ipmaC.push(s);
-            const histIds = ipmaC.slice(0, 6).map((c) => c.id);
+            // o histórico das estações usadas e das outras até 40 km (até 10): as vizinhas servem para apanhar pluviómetros avariados
+            const histIds = [...new Set([...ipmaC.slice(0, 6).map((c) => c.id), ...ipmaByPosition(ipmaStations, lat, lon, { radiusKm: 40, max: 10 }).map((x) => x.id)])].slice(0, 10);
             if (station?.source === 'IPMA' && !histIds.includes(station.id)) histIds.push(station.id);
             const metarNear = metar.map((m) => ({ id: m.icaoId, d: haversine(lat, lon, m.lat, m.lon) })).filter((m) => m.id && m.d <= 30).sort((a, b) => a.d - b.d)[0];
             const [el, mh, ...hs] = await Promise.all([

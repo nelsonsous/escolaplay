@@ -602,6 +602,14 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.waitForSelector('#d-an[open] .an-sec');
     assert.equal(await page.locator('#an-num, .num-t, .cl-num').count(), 0, 'sem a tabela dos números');
     await noClaude('Análise (completa)');
+    // as notas técnicas da análise sobre os dados (fontes em baixo, pluviómetros suspeitos) só aparecem ao dono
+    const notes = () => page.locator('#d-an .an-sec h4', { hasText: 'Notas sobre os dados' }).count();
+    assert.equal(await notes(), 0, 'quem não é dono não vê as notas sobre os dados');
+    await page.evaluate(() => { const S = window.__mt.st; S.status = { ...(S.status || {}), owner: true }; window.__mt.render(); });
+    assert.equal(await notes(), 1);
+    assert.match(await page.locator('#d-an .an-sec', { hasText: 'Notas sobre os dados' }).textContent(), /^Notas sobre os dados \(só para o dono\)Proteção Civil\s*sem dados nesta corrida\s*Guimarães\s*pluviómetro com 0 mm/);
+    await page.evaluate(() => { const S = window.__mt.st; S.status = { ...S.status, owner: false }; window.__mt.render(); });
+    if (!(await page.locator('#d-an[open]').count())) await page.click('#d-an > summary');
     await page.click('#d-an > summary');
     await page.waitForFunction(() => !document.querySelector('#d-an').open);
     await tab('dias');
