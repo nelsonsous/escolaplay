@@ -48,8 +48,9 @@ nesta tarefa.
      agrupadas pelo pedido, e a pessoa escolhe a que vai para o Tidal. As propostas podem partilhar algumas faixas, mas
      não mais de metade.
    - **Pedidos de afinação** (a linha do pedido diz *"afinar a playlist «…» (`<id>`)"*): uma só versão, publicada com
-     `--renovar <id da playlist> --pedido <id do pedido>` (no mesmo sítio e no mesmo link do Tidal). Tira as faixas da
-     lista *"tira"*, segue o que o texto pede e mantém o resto que encaixe.
+     `--renovar <id da playlist> --pedido <id do pedido>` (no mesmo sítio e no mesmo link do Tidal). A lista *"tira"*
+     são as faixas que a pessoa já tirou ou trocou na app (já não estão na playlist): não as voltes a pôr, e conta
+     com elas para perceber o que ela não quer ali. Segue o que o texto pede e mantém o resto que encaixe.
    - **Playlist da semana**: se o `dados.md` disser *"está na altura de uma nova"* (ou que ainda não há nenhuma) e for
      a corrida da **manhã**, cria a **«Onda da semana · dd/mm»**.
    - **Novidades dos teus artistas**: se o `dados.md` disser *"É sexta de manhã: cria a playlist «Novidades dos teus
