@@ -5,7 +5,7 @@
 // análise diária do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps, tidyCache } from './lib/data.js';
-import { withReport, reportActive, warnHereText, missingText } from './lib/engine.js';
+import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE_MAX_AGE_H, CLAUDE_W } from './lib/engine.js';
 import { mergeMemory, learnHistory, LVARS, LEADS } from './lib/learn.js';
 import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
 import { REPORT_KINDS, REPORT_MIN } from './lib/sources.js';
@@ -16,8 +16,8 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.20.2';
-const SCHEDULE = ['07:34', '13:34', '17:34', '20:34']; // igual ao conector (/api/status)
+const VERSION = '1.21.0';
+const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
     ['geocolour', 'Nuvens', 'Nuvens em cor natural de dia; de noite, infravermelho com as luzes das cidades (satélite MTG, Meteosat de 3.ª geração).'],
@@ -143,7 +143,24 @@ function currentReport() {
     return ok.sort((a, b) => Date.parse(b.time) - Date.parse(a.time))[0] || null;
 }
 // a previsão como se mostra: com o aviso do utilizador aplicado ao "agora" e às próximas 2 h
-const viewFc = () => (st.fc ? withReport(st.fc, currentReport(), Date.now()) : null);
+// os números do Claude (hoje, amanhã e depois) a meias com a média dos modelos: só com a análise deste ponto (≤ 2 km),
+// recente (≤ 16 h) e com a opção ligada (Ajustes → Preferências)
+function claudeNums() {
+    if (cfg.claudeNums === false) return null;
+    const r = st.analysis, n = r?.analysis?.numeros;
+    if (!Array.isArray(n) || !n.length || !((r.ageMin ?? Infinity) <= CLAUDE_MAX_AGE_H * 60)) return null;
+    const ap = analysedPoint();
+    return ap && ap.d <= 2 ? n : null;
+}
+let numMemo = { fc: null, nums: null, out: null };
+/** A previsão com os números do Claude (a mesma sem eles); a de cada ecrã sai daqui */
+function numFc() {
+    const nums = claudeNums();
+    if (numMemo.fc !== st.fc || numMemo.nums !== nums) numMemo = { fc: st.fc, nums, out: st.fc ? withClaude(st.fc, nums) : null };
+    return numMemo.out;
+}
+const viewFc = () => { const fc = numFc(); return fc ? withReport(fc, currentReport(), Date.now()) : null; };
+const claudeDay = (date) => numFc()?.claude?.days?.find((x) => x.date === date) || null;
 let reportT = 0;
 function reportTimer() { // ao fim dos 45 min o aviso deixa de contar: volta a desenhar
     clearTimeout(reportT);
@@ -643,7 +660,7 @@ function tilesSec(fc) {
 function viewDays() {
     const title = TITLES.dias;
     if (!cfg.loc) return needPlace(title);
-    const fc = st.fc;
+    const fc = numFc();
     if (!fc) return { title, html: skeleton() };
     const D = fc.daily || [];
     const ens = fc.ensemble?.members;
@@ -656,7 +673,7 @@ function viewDays() {
     return { title, html: `<section class="sec"><div class="sec-h"><h2>${D.length} dias</h2><span class="sub">toca num dia para ver as horas</span></div>
         <div class="list">${rows}</div>
         <p class="legend-inline" aria-hidden="true"><span class="lg"><i class="k-rb"></i>mín.–máx.</span><span class="lg"><i class="k-wh"></i>80% dos cenários</span><span class="lg">${ui('signal3')}confiança</span></p>
-        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
+        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações${fc.claude ? '; nos dias com ✦, a meias com os números da análise do Claude' : ''}. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
 }
 // escala comum das barras mín.–máx. dos dias (e a faixa P10–P90 por trás)
 function dayScale(D) {
@@ -664,6 +681,26 @@ function dayScale(D) {
     const hi = Math.max(...D.map((d) => (F.isNum(d.tmaxP90) ? d.tmaxP90 : d.tmax)).filter(F.isNum));
     const span = Math.max(1, hi - lo);
     return { lo, hi, pos: (v) => (((v - lo) / span) * 100).toFixed(2), wid: (a, b) => Math.max(0, ((b - a) / span) * 100).toFixed(2) };
+}
+// o que os modelos e o Claude davam para um dia (a app usa a meias)
+const numsTxt = (x) => `${F.deg(x.tmax)} / ${F.deg(x.tmin)}, ${F.mm(x.precip || 0)}, rajada ${F.kmh(x.gust)}`;
+function claudeDayLine(c) {
+    if (!c) return '';
+    return `<p class="cl-num">${ui('sparkle')}<span><b>A meias com os números do Claude.</b> Modelos: ${esc(numsTxt(c.model))} · Claude: ${esc(numsTxt(c.claude))}.</span></p>`;
+}
+// a tabela dos números da análise (separador Análise): o que dão os modelos, o Claude e a app (a meias)
+function claudeNumsHtml(a, today) {
+    const N = a?.numeros || [];
+    if (!N.length) return '';
+    const used = !!numFc()?.claude, why = cfg.claudeNums === false ? 'Desligado nos Ajustes: não entram na previsão.'
+        : !used ? 'Não entram na previsão: a análise não é deste ponto ou já tem mais de 16 h.' : `Entram a meias (${F.num(CLAUDE_W * 100)}%) com a média ponderada dos modelos.`;
+    const rows = N.map((n) => {
+        const c = claudeDay(n.data), lab = today ? F.dayLabel(n.data, today) : n.data;
+        const cl = { tmax: n.tmax, tmin: n.tmin, precip: n.chuva, gust: n.rajada };
+        return `<tr><th scope="row">${esc(cap1(lab))}</th><td>${esc(c ? numsTxt(c.model) : '–')}</td><td>${esc(numsTxt(cl))}</td><td>${esc(c ? numsTxt(c.final) : '–')}</td></tr>`;
+    }).join('');
+    return `<div class="an-sec" id="an-num"><h4>Os números do Claude</h4><div class="cmp-scroll"><table class="tbl"><thead><tr><th scope="col">Dia</th><th scope="col">Modelos</th><th scope="col">Claude</th><th scope="col">Na app</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <p class="hint" style="margin-top:6px">${esc(why)}</p></div>`;
 }
 // uma linha de dia (separador Dias e próximos dias do Agora): nome, ícone, chuva, mín., barra, máx.
 function dayRow(d, i, fc, S, { extras = true } = {}) {
@@ -689,6 +726,7 @@ function dayRow(d, i, fc, S, { extras = true } = {}) {
 }
 function dayExtras(d) {
     const x = [];
+    if (d.claude) x.push('✦ com o Claude');
     if ((d.precip || 0) >= 1) x.push(`${F.mm(d.precip)}${F.isNum(d.precipP90) && d.precipP90 > d.precip * 1.3 + 0.5 ? ` (até ${F.mm(d.precipP90)})` : ''}`);
     if ((d.popHeavy || 0) >= 20) x.push(`chuva forte ${F.pct(d.popHeavy)}`);
     if ((d.gustMax || 0) >= 50) x.push(`rajadas ${F.kmh(d.gustMax)}`);
@@ -845,7 +883,7 @@ function viewAnalysis() {
             <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p style="margin:6px 0 0;color:var(--soft)">${esc(a.resumo)}</p>` : ''}
             ${a.alertas?.length ? `<ul class="tags" aria-label="Alertas do Claude">${a.alertas.map((x) => `<li class="tag ${esc(x.nivel || 'info')}"><span class="dot"></span><span><b>${esc(cap1(x.tipo))}</b>${x.quando ? ` · ${esc(x.quando)}` : ''}${x.texto ? ` — ${esc(x.texto)}` : ''}</span></li>`).join('')}</ul>` : ''}
             ${sec('Amanhã', a.amanha)}${sec('O que vestir amanhã', a.vestir)}
-            ${more('d-an', 'Ver a análise completa', `${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}
+            ${more('d-an', 'Ver a análise completa', `${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}${claudeNumsHtml(a, today)}
             ${a.dias?.length ? `<div class="an-sec"><h4>Próximos dias</h4><ul class="an-days">${a.dias.map((d) => `<li><b>${esc(today ? F.dayLabel(d.data, today) : d.data)}</b>${sig(d.confianca)}<span>${esc(d.texto)}</span></li>`).join('')}</ul></div>` : ''}
             ${sec('A semana em resumo', a.semana, 'an-semana')}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
@@ -1034,7 +1072,9 @@ function viewSettings() {
     adv += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
         <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>
         <div class="sw" id="animacoes"><span><b>Animações</b><br><small class="hint">O céu do cartão «Agora» e os ícones grandes a mexer (chuva, sol, neve…).</small></span>
-        <div class="seg" role="group" aria-label="Animações"><button type="button" data-act="anim-on" class="${cfg.anim !== false ? 'on' : ''}" aria-pressed="${cfg.anim !== false}">Sim</button><button type="button" data-act="anim-off" class="${cfg.anim === false ? 'on' : ''}" aria-pressed="${cfg.anim === false}">Não</button></div></div></div></section>`;
+        <div class="seg" role="group" aria-label="Animações"><button type="button" data-act="anim-on" class="${cfg.anim !== false ? 'on' : ''}" aria-pressed="${cfg.anim !== false}">Sim</button><button type="button" data-act="anim-off" class="${cfg.anim === false ? 'on' : ''}" aria-pressed="${cfg.anim === false}">Não</button></div></div>
+        <div class="sw" id="claude-num"><span><b>Números do Claude</b><br><small class="hint">Hoje, amanhã e depois: a máxima, a mínima, a chuva e as rajadas a meias com a média dos modelos, quando há análise diária deste ponto (✦ nos dias).</small></span>
+        <div class="seg" role="group" aria-label="Números do Claude"><button type="button" data-act="cnum-on" class="${cfg.claudeNums !== false ? 'on' : ''}" aria-pressed="${cfg.claudeNums !== false}">Sim</button><button type="button" data-act="cnum-off" class="${cfg.claudeNums === false ? 'on' : ''}" aria-pressed="${cfg.claudeNums === false}">Não</button></div></div></div></section>`;
     const S = st.fc?.status;
     if (S) adv += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
     adv += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
@@ -1298,7 +1338,7 @@ function renderSheet() {
         return;
     }
     if (s.kind === 'day') {
-        const fc = st.fc, d = fc?.daily?.[s.arg];
+        const fc = numFc(), d = fc?.daily?.[s.arg];
         if (!d) { closeSheet(); return; }
         const today = todayOf(fc);
         const pr = (a, b) => (F.isNum(a) && F.isNum(b) ? `80% entre ${F.num(a, 1)} e ${F.num(b, 1)}°` : '');
@@ -1318,8 +1358,9 @@ function renderSheet() {
             ['Confiança', cap1(d.confidence === 'media' ? 'média' : d.confidence || '–'), F.isNum(d.spread) ? `dispersão ${F.num(d.spread, 1)}°` : ''],
         ];
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">${esc(cap1(F.dayDiff(today, d.date) <= 1 ? F.dayLabel(d.date, today) : F.wdLong(d.date)))}, ${esc(F.dateShort(d.date))}</h2>
-            <div class="d-sub">${esc(F.wxText(d.code))} · ${esc(d.source === 'ensemble' ? `mediana de ${F.num(fc.ensemble?.members || 0)} cenários` : `consenso de ${fc.models?.length || 0} modelos`)}</div></div>${closeBtn}</div>
+            <div class="d-sub">${esc(F.wxText(d.code))} · ${esc(d.source === 'ensemble' ? `mediana de ${F.num(fc.ensemble?.members || 0)} cenários` : `consenso de ${fc.models?.length || 0} modelos${d.claude ? ' e do Claude' : ''}`)}</div></div>${closeBtn}</div>
             <div class="d-big">${weatherIcon(d.code, true, 64, '', cfg.anim !== false)}<div><b class="num">${esc(F.deg(d.tmax))} / ${esc(F.deg(d.tmin))}</b><br><span>máxima e mínima</span></div></div>
+            ${claudeDayLine(claudeDay(d.date))}
             <div class="stats">${stats.map(([k, v, e]) => `<div><small>${esc(k)}</small><b class="num">${esc(v)}</b>${e ? `<em>${esc(e)}</em>` : ''}</div>`).join('')}</div>
             ${hours.length ? `<div class="sec-h"><h2>${next12 ? 'Próximas 12 horas' : 'Hora a hora'}</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="d-chart" class="chart"></div></div>` : '<p class="note">O detalhe hora a hora existe para as próximas 72 horas. Para este dia, os valores vêm da distribuição dos cenários.</p>'}`;
         if (hours.length) renderHourly($('#d-chart'), hours, { todayIso: today });
@@ -1700,6 +1741,7 @@ document.addEventListener('click', (ev) => {
     if (d.report) { submitReport(d.report); return; }
     if (d.fs) { cfg.fs = d.fs; saveCfg(); applyFs(); render(); return; }
     if (d.act === 'anim-on' || d.act === 'anim-off') { cfg.anim = d.act === 'anim-on'; saveCfg(); render(); return; }
+    if (d.act === 'cnum-on' || d.act === 'cnum-off') { cfg.claudeNums = d.act === 'cnum-on'; saveCfg(); render(); return; }
     if (d.lv) { cfg.lv = d.lv; saveCfg(); render(); return; }
     if (d.ll != null) { cfg.ll = +d.ll; saveCfg(); render(); return; }
     if (d.pick != null) {

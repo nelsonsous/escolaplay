@@ -2,10 +2,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildForecast, warnHere, warnHereText, missingWarnings, missingText, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns,
+import { buildForecast, warnHere, warnHereText, missingWarnings, missingText, withClaude, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns,
     buildTerrain, terrainPoints, LOCAL_RULES } from '../lib/engine.js';
 import { wquantile, robustMean, vecDir, haversine, bearing, compass, dewPoint, relHum, wfrac } from '../lib/stats.js';
 
+const r1 = (x) => Math.round(x * 10) / 10;
 const fx = (f) => JSON.parse(readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8'));
 const raw = fx('lisboa-2026-11-06.json');
 // previsão oficial do IPMA (6 nov 2026, atualizada às 08:39) e lista de locais, reduzidas
@@ -486,4 +487,39 @@ test('avisos em falta: os modelos no ponto ao nível de um aviso que o IPMA não
     // no resumo da tarefa do Claude, numa secção à parte
     assert.match(buildSummary({ ...fc, warnMissing: [m, v] }), /## Avisos em falta[^\n]*\nyellow Precipitação 2026-11-11T12:00→2026-11-11T17:00: Aqui: 35 mm em 6 h/);
     assert.ok(Array.isArray(fc.warnMissing));
+});
+
+test('números do Claude: entram a meias com a média dos modelos (dois «modelos»); a curva do dia mantém a forma', () => {
+    const day = (date, i) => ({ date, tmax: 16, tmin: 8, tmaxP10: 15, tmaxP90: 17, tminP10: 7, tminP90: 9, precip: 12, precipP90: 20, gustMax: 40 });
+    const hours = Array.from({ length: 48 }, (_, i) => {
+        const date = i < 24 ? '2026-11-13' : '2026-11-14', hr = i % 24, temp = 8 + 8 * Math.max(0, Math.sin(((hr - 8) / 12) * Math.PI));
+        return { time: `${date}T${String(hr).padStart(2, '0')}:00`, temp, tempLo: temp - 1, tempHi: temp + 1, feels: temp - 2, precip: 0.5, precipHi: 1, gust: 30, gustHi: 40 };
+    });
+    const fc = { daily: [day('2026-11-13'), day('2026-11-14'), day('2026-11-15')], hourly: hours, now: { temp: 12 } };
+    const nums = [{ data: '2026-11-13', tmax: 14, tmin: 4, chuva: 6, rajada: 60 }, { data: '2026-11-14', tmax: 16, tmin: 8, chuva: 12, rajada: 40 }];
+    const c = withClaude(fc, nums);
+    const d0 = c.daily[0];
+    // a meias: máx. (16+14)/2 = 15, mín. (8+4)/2 = 6, chuva (12+6)/2 = 9, rajada (40+60)/2 = 50
+    assert.deepEqual([d0.tmax, d0.tmin, d0.precip, d0.gustMax, d0.claude], [15, 6, 9, 50, true]);
+    assert.deepEqual([d0.tmaxP10, d0.tmaxP90, d0.tminP10, d0.tminP90, d0.precipP90], [14, 16, 5, 7, 15]);
+    assert.equal(c.daily[1], fc.daily[1], 'o Claude igual aos modelos: o dia fica igual');
+    assert.equal(c.daily[2], fc.daily[2], 'sem números do Claude para esse dia');
+    // as horas: as frias descem 2 °C (a mínima), as quentes 1 °C (a máxima); a chuva ×0,75 e as rajadas ×1,25 nesse dia
+    const h = (t) => c.hourly.find((x) => x.time === t), o = (t) => fc.hourly.find((x) => x.time === t);
+    assert.equal(h('2026-11-13T03:00').temp, r1(o('2026-11-13T03:00').temp - 2));
+    assert.equal(h('2026-11-13T14:00').temp, r1(o('2026-11-13T14:00').temp - 1));
+    assert.deepEqual([h('2026-11-13T10:00').precip, h('2026-11-13T10:00').gust], [0.4, 38]);
+    assert.equal(h('2026-11-14T03:00'), o('2026-11-14T03:00'), 'o outro dia não mexe');
+    assert.equal(c.now, fc.now, 'o agora (observado) não mexe');
+    assert.deepEqual(c.claude.days.map((x) => [x.date, x.model.tmax, x.claude.tmax, x.final.tmax]), [['2026-11-13', 16, 14, 15]]);
+    // enganos (muito longe da média) não entram; números a meio do caminho têm limites
+    const e = withClaude(fc, [{ data: '2026-11-13', tmax: 30, tmin: -5, chuva: 400, rajada: 200 }]).daily[0];
+    assert.deepEqual([e.tmax, e.tmin, e.precip, e.gustMax], [16, 8, 12, 64]);
+    assert.equal(withClaude(fc, [{ data: '2026-11-13', tmax: 16, tmin: 8, chuva: 50, rajada: 40 }]).daily[0].precip, 31, 'muita chuva, mas dentro do plausível (≤ 3× o P90): entra a meias');
+    // modelos secos e o Claude com chuva: só um pouco (no máximo 2 mm no dia)
+    const seco = { ...fc, daily: [{ ...day('2026-11-13'), precip: 0 }] };
+    assert.equal(withClaude(seco, [{ data: '2026-11-13', tmax: 16, tmin: 8, chuva: 10, rajada: 40 }]).daily[0].precip, 2);
+    // sem números (análises antigas): a mesma previsão
+    assert.equal(withClaude(fc, []), fc);
+    assert.equal(withClaude(fc, undefined), fc);
 });

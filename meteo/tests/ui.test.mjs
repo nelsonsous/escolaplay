@@ -431,9 +431,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     // junto ao aviso do IPMA (do distrito), o que o ponto atinge nessas horas
     assert.match(await page.locator('.warn .w-here').first().textContent(), /^Aqui: [\d,]+ mm em 6 h e [\d,]+ mm numa hora/);
     // aviso em falta: os modelos no ponto chegam ao nível de um aviso que o IPMA não tem (tracejado, «sem aviso»)
-    await page.evaluate(() => { window.__mt.st.fc.warnMissing = [{ type: 'Vento', level: 'yellow', start: '2026-11-06T18:00', end: '2026-11-06T20:00', covered: 0, here: { kind: 'wind', gust: 85, at: '18:00', level: 'yellow' } }]; window.__mt.render(); });
+    await page.evaluate(() => { window.__mt.st.fc = { ...window.__mt.st.fc, warnMissing: [{ type: 'Vento', level: 'yellow', start: '2026-11-06T18:00', end: '2026-11-06T20:00', covered: 0, here: { kind: 'wind', gust: 85, at: '18:00', level: 'yellow' } }] }; window.__mt.render(); });
     assert.match(await page.locator('.warn.miss.yellow').textContent(), /Vento · nível amarelo, sem aviso.*modelos no teu ponto.*Aqui: rajadas até 85 km\/h às 18h — nível amarelo, sem aviso do IPMA para estas horas\./s);
-    await page.evaluate(() => { window.__mt.st.fc.warnMissing = []; window.__mt.render(); });
+    await page.evaluate(() => { window.__mt.st.fc = { ...window.__mt.st.fc, warnMissing: [] }; window.__mt.render(); });
     assert.equal(await page.locator('.warn.miss').count(), 0);
     console.log('✓ Agora:', temp, '|', (await page.locator('.now-c').textContent()), '| radar no ponto, 72 h, 2 h, 12 indicadores, análise do Claude (desligada por omissão, ligada pelo cartão)');
 
@@ -580,6 +580,30 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(await page.locator('.today .cl-for').textContent(), /^Para Lisboa · 38,7223, −9,1393 · no ponto selecionado$/);
     assert.equal(await page.locator('.far-pt').count(), 0, 'análise deste ponto: sem aviso');
     assert.ok(await page.locator('.today .an-sec').count() >= 8, 'secções da análise');
+    // os números do Claude (sábado e domingo) entram a meias com a média dos modelos: a tabela, ✦ nos dias e a folha do dia
+    assert.match(await page.locator('#an-num').textContent(), /Os números do Claude.*Amanhã.*17° \/ 11°, 2,0 mm, rajada 35 km\/h.*Dom 8.*15° \/ 12°, 18 mm, rajada 55 km\/h.*Entram a meias \(50%\) com a média ponderada dos modelos\./s);
+    await tab('dias');
+    assert.match(await page.locator('.row.day[data-day="2"] .d-x').textContent(), /^✦ com o Claude/);
+    assert.equal(await page.locator('.row.day[data-day="3"] .d-x', { hasText: 'com o Claude' }).count(), 0, 'segunda: sem números do Claude');
+    await page.click('.row.day[data-day="2"]');
+    await page.waitForSelector('#mt-sheet:not([hidden]) .cl-num');
+    const cn = await page.locator('.cl-num').textContent();
+    assert.match(cn, /^A meias com os números do Claude\. Modelos: (\d+)° \/ (\d+)°, [\d,]+ mm, rajada \d+ km\/h · Claude: 15° \/ 12°, 18 mm, rajada 55 km\/h\.$/);
+    const [, mx] = cn.match(/Modelos: (\d+)°/), shown = await page.locator('.d-big b').textContent();
+    assert.equal(shown.split(' / ')[0], `${Math.round((+mx + 15) / 2)}°`, 'a máxima mostrada é a meias: modelos e Claude');
+    assert.match(await page.locator('.d-sub').textContent(), /consenso de \d+ modelos e do Claude/);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    // desligado nos Ajustes: os dias voltam a ser só dos modelos
+    await tab('ajustes');
+    if (!(await page.locator('#d-adv[open]').count())) await page.click('#d-adv > summary'); // as preferências estão em «Avançado»
+    await page.click('[data-act="cnum-off"]');
+    await tab('dias');
+    assert.equal(await page.locator('.d-x', { hasText: 'com o Claude' }).count(), 0);
+    await tab('ajustes');
+    if (!(await page.locator('#d-adv[open]').count())) await page.click('#d-adv > summary');
+    await page.click('[data-act="cnum-on"]');
+    await tab('analise');
     assert.ok(await page.locator('[data-act="place-on"].on').count(), 'análise diária ligada (ligada no passo 2)');
     assert.match(await page.locator('.form .sw .hint').first().textContent(), /Ligada \(Lisboa\)/);
     // desligar pede confirmação; "Cancelar" não apaga nada

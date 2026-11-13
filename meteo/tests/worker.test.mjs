@@ -56,15 +56,16 @@ const ANALISE = { titulo: 'Chuva sábado', resumo: 'r', agora: 'a', hoje: 'h', a
     tendencia: 't', alertas: [{ tipo: 'chuva', nivel: 'amarelo', quando: 'sáb', texto: 'x' }], incendios: '', satelite: '', conselhos: ['Leva guarda-chuva'],
     fiabilidade: { curto: 'alta', medio: 'media', texto: 'ok' }, tecnica: 't', verificacao: '', licoes: [],
     vestir: 'Casaco de manhã, camisola à tarde.', semana: 'Chuva seg e ter; sol depois.',
-    notificacao: { amanha: 'Chuva fraca até às 11h; 9 a 18 °C. Casaco impermeável de manhã.', semana: 'Chuva no início da semana, depois sol.' } };
+    notificacao: { amanha: 'Chuva fraca até às 11h; 9 a 18 °C. Casaco impermeável de manhã.', semana: 'Chuva no início da semana, depois sol.' },
+    numeros: [{ data: '2026-11-08', tmax: 18, tmin: 9, chuva: 4, rajada: 35 }, { data: '2026-11-09', tmax: 17, tmin: 10, chuva: 0, rajada: 30 }] };
 
 test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async () => {
     const r = await call('/api/status');
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.7.0');
-    assert.deepEqual(j.schedule, ['07:34', '13:34', '17:34', '20:34']);
+    assert.equal(j.version, '1.8.0');
+    assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const root = await call('/');
@@ -641,6 +642,17 @@ test('validação da análise: limites, listas e valores permitidos', () => {
     assert.deepEqual(ANALYSIS_SCHEMA.properties.notificacao.required, ['amanha', 'semana']);
     const noWear = validateAnalysis({ ...ANALISE, vestir: '', notificacao: { amanha: 'x'.repeat(181), semana: 's' } }, { strict: true });
     assert.deepEqual(noWear.errors, ['falta vestir', 'notificacao.amanha com 181 caracteres (máx. 180)']);
+    // os números do Claude (máxima, mínima, chuva e rajada): obrigatórios ao publicar, com valores plausíveis
+    assert.ok(ANALYSIS_SCHEMA.required.includes('numeros'));
+    assert.deepEqual(ANALYSIS_SCHEMA.properties.numeros.items.required, ['data', 'tmax', 'tmin', 'chuva', 'rajada']);
+    assert.deepEqual(validateAnalysis(ANALISE, { strict: true }).value.numeros[0], { data: '2026-11-08', tmax: 18, tmin: 9, chuva: 4, rajada: 35 });
+    const { numeros: _, ...semNumeros } = ANALISE;
+    assert.deepEqual(validateAnalysis(semNumeros, { strict: true }).errors, ['falta numeros (máxima, mínima, chuva e rajada de hoje, amanhã e depois)']);
+    assert.deepEqual(validateAnalysis(semNumeros).value.numeros, [], 'as análises antigas (sem números) continuam a ler-se');
+    const maus = validateAnalysis({ ...ANALISE, numeros: [{ data: '2026-11-08', tmax: 8, tmin: 12, chuva: -1, rajada: '45,5' }, { data: 'amanhã', tmax: 1 }] }, { strict: true });
+    assert.deepEqual(maus.errors, ['numeros[0].chuva inválido: -1', 'numeros[0]: a mínima (12) é maior do que a máxima (8)', 'numeros[1].data inválida',
+        'numeros[1].tmin inválido: undefined', 'numeros[1].chuva inválido: undefined', 'numeros[1].rajada inválido: undefined']);
+    assert.deepEqual(maus.value.numeros, [{ data: '2026-11-08', tmax: null, tmin: null, chuva: null, rajada: 45.5 }]);
 });
 
 test('análise focada no ponto: regras e frases sobre a região', () => {

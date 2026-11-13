@@ -14,7 +14,7 @@ test('hora de Lisboa (com a hora de verão) e corrida da manhã', () => {
     assert.deepEqual(lisbon(Date.parse('2026-11-07T11:30:00Z')), { date: '2026-11-07', hour: 11 });
     assert.deepEqual(lisbon(Date.parse('2026-07-01T11:30:00Z')), { date: '2026-07-01', hour: 12 }, 'verão: UTC+1');
     assert.deepEqual(lisbon(Date.parse('2026-07-01T23:30:00Z')), { date: '2026-07-02', hour: 0 });
-    // as corridas são às 07:34, 13:34 e 20:34 de Lisboa
+    // as corridas são às 07:34 e 17:34 de Lisboa
     assert.equal(isMorningRun(Date.parse('2026-11-07T07:34:00Z')), true);
     assert.equal(isMorningRun(Date.parse('2026-07-01T06:34:00Z')), true, '07:34 de verão');
     assert.equal(isMorningRun(Date.parse('2026-07-01T11:40:00Z')), false, '12:40 de verão (11:40 UTC) já não é de manhã');

@@ -290,13 +290,16 @@ export function analyzeRadar({ frames, geo, nowMs = Date.now(), off = 0, covered
         ahead.push(v == null ? null : r2(v));
     }
     const at = (k) => (k < ahead.length ? ahead[k] : null);
-    const when = (k) => { const arr = last.ms + k * RADAR.aheadStep * 6e4; return { etaMin: Math.max(0, Math.round((arr - nowMs) / 6e4)), time: msToLocal(Math.round(arr / 3e5) * 3e5, off) }; };
+    // as horas contam a partir da imagem (tem 10–20 min quando chega): passed = essa hora já passou
+    const when = (k) => { const arr = last.ms + k * RADAR.aheadStep * 6e4; return { etaMin: Math.max(0, Math.round((arr - nowMs) / 6e4)), time: msToLocal(Math.round(arr / 3e5) * 3e5, off), passed: arr <= nowMs }; };
     let approach = null, ends = null;
     for (let k = 1; moving && k < ahead.length && at(k) != null; k++) {
         const wetNow = at(k) >= W && (at(k + 1) ?? at(k)) >= W, dryNow = at(k) < W && (at(k + 1) ?? at(k)) < W;
         if (!raining && wetNow) {
             const t = k * RADAR.aheadStep, next = ahead.slice(k, k + 4).filter(isNum);
-            approach = { ...when(k), distanceKm: r1((mv.speedKmh * t) / 60), speedKmh: Math.round(mv.speedKmh), fromDir: compass(mv.deg + 180), mmh: r1(Math.max(...next)) };
+            // imageKm: onde estava na imagem; distanceKm: onde deve estar agora (andou desde a imagem)
+            approach = { ...when(k), imageKm: r1((mv.speedKmh * t) / 60), distanceKm: r1(Math.max(0, (mv.speedKmh * (t - ageMin)) / 60)),
+                speedKmh: Math.round(mv.speedKmh), fromDir: compass(mv.deg + 180), mmh: r1(Math.max(...next)) };
             break;
         }
         if (raining && dryNow) { ends = when(k); break; }
@@ -309,18 +312,32 @@ export function analyzeRadar({ frames, geo, nowMs = Date.now(), off = 0, covered
     return out;
 }
 
+// A imagem do radar chega com 10–20 min (o radar varre, o IPMA junta, o RainViewer publica de 10 em 10 min): com 8 min ou
+// mais, a frase diz de quando é a imagem ("no radar das 23:10") em vez de "agora".
+export const RADAR_SAY_TIME_MIN = 8;
+/** " das 23:10" quando a imagem já tem uns minutos; "" se é recente */
+export const radarAt = (R) => (R?.time && R.ageMin >= RADAR_SAY_TIME_MIN ? ` das ${R.time.slice(11, 16)}` : '');
+/** A chuva que vem aí, levada da imagem até agora: "chuva a 2 km a sudoeste, deve chegar por volta das 23:25" ou, se essa
+ *  hora já passou, "a chuva vinha de sudoeste a 51 km/h e já deve estar a chegar" */
+export function approachText(R) {
+    const a = R?.approach;
+    if (!a) return '';
+    const from = WIND_FROM[a.fromDir] || '';
+    if (a.passed || a.distanceKm <= 0.5) return `a chuva vinha de ${from} a ${a.speedKmh} km/h e já deve estar a chegar`;
+    return `chuva a ${fmtKm(a.distanceKm)} km a ${from}, deve chegar por volta das ${a.time.slice(11, 16)}`;
+}
 /** Frase do radar no ponto (sem os modelos): "A chover agora (fraca, 0,6 mm/h)…" / "Sem chuva no radar; chuva a 12 km…" */
 export function radarText(R) {
     if (!R) return '';
     if (R.covered === false) return 'Este ponto está fora da cobertura do radar.';
-    const A = R.atPoint, old = R.fresh === false ? `Radar de há ${R.ageMin} min: ` : '';
+    const A = R.atPoint, old = R.fresh === false ? `Radar de há ${R.ageMin} min: ` : '', at = radarAt(R);
     if (A?.raining) {
-        let s = `${old}${old ? 'a chover' : 'A chover agora'} (${A.label}, ${fmtMmh(A.mmh)} mm/h${A.trend && A.trend !== 'estável' ? `, ${A.trend}` : ''})`;
-        if (R.ends) s += `; pelo deslocamento dos ecos deve parar por volta das ${R.ends.time.slice(11, 16)}`;
+        let s = `${old}${old ? 'a chover' : at ? `A chover no radar${at}` : 'A chover agora'} (${A.label}, ${fmtMmh(A.mmh)} mm/h${A.trend && A.trend !== 'estável' ? `, ${A.trend}` : ''})`;
+        if (R.ends) s += R.ends.passed ? '; pelo deslocamento dos ecos já deve estar a parar' : `; pelo deslocamento dos ecos deve parar por volta das ${R.ends.time.slice(11, 16)}`;
         return s + '.';
     }
-    let s = `${old}${old ? 'sem chuva' : 'Sem chuva no radar'}`;
-    if (R.approach) s += `; chuva a ${fmtKm(R.approach.distanceKm)} km a ${WIND_FROM[R.approach.fromDir] || ''}, deve chegar por volta das ${R.approach.time.slice(11, 16)}`;
+    let s = `${old}${old ? 'sem chuva' : `Sem chuva no radar${at}`}`;
+    if (R.approach) s += `; ${approachText(R)}`;
     else if (R.nearest) {
         const m = R.motion?.used ? R.motion : null;
         const away = m && R.nearest && angleDiff(m.deg, R.nearest.deg) <= 60;

@@ -49,7 +49,7 @@ principal*; Android *⋮ → Instalar app*).
   no consenso é o de base × um fator que vai de ×¼ a ×4: (erro mediano ÷ erro do modelo)³, com uma força que cresce com os
   dias de prova — com 7 dias já conta, com 30 conta bem mais. A chuva e o vento partem do fator da temperatura e afastam-se
   dele com a sua própria prova. A memória fica no telemóvel (até 4 sítios) e, no local com a análise diária, também no
-  conector (a tarefa agendada atualiza-a 4× por dia, por isso continua a aprender mesmo sem abrires a app). Em **Análise →
+  conector (a tarefa agendada atualiza-a 2× por dia, por isso continua a aprender mesmo sem abrires a app). Em **Análise →
   Aprendizagem**: o fator e o erro de cada modelo por variável e prazo, quem é o mais certeiro, o atraso típico da chuva
   de cada modelo e a evolução dos pesos dia a dia. O Claude recebe o mesmo na análise.
 - **Quando o IPMA falha** — se o IPMA publica as horas sem valores, o estado das fontes diz desde quando
@@ -65,8 +65,8 @@ principal*; Android *⋮ → Instalar app*).
 
 ## Análise do Claude
 
-Como o conselheiro dos Mercados, uma **tarefa agendada do Claude** segue [`ANALISTA.md`](ANALISTA.md) quatro vezes por
-dia (07:34, 13:34, 17:34 e 20:34): para cada local registado lê a previsão, **vê as imagens de satélite** (de perto, ~280 km
+Como o conselheiro dos Mercados, uma **tarefa agendada do Claude** segue [`ANALISTA.md`](ANALISTA.md) duas vezes por
+dia (07:34 e 17:34): para cada local registado lê a previsão, **vê as imagens de satélite** (de perto, ~280 km
 com o ponto ao centro, e largas), lê o **radar no ponto** e os **avisos do utilizador** (o «agora» começa por eles; o erro
 de tempo dos modelos vai para a verificação e as lições), verifica a análise anterior contra o que se observou, escreve a análise (título,
 agora, hoje, amanhã, próximos dias, tendência, alertas, satélite, incêndios, conselhos, fiabilidade, análise técnica) e
