@@ -292,3 +292,17 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
   (`hexd`/`hexm` → `_tx_hex`/`_tx_hexm`), do JSON de um texto (`pjs` → `_tx_pj`), do URL (`purl` → `_tx_uri`), das datas
   (`dias_civil`, `civil`, `dom_ult`, `plisboa`… → `data.onda`) e das portas (`h_arg`, `h_pede`… → `anfitriao.onda`).
 
+
+## A decisão consolidada e a Onda fluida (Mercados 4.20.5 a 4.22.2, it.141 a 149)
+
+- **A linguagem mudou primeiro** (it.141 e 142): moldes, o ponto, `Se`, `L` e a fala. Os ecrãs da Mercados foram
+  convertidos por um conversor automático (it.143) e os scripts do conselheiro também (it.149), com os testes de
+  paridade a conferir cada passo. Os textos fixos do conselheiro (291 nomes gerados pelo build) passaram a textos
+  constantes da linguagem.
+- **O que se escreveu de novo já nasceu fluido**: o motor da decisão (`decisao.onda`, 150 linhas) e o cartão «Decisão»
+  (`ecra-decisao.onda`, 119 linhas), o primeiro pedaço da ficha do ativo em Onda. Compilaram à primeira e os testes de
+  referência (as regras e o cartão escritos outra vez em JS) passaram sem mexer na Onda.
+- **A fase D fica assim**: os cinco separadores e o cartão da decisão em Onda; o resto da ficha (os pormenores de cada
+  fonte, os níveis, as notícias), os gráficos, os dados ao vivo e o estado continuam em JavaScript. A ordem do que
+  falta está em `ARQUITETURA.md`.
+- **Tamanhos**: `mercados/onda` 3 204 linhas (módulo de 399 KB); `mercados/conselheiro/onda` 1 844 linhas (354 KB).

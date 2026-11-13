@@ -10,6 +10,7 @@ Cada camada só usa as de baixo.
 ```
 5  APPS            mercados/ (app, tarefa do Claude, protótipo visual) · musica/ · onda/molde/ (o ponto de partida)
 4  BIBLIOTECA      onda/lib/*.onda — textos, números, JSON, datas, ordenar, HTML, portas (o que o JS traz de origem)
+                   e a fala (lib/fala.onda): os nomes curtos com que um ecrã se escreve
 3  ANFITRIÕES      onda/rt/anfitriao.js (browser) · anfitriao-node.js (scripts) · wasm/host.js (linha de comandos)
 2  ALVOS           WebAssembly · x86-64 · arm64 · C · GLSL (placa gráfica) · JavaScript · circuitos
 1  LINGUAGEM       onda/SPEC.md e o compilador onda/src/*.onda, escrito em Onda, que se compila a si próprio
@@ -22,6 +23,22 @@ Cada camada só usa as de baixo.
 | 3 Anfitriões | a única ponte entre a Onda e o mundo: ecrã, eventos, rede, armazém, relógio, ficheiros | `onda/test/app.test.js` |
 | 4 Biblioteca | o que diz ser igual ao JavaScript é igual ao byte (números, JSON, datas de Lisboa, ordenação) | `onda/test/biblioteca-*.test.js` |
 | 5 Apps | cada ecrã e cada script em Onda dá o mesmo que a versão em JavaScript que substituiu | `mercados/tests/`, `onda/test/molde.test.js` |
+
+## Como se escreve: a Onda fluida (it.141 e 142)
+
+A linguagem continua prefixa e de aridade fixa. O que mudou foi a superfície, e tudo desce para o mesmo código de
+antes (nenhum alvo novo, nenhum custo ao correr):
+
+```
+`<li class="linha{ Se ha c.fav ` on` }"><b>{ esc c.nome }</b> { inteiro num c.valor }</li>`
+```
+
+- **Moldes** (crases): o texto sai como está, com as aspas à vontade, e cada `{ código }` corre nesse sítio.
+- **O ponto**: `c.nome` é o membro `nome` do nó `c` (da árvore que a ponte escreve, ou de um JSON lido).
+- **`Se c b`** e **`L i n b`**: o «se» sem ramo vazio e o ciclo de contar.
+- **A fala** (`lib/fala.onda`): `ha`, `eh`, `num`, `txt`, `esc`, `plural`, `moeda`… em vez dos nomes compridos da biblioteca.
+- **O conversor** (`tools/fluir.mjs`) passa código do estilo antigo para este, sem lhe mudar o significado. Os ecrãs da
+  Mercados (it.143) e os scripts do conselheiro (it.149) foram convertidos assim, com os testes de paridade a conferir.
 
 ## O modelo de uma app
 
@@ -39,7 +56,7 @@ toque / tecla / resposta da rede / relógio
    solta a memória que reservou (_me_solta): o monte volta ao sítio
 ```
 
-Regras que as apps seguem (o molde mostra-as todas em 143 linhas):
+Regras que as apps seguem (o molde mostra-as todas em 140 linhas):
 
 1. **Um evento, uma função**; os botões são elementos com `data-onda="ação:número"`.
 2. **O estado são globais com lugar fixo**, listados no topo do ficheiro. A biblioteca só usa o `M[63]`.
@@ -66,13 +83,14 @@ de cima, com o estado dentro da Onda.
 
 | Pasta | O quê | Tamanho |
 |---|---|---|
-| `onda/src/` | o compilador (leitor, tipos, alvos, otimizações, matemática) | 6 117 linhas de Onda |
-| `onda/seed/` | as sementes de arranque: WebAssembly (512 KB), x86-64 (362 KB), arm64, C | geradas pela Onda |
-| `onda/lib/` | a biblioteca: 10 módulos, 252 funções (`lib/LEIA.md`) | 1 385 linhas |
-| `onda/rt/`, `onda/wasm/` | os anfitriões | 146 + 143 + 114 linhas de JS |
-| `onda/molde/` | o ponto de partida de uma app nova | 143 linhas de Onda, módulo de 45 KB |
-| `mercados/onda/` | a análise e os quatro separadores da Mercados | 2 827 linhas, módulo de 327 KB |
-| `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 1 948 linhas, módulo de 363 KB |
+| `onda/src/` | o compilador (leitor, tipos, alvos, otimizações, matemática) | 6 257 linhas de Onda |
+| `onda/seed/` | as sementes de arranque: WebAssembly (519 KB), x86-64, arm64, C | geradas pela Onda |
+| `onda/lib/` | a biblioteca: 12 módulos, 310 funções (`lib/LEIA.md`) | 1 589 linhas |
+| `onda/tools/` | o conversor para a Onda fluida (`fluir.mjs`) | 348 linhas de JS |
+| `onda/rt/`, `onda/wasm/` | os anfitriões | 194 + 143 + 114 linhas de JS |
+| `onda/molde/` | o ponto de partida de uma app nova | 140 linhas de Onda, módulo de 49 KB |
+| `mercados/onda/` | a análise, a decisão consolidada, os separadores e o cartão «Decisão» da Mercados | 3 204 linhas, módulo de 399 KB |
+| `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 1 844 linhas, módulo de 354 KB |
 | `mercados/proto/` | gráficos vivos e o mapa do mercado (o guia: `docs/CAMPOS.md`) | 265 linhas, módulo de 27 KB |
 | `musica/onda/` | o motor e o curador da Música (de outra sessão; usa ainda o `lib/app.onda`) | 231 linhas |
 | `meteo/onda/` | os campos da Meteo: o gráfico da chuva das próximas 2 horas (WebAssembly) e o céu do cartão «Agora» (GLSL) | 91 + 169 linhas, 11 KB de WASM e 32 KB de GLSL |
@@ -84,12 +102,25 @@ de cima, com o estado dentro da Onda.
 | Molde | tudo (estado, ecrã, eventos, rede, armazém) | a casca de 16 linhas e o service worker |
 | Música | o motor e o curador | uma casca de 57 linhas |
 | Mercados — tarefa do Claude | tudo | lançadores de uma linha |
-| Mercados — app | a análise toda e os separadores Painel, Destaques, Análise e Ajustes (pela ponte) | a ficha do ativo e os gráficos, os dados ao vivo, o estado e os gestos (`mercados.js`, 2 168 linhas) |
+| Mercados — app | a análise toda, a decisão consolidada, os separadores Painel, Destaques, Análise, Carteira e Ajustes e o cartão «Decisão» da ficha (pela ponte) | o resto da ficha e os gráficos, os dados ao vivo, o estado e os gestos (`mercados.js`, 2 692 linhas) |
 | Mercados — conector (Cloudflare) | nada | tudo |
 | Meteo — app | o gráfico da chuva e o céu animado do cartão «Agora» (campos) | o resto da app, o conector e a tarefa do Claude |
 
 O HTML, o CSS e o service worker ficam sempre fora: os dois primeiros não são linguagens de programação e o browser
 exige o terceiro em JavaScript.
+
+## As camadas da Mercados
+
+Cada camada só conhece a de baixo, e cada uma tem o seu teste.
+
+| Camada | Onde | O que faz | Teste |
+|---|---|---|---|
+| Dados | o conector (`proxy/src/worker.js`) e a casca (`mercados.js`) | vai buscar cotações, notícias, consenso, fundamentos e sentimento; guarda o estado | `tests/worker.test.mjs` |
+| Motor | `onda/analise.onda` e vizinhos | de uma série de preços tira médias, pontuações por prazo, níveis e o sinal automático | paridade com o `analise.js`, ao bit |
+| Decisão | `onda/decisao.onda` | junta as seis fontes numa decisão, com a confiança | as regras escritas outra vez em JS, 20 000 casos |
+| Vistas | `onda/ecra-*.onda` | de um instantâneo do estado escrevem o HTML de cada ecrã | o HTML conferido estado a estado |
+| Casca | `mercados.js`, `mercados.css` | eventos, gestos, gráficos e a ponte para a Onda | `tests/ui.test.js`, no Chromium |
+| Conselheiro | `conselheiro/onda/*.onda` e `CONSELHEIRO.md` | a tarefa do Claude: junta os dados, valida e publica a análise | paridade com o JS de referência, byte a byte |
 
 ## O que falta, por ordem
 
@@ -109,8 +140,8 @@ exige o terceiro em JavaScript.
 ## Limites, com honestidade
 
 - A Onda ganha no cálculo (rápida, igual ao bit em todos os alvos, verificável) e no tamanho (uma app inteira em
-  45 KB, sem dependências). Perde em leitura humana: notação prefixa, sem objetos nem textos nativos. É pensada para
-  ser escrita e lida por IAs.
+  49 KB, sem dependências). Continua prefixa e sem objetos; os moldes, o ponto e a fala aproximaram um ecrã de um
+  template de HTML, mas as contas ainda se leem pior do que em JavaScript. É pensada para ser escrita e lida por IAs.
 - Uma app em Onda tem mais linhas do que em JavaScript, e sem WebAssembly não corre.
 - Ler JSON grande é mais lento do que o `JSON.parse` do browser (ponto 5).
 - Não há funções como valores nem módulos: uma só tabela de nomes, com prefixos.
