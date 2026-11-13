@@ -7,8 +7,9 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
+import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.18.0';
+const VERSION = '1.19.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -22,7 +23,7 @@ class Erro extends Error {
 // O dono (quem montou a app) fica com as chaves de sempre; cada pessoa convidada tem as suas com o prefixo u:<id>:.
 // As chaves globais (aparelhos, Client ID, códigos, convites, o estado do login) são as mesmas para todos.
 const DONO = 'dono';
-const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:|tendencias:|previa:|capa:)/;
+const GLOBAL = /^(chaves$|config:|codigo:ligacao$|agente:chave$|utilizadores$|convite:|aparelho:|tidal:estado:|tendencias:|previa:|capa:|push:vapid$)/;
 function deUtilizador(env, uid) {
     if (!uid || uid === DONO) return { ...env, UID: DONO };
     const k = (x) => (GLOBAL.test(x) ? x : `u:${uid}:${x}`);
@@ -74,6 +75,10 @@ async function route(req, env, url) {
     if (p === '/api/convites' && m === 'POST') return json(await convidar(env, quem), 201);
     if (p === '/api/aparelho/codigo' && m === 'POST') return json(await codigoAparelho(env, quem), 201);
     const ue = deUtilizador(env, quem.uid);
+    if (p === '/api/push/chave' && m === 'GET') return json({ chave: (await chavesPush(env)).publicKey });
+    if (p === '/api/push' && m === 'POST') return json(await assinarPush(ue, await corpo(req)), 201);
+    if (p === '/api/push' && m === 'DELETE') return json(await desassinarPush(ue, await corpo(req)));
+    if (p === '/api/push/teste' && m === 'POST') return json(await testarPush(ue));
     if (p === '/api/desligar' && m === 'POST') { await ue.KV.delete('tidal:tokens'); await ue.KV.delete('perfil'); return json({ ok: true }); }
     if (p === '/api/perfil' && m === 'GET') return json(await perfil(ue, url.searchParams.has('fresco')));
     if (p === '/api/resolver' && m === 'POST') return json(await resolver(ue, await corpo(req)));
@@ -1026,6 +1031,44 @@ async function pedir(env, c) {
     return p;
 }
 
+// ---------- avisos no telemóvel (Web Push; a cifra e o VAPID estão em push.js, os mesmos da Meteo) ----------
+// push:vapid = o par de chaves do conector (global, criado no primeiro uso); push = os telemóveis de cada pessoa (até 5)
+async function chavesPush(env) {
+    let k = await env.KV.get('push:vapid', 'json');
+    if (!k?.publicKey || !k.privateJwk) { k = await newVapidKeys(); await env.KV.put('push:vapid', JSON.stringify(k)); }
+    return k;
+}
+async function assinarPush(env, c) {
+    const s = validSubscription(c?.subscription);
+    if (!s) throw new Erro(400, 'assinatura_invalida', 'Este telemóvel não deu uma assinatura de notificações válida.');
+    const l = ((await env.KV.get('push', 'json')) || []).filter((x) => x.endpoint !== s.endpoint);
+    l.push({ ...s, criadoEm: new Date().toISOString() });
+    await env.KV.put('push', JSON.stringify(l.slice(-5)));
+    return { ok: true, aparelhos: Math.min(l.length, 5) };
+}
+async function desassinarPush(env, c) {
+    const l = (await env.KV.get('push', 'json')) || [];
+    const fica = l.filter((x) => x.endpoint !== c?.endpoint);
+    if (fica.length !== l.length) await env.KV.put('push', JSON.stringify(fica));
+    return { ok: true };
+}
+// envia a todos os telemóveis da pessoa; os que o serviço de notificações diz que já não existem (404/410) saem
+async function avisar(env, msg) {
+    const l = (await env.KV.get('push', 'json')) || [];
+    if (!l.length) return { enviados: 0, falhados: 0 };
+    const k = await chavesPush(env);
+    const r = await Promise.all(l.map((s) => sendPush(s, msg, k, { subject: appUrl(env) })));
+    const foram = new Set(l.filter((s, i) => r[i] === 404 || r[i] === 410).map((s) => s.endpoint));
+    if (foram.size) await env.KV.put('push', JSON.stringify(l.filter((s) => !foram.has(s.endpoint))));
+    const ok = r.filter((x) => x >= 200 && x < 300).length;
+    return { enviados: ok, falhados: r.length - ok };
+}
+async function testarPush(env) {
+    const r = await avisar(env, { title: 'Música', body: 'Os avisos estão ligados neste telemóvel.', url: appUrl(env), tag: 'musica-teste' });
+    if (!r.enviados && !r.falhados) throw new Erro(409, 'sem_avisos', 'Este telemóvel ainda não ligou os avisos.');
+    return r;
+}
+
 async function despachar(env, id, playlist) {
     const lista = (await env.KV.get('pedidos', 'json')) || [];
     const p = lista.find((x) => x.id === id);
@@ -1048,6 +1091,13 @@ async function despachar(env, id, playlist) {
             await env.KV.put('playlist:' + d.id, JSON.stringify(d));
             if (playlist) await atualizarIndice(env, d); // a lista mostra «afinada»
         }
+    }
+    // o pedido acabou de ficar feito: avisa os telemóveis da pessoa (uma vez, mesmo com várias propostas)
+    if (playlist && p.estado === 'pendente') {
+        const msg = p.afinar
+            ? { title: 'Playlist afinada', body: `«${txt(p.afinar.nome, 80)}» foi afinada pelo Maestro.`, url: appUrl(env), tag: 'musica-afinar' }
+            : { title: 'Propostas prontas', body: `«${txt(p.texto, 90)}»: escolhe a que vai para o Tidal.`, url: appUrl(env), tag: 'musica-pedido' };
+        try { await avisar(env, msg); } catch (e) { console.error('avisar', e); }
     }
     return { ok: true };
 }

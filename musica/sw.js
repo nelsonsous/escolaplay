@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay, a Mercados e a Meteo (/escolaplay/): este SW só mexe nas
 // caches "musica-*" e só trata pedidos dentro da sua pasta (/escolaplay/musica/) e o anfitrião das apps Onda.
 // O conector e o Tidal (outros domínios) nunca passam por aqui.
-const CACHE = 'musica-v40'; // 2.24.4 — um convite já usado deixa colar um código novo
+const CACHE = 'musica-v41'; // 2.25.0 — avisos no telemóvel (propostas prontas, playlist afinada)
 const ASSETS = [
     './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js', '../onda/rt/gestos-onda.js',
     './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png',
@@ -57,5 +57,27 @@ self.addEventListener('fetch', (event) => {
         } catch (e) {
             return new Response('', { status: 503 });
         }
+    })());
+});
+
+// Avisos do conector (Web Push, cifrados): «as propostas estão prontas» e «a playlist foi afinada». Ao tocar, abre a app.
+self.addEventListener('push', (event) => {
+    let d = null;
+    try { d = event.data ? event.data.json() : null; } catch { d = null; }
+    event.waitUntil(self.registration.showNotification(d?.title || 'Música', {
+        body: d?.body || 'O Maestro tem novidades para ti.', icon: 'icon-192.png', badge: 'icon-192.png',
+        tag: d?.tag || 'musica', data: { url: d?.url || './' },
+    }));
+});
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const scope = self.registration.scope;
+    let url = scope;
+    try { const u = new URL(event.notification.data?.url || '', scope); if (u.href.startsWith(scope)) url = u.href; } catch { /* fica a da app */ }
+    event.waitUntil((async () => {
+        const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const w = wins.find((c) => c.url.startsWith(scope));
+        if (w) { try { await w.focus(); } catch { /* o sistema decide */ } return; }
+        await self.clients.openWindow(url);
     })());
 });

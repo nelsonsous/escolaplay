@@ -262,7 +262,7 @@
 
 # ===== pedacos de HTML =====
 # icones dos botoes (traco 24x24, na cor do texto): 1 ligar, 2 pedir, 3 enviar, 4 ouvir, 5 onda, 6 atualizar, 7 motor,
-# 8 procurar, 9 apagar, 10 desligar, 11 esquecer, 12 juntar, 13 fixar, 14 tirar, 15 seguir, 16 guardar
+# 8 procurar, 9 apagar, 10 desligar, 11 esquecer, 12 juntar, 13 fixar, 14 tirar, 15 seguir, 16 guardar, 17 aviso
 : ic i>i n {
   "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\">"
   ? == n 1 "<path d=\"M10 14a3.5 3.5 0 0 0 5 0l3.5-3.5a3.5 3.5 0 0 0-5-5L12 7\"/><path d=\"M14 10a3.5 3.5 0 0 0-5 0l-3.5 3.5a3.5 3.5 0 0 0 5 5L12 17\"/>"
@@ -280,6 +280,7 @@
   ? == n 13 "<path d=\"M9 3.5h6l-1 6 3.5 3.5h-11L10 9.5z\"/><path d=\"M12 13v7.5\"/>"
   ? == n 14 "<path d=\"M6.5 6.5l11 11M17.5 6.5l-11 11\"/>"
   ? == n 15 "<path d=\"M5 12h14\"/><path d=\"m13 6 6 6-6 6\"/>"
+  ? == n 17 "<path d=\"M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z\"/><path d=\"M10 20.5a2 2 0 0 0 4 0\"/>"
   "<path d=\"M5 12.5l4.5 4.5L19 7.5\"/>"
   "</svg>" 0 }
 : pill >i ? ligado { "<button type=\"button\" class=\"mu-pill on\" data-onda=\"ir&#9;5\">" pjt jg @ 3 k_utilizador "</button>" 0 } { "<button type=\"button\" class=\"mu-pill off\" data-onda=\"ir&#9;5\">Tidal desligado</button>" 0 }
@@ -996,6 +997,19 @@
   = h tnovo 300 O h N cg c 27 " faixas escolhidas de 60 e ordenadas em " ? ms { N ms " ms" 0 } "menos de 1 ms" ", aqui no telemóvel." O 0
   Y 100 k_s_ajm h
   solta m }
+# os avisos no telemóvel (Web Push): a casca liga-os, desliga-os e testa-os (botões data-avisos) e guarda no armazém
+# «avisos» (ligados aqui) e «avisos_ok» (1 pode, ios = iPhone fora do ecrã principal, nativo = app de teste, 0 não pode)
+: cartao_avisos >i {
+  = ok Y 105 $"avisos_ok" 0 = av Y 105 $"avisos" 0
+  "<div class=\"mu-card\" id=\"aj-avisos\"><h3>Avisos</h3>"
+  ? && ok tigual ok $"1" {
+      ? && av tlen av {
+          "<p>Ligados neste telemóvel: chega um aviso quando as propostas de um pedido ficam prontas e quando o Maestro acaba uma afinação.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-avisos=\"teste\">" ic 17 "Enviar um de teste</button><button type=\"button\" class=\"mu-btn sec\" data-avisos=\"desligar\">Desligar</button></div>" 0 }
+        { "<p>Recebe um aviso neste telemóvel quando as propostas de um pedido ficarem prontas e quando o Maestro acabar uma afinação.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-avisos=\"ligar\">" ic 17 "Ligar os avisos</button></div>" 0 } }
+    { ? && ok tigual ok $"ios" { "<p>No iPhone, os avisos só funcionam na app do ecrã principal: no Safari, toca em Partilhar e depois em <b>Adicionar ao ecrã principal</b>, e abre a Música por lá.</p>" 0 }
+      { ? && ok tigual ok $"nativo" { "<p>Nesta app de teste não há avisos: numa app nativa precisam do programa pago da Apple. Liga-os na app do ecrã principal.</p>" 0 }
+        { "<p>Este browser não deixa enviar avisos.</p>" 0 } } }
+  "</div>" 0 }
 : v_ajustes >i {
   "<header class=\"mu-head\"><div><h1>Ajustes</h1></div>" pill "</header>"
   = e @ 3
@@ -1016,13 +1030,14 @@
         ? tlen @ 43 { "<p>No outro aparelho (ou na app do ecrã principal), abre a Música e cola este código. Serve uma vez, durante 24 h.</p><p class=\"mu-codigo\">" pt @ 43 "</p>" 0 } 0
         "<div class=\"mu-acoes\">" ? tlen @ 44 { "<a class=\"mu-btn\" href=\"https://wa.me/?text=" tpor @ 44 "\" target=\"_blank\" rel=\"noopener\">Enviar por WhatsApp</a>" 0 } 0 "<button type=\"button\" class=\"mu-btn sec\" data-onda=\"ligar_outro\">" ic 1 ? tlen @ 43 "Criar outro código" "Ligar outro aparelho" "</button></div>" 0 } 0
     "</div>"
+    ? && ch jg e k_tu { cartao_avisos 0 } 0
     ? == jtipo jg e k_dono 3 { "<div class=\"mu-card\"><h3>Partilhar a Música</h3><p>Cada pessoa liga o seu Tidal e tem as suas playlists e pedidos; o Maestro trata de todos.</p>"
         ? tlen @ 41 { "<label class=\"mu-campo\"><span>Link do convite (serve uma vez, durante 14 dias)</span><input readonly value=\"" pt @ 41 "\"></label><div class=\"mu-acoes\"><a class=\"mu-btn\" href=\"https://wa.me/?text=" tpor @ 42 "\" target=\"_blank\" rel=\"noopener\">Enviar por WhatsApp</a><a class=\"mu-btn sec\" href=\"mailto:?subject=Convite%20para%20a%20M%C3%BAsica&amp;body=" tpor @ 42 "\">Email</a></div><button type=\"button\" class=\"mu-mais\" data-onda=\"convidar\">Criar outro convite</button>" 0 }
           { "<div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn\" data-onda=\"convidar\">" ic 15 "Convidar alguém</button></div>" 0 }
         "</div>" 0 } 0
     "<div class=\"mu-card\"><h3>Conector de dados</h3><label class=\"mu-campo\"><span>Endereço</span><input data-onda=\"px\" value=\"" pt @ 22 "\" inputmode=\"url\" autocapitalize=\"off\" spellcheck=\"false\"></label><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-ok\">Guardar</button><button type=\"button\" class=\"mu-btn sec\" data-onda=\"px-rep\">Repor</button></div></div>"
     "<div class=\"mu-card\"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class=\"mu-acoes\"><button type=\"button\" class=\"mu-btn sec\" data-onda=\"motor\">" ic 7 "Testar o motor</button></div><p class=\"mu-motor\" id=\"aj-motor-r\"></p></div>"
-    "<p class=\"mu-nota\">Música 2.24.4 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
+    "<p class=\"mu-nota\">Música 2.25.0 · conector " pjt jg e k_versao " · <a href=\"https://github.com/nelsonsous/escolaplay/tree/main/musica\" target=\"_blank\" rel=\"noopener\">código</a></p>" 0 }
   0 }
 
 # ===== navegacao e desenho =====
@@ -1119,6 +1134,7 @@
   ? tigual a $"naoesta" { naoesta_enviar b 0 }
   ? tigual a $"exp" { tvazio @ 54 exp_alternar b 0 }
   ? tigual a $"ouvir" { ouvir b 0 }
+  ? tigual a $"avisos" { render ? tlen b { aviso b 0 } 0 0 }
   ? tigual a $"recarregar" { Y 115 0 0 carregar_vista 0 }
   ? tigual a $"apagarl" { tcopia @ 54 b 70 tvazio @ 50 ! 51 0 ! 52 0 render 0 }
   ? tigual a $"apagarl_n" { tvazio @ 54 render 0 }

@@ -40,8 +40,19 @@ export function simulador() {
         mundo: [['Daft Punk', 'Get Lucky', ''], ['Artista Mundo', 'Global', '']],
     };
     sim.tabelaFalha = null;
-    sim.fetch = async (u, init = {}) => tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
+    // os serviços de notificações (Web Push): guarda o que chegou; sim.pushStatus[endpoint] simula uma assinatura caducada (410)
+    sim.pushes = [];
+    sim.pushStatus = {};
+    sim.fetch = async (u, init = {}) => pushSimulado(sim, u, init) || tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
     return sim;
+}
+
+function pushSimulado(sim, u, init) {
+    const h = String(u);
+    if (!/^https:\/\/(web\.push\.apple\.com|fcm\.googleapis\.com)\//.test(h)) return null;
+    const headers = new Headers(init.headers);
+    sim.pushes.push({ endpoint: h, body: init.body, authorization: headers.get('authorization'), encoding: headers.get('content-encoding'), ttl: headers.get('ttl') });
+    return new Response(null, { status: sim.pushStatus[h] || 201 });
 }
 
 function tabelaSimulada(sim, u) {
