@@ -149,9 +149,6 @@ button.mu-chip { cursor: pointer; }
 .mu-faixa { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 12px; padding: 12px 0; border-top: 1px solid var(--line); align-items: start; }
 .mu-faixa:first-child { border-top: 0; }
 .mu-faixa .n { color: var(--dim); font: 600 12.5px/1.75 var(--mono); text-align: right; }
-.mu-faixa-a { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; color: inherit; cursor: pointer; }
-.mu-faixa-a:active { opacity: .6; }
-.mu-faixa-mais { margin-top: 8px; }
 .mu-faixa .t { font-weight: 650; font-size: 15px; line-height: 1.3; min-width: 0; }
 .mu-faixa .t a { color: inherit; text-decoration: none; }
 .mu-faixa .t a:active { color: var(--acc); }
@@ -187,7 +184,6 @@ button.mu-chip { cursor: pointer; }
 .mu-campo > span.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .mu-campo textarea { min-height: 96px; resize: vertical; line-height: 1.45; }
 .mu-campo input:focus, .mu-campo textarea:focus, .mu-campo select:focus { outline: none; border-color: var(--acc); }
-.mu-linha { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 /* escolhas: controlo segmentado, a escolhida mais clara */
 .mu-seg { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; background: var(--panel2); border-radius: 12px; }
 .mu-seg button { flex: 1 1 auto; min-height: 36px; border: 0; background: transparent; color: var(--mut); border-radius: 9px; padding: 7px 10px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
@@ -238,7 +234,6 @@ button.mu-chip { cursor: pointer; }
 
 /* como correu e atualizar sozinha */
 .mu-interruptor { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-.mu-correu .mu-interruptor:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 .mu-interruptor b { display: block; font-size: 15px; }
 .mu-interruptor .mu-nota { display: block; margin-top: 2px; }
 .mu-interruptor .mu-btn[aria-pressed="true"] { background: var(--fg); color: #000; }
@@ -247,7 +242,6 @@ button.mu-chip { cursor: pointer; }
 .mu-ideias { margin: 18px 2px 8px; color: var(--mut); font-size: 13px; font-weight: 600; }
 
 /* mudar o nome */
-.mu-head-acoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* propostas por escolher, «não esta» e afinar com o Maestro */
 .mu-grupo { margin: 0 0 14px; }
@@ -258,9 +252,7 @@ button.mu-chip { cursor: pointer; }
 .mu-grupo > summary .n { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; }
 .mu-grupo > summary .chev { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--mut); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .mu-grupo[open] > summary .chev { transform: rotate(180deg); }
-.mu-proposta p { margin: 0; }
 .mu-faixa.fora .t, .mu-faixa.fora .a { text-decoration: line-through; opacity: .45; }
-.mu-faixa-mais { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* a lista: cartões que se abrem (as faixas, ouvir 30 s, «não esta», afinar) e agrupar por */
 .mu-lista-pl { gap: 10px; }
@@ -321,8 +313,10 @@ html, body { overflow-x: clip; }
 @keyframes mu-subir { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes mu-descer { from { transform: none; } to { transform: translateY(100%); } }
 body:has(.mu-folha) { overflow: hidden; }
-.mu-folha-topo { position: sticky; top: 0; z-index: 1; display: flex; padding: 10px 0 6px; background: linear-gradient(var(--bg) 70%, transparent); }
-.mu-fechar { width: 38px; height: 38px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; background: var(--panel3); color: var(--fg); cursor: pointer; }
+.mu-folha-topo { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; padding: 10px 0 6px; background: linear-gradient(var(--bg) 70%, transparent); }
+.mu-fechar, .mu-mais { width: 38px; height: 38px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; background: var(--panel3); color: var(--fg); cursor: pointer; }
+.mu-mais svg { width: 22px; height: 22px; fill: currentColor; }
+.mu-mais:active { background: var(--line2); }
 .mu-fechar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .mu-fechar:active { background: var(--line2); }
 .mu-folha-cab { display: flex; align-items: flex-end; gap: 16px; margin: 6px 0 18px; }
@@ -358,6 +352,26 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-nao { width: 30px; height: 30px; border: 0; background: none; color: var(--dim); font-size: 14px; cursor: pointer; border-radius: 50%; padding: 0; }
 .mu-nao[aria-pressed="true"] { color: #ff6b6b; background: rgba(255, 107, 107, .12); }
 .mu-cx .mu-acoes { margin-top: 0; }
+/* a folha é o único sítio onde se mexe numa playlist: o «⋯» (mudar o nome, atualizar sozinha, apagar), os botões por
+   cima das faixas, a linha de uma faixa que se abre e o «Sobre esta playlist» fechado até se querer ver */
+.mu-fo-gerir:empty, .mu-fo-hist:empty, .mu-fo-sobre:empty { display: none; }
+.mu-fo-gerir > .mu-nota { margin: 0 0 10px; }
+.mu-menu { display: grid; gap: 12px; padding: 14px; }
+.mu-menu .mu-interruptor { margin-top: 0; }
+.mu-fo-acoes { margin: 0 0 14px; }
+.mu-xf button.tx { min-width: 0; margin: 0; padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mu-xf button.tx:active { opacity: .6; }
+.mu-xf-mais { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 0 6px 58px; }
+.mu-xf-mais .mu-nota { margin: 0; flex: 1 1 160px; }
+.mu-sobre { margin: 0 0 4px; border-bottom: 1px solid var(--line); }
+.mu-sobre > summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; list-style: none; cursor: pointer; padding: 12px 2px; font-size: 15px; font-weight: 650; }
+.mu-sobre > summary::-webkit-details-marker { display: none; }
+.mu-sobre > summary .chev { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--mut); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.mu-sobre[open] > summary .chev { transform: rotate(180deg); }
+.mu-sobre[open] { padding-bottom: 14px; }
+.mu-sobre h3 { margin: 14px 0 4px; font-size: 13px; font-weight: 650; color: var(--mut); }
+.mu-sobre h3:first-of-type { margin-top: 2px; }
+.mu-sobre p { margin: 4px 0; color: var(--mut); font-size: 14.5px; }
 .mu-cx-afinar { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
 .mu-cx-afinar .mu-campo { flex: 1; margin: 0; }
 .mu-cx-afinar textarea { min-height: 44px; }

@@ -1,4 +1,4 @@
-// A app — uma app em Onda (app/musica.onda + onda/lib/app.onda + motor.onda, corrida por onda/rt/anfitriao.js) — no
+// A app — uma app em Onda (app/musica.onda + onda/lib + motor.onda, corrida por onda/rt/anfitriao.js) — no
 // Chromium, de ponta a ponta: o Worker a sério (Tidal simulado, KV em memória), ligar o Tidal pelo link de ligação,
 // uma playlist publicada como o Maestro a publica, afinar (o motor Onda dentro da app) com o juiz a confirmar a
 // ordem contra o curador.wasm em cada mudança, juntar uma faixa do Tidal, guardar e enviar, gosto, ajustes e pedir.
@@ -90,6 +90,7 @@ async function esperado(doc, op, { tiradas = new Set(), fixas = new Set(), junta
     return ordem.map((o) => usadas[o.i].id);
 }
 const mostradas = (page) => page.$$eval('#faixas .mu-faixa .mu-tocar', (as) => as.map((a) => a.href.split('/').pop()));
+const naFolha = (page) => page.$$eval('.mu-folha .mu-xf li[data-esq]', (ls) => ls.map((l) => l.dataset.esq.split('\t')[1]));
 const heap = (page) => page.evaluate(() => Number(new BigInt64Array(window.app.exports.memory.buffer, 15 * 8, 1)[0]));
 
 test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, enviar, gosto, ajustes e pedir', { skip: !chromium && 'sem Playwright' }, async () => {
@@ -248,12 +249,35 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-folha .mu-xf li.fora[data-esq-rotulo="Afinal fica"]').first().waitFor();
     await deslizarEm('.mu-folha .mu-xf li[data-esq]', 330, 60);
     await page.locator('.mu-folha .mu-xf li.fora').waitFor({ state: 'detached' });
-    await page.getByRole('button', { name: 'Abrir' }).click();
-    await page.getByRole('heading', { name: 'Som para o carro' }).waitFor();
-    assert.equal(await page.locator('#faixas .mu-faixa').count(), doc.faixas.length);
-    assert.deepEqual(await mostradas(page), doc.faixas.map((f) => f.id), 'a ordem guardada');
-    assert.match(await page.locator('.mu-resumo').textContent(), /sistema de som/);
-    await foto('1-playlist');
+    // a folha é a playlist toda (já não há outra vista para «abrir»): as faixas pela ordem guardada, simples — capa,
+    // título, artista, ouvir e ✕ —, e o porquê e a mistura em «Sobre esta playlist», fechado até se querer ver
+    assert.equal(await page.getByRole('button', { name: 'Abrir' }).count(), 0);
+    assert.deepEqual(await naFolha(page), doc.faixas.map((f) => f.id), 'a ordem guardada');
+    assert.equal(await page.locator('.mu-folha .mu-xf .why, .mu-folha .mu-xf .m, .mu-folha .mu-xf .mot').count(), 0, 'sem pormenores por faixa');
+    assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), /^4 faixas · .* · ✦ Maestro$/);
+    assert.equal(await page.locator('.mu-folha .mu-resumo').isVisible(), false);
+    await foto('1-folha');
+    // (a folha cabe no ecrã: nada sai pelos lados)
+    assert.equal(await page.locator('.mu-folha').evaluate((f) => f.scrollWidth <= f.clientWidth), true, 'a folha não transborda para os lados');
+    await page.locator('.mu-folha .mu-sobre summary').click();
+    assert.match(await page.locator('.mu-folha .mu-resumo').textContent(), /sistema de som/);
+    assert.ok(await page.locator('.mu-folha .mu-sobre .mu-barra').count() >= 2, 'a mistura: géneros e décadas');
+    // tocar no título de uma faixa abre a linha (e fecha a que estava aberta); o «Sobre» continua aberto
+    await page.locator('.mu-folha .mu-xf button.tx').first().click();
+    await page.locator('.mu-folha .mu-xf li').first().getByRole('button', { name: 'Mais como esta' }).waitFor();
+    await page.locator('.mu-folha .mu-xf li').first().scrollIntoViewIfNeeded();
+    await foto('1-faixa-aberta');
+    // a linha aberta ocupa a largura toda da faixa, por baixo dela
+    assert.deepEqual(await page.locator('.mu-folha .mu-xf li').first().evaluate((li) => { const m = li.querySelector('.mu-xf-mais').getBoundingClientRect(), t = li.querySelector('.tx').getBoundingClientRect(), l = li.getBoundingClientRect(); return [m.top >= t.bottom - 1, Math.round(m.right) === Math.round(l.right)]; }), [true, true]);
+    await page.locator('.mu-folha .mu-xf button.tx').nth(1).click();
+    assert.equal(await page.getByRole('button', { name: 'Mais como esta' }).count(), 1);
+    assert.equal(await page.locator('.mu-folha .mu-xf button.tx[aria-expanded="true"]').count(), 1);
+    assert.equal(await page.locator('.mu-folha .mu-sobre').getAttribute('open'), '', 'redesenhar as faixas não fecha o resto da folha');
+    await page.locator('.mu-folha .mu-xf button.tx').nth(1).click();
+    assert.equal(await page.getByRole('button', { name: 'Mais como esta' }).count(), 0);
+    await page.locator('.mu-folha').evaluate((f) => { f.scrollTop = f.scrollHeight; });
+    await foto('1-sobre');
+    await page.locator('.mu-folha').evaluate((f) => { f.scrollTop = 0; });
 
     // 3) afinar: o motor Onda dentro da app, e o juiz em cada mudança
     const op = { faixas: 5, maxArtista: 1, estilo: 'equilibrado', arco: 'onda' };
@@ -298,13 +322,24 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
 
     // 4) guardar e enviar para o Tidal: a app manda a decisão; o Worker monta a versão
     const ordemFinal = await mostradas(page);
+    // (conta quantas vezes uma folha entra na página: ao voltar tem de subir uma vez só, mesmo com as respostas a chegar)
+    await page.evaluate(() => {
+        window.__folhas = 0;
+        new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1 && (n.matches('.mu-folha') || n.querySelector('.mu-folha'))) window.__folhas++; })
+            .observe(document.getElementById('mu-body'), { childList: true, subtree: true });
+    });
     await page.getByRole('button', { name: 'Guardar e enviar para o Tidal' }).click();
-    await page.getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
     await page.locator('#mu-aviso').getByText('Guardada no Tidal').waitFor();
+    // volta-se à lista, com a folha da playlist aberta e já com a ordem nova
+    await page.locator('.mu-folha').getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
     assert.equal(sim.criadas.length, 1);
     assert.equal(sim.criadas[0].name, 'Som para o carro', 'a mesma playlist, sem «· afinada»');
     assert.deepEqual(sim.itens, ordemFinal, 'o Tidal recebe a ordem do motor Onda');
-    assert.deepEqual(await mostradas(page), ordemFinal);
+    await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
+    assert.deepEqual(await naFolha(page), ordemFinal);
+    await page.locator('.mu-folha .mu-xf [data-onda^="ouvir"]').first().waitFor();
+    await page.waitForTimeout(300);
+    assert.equal(await page.evaluate(() => window.__folhas), 1, 'a folha sobe uma vez só');
     const idx = JSON.parse(await env.KV.get('playlists'));
     const nova = JSON.parse(await env.KV.get('playlist:' + idx[0].id));
     assert.equal(idx.length, 1, 'sem cópias na biblioteca');
@@ -313,26 +348,43 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(nova.faixas.find((f) => f.id === barco.id).motivo, 'Escolhida por ti.');
     assert.equal(nova.candidatas.length, 7, 'as candidatas da original e a juntada');
 
-    // 5) a biblioteca, o gosto e os ajustes — com a playlist descida, a vista nova abre no topo
-    await page.evaluate(() => window.scrollTo(0, 300));
-    assert.ok((await page.evaluate(() => window.scrollY)) > 0, 'a playlist dá para descer');
+    // 5) a biblioteca, o gosto e os ajustes — com uma vista descida, a vista nova abre no topo
+    await page.locator('.mu-folha .mu-fechar').click();
+    await page.locator('.mu-folha').waitFor({ state: 'detached' });
     await nav(5);
     await page.getByRole('heading', { name: 'Este aparelho' }).waitFor();
-    assert.ok(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight >= 300), 'os Ajustes também dão para descer');
+    assert.ok(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight >= 300), 'os Ajustes dão para descer');
+    await assente(5);
+    await page.evaluate(() => window.scrollTo(0, 300));
+    assert.ok((await page.evaluate(() => window.scrollY)) > 0);
+    await nav(3);
+    await assente(3);
     assert.equal(await page.evaluate(() => window.scrollY), 0, 'a vista nova abre no topo');
     await nav(1);
-    await page.locator('.mu-pl').first().waitFor();
-    assert.deepEqual(await page.locator('.mu-pl .nm').allTextContents(), ['Som para o carro']);
+    await page.locator('#mu-body .mu-pl').first().waitFor();
+    assert.deepEqual(await page.locator('#mu-body .mu-pl .nm').allTextContents(), ['Som para o carro']);
     // depois de aberta uma vez, a playlist tem capa: o mosaico de 4 capas pequenas
-    assert.equal(await page.locator('.mu-pl .mu-pl-capa.m4 img').count(), 4);
-    assert.match(await page.locator('.mu-pl .mu-pl-capa img').first().getAttribute('src'), /\/80x80\.jpg$|\/56x56-/);
+    assert.equal(await page.locator('#mu-body .mu-pl .mu-pl-capa.m4 img').count(), 4);
+    assert.match(await page.locator('#mu-body .mu-pl .mu-pl-capa img').first().getAttribute('src'), /\/80x80\.jpg$|\/56x56-/);
     // como correu (o conector avalia-a: ainda é cedo) e atualizar sozinha (liga-se aqui; o Maestro renova-a)
     const agente = await env.KV.get('agente:chave');
     assert.equal((await worker.fetch(new Request(WORKER + '/api/avaliacoes', { headers: { authorization: `Bearer ${agente}` } }), env, { waitUntil() {} })).status, 200);
-    await page.locator('.mu-pl').first().locator('.mu-pl-a').click();
-    await page.getByRole('button', { name: 'Abrir' }).click();
+    // (a folha guarda a playlist 10 minutos em memória; tocar outra vez no separador vai buscar tudo de novo)
+    await nav(1);
+    await page.locator('#mu-body .mu-pl .mu-pl-a').first().waitFor();
+    await page.locator('#mu-body .mu-pl').first().locator('.mu-pl-a').click();
+    await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
+    await page.locator('.mu-folha .mu-sobre summary').click();
     await page.getByRole('heading', { name: 'Como correu' }).waitFor();
     await page.getByText('Ainda é cedo.').waitFor();
+    // o «⋯» da folha: atualizar sozinha, mudar o nome e apagar — a folha fica onde estava (não volta a subir)
+    await page.locator('.mu-folha').evaluate((f) => { f.scrollTop = 120; f.dataset.marca = '1'; });
+    assert.equal(await page.getByRole('button', { name: 'Mudar o nome' }).count(), 0, 'o menu começa fechado');
+    await page.getByRole('button', { name: 'Mais opções' }).click();
+    await page.getByRole('button', { name: 'Desligado' }).waitFor();
+    await page.locator('.mu-folha').evaluate((f) => { f.scrollTop = 0; });
+    await foto('3-menu');
+    await page.locator('.mu-folha').evaluate((f) => { f.scrollTop = 120; });
     await page.getByRole('button', { name: 'Desligado' }).click();
     await page.getByRole('button', { name: 'Ligado' }).waitFor();
     await page.locator('#mu-aviso').getByText('Passa a atualizar-se sozinha').waitFor();
@@ -343,24 +395,35 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('[data-onda="rn-desc"]').fill('Para testar o carro.');
     await page.getByRole('button', { name: 'Guardar' }).click();
     await page.locator('#mu-aviso').getByText(/Nome mudado/).waitFor();
-    await page.getByRole('heading', { name: 'Som do BMW' }).waitFor();
+    await page.locator('.mu-folha').getByRole('heading', { name: 'Som do BMW' }).waitFor();
+    assert.equal(await page.locator('.mu-renomear').count(), 0, 'depois de guardar, o campo do nome fecha');
     const renomeada = JSON.parse(await env.KV.get('playlist:' + JSON.parse(await env.KV.get('playlists'))[0].id));
     assert.deepEqual([renomeada.nome, renomeada.descricao], ['Som do BMW', 'Para testar o carro.']);
     if (renomeada.tidal) assert.equal(sim.renomeadas.at(-1).name, 'Som do BMW');
-    await nav(1);
-    await page.locator('.mu-pl').first().getByText('↻').waitFor();
-    // mais como esta: toca-se numa faixa e cria-se logo no Tidal uma playlist de parecidas
-    await page.locator('.mu-pl').first().locator('.mu-pl-a').click();
-    await page.getByRole('button', { name: 'Abrir' }).click();
-    await page.locator('#faixas .mu-faixa-a').first().waitFor();
-    await page.locator('#faixas .mu-faixa-a').first().click();
+    assert.deepEqual(await page.locator('.mu-folha').evaluate((f) => [f.dataset.marca, f.scrollTop > 0]), ['1', true], 'a folha é a mesma e ficou onde estava');
+    // apagar pergunta primeiro; «Não» volta atrás
+    await page.getByRole('button', { name: 'Mais opções' }).click();
+    await page.locator('.mu-menu').getByRole('button', { name: 'Apagar' }).click();
+    await page.getByRole('heading', { name: 'Apagar esta playlist?' }).waitFor();
+    await page.getByText('Também está no teu Tidal.').waitFor();
+    await page.locator('.mu-confirma').getByRole('button', { name: 'Não', exact: true }).click();
+    await page.locator('.mu-confirma').waitFor({ state: 'detached' });
+    // ao fechar a folha, a lista já tem o nome novo e o ↻ de «atualizar sozinha»
+    await page.locator('.mu-folha .mu-fechar').click();
+    await page.locator('.mu-folha').waitFor({ state: 'detached' });
+    await page.locator('#mu-body .mu-pl').first().getByText('↻').waitFor();
+    assert.deepEqual(await page.locator('#mu-body .mu-pl .nm').allTextContents(), ['Som do BMW']);
+    // mais como esta: toca-se no título de uma faixa e cria-se logo no Tidal uma playlist de parecidas, que abre a seguir
+    await page.locator('#mu-body .mu-pl').first().locator('.mu-pl-a').click();
+    await page.locator('.mu-folha .mu-xf button.tx').first().click();
     await page.getByRole('button', { name: 'Mais como esta' }).click();
-    await page.getByRole('heading', { name: /^Parecidas com / }).waitFor();
     await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
+    await page.locator('.mu-folha').getByRole('heading', { name: /^Parecidas com / }).waitFor();
     assert.equal(sim.criadas.length, 2);
     assert.match(sim.criadas[1].name, /^Parecidas com /);
-    await nav(1);
-    await page.locator('.mu-pl').nth(1).waitFor();
+    await page.locator('.mu-folha .mu-fechar').click();
+    await page.locator('.mu-folha').waitFor({ state: 'detached' });
+    await page.locator('#mu-body .mu-pl').nth(1).waitFor();
     // as tendências: 9 dias de tabelas (a Nina Simone, que segues, a subir em Portugal)
     const { recolher } = await import('../proxy/src/tendencias.js');
     for (let d = 0; d < 9; d++) {
@@ -541,18 +604,21 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(await seta(), 'none');
     await grupo.locator('summary').click();
     await grupo.locator('.mu-pl-a', { hasText: 'Mais descoberta' }).click();
-    await page.getByRole('button', { name: 'Abrir' }).click();
-    await page.getByText(/Proposta «Mais descoberta»/).waitFor();
+    await page.locator('.mu-folha').getByText(/^Proposta — ainda não está no Tidal/).waitFor();
     const nCriadas = sim.criadas.length;
     await page.getByRole('button', { name: 'Enviar para o Tidal' }).click();
     await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
     assert.equal(sim.criadas.length, nCriadas + 1);
-    await page.locator('#faixas .mu-faixa-a').first().click();
-    await page.getByRole('button', { name: 'Não esta' }).click();
-    await page.locator('#faixas .mu-faixa.fora').first().waitFor();
+    // enviada, deixa de ser proposta: a folha (a mesma) passa a ter «Ouvir no Tidal» e perde o aviso
+    await page.locator('.mu-folha').getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
+    await page.locator('.mu-folha').getByText(/^Proposta — ainda não está no Tidal/).waitFor({ state: 'detached' });
+    await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
+    await page.locator('.mu-folha .mu-xf .mu-nao').first().click();
+    await page.locator('.mu-folha .mu-xf li.fora').first().waitFor();
     await page.locator('[data-onda="af-tx"]').fill('Mais vozes, menos jazz');
-    await page.getByRole('button', { name: 'Pedir para afinar' }).click();
+    await page.getByRole('button', { name: 'Afinar', exact: true }).click();
     await page.locator('#mu-aviso').getByText(/Pedido de afinação enviado/).waitFor();
+    assert.equal(await page.locator('[data-onda="af-tx"]').inputValue(), '', 'enviado, o campo fica limpo');
     const af = JSON.parse(await env.KV.get('pedidos'))[0];
     assert.deepEqual([af.texto, af.afinar.rejeitadas.length], ['Mais vozes, menos jazz', 1]);
     // a playlist mostra o pedido original e a afinação, à espera do Maestro
@@ -568,6 +634,8 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const fora = new Set(docAf.rejeitadas);
     await apiAf(`/api/playlists/${docAf.id}/renovacoes`, { method: 'POST', body: JSON.stringify({ faixas: docAf.faixas.filter((f) => !fora.has(f.id)) }) });
     await apiAf(`/api/pedidos/${af.id}?playlist=${docAf.id}`, { method: 'DELETE' });
+    await page.locator('.mu-folha .mu-fechar').click();
+    await page.locator('.mu-folha').waitFor({ state: 'detached' });
     await nav(1);
     const afinada = page.locator('#mu-body .mu-grp .mu-pl', { hasText: docAf.nome });
     await afinada.locator('.mu-afinada').getByText(/^✓ afinada a /).waitFor();
