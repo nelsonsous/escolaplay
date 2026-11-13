@@ -2995,3 +2995,20 @@ falta, as séries certas e tortas, a média das fontes contra). Com os dados rea
 última análise verdadeira recusada só pelos 12 riscos que ainda não tinha; com eles, o que se gravaria é igual ao
 byte. Cartão: a referência em JS acompanha (4 000 instantâneos). Interface: a ficha da Nvidia com as linhas novas, na
 pasta de trabalho e no site construído. 100 testes.
+
+## Iteração 156: gráficos em SVG na biblioteca (`lib/grafico.onda`) e o afinar dentro da folha (Música 2.29.0)
+
+**O módulo.** Faltava à biblioteca o que um ecrã mais pede depois do texto: uma linha. `lib/grafico.onda` (`_gr_`)
+escreve o atributo `d` de um `<path>` a partir de uma série de inteiros, à escala de uma caixa com margem:
+`_gr_linha` (quebrada) e `_gr_curva` (suave: Catmull-Rom em Bézier cúbicas, com os pontos de controlo presos à
+caixa), abertas ou fechadas até à base (para encher por baixo). Escreve-se dentro de um molde, como o resto do
+ecrã: `` `<path d="{ _gr_curva v n 320 76 8 0 1000 0 }"/>` ``. Só inteiros — as coordenadas vão em décimas e
+escrevem-se com uma casa —, por isso o WebAssembly e o x86 dão o mesmo texto, igual ao byte à mesma conta em
+JavaScript (`test/biblioteca-grafico.test.js`: 92 séries). Não precisa de mais nenhum módulo.
+
+**Quem o usa.** O afinar da Música, que passou para dentro da folha da playlist: a energia de cada faixa pela ordem (a
+linha e a área) e o arco pedido (o tracejado), redesenhados a cada mudança de estilo, de arco, de número de faixas
+ou de fixada. O motor de curadoria corre no telemóvel e o juiz dos testes confere que a ordem é a do `curador.wasm`.
+O contexto do motor passou a ser um só (`ctx_cands`) para o afinar e para a troca de uma faixa. A vista 2 da app
+desapareceu.
+

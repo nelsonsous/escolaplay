@@ -36,6 +36,8 @@ antes (nenhum alvo novo, nenhum custo ao correr):
 - **Moldes** (crases): o texto sai como está, com as aspas à vontade, e cada `{ código }` corre nesse sítio.
 - **O ponto**: `c.nome` é o membro `nome` do nó `c` (da árvore que a ponte escreve, ou de um JSON lido).
 - **`Se c b`** e **`L i n b`**: o «se» sem ramo vazio e o ciclo de contar.
+- **Gráficos** (`lib/grafico.onda`): o caminho SVG de uma série escreve-se dentro do molde, como o resto do ecrã —
+  `` `<path d="{ _gr_curva v n 320 76 8 0 1000 0 }"/>` `` (a curva da energia da Música).
 - **Moldes com nome**: `` aviso`Erro { N s } do conector.` `` — o texto que o molde escreve é o 1.º argumento
   da função, sem abrir nem fechar texto nenhum (`` texto`…` `` dá só o texto).
 - **A fala** (`lib/fala.onda`): `ha`, `eh`, `num`, `txt`, `esc`, `plural`, `moeda`… em vez dos nomes compridos da biblioteca.

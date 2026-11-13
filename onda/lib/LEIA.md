@@ -11,7 +11,7 @@ ecrã e o conselheiro).
 Uma app em Onda é um só texto: junta-se a biblioteca **antes** da app, por esta ordem (cada módulo só usa os de cima):
 
 ```
-cat onda/lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala}.onda app.onda | onda/build/ondac -w main clique > app.wasm
+cat onda/lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,grafico,anfitriao,fala}.onda app.onda | onda/build/ondac -w main clique > app.wasm
 ```
 
 Pode-se juntar a biblioteca toda: os nomes dela começam por `_`, que no `-w` são privados — só entram as funções que a
@@ -58,6 +58,7 @@ começam nomes por `_` (são do runtime e das bibliotecas), por isso nunca colid
 | `data.onda` | `_dt_` | dia civil ⇄ dias, `toISOString`, dia da semana, Lisboa (`Europe/Lisbon`) |
 | `ordenar.onda` | `_or_` | o `sort` do V8: o PowerSort do Chromium (`_or_power`) e o TimSort do Node 22 (`_or_tim`) |
 | `html.onda` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
+| `grafico.onda` | `_gr_` | gráficos em SVG: o caminho de uma série de valores, em linha quebrada ou em curva suave, à escala de uma caixa |
 | `anfitriao.onda` | `_an_` | as portas dos anfitriões: apps (`rt/anfitriao.js`, `Y 100–118`) e scripts (`rt/anfitriao-node.js`, `Y 200–214`) |
 
 Cada ficheiro começa com a lista das suas funções, o que fazem e a que função do JS são iguais.

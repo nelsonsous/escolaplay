@@ -50,9 +50,6 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .mu-head h1 { margin: 0; font-size: 32px; line-height: 1.1; font-weight: 700; letter-spacing: -.02em; }
 .mu-head .sub { color: var(--mut); font-size: 13.5px; margin-top: 5px; }
 .mu-head > .mu-btn { flex: none; }
-.mu-voltar { display: inline-flex; align-items: center; min-height: 36px; margin: 0 0 6px; padding: 6px 0; cursor: pointer; text-decoration: none;
-    color: var(--fg); font-size: 16px; font-weight: 600; background: none; border: 0; }
-.mu-voltar:active { opacity: .6; }
 h2.mu-sec { font: 700 20px/1.2 var(--sans); letter-spacing: -.01em; color: var(--fg); margin: 30px 2px 8px; }
 
 /* estado do Tidal */
@@ -154,17 +151,8 @@ button.mu-chip { cursor: pointer; }
 .mu-faixa .t a:active { color: var(--acc); }
 .mu-faixa .a { color: var(--mut); font-size: 13.5px; }
 .mu-faixa .m { color: var(--dim); font-size: 12.5px; margin-top: 2px; }
-.mu-faixa .mot { color: var(--mut); font-size: 13px; margin-top: 5px; font-style: italic; }
 .mu-faixa .dir { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.mu-faixa .why { display: none; }
 .mu-faixa .dir .mu-chip { background: none; padding: 0; }
-.mu-faixa.fixa .n { color: var(--amber); }
-.mu-faixa .ctl { display: flex; gap: 6px; margin-top: 8px; }
-.mu-faixa .ctl button { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 4px 12px 4px 9px; border-radius: 999px; border: 0; background: var(--panel3);
-    color: var(--fg); font-size: 12.5px; font-weight: 600; cursor: pointer; }
-.mu-faixa .ctl svg { flex: none; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.mu-faixa .ctl button:active { background: var(--line2); }
-.mu-faixa .ctl button[aria-pressed="true"] { color: #000; background: var(--amber); }
 
 /* resumo e mistura */
 .mu-resumo { font-size: 15px; color: var(--fg); line-height: 1.6; margin: 4px 0 0; }
@@ -191,7 +179,6 @@ button.mu-chip { cursor: pointer; }
 .mu-range { display: grid; grid-template-columns: 1fr 48px; gap: 12px; align-items: center; }
 .mu-range input { width: 100%; height: 28px; margin: 0; accent-color: var(--acc); }
 .mu-range output { font: 700 14px/1 var(--mono); text-align: center; color: var(--fg); background: var(--panel2); border-radius: 10px; padding: 8px 0; }
-.mu-afinar { background: var(--panel); }
 .mu-motor { font: 600 12px var(--mono); color: var(--dim); margin-top: 8px; }
 
 /* pedidos */
@@ -365,6 +352,25 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-xf li.a-trocar .mu-trocar svg { animation: mu-rodar .9s linear infinite; }
 @keyframes mu-rodar { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mu-xf li.a-trocar .mu-trocar svg { animation: none; } }
+/* afinar na folha: o gráfico da energia (SVG escrito pela Onda), as escolhas e as faixas com o alfinete */
+.mu-afina { padding: 16px; margin: 0 0 14px; }
+.mu-afina > .mu-nota { margin: 2px 0 10px; }
+.mu-graf { display: block; width: 100%; height: 84px; border-radius: 10px; background: var(--panel3); }
+.mu-graf path { vector-effect: non-scaling-stroke; }
+.mu-graf .linha { fill: none; stroke: var(--acc); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.mu-graf .area { fill: var(--acc); opacity: .16; stroke: none; }
+.mu-graf .alvo { fill: none; stroke: var(--mut); stroke-width: 1.5; stroke-dasharray: 5 5; opacity: .8; }
+.mu-af-graf .mu-nota { margin: 6px 0 10px; font-size: 13px; }
+.mu-af-guarda { margin: 14px 0 0; }
+.mu-fixar { width: 34px; height: 34px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; background: none; color: var(--dim); cursor: pointer; }
+.mu-fixar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mu-fixar[aria-pressed="true"] { color: #000; background: var(--fg); }
+.mu-xf li.nova .tx i { font-style: normal; font-weight: 650; color: var(--green); }
+.mu-junta-a { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: -4px 0 8px; padding: 6px 2px; border: 0; background: none; color: var(--mut); font: inherit; font-size: 14.5px; cursor: pointer; }
+.mu-junta-a svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.mu-junta-a:active { color: var(--fg); }
+.mu-junta { margin: 0 0 12px; }
+.mu-junta .mu-xf { margin-top: 10px; }
 .mu-xf-nota { margin: -2px 0 12px; color: var(--mut); font-size: 13px; }
 .mu-xf-nota button { border: 0; background: none; padding: 4px 2px; color: var(--fg); font: inherit; font-weight: 650; text-decoration: underline; cursor: pointer; }
 .mu-xf-mais { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 0 6px 58px; }

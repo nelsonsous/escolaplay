@@ -43,11 +43,12 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   Playlists (cada uma abre numa **folha** que é o único sítio onde se mexe nela: ouvir 30 s, **⇄ trocar uma faixa**
   por outra — vê-se logo e fica gravada no Tidal —, arrastar para a esquerda para a tirar, «Desfazer», o «⋯» para
   mudar o nome, atualizar sozinha e apagar, «Sobre esta playlist» com o porquê e a mistura, tocar no título de uma
-  faixa para tirar ou **«Mais como esta»**, afinar com o Maestro), **Afinar no telemóvel**, Pedir, Gosto e Ajustes; o
-  estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
-  app a cada mudança (estilo, arco, número de faixas, máximo por artista, fixar, tirar, juntar do Tidal) em menos de
-  1 ms, e o juiz dos testes confirma que dá a mesma ordem que o `curador.wasm`. Ao guardar, a app manda só a decisão
-  (a ordem, o porquê e os ids das faixas juntadas) e o Worker monta a versão (`POST /api/playlists/:id/versoes`).
+  faixa para tirar ou **«Mais como esta»**, «Acrescentar uma faixa» do Tidal, pedir uma afinação ao Maestro), Pedir,
+  Gosto e Ajustes; o estado, a navegação e o motor de curadoria, tudo em Onda. **Afinar** é dentro da folha: o
+  `motor.onda` corre na própria app a cada mudança (estilo, energia, número de faixas, máximo por artista, fixar) em
+  menos de 1 ms, o gráfico da energia é SVG escrito pela Onda (`onda/lib/grafico.onda`), e o juiz dos testes confirma
+  que dá a mesma ordem que o `curador.wasm`. Ao guardar, a app manda só a decisão (a ordem e o porquê, por índice das
+  candidatas) e o Worker monta a versão (`POST /api/playlists/:id/versoes`), na app e no Tidal.
   A casca [`musica.js`](musica.js) só trata do que a Onda não tem como porta: a chave do aparelho nos pedidos, os
   pedidos que escrevem ("MÉTODO caminho" + corpo), sair para o login do Tidal ("IR url") e o regresso dele.
 
