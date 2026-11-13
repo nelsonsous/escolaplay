@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Meteo",
   "short_name": "Meteo",
-  "description": "Previsão do tempo para a tua localização exata: 9 modelos e a previsão oficial do IPMA, mais de 200 cenários, várias estações, satélite, incêndios e análise do Claude.",
+  "description": "Previsão do tempo para a tua localização exata: 9 modelos e a previsão oficial do IPMA, mais de 200 cenários, várias estações, satélite, incêndios e uma análise diária escrita por inteligência artificial.",
   "lang": "pt-PT",
   "start_url": "./",
   "scope": "./",

@@ -63,7 +63,7 @@ const clip = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); 
 export function pushMessage(analysis, { name, weekly = false, url, nowMs = Date.now() } = {}) {
     const where = name || analysis?.place?.name || 'o teu local';
     const fresh = analysis?.generatedAt && nowMs - Date.parse(analysis.generatedAt) <= 30 * 36e5;
-    if (!fresh) return { title: `Meteo · ${where}`, body: 'A análise do Claude ainda não chegou hoje. Abre a app para ver a previsão de amanhã.', url, tag: 'meteo-dia' };
+    if (!fresh) return { title: `Meteo · ${where}`, body: 'A análise de hoje ainda não chegou. Abre a app para ver a previsão de amanhã.', url, tag: 'meteo-dia' };
     if (weekly) return { title: `A semana em ${where}`, body: clip(analysis.notificacao?.semana || analysis.semana || analysis.tendencia, 180), url, tag: 'meteo-semana' };
     return { title: `Amanhã em ${where}`, body: clip(analysis.notificacao?.amanha || [analysis.amanha, analysis.vestir].filter(Boolean).join(' '), 180), url, tag: 'meteo-dia' };
 }
