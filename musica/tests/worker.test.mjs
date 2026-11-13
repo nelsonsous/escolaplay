@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import worker from '../proxy/src/worker.js';
 import { simulador, kv } from './simulador.mjs';
+import { b64u, b64uDecode } from '../proxy/src/push.js';
 
 const ORIGIN = 'https://musica.example.workers.dev';
 const sha = (s) => createHash('sha256').update(s).digest('hex');
@@ -38,7 +39,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.18.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.19.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -684,4 +685,72 @@ test('ouvir 30 s e capas: a pré-escuta e a capa do Deezer (pelo ISRC ou pela pe
     assert.match((await r3.json()).message, /gravações grátis do Cloudflare.*meia-noite/);
     assert.equal(r2.status, 200);
     assert.deepEqual(Object.keys((await r2.json()).previas).sort(), ['101', '102', '106']);
+});
+
+// ---------- avisos no telemóvel (Web Push) ----------
+// o lado do telemóvel: chave ECDH P-256 e segredo de 16 bytes, como o browser cria; decifra como o browser (RFC 8291)
+const te = new TextEncoder(), td = new TextDecoder();
+async function telemovel(endpoint) {
+    const kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+    const pub = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+    const auth = crypto.getRandomValues(new Uint8Array(16));
+    return { sub: { endpoint, keys: { p256dh: b64u(pub), auth: b64u(auth) } }, kp, pub, auth };
+}
+async function hkdf(salt, ikm, info, n) {
+    const k = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+    return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, k, n * 8));
+}
+async function decifrar(body, { kp, pub, auth }) {
+    const salt = body.slice(0, 16), idlen = body[20], asPub = body.slice(21, 21 + idlen);
+    const asKey = await crypto.subtle.importKey('raw', asPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: asKey }, kp.privateKey, 256));
+    const ikm = await hkdf(auth, shared, new Uint8Array([...te.encode('WebPush: info\0'), ...pub, ...asPub]), 32);
+    const cek = await hkdf(salt, ikm, te.encode('Content-Encoding: aes128gcm\0'), 16), nonce = await hkdf(salt, ikm, te.encode('Content-Encoding: nonce\0'), 12);
+    const key = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['decrypt']);
+    const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, body.slice(21 + idlen)));
+    return JSON.parse(td.decode(plain.slice(0, -1)));
+}
+
+test('avisos no telemóvel: ligar, teste, «propostas prontas» uma vez por pedido, «afinada», assinatura caducada sai, desligar', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const { chave: vapid } = await (await get('/api/push/chave', chave)).json();
+    assert.equal(b64uDecode(vapid).length, 65, 'a chave pública VAPID (P-256)');
+    assert.equal((await (await get('/api/push/chave', chave)).json()).chave, vapid, 'criada uma vez');
+    const tel = await telemovel('https://web.push.apple.com/QGtelemovel');
+    assert.equal((await post('/api/push', { subscription: { endpoint: 'https://exemplo.com/x', keys: tel.sub.keys } }, chave)).status, 400, 'só serviços de notificações conhecidos');
+    assert.equal((await post('/api/push/teste', {}, chave)).status, 409, 'ainda sem avisos');
+    assert.equal((await post('/api/push', { subscription: tel.sub }, chave)).status, 201);
+    assert.deepEqual(await (await post('/api/push/teste', {}, chave)).json(), { enviados: 1, falhados: 0 });
+    const ultimo = () => sim.pushes[sim.pushes.length - 1];
+    assert.equal(ultimo().encoding, 'aes128gcm');
+    assert.match(ultimo().authorization, /^vapid t=.+, k=/);
+    assert.equal((await decifrar(ultimo().body, tel)).body, 'Os avisos estão ligados neste telemóvel.');
+    // um pedido com duas propostas: um só aviso, quando fica feito
+    const ped = await (await post('/api/pedidos', { texto: 'Fado para o jantar' }, chave)).json();
+    const faixas = [{ id: '101', titulo: 'So What', artistas: ['Miles Davis'], duracao: 200 }];
+    const a = await (await post('/api/playlists', { nome: 'Fado A', faixas, rascunho: true, grupo: ped.id, variante: 'A' }, agente)).json();
+    const b = await (await post('/api/playlists', { nome: 'Fado B', faixas, rascunho: true, grupo: ped.id, variante: 'B' }, agente)).json();
+    const n = sim.pushes.length;
+    const feito = (pid, pl) => call(`/api/pedidos/${pid}?playlist=${pl}`, { method: 'DELETE', headers: { authorization: `Bearer ${agente}` } });
+    await feito(ped.id, a.id);
+    await feito(ped.id, b.id);
+    assert.equal(sim.pushes.length, n + 1, 'um aviso por pedido, não por proposta');
+    assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Propostas prontas', body: '«Fado para o jantar»: escolhe a que vai para o Tidal.',
+        url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-pedido' });
+    // a afinação feita: «foi afinada»
+    const af = await (await post(`/api/playlists/${a.id}/afinar`, { texto: 'mais guitarra' }, chave)).json();
+    await feito(af.id, a.id);
+    assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Playlist afinada', body: '«Fado A» foi afinada pelo Maestro.',
+        url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-afinar' });
+    // o serviço diz que a assinatura caducou (410): sai, e deixa de haver avisos
+    sim.pushStatus['https://web.push.apple.com/QGtelemovel'] = 410;
+    assert.deepEqual(await (await post('/api/push/teste', {}, chave)).json(), { enviados: 0, falhados: 1 });
+    assert.equal((await post('/api/push/teste', {}, chave)).status, 409);
+    // ligar outra vez e desligar
+    delete sim.pushStatus['https://web.push.apple.com/QGtelemovel'];
+    await post('/api/push', { subscription: tel.sub }, chave);
+    const des = await call('/api/push', { method: 'DELETE', headers: { authorization: `Bearer ${chave}`, 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: tel.sub.endpoint }) });
+    assert.equal(des.status, 200);
+    assert.equal((await post('/api/push/teste', {}, chave)).status, 409, 'desligados');
 });

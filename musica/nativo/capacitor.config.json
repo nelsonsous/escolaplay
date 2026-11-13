@@ -1,0 +1,15 @@
+{
+  "appId": "io.github.nelsonsous.musica",
+  "appName": "Música",
+  "webDir": "www",
+  "backgroundColor": "#0b0713",
+  "server": {
+    "url": "https://nelsonsous.github.io/escolaplay/musica/",
+    "allowNavigation": ["nelsonsous.github.io", "musica.mercados-proxy.workers.dev", "login.tidal.com"],
+    "errorPath": "erro.html"
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0b0713"
+  }
+}

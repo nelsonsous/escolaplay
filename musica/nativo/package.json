@@ -1,0 +1,17 @@
+{
+  "name": "musica-nativo",
+  "version": "2.25.0",
+  "private": true,
+  "description": "A Música como app nativa de teste (Capacitor): abre a app do site em ecrã inteiro, para o simulador do Xcode e o iPhone.",
+  "type": "module",
+  "scripts": {
+    "ios": "npx cap sync ios && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  }
+}

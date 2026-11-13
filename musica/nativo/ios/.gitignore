@@ -1,0 +1,10 @@
+App/build
+App/Pods
+App/output
+DerivedData
+xcuserdata
+
+# Cordova plugins for Capacitor
+capacitor-cordova-ios-plugins
+
+# (a pasta public, o capacitor.config.json e o config.xml vão no repositório: assim no Mac basta o Xcode)

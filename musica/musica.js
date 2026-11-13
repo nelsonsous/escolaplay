@@ -23,6 +23,13 @@
         const v = ls.get(k);
         if (v && v[0] === '"') { try { ls.set(k, JSON.parse(v)); } catch { ls.del(k); } }
     }
+    // os avisos (Web Push): 1 = pode; ios = iPhone fora do ecrã principal (o Safari só os dá à app do ecrã principal);
+    // nativo = a app de teste do Xcode (numa app nativa precisam do programa pago da Apple); 0 = este browser não pode
+    const nativo = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const ecraPrincipal = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const temPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    ls.set('avisos_ok', nativo ? 'nativo' : temPush ? '1' : iOS && !ecraPrincipal ? 'ios' : '0');
     // o fuso do aparelho, para a app saber se é de dia ou de noite pela hora local (a Onda só tem a hora UTC)
     ls.set('fuso', String(-new Date().getTimezoneOffset()));
     const h = new URLSearchParams(location.hash.slice(1)), q = new URLSearchParams(location.search);
@@ -56,7 +63,7 @@
     fetch('app/musica.wasm')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
-        .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })
+        .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); verificarAvisos(); })
         .catch((e) => {
             document.getElementById('mu-body').innerHTML = '<p class="mu-erro">Não consegui abrir a app: ' + String(e && e.message || e).replace(/[<&]/g, '') + '</p>';
         });
@@ -75,6 +82,58 @@
         t.click();
         t.remove();
     };
+
+    // os avisos no telemóvel: a Onda desenha o cartão nos Ajustes; aqui fica o que só o browser faz — pedir autorização
+    // (logo no toque), assinar no serviço de notificações do telemóvel e entregar a assinatura ao conector
+    const b64uBytes = (s) => { const t = s.replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(t + '='.repeat((4 - (t.length % 4)) % 4)), (c) => c.charCodeAt(0)); };
+    const motivo = async (r) => { try { return (await r.json()).message || null; } catch { return null; } };
+    async function assinatura(criar) {
+        const reg = await navigator.serviceWorker.ready;
+        let s = await reg.pushManager.getSubscription();
+        if (!s && criar) {
+            const r = await buscar('GET /api/push/chave');
+            if (!r.ok) throw new Error((await motivo(r)) || 'O conector não respondeu.');
+            s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes((await r.json()).chave) });
+        }
+        return s;
+    }
+    function avisosLigar() {
+        const perm = Notification.permission === 'granted' ? 'granted' : Notification.requestPermission();
+        Promise.resolve(perm).then(async (p) => {
+            if (p !== 'granted') throw new Error('Sem autorização: ativa as notificações da Música nas definições do telemóvel.');
+            const r = await buscar('POST /api/push\n' + JSON.stringify({ subscription: (await assinatura(true)).toJSON() }));
+            if (!r.ok) throw new Error((await motivo(r)) || 'Não consegui ligar os avisos.');
+            ls.set('avisos', '1');
+            disparar('avisos\tAvisos ligados neste telemóvel.');
+        }).catch((e) => disparar('avisos\t' + ((e && e.message) || 'Não consegui ligar os avisos.')));
+    }
+    async function avisosDesligar() {
+        try {
+            const s = await assinatura(false);
+            if (s) { await buscar('DELETE /api/push\n' + JSON.stringify({ endpoint: s.endpoint })); await s.unsubscribe(); }
+        } catch { /* deste lado fica desligado na mesma */ }
+        ls.del('avisos');
+        disparar('avisos\tAvisos desligados.');
+    }
+    async function avisosTeste() {
+        try {
+            const r = await buscar('POST /api/push/teste\n{}');
+            if (!r.ok) throw new Error((await motivo(r)) || 'Não consegui enviar.');
+            disparar('avisos\tEnviado: deve chegar daqui a uns segundos.');
+        } catch (e) { disparar('avisos\t' + ((e && e.message) || 'Não consegui enviar.')); }
+    }
+    function verificarAvisos() {
+        if (!temPush || !ls.get('avisos')) return;
+        navigator.serviceWorker.ready.then((reg) => reg.pushManager.getSubscription())
+            .then((s) => { if (!s) { ls.del('avisos'); disparar('avisos'); } }).catch(() => {});
+    }
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('[data-avisos]');
+        if (!b) return;
+        e.preventDefault();
+        const f = { ligar: avisosLigar, desligar: avisosDesligar, teste: avisosTeste }[b.dataset.avisos];
+        if (f) f();
+    }, true);
 
     // fechar a folha de uma playlist: primeiro desce (a animação do CSS), depois a Onda fecha-a
     let aFechar = false;

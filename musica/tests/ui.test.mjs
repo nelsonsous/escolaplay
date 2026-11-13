@@ -687,6 +687,59 @@ test('outro aparelho (a app no ecrã principal do iOS tem o seu armazém): cola 
     await ctx.close();
 });
 
+test('avisos no telemóvel: ligar nos Ajustes, enviar um de teste e desligar; no iPhone fora do ecrã principal, explica como', { skip: !chromium && 'sem Playwright' }, async () => {
+    // o telemóvel (simulado): a assinatura do serviço de notificações, com chaves válidas como as do browser
+    const kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+    const b64 = (b) => Buffer.from(b).toString('base64url');
+    const chaves = { p256dh: b64(new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey))), auth: b64(crypto.getRandomValues(new Uint8Array(16))) };
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('AVISOS-1').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    await ctx.addInitScript((keys) => {
+        const sub = { endpoint: 'https://web.push.apple.com/QGui', toJSON() { return { endpoint: this.endpoint, keys }; }, unsubscribe: async () => true };
+        let assinada = null;
+        const pushManager = { getSubscription: async () => assinada, subscribe: async () => (assinada = sub) };
+        Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { ready: Promise.resolve({ pushManager }), register: async () => ({}) } });
+        window.PushManager = function PushManager() {};
+        window.Notification = { permission: 'default', requestPermission: async () => 'granted' };
+    }, chaves);
+    const page = await ctx.newPage();
+    const erros = [];
+    page.on('pageerror', (e) => erros.push(String(e)));
+    await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+    await page.locator('[data-onda="cod"]').fill('AVISOS-1');
+    await page.getByRole('button', { name: 'Usar este código' }).click();
+    await page.locator('.mu-pl').first().waitFor();
+    await page.locator('#mu-nav [data-onda="ir\t5"]').click();
+    const cartao = page.locator('#aj-avisos');
+    await cartao.getByRole('button', { name: 'Ligar os avisos' }).click();
+    await page.locator('#mu-aviso').getByText('Avisos ligados neste telemóvel.').waitFor();
+    assert.equal(JSON.parse(await env.KV.get('push'))[0].endpoint, 'https://web.push.apple.com/QGui', 'o conector guarda a assinatura');
+    const n = sim.pushes.length;
+    await cartao.getByRole('button', { name: 'Enviar um de teste' }).click();
+    await page.locator('#mu-aviso').getByText(/^Enviado/).waitFor();
+    assert.equal(sim.pushes.length, n + 1);
+    await cartao.getByRole('button', { name: 'Desligar' }).click();
+    await page.locator('#mu-aviso').getByText('Avisos desligados.').waitFor();
+    await cartao.getByRole('button', { name: 'Ligar os avisos' }).waitFor();
+    assert.deepEqual(JSON.parse(await env.KV.get('push')), [], 'e sai do conector');
+    assert.deepEqual(erros, []);
+    await ctx.close();
+    // no iPhone, no Safari (fora do ecrã principal) não há avisos: o cartão diz como pôr a app no ecrã principal
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('AVISOS-2').digest('hex'));
+    const ios = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block',
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1' });
+    await ios.addInitScript(() => { delete window.PushManager; });
+    const p2 = await ios.newPage();
+    await p2.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+    await p2.locator('[data-onda="cod"]').fill('AVISOS-2');
+    await p2.getByRole('button', { name: 'Usar este código' }).click();
+    await p2.locator('.mu-pl').first().waitFor();
+    await p2.locator('#mu-nav [data-onda="ir\t5"]').click();
+    await p2.locator('#aj-avisos').getByText(/Adicionar ao ecrã principal/).waitFor();
+    assert.equal(await p2.locator('#aj-avisos button').count(), 0, 'sem botões: só a explicação');
+    await ios.close();
+});
+
 test('convidar: o dono cria o convite nos Ajustes; a convidada liga o seu Tidal e tem a sua app', { skip: !chromium && 'sem Playwright' }, async () => {
     const erros = [];
     // o dono, noutro aparelho (com o código de ligação)
