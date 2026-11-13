@@ -52,7 +52,7 @@
   = u a.unit = l a.pl
   Se ha u `<div class="r-sub">por { esc u }</div>`
   Se ha l `<div class="r-note">≈ { pn_eur3 l }/L sem impostos</div>` }
-# os meus ativos: o conselho (o do Claude, com a cor do tom; sem ele o automático, marcado "auto"), o desconto face ao
+# os meus ativos: o conselho (o do Claude, com a cor do tom; sem ele o das fontes automáticas, marcado "auto"), o desconto face ao
 # máximo do ano e o imposto da cripto (o taxLine do JS)
 : pn_meu i>i a {
   = an a.an = cl a.cl = d an.d = ad an.adv = tx a.tax
@@ -63,7 +63,8 @@
   ? || || || bc ba vd vt {
     `<div class="r-sub">`
     Se bc { = kk cl.key `<span class="badge { ln_tomk kk }">{ ? pn_sht kk 0 esc cl.action }</span>` }
-    Se ba `<span class="badge auto">{ ? pn_sht ad.key 0 esc ad.action }</span>`
+    # sem o Claude: o veredicto da decisão consolidada (a.dk, o mesmo da ficha); sem ela, o do sinal automático
+    Se ba { = ak ? ha a.dk a.dk ad.key `<span class="badge auto">{ ? pn_sht ak 0 esc ad.action }</span>` }
     ? vd `<span class="nb">{ fm_pct1 * num d.dd 100. } do máximo</span>`
       # o conselho do Claude chegou antes da análise da app: o lugar do desconto já guardado
       { Se ~ ha an `<span class="nb-sk skel">−00,0% do máximo</span>` }
@@ -309,6 +310,14 @@
     { Se @ b {
       = o / @f + b 14 F ne = nl @ + b 5 L i nl { Se pr `{ Se q " + " }{ pn_amt o @f + @ + b 7 i } { pn_lnome b i }` = q + q 1 } } }
   q }
+# o total, em euros, de uma execução (o que o pn_exa escreve, somado; 0. se não há valores em euros)
+: pn_ext iii>f b cp ne {
+  = t 0.
+  ? cp {
+      = x pri cp
+      W x { Se == tipo x 7 { = e x.eur = v ? == tipo e 4 / @f + e 1 F ne 0. Se && fin v > v 0. = t + t v } = x seg x } }
+    { Se @ b { = o / @f + b 14 F ne = nl @ + b 5 L i nl = t + t * o @f + @ + b 7 i } }
+  t }
 # de onde vem o cartão, numa linha pequena: o Claude e a hora (atrasada: devia haver uma mais nova), ou o automático
 : pn_fonte ii>i h c ? ha c {
     `<small class="hj-src cl"><b>Claude</b>` = w h.when `{ Se ha w ` · { esc w }` }{ Se ha h.old " · atrasada" }</small>` }
@@ -435,7 +444,7 @@
       = x seg x }
     "</div>" } }
 # o cartão: no resumo (o que se vê fechado) o Hoje, de onde vem, as 3 linhas do Claude (sem elas, o título dele) e a próxima
-# execução com os valores; na dobra o resto
+# execução (quando é e quanto leva; os valores por ativo só nos dias de agir); na dobra o resto, com o plano do mês
 : pn_hoje >i {
   = h es.hoje = c h.cl = cv ha c = b pn_breve h = bv @ b
   Se || cv bv {
@@ -448,10 +457,16 @@
         ? tv { = l pri tl W l { `<span class="tl">{ pn_tl l }</span>` = l seg l } } `<span class="tl">{ esc c.headline }</span>`
         "</span>" }
     Se ha x {
+        # nos dias de agir (a execução, o último dia para ajustar), os valores por ativo; nos outros só o total de cada
+        # execução: os valores por ativo estão no plano, na dobra
+        = hot || ha x.exec ha x.prazo
         `<span class="hj-ex{ Se ha x.prazo " hot" }"><span class="ex-t">`
         ? ha x.exec "Hoje executam os planos" ? ha x.prazo "Hoje é o último dia para ajustar os planos" "Próxima execução"
-        `: <b>{ esc x.quando }</b></span>`
-        Se pn_exa h b cp ne 0 `<span class="ex-a num">{ pn_exa h b cp ne 1 }</span>`
+        `: <b>{ esc x.quando }</b>`
+        = tot pn_ext b cp ne
+        Se && ~ hot > tot 0. ` · { peur0 tot }`
+        "</span>"
+        Se && hot pn_exa h b cp ne 0 `<span class="ex-a num">{ pn_exa h b cp ne 1 }</span>`
         "</span>" }
     `</summary><div class="hj-in">`
     # o sentimento do mercado e o dia nos índices

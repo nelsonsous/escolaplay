@@ -98,10 +98,10 @@ function verificar({ de, ate, seed }) {
         cfg: clone(mk.cfg), fold: { ...mk.st.fold }, swipe: mk.st.swipe, fuelErr: mk.st.fuelErr, claude: mk.claude, uni: mk.uni, fuel: mk.fuel, dist: mk.distritos, munic: Object.entries(mk.MUNIC), clmem: localStorage.getItem('mercados:clmem') };
     const out = { estados: 0, dif: [], ndif: 0, linhas: 0, icones: 0, bytes: 0,
         tipos: { dono: 0, outra: 0, claude: 0, semClaude: 0, atrasada: 0, tldr: 0, etiqueta: 0, linhaSimples: 0, titulo: 0, planoClaude: 0, planoAuto: 0, etf: 0, mix: 0, orcamento: 0, percentagem: 0,
-            execucao: 0, semValores: 0, prazo: 0, outros: 0, porque: 0, riscos: 0, agenda: 0, notas: 0, evitar: 0, mexe: 0, sentimento: 0, semHoje: 0,
+            execucao: 0, semValores: 0, prazo: 0, diaDeAgir: 0, comTotal: 0, semTotal: 0, outros: 0, porque: 0, riscos: 0, agenda: 0, notas: 0, evitar: 0, mexe: 0, sentimento: 0, semHoje: 0,
             p1d: 0, p1w: 0, p1m: 0, p1y: 0, pOutro: 0, oSobe: 0, oDesce: 0, oBolsa: 0, oNome: 0, oMinha: 0, grupos: 0,
             meusVazio: 0, acoesVazio: 0, fundosVazio: 0, semFundos: 0, cripto: 0, retirados: 0, aberta: 0, arrastada: 0,
-            fuel: 0, fuelCarrega: 0, fuelErro: 0, semConector: 0, skel: 0, hora: 0, badgeClaude: 0, badgeAuto: 0, desconto: 0, imposto: 0, litro: 0 } };
+            fuel: 0, fuelCarrega: 0, fuelErro: 0, semConector: 0, skel: 0, hora: 0, badgeClaude: 0, badgeAuto: 0, badgeDecisao: 0, desconto: 0, imposto: 0, litro: 0 } };
     const T = out.tipos;
     const DIA = 864e5;
     const isoDia = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -275,7 +275,10 @@ function verificar({ de, ate, seed }) {
                 const sub = row.querySelector('.r-sub'), note = row.querySelector('.r-note');
                 if (md === 2) {
                     const cl = x.cl, r = AN[k];
-                    const badge = cl && cl.action ? [(tab(SHORT, cl.key) && lbl(cl.key, true)) || cl.action, tab(CL_TONE, cl.key) || 'flat'] : r && r.advice ? [(tab(SHORT, r.advice.key) && lbl(r.advice.key, true)) || r.advice.action, 'auto'] : null;
+                    // sem o Claude, o veredicto é o da decisão consolidada (o da ficha); sem ela, o do sinal automático
+                    const dq = !cl && r && r.advice ? mk.decOf(k) : null, ak = dq ? dq.key : r && r.advice && r.advice.key;
+                    if (dq) T.badgeDecisao++;
+                    const badge = cl && cl.action ? [(tab(SHORT, cl.key) && lbl(cl.key, true)) || cl.action, tab(CL_TONE, cl.key) || 'flat'] : r && r.advice ? [(tab(SHORT, ak) && lbl(ak, true)) || r.advice.action, 'auto'] : null;
                     const items = [r && r.discount ? `${mk.fmtPct1(r.discount.dd * 100)} do máximo` : '', a.kind === 'crypto' ? mk.taxLine(k) : ''].filter(Boolean);
                     if (badge) T[badge[1] === 'auto' ? 'badgeAuto' : 'badgeClaude']++;
                     if (items.length && r && r.discount) T.desconto++;
@@ -513,6 +516,8 @@ function verificar({ de, ate, seed }) {
                 // a próxima execução, com os valores (do plano do Claude ou do automático)
                 const cplan = cv && Array.isArray(C.plan) && C.plan.length ? C.plan : null;
                 const execTxt = cplan ? cplan.filter(isObj).map((p) => [p.s, eurNum(p.amount) / nE]).filter(([, v]) => fin(v) && v > 0).map(([s, v]) => `${mk.fmtPx(v, { decimals: 0 }, 'EUR')} ${nameOf(s)}`).join(' + ') : b ? b.exec : '';
+                // o total de uma execução, em euros (0 se o plano só tem percentagens)
+                const execTot = cplan ? cplan.filter(isObj).map((p) => eurNum(p.amount) / nE).filter((v) => fin(v) && v > 0).reduce((t, v) => t + v, 0) : b ? b.lines.reduce((t, [, f]) => t + B / nE * f, 0) : 0;
                 const ex = sum.querySelector('.hj-ex'), X = H.ex;
                 if (!!ex !== vverd(X)) erro('Hoje: a execução ' + (ex ? 'a mais' : 'falta'));
                 if (ex && X) {
@@ -520,8 +525,11 @@ function verificar({ de, ate, seed }) {
                     if (vverd(X.prazo)) T.prazo++;
                     const tit = vverd(X.exec) ? 'Hoje executam os planos' : vverd(X.prazo) ? 'Hoje é o último dia para ajustar os planos' : 'Próxima execução';
                     const et = ex.querySelector('.ex-t'), ea = ex.querySelector('.ex-a');
-                    if (ex.className !== 'hj-ex' + (vverd(X.prazo) ? ' hot' : '') || !et || et.textContent !== `${tit}: ${txt(X.quando)}` || et.querySelector('b').textContent !== txt(X.quando)) erro(`Hoje: a execução ${ex.outerHTML.slice(0, 200)}`);
-                    if ((ea ? ea.textContent : '') !== txt(execTxt)) erro(`Hoje: os valores ${JSON.stringify(ea && ea.textContent)} em vez de ${JSON.stringify(execTxt)}`);
+                    // nos dias de agir, os valores por ativo; nos outros, só o total de cada execução
+                    const agir = vverd(X.exec) || vverd(X.prazo), total = !agir && execTot > 0 ? ` · ${mk.fmtPx(execTot, { decimals: 0 }, 'EUR')}` : '';
+                    T[agir ? 'diaDeAgir' : total ? 'comTotal' : 'semTotal']++;
+                    if (ex.className !== 'hj-ex' + (vverd(X.prazo) ? ' hot' : '') || !et || et.textContent !== `${tit}: ${txt(X.quando)}${total}` || et.querySelector('b').textContent !== txt(X.quando)) erro(`Hoje: a execução ${ex.outerHTML.slice(0, 200)} em vez de ${tit}: ${txt(X.quando)}${total}`);
+                    if ((ea ? ea.textContent : '') !== (agir ? txt(execTxt) : '')) erro(`Hoje: os valores ${JSON.stringify(ea && ea.textContent)} em vez de ${JSON.stringify(agir ? execTxt : '')}`);
                     if (!execTxt) T.semValores++;
                 }
                 // a dobra: bloco a bloco

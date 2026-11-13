@@ -400,7 +400,8 @@ function proxyBody(u) {
     await page.waitForSelector('.today .tldr', { timeout: 15000 });
     assert.equal(await page.locator('details.today[open]').count(), 0, 'compacto: fechado');
     assert.ok(await page.locator('.today > summary .tldr').isVisible(), 'as 3 linhas do Claude à vista');
-    assert.match(await page.locator('.today > summary .hj-ex').textContent(), /^(Próxima execução|Hoje executam os planos|Hoje é o último dia para ajustar os planos): .+810\s€ FTSE All-World USD \(Acc\) \+ 90\s€ Bitcoin$/, 'e a próxima execução, com os valores');
+    // a próxima execução: quando é e quanto leva; os valores por ativo só nos dias de agir (estão no plano, na dobra)
+    assert.match(await page.locator('.today > summary .hj-ex').textContent(), /^(Próxima execução: .+ · 900\s€|(Hoje executam os planos|Hoje é o último dia para ajustar os planos): .+810\s€ FTSE All-World USD \(Acc\) \+ 90\s€ Bitcoin)$/, 'e a próxima execução, com o total');
     assert.equal(await page.locator('.claude, .brief, .ideas.cl').count(), 0, 'sem cartões repetidos');
     assert.match(await page.locator('.today > summary').textContent(), /Hoje/);
     assert.equal(await page.locator('.today .i-h:has-text("Plano do mês")').count(), 1, 'um só plano do mês');
@@ -952,7 +953,7 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.click('[data-sday="16"]');
     await page.click('#mk-nav [data-tab="painel"]');
-    const exTxt = await page.locator('.today > summary .hj-ex .ex-a').textContent();
+    const exTxt = await page.locator('.today > summary .hj-ex').textContent(); // o total (ou, num dia de agir, os valores por ativo)
     const ex = [...exTxt.matchAll(/(\d[\d\s\u00a0\u202f]*)\s*€/g)].map((m) => m[0].trim());
     const exTot = ex.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
     assert.ok(Math.abs(exTot - 450) <= 3, 'execução = 450 €: ' + ex.join(' + '));

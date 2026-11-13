@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.21.0';
+    const VERSION = '4.21.1';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1314,12 +1314,13 @@
             foldHoje: fold('hoje'), foldIdx: fold('pn-idx'), foldEn: fold('pn-en'), foldFuel: fold('pn-fuel'),
             assets: Object.keys(REG).map((k) => {
                 const a = REG[k], q = qv(k), r = AN[k], h = r && r.horizons, d = r && r.discount, ad = r && r.advice;
-                const my = mine.includes(k), cl = my ? claudeFor(k) : null;
+                // sem o Claude, a etiqueta dos meus ativos é a da decisão consolidada (a mesma da ficha)
+                const my = mine.includes(k), cl = my ? claudeFor(k) : null, dec = my && !cl && ad ? decOf(k) : null;
                 return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), unit: a.unit, dec: a.decimals, pts: a.points,
                     px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k).pct, t: pxWhen(k, q),
                     pl: a.perLitre && Q[k] ? A.usdGalToEurL(Q[k].price, eu) : undefined, mkt: mktOf(k), nr: rank ? rank.get(nameOf(k)) : undefined,
                     an: r ? { d: d ? { dd: d.dd, score: d.score } : d, adv: ad ? { key: ad.key, action: ad.action } : ad, L: h ? (h.long || h.mid || {}).score : undefined } : r,
-                    cl: cl ? { key: cl.key, action: cl.action } : cl, tax: my && a.kind === 'crypto' ? taxLine(k) : undefined };
+                    cl: cl ? { key: cl.key, action: cl.action } : cl, dk: dec ? dec.key : undefined, tax: my && a.kind === 'crypto' ? taxLine(k) : undefined };
             }),
             hoje: hojeSnap(),
             fuel: FUEL ? { fuels: FUEL.fuels } : FUEL, fuelErr: st.fuelErr, dname, mname,
@@ -1458,6 +1459,8 @@
     }
     // ---- a decisão consolidada (decisao.onda): o que o Claude, os analistas, a técnica e as notícias dizem de um
     // ativo, numa só. Aqui só se junta o que cada fonte já deu; as regras e os pesos estão na Onda ----
+    // o tom das notícias de um ativo, calculado uma vez por cada lista que chega
+    const tomNoticias = (n) => { if (!('tom' in n) && aoOk) n.tom = AO.newsTone(n.items); return 'tom' in n ? n.tom : null; };
     function decIn(k) {
         const cl = claudeFor(k), c = CONS[k], r = AN[k], n = NEWS[k], h = (r && r.horizons) || {};
         const sc = (x) => (x ? x.score : null);
@@ -1465,7 +1468,7 @@
             cl: cl ? { key: cl.key, short: cl.short, mid: cl.mid, long: cl.long, old: !!cl.old } : null,
             an: c && !c.none && !c.error ? { key: c.key, mean: c.mean, n: c.n, target: c.target, price: c.price } : null,
             tec: r && r.advice ? { key: r.advice.key, short: sc(h.short), mid: sc(h.mid), long: sc(h.long) } : null,
-            news: n ? A.newsTone(n.items) : null,
+            news: n ? tomNoticias(n) : null,
         };
     }
     const decOf = (k) => (buyable(k) ? A.decisao(decIn(k)) : null);
