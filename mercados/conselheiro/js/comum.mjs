@@ -106,6 +106,15 @@ export const ACTION_LABEL = {
 };
 // família de cada veredicto: entrar (1), ficar (0), sair (-1) — para comparar com o sinal automático
 export const FAM = { buy: 1, scale: 1, hold: 0, wait: 0, neutral: 0, turn: 0, reduce: -1, sell: -1, avoid: -1 };
+// dois veredictos são da mesma família? Entrar / ficar / sair nos ativos; nas referências (up, flat, down), a mesma direção
+const famDe = (k) => (typeof k === 'string' && Object.hasOwn(FAM, k) ? FAM[k] : null);
+export const sameFam = (a, b) => {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    const fa = famDe(a), fb = famDe(b);
+    return fa != null || fb != null ? fa === fb : a === b;
+};
+// uma data AAAA-MM-DD em texto
+export const isoDate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 export const HZ = ['short', 'mid', 'long']; // curto (dias a 2 semanas), médio (semanas a 3 meses), longo (anos)
 export const LEVELS = ['entry', 'target', 'stop']; // entrada, alvo e stop, na moeda do ativo
 

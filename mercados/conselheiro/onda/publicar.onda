@@ -74,15 +74,46 @@
         _js_push seen s
         = ref && != r 1 _js_eht _js_get r $"kind" $"ref"
         = v pu_norm x p ref ? != r 1 _js_get r $"price" 2
+        # o que as notícias dizem do ativo, lidas pelo Claude (0–100), o catalisador e o que faria a decisão estar errada
+        = nw _js_get x $"news"
+        Se ~ cs_vazio nw {
+            = nt _js_tonum nw
+            ? || || || == _js_tipo nw 3 == _js_tipo nw 4 ~ fin nt || < nt 0. > nt 100. {
+                `{ cs_eini }{ crut p }.news: o tom das notícias é de 0 a 100 (veio { _js_pj nw 0 0 }){ cs_efim }` }
+              { _js_oset v $"news" _js_num _nu_round nt 0 } }
+        = ct cs_str _js_get x $"cat" 90 cs_pc2 p $"cat" 0
+        = rs cs_str _js_get x $"risk" 140 cs_pc2 p $"risk" 0
+        Se ~ _tx_branco ct _js_oset v $"cat" ct
+        Se ~ _tx_branco rs _js_oset v $"risk" rs
+        = vk _js_get v $"key"
+        = fk 0 Se _js_ehtxt vk { = fv _js_oget cs_c $"FAM" vk Se != fv 1 = fk I _js_f fv }
+        Se && && ~ ref fk _tx_branco rs
+            `{ cs_eini }{ crut p }: mandas { ? > fk 0 "entrar" "sair" } ({ _js_ps _js_get v $"action" }): diz em risk o que faria esta decisão estar errada (até 140 caracteres){ cs_efim }`
+        # a segunda opinião: a regra automática e a média das outras fontes (fontes.fam do dados.json)
         = ru ? != r 1 _js_get r $"rule" 1
-        Se && && != r 1 _js_v ru && != pu_fam ru 1 != pu_fam _js_get v $"key" 1 {
-            _js_oset v $"alg" ru
+        = cr && && != r 1 _js_v ru && != pu_fam ru 1 != pu_fam vk 1
+        = ft ? != r 1 _js_get r $"fontes" 1
+        = fo 0 Se _js_ehobj ft { = fm _js_oget ft $"fam" Se _js_ehnum fm = fo ? == _js_f fm 1. 1 ? == _js_f fm -1. -1 0 }
+        Se || cr && fo fk {
+            Se cr _js_oset v $"alg" ru
             `{ _an_abre 0 }{ crut p }.algWhy` = nm _an_fecha
             = w cs_str _js_get x $"algWhy" 300 nm 0
-            Se && ~ _js_eq pu_fam _js_get v $"key" pu_fam ru _tx_branco w {
+            ? && && cr ~ _js_eq pu_fam vk pu_fam ru _tx_branco w {
                 = ra _js_get r $"ruleAction" = ra ? _js_v ra ra cs_alabel _js_str ru
                 `{ cs_eini }{ crut p }: o teu veredicto ({ _js_ps _js_get v $"action" }) discorda do sinal automático ({ _js_ps ra }): explica porquê em algWhy (até 300 caracteres){ cs_efim }` }
+              { Se && && fo == fk - 0 fo _tx_branco w
+                  `{ cs_eini }{ crut p }: o teu veredicto ({ _js_ps _js_get v $"action" }) é o contrário da média das outras fontes ({ ? > fo 0 "entrar" "sair" }): explica porquê em algWhy (até 300 caracteres){ cs_efim }` }
             Se ~ _tx_branco w _js_oset v $"algWhy" w }
+        # o que mudou: desde quando mantém esta família de veredicto e o que dizia antes (o prev do dados.json)
+        = pv ? != r 1 _js_get r $"prev" 1
+        = pv ? && _js_ehobj pv _js_ehtxt _js_oget pv $"key" pv 0
+        = hoje _js_oget o $"date"
+        ? && pv cs_mfam _js_oget pv $"key" vk {
+            = d _js_oget pv $"since" = d2 _js_oget pv $"date"
+            = d ? && _js_ehtxt d > _tx_len d 0 d ? && _js_ehtxt d2 > _tx_len d2 0 d2 hoje
+            = wa _js_oget pv $"was" Se && _js_ehtxt wa > _tx_len wa 0 _js_oset v $"was" wa
+            _js_oset v $"since" d 0 }
+          { Se pv _js_oset v $"was" _js_oget pv $"key" _js_oset v $"since" hoje 0 }
         _js_push acts v 0 } }
     = j + j 1 }
   = ex 0 = j 0 W < j _js_len acts { Se ~ pu_mtem rows _js_get _js_it acts j $"s" = ex + ex 1 = j + j 1 }

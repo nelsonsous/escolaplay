@@ -61,10 +61,11 @@ Na ficha de cada ativo que se compra há um só cartão, **Decisão**: o veredic
 | Analistas (Yahoo) | 100 − 25 × (nota − 1); metade do caminho até 50 se o preço já passou o alvo; mais até 10 pontos pelas revisões das estimativas de lucro em 30 dias (quem as sobe puxa para cima) | 2 com 10 analistas ou mais |
 | Fundamentos (Yahoo) | a média do P/E esperado, do crescimento das vendas e da margem de lucro, cada um numa tabela (pelo menos dois) | 1 |
 | Técnica | a pontuação por prazo, com os mesmos pesos | 1,5 |
-| Notícias | 50 + 50 × tom dos títulos | 0,75 |
+| Notícias | o tom que o Claude leu na análise de agora (`news`, 0–100); sem ele, 50 + 50 × tom dos títulos | 0,75 |
 | Sentimento | ao contrário (com medo compra-se melhor): na cripto o Fear & Greed, 50 + 0,6 × (50 − índice); nas ações e fundos o VIX, numa tabela | 0,75 |
 
 - **Quem manda:** o Claude, se falou do ativo. Sem ele, a média pelos pesos (≥ 58 entrar, ≤ 42 sair).
+- **O que o Claude acrescenta ao cartão:** desde quando mantém a decisão e o que dizia antes ("Mudou hoje · antes: Aguardar", em destaque nos dois primeiros dias; o `publicar` calcula-o do veredicto anterior), o catalisador (`cat`) e o risco (`risk`: o que faria a decisão estar errada, obrigatório quando manda entrar ou sair).
 - **Confiança:** alta com ninguém contra e peso a favor de 4 ou mais (o Claude e mais uma fonte de peso). Baixa com menos de 2 a favor, ou com o peso contra acima de metade do peso a favor. As fontes ao lado não contam.
 - **Forte:** ninguém contra e a média em 70 ou mais (30 ou menos para sair).
 

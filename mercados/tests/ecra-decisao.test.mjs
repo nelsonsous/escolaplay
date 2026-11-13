@@ -54,7 +54,7 @@ function fonte(s, d, x, i) {
         if (e(s.anD)) por += ` · alvo ${pct(s.anD)}` + (x.fam > 0 && s.anD < 0 ? ' · o preço já passou o alvo' : x.fam < 0 && s.anD > 0 ? ' · o alvo está acima do preço' : '');
         if (e(f.an.up) && e(f.an.down) && f.an.up + f.an.down > 0) por += ` · revisões ${Math.round(f.an.up) || 0}↑ ${Math.round(f.an.down) || 0}↓`;
     }
-    if (x.f === 'noticias' && e(s.nn)) por = `${Math.trunc(s.nn)} ${Math.trunc(s.nn) === 1 ? 'título' : 'títulos'} recentes`;
+    if (x.f === 'noticias') por = s.nc ? 'lidas pelo Claude' : e(s.nn) ? `${Math.trunc(s.nn)} ${Math.trunc(s.nn) === 1 ? 'título' : 'títulos'} recentes` : '';
     if (x.f === 'fundamentos') por = [e(f.fun.pe) && f.fun.pe > 0 ? `P/E ${pt1.format(f.fun.pe)}` : '', e(f.fun.cr) ? `vendas ${pc(f.fun.cr, true)}` : '', e(f.fun.mg) ? `margem ${pc(f.fun.mg, false)}` : ''].filter(Boolean).join(' · ');
     if (x.f === 'sentimento') por = fg ? `Fear &amp; Greed ${Math.round(sv) || 0} de 100${x.fam > 0 ? ' · com medo compra-se melhor' : x.fam < 0 ? ' · com ganância compra-se pior' : ''}` : `VIX ${Math.round(sv)}`;
     return `<li class="d${x.d > 0 ? 1 : x.d < 0 ? 2 : 0}"><div class="dec-r"><b>${NOME[x.f]}</b><span class="dec-l ${tom(x.fam)}-t">${diz}</span><em>${lado}</em></div><div class="dec-s">${barra(x.p)}<small>${por}</small></div></li>`;
@@ -62,6 +62,15 @@ function fonte(s, d, x, i) {
 // o porquê de o Claude discordar mostra-se quando ele manda e há quem esteja contra (ou a técnica ficou ao lado)
 const discorda = (s, d) => !!s.algWhy && d.manda === 'claude' && (d.contra > 0 || d.f.some((x) => x.f === 'tecnica' && x.d === 0));
 const arr = (x) => (Array.isArray(x) ? x : []), ob = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : {});
+// o rótulo de um veredicto para quem tem ou não o ativo (na referência, a direção); '' se não é um veredicto
+const rotK = (k, own) => (typeof k === 'string' && Object.hasOwn(FAM, k) ? rot(FAM[k], own, k === 'reduce') : k === 'up' ? 'Em alta' : k === 'flat' ? 'Lateral' : k === 'down' ? 'Em queda' : '');
+// desde quando o Claude mantém a decisão e o que dizia antes; em destaque se mudou há dois dias ou menos
+function desde(s) {
+    if (!s.desde) return '';
+    const n = e(s.dias) ? Math.trunc(s.dias) : 0, mud = !!s.era;
+    return `<div class="dec-desde${mud && n <= 2 ? ' novo' : ''}">` + (mud && n <= 1 ? `Mudou ${esc(s.desde)}` : `Desde ${esc(s.desde)}${n >= 2 ? ` (há ${n} dias)` : ''}`)
+        + (mud ? ` · antes: ${rotK(s.era, !!s.own)}` : '') + '</div>';
+}
 function cartao(s) {
     const d = O.decisao(s.d);
     if (!d) return '';
@@ -70,13 +79,15 @@ function cartao(s) {
         + (s.src ? `<div class="adv-src">${esc(s.src)}</div>` : '')
         + `<div class="dec-top"><div class="adv-act ${t}-t">${rot(d.fam, own, d.key === 'reduce')}${d.forte ? ' <small class="adv-forte">forte</small>' : ''}</div>`
         + `<span class="dec-conf c${d.conf}">confiança ${['baixa', 'média', 'alta'][d.conf]}</span></div>`
-        + (s.act ? `<div class="adv-nu">${esc(s.act)}</div>` : '')
+        + (s.act ? `<div class="adv-nu">${esc(s.act)}</div>` : '') + desde(s)
         + `<div class="dec-p"><small>Média das fontes</small>${barra(d.p)}</div><div class="dec-voz">${voz(d)}</div>`
         + `<ul class="dec-f">${d.f.map((x, i) => fonte(s, d, x, i)).join('')}</ul>`
         + (arr(s.lv).length ? `<ul class="cl-lv">${arr(s.lv).map((l) => { const o = ob(l); return `<li class="${esc(o.f)}"><small>${esc(o.l)}</small><b class="num">${esc(o.px)}</b><span class="num">${esc(o.d)}</span></li>`; }).join('')}</ul>` : '')
         + (s.hoje ? `<div class="adv-why"><b>Porquê ${s.desce ? 'desce' : 'sobe'} hoje:</b> ${esc(s.hoje)}</div>` : '')
         + (s.why ? `<div class="adv-txt">${esc(s.why)}</div>` : '')
         + (s.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(s.plan)}</div>` : '')
+        + (s.cat ? `<div class="adv-txt"><b>Catalisador:</b> ${esc(s.cat)}</div>` : '')
+        + (s.risk ? `<div class="adv-txt"><b>Risco:</b> ${esc(s.risk)}</div>` : '')
         + (discorda(s, d) ? `<div class="adv-alg diff"><b>Porque discorda ${d.contra ? lista(d.f.filter((x) => x.d === -1).map((x) => 'd' + ART[x.f])) : 'da técnica'}:</b> ${esc(s.algWhy)}</div>` : '')
         + arr(s.ev).map((v) => { const o = ob(v); return `<div class="adv-ev">${o.t === 'earnings' ? `<b>Resultados ${esc(o.q)} (${esc(o.d)}).</b> Nesses dias a ação costuma mexer ±5–10%.` : `<b>Ex-dividendo ${esc(o.q)} (${esc(o.d)}).</b> Para receber este dividendo tens de ter a ação antes dessa data.`}</div>`; }).join('')
         + '</div>';
@@ -113,7 +124,9 @@ function caso(r) {
         src: um(TXT), act: um(TXT), why: um(TXT), plan: um(TXT), algWhy: r() < 0.3 ? um(TXT) : '', hoje: r() < 0.3 ? um(TXT) : '', desce: um([true, false, null]),
         lv: r() < 0.6 ? Array.from({ length: Math.floor(r() * 4) }, () => (r() < 0.05 ? um([null, 'x']) : { f: um(['entry', 'target', 'stop', '"><b']), l: um(['Entrada', 'Alvo', 'Stop']), px: um(['164,93 €', '<i>1</i>', 12]), d: um(['−3,06%', '', null]) })) : um([undefined, null, [], 'x']),
         anD: r() < 0.7 ? Math.round((r() * 150 - 60) * 100) / 100 : um([null, undefined, NaN, '5']),
-        nn: r() < 0.85 ? 1 + Math.floor(r() * 8) : um([null, undefined, NaN]),
+        nn: r() < 0.85 ? 1 + Math.floor(r() * 8) : um([null, undefined, NaN]), nc: um([true, false, false, undefined, null, 1, 0]),
+        ...(r() < 0.5 ? { desde: um(['hoje', 'ontem', '05/11', '28/12/2025', '', null, '<u>', 0]), dias: um([0, 1, 2, 3, 8, 120, null, undefined, NaN, '4', 1.9, -1]), era: um(['', '', null, undefined, ...KEYS, 'up', 'down', 'flat', 'outra', 7]) } : {}),
+        cat: r() < 0.4 ? um(TXT) : '', risk: r() < 0.4 ? um(TXT) : undefined,
         ev: r() < 0.3 ? Array.from({ length: 1 + Math.floor(r() * 2) }, () => ({ t: um(['earnings', 'dividend']), q: um(['hoje', 'daqui a 5 dias', '<u>']), d: um(['18/11', '02/12']) })) : um([undefined, []]),
     };
 }
@@ -129,7 +142,7 @@ function fechado(h) {
 }
 
 test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
-    const r = rng(421), conta = { vazio: 0, claude: 0, voto: 0, niveis: 0, agenda: 0, contra: 0, lado: 0, acordo: 0, uma: 0, fundamentos: 0, medo: 0, vix: 0, discorda: 0, calado: 0 };
+    const r = rng(421), conta = { vazio: 0, claude: 0, voto: 0, niveis: 0, agenda: 0, contra: 0, lado: 0, acordo: 0, uma: 0, fundamentos: 0, medo: 0, vix: 0, discorda: 0, calado: 0, mudou: 0, desde: 0, ha: 0, novo: 0, antes: 0, cat: 0, risco: 0, lidas: 0 };
     for (let i = 0; i < CASOS; i++) {
         const s = caso(r), h = O.ecra.decisao(s), quer = cartao(s);
         assert.equal(h, quer, `caso ${i}: ${JSON.stringify(s)}`);
@@ -138,6 +151,7 @@ test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
         assert.ok(!/<img|<u>|<i>1/.test(h), `caso ${i}: HTML de fora por escapar`);
         const d = O.decisao(s.d);
         conta[d.manda]++; conta.niveis += /cl-lv/.test(h); conta.agenda += /adv-ev/.test(h); conta.contra += d.contra > 0; conta.lado += d.favor + d.contra < d.n; conta.acordo += d.n > 1 && d.favor === d.n; conta.uma += d.n === 1; conta.discorda += /Porque discorda d[oa]s? /.test(h); conta.calado += !!s.algWhy && !/Porque discorda/.test(h); conta.fundamentos += />Fundamentos</.test(h); conta.medo += /Fear &amp; Greed/.test(h); conta.vix += /<small>VIX /.test(h);
+        conta.mudou += />Mudou /.test(h); conta.desde += /"dec-desde">Desde /.test(h); conta.ha += / \(há \d+ dias\)/.test(h); conta.novo += /dec-desde novo/.test(h); conta.antes += / · antes: [A-Z]/.test(h); conta.cat += /Catalisador:/.test(h); conta.risco += /Risco:/.test(h); conta.lidas += /lidas pelo Claude/.test(h);
     }
     for (const [nome, v] of Object.entries(conta)) assert.ok(v >= CASOS / 100, `poucos casos de ${nome}: ${v}`);
 });
@@ -164,6 +178,20 @@ test('casos lidos à mão', () => {
     const c = O.ecra.decisao({ d: { cl: { key: 'wait', short: 40, mid: 50, long: 60 }, tec: { key: 'neutral', short: 50, mid: 50, long: 50 }, sent: { fg: 12 } }, own: true });
     assert.match(c, /<div class="adv-act flat-t">Manter<\/div><span class="dec-conf c2">confiança alta<\/span>/);
     assert.match(c, /<b>Sentimento<\/b><span class="dec-l up-t">medo extremo<\/span><em>ao lado<\/em>.*<small>Fear &amp; Greed 12 de 100 · com medo compra-se melhor<\/small>/);
+    // o que o Claude acrescenta: desde quando, o que dizia antes, o catalisador, o risco e as notícias lidas por ele
+    const base = { d: { cl: { key: 'buy', short: 60, mid: 70, long: 80 }, news: 0.4 }, own: false, why: 'Porquê.', plan: 'Plano.', nn: 5 };
+    const linhas = (x) => O.ecra.decisao({ ...base, ...x }).replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
+    assert.equal(linhas({ desde: 'hoje', dias: 0, era: 'wait', cat: 'Resultados a 19/11', risk: 'Fecho abaixo de 150 €', nc: true }),
+        '|Decisão|Comprar |forte|confiança média|Mudou hoje · antes: Aguardar|Média das fontes|72|As 2 fontes de acordo.|Claude|Comprar|decide|72|C60 · M70 · L80'
+        + '|Notícias|positivas|a favor|70|lidas pelo Claude|Porquê.|Plano:| Plano.|Catalisador:| Resultados a 19/11|Risco:| Fecho abaixo de 150 €|');
+    assert.match(O.ecra.decisao({ ...base, desde: 'hoje', dias: 0, era: 'wait' }), /<div class="dec-desde novo">Mudou hoje · antes: Aguardar<\/div>/);
+    assert.match(O.ecra.decisao({ ...base, own: true, desde: 'ontem', dias: 1, era: 'sell' }), /<div class="dec-desde novo">Mudou ontem · antes: Vender<\/div>/);
+    assert.match(O.ecra.decisao({ ...base, own: true, desde: '11/11', dias: 2, era: 'reduce' }), /<div class="dec-desde novo">Desde 11\/11 \(há 2 dias\) · antes: Vender parte<\/div>/);
+    assert.match(O.ecra.decisao({ ...base, desde: '05/11', dias: 8, era: 'avoid' }), /<div class="dec-desde">Desde 05\/11 \(há 8 dias\) · antes: Evitar<\/div>/);
+    assert.match(O.ecra.decisao({ ...base, desde: '05/08', dias: 100 }), /<div class="dec-desde">Desde 05\/08 \(há 100 dias\)<\/div>/);
+    assert.match(O.ecra.decisao({ ...base, desde: 'hoje', dias: 0 }), /<div class="dec-desde">Desde hoje<\/div>/, 'o primeiro veredicto: sem "mudou"');
+    assert.doesNotMatch(O.ecra.decisao(base), /dec-desde|Catalisador|Risco|lidas pelo Claude/);
+    assert.match(O.ecra.decisao(base), /<small>5 títulos recentes<\/small>/);
     assert.equal(O.ecra.decisao({ d: {} }), '');
     assert.equal(O.ecra.decisao({}), '');
 });

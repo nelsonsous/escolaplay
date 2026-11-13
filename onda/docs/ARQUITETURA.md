@@ -91,8 +91,8 @@ de cima, com o estado dentro da Onda.
 | `onda/tools/` | o conversor para a Onda fluida (`fluir.mjs`) | 348 linhas de JS |
 | `onda/rt/`, `onda/wasm/` | os anfitriões | 194 + 143 + 114 linhas de JS |
 | `onda/molde/` | o ponto de partida de uma app nova | 140 linhas de Onda, módulo de 49 KB |
-| `mercados/onda/` | a análise, a decisão consolidada, os separadores e o cartão «Decisão» da Mercados | 3 204 linhas, módulo de 399 KB |
-| `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 1 988 linhas, módulo de 386 KB |
+| `mercados/onda/` | a análise, a decisão consolidada, os separadores e o cartão «Decisão» da Mercados | 3 226 linhas, módulo de 402 KB |
+| `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 2 046 linhas, módulo de 393 KB |
 | `mercados/proto/` | gráficos vivos e o mapa do mercado (o guia: `docs/CAMPOS.md`) | 265 linhas, módulo de 27 KB |
 | `musica/onda/` | o motor e o curador da Música (de outra sessão; usa ainda o `lib/app.onda`) | 231 linhas |
 | `meteo/onda/` | os campos da Meteo: o gráfico da chuva das próximas 2 horas (WebAssembly) e o céu do cartão «Agora» (GLSL) | 91 + 169 linhas, 11 KB de WASM e 32 KB de GLSL |
@@ -104,7 +104,7 @@ de cima, com o estado dentro da Onda.
 | Molde | tudo (estado, ecrã, eventos, rede, armazém) | a casca de 16 linhas e o service worker |
 | Música | o motor e o curador | uma casca de 57 linhas |
 | Mercados — tarefa do Claude | tudo | lançadores de uma linha |
-| Mercados — app | a análise toda, a decisão consolidada, os separadores Painel, Destaques, Análise, Carteira e Ajustes e o cartão «Decisão» da ficha (pela ponte) | o resto da ficha e os gráficos, os dados ao vivo, o estado e os gestos (`mercados.js`, 2 692 linhas) |
+| Mercados — app | a análise toda, a decisão consolidada, os separadores Painel, Destaques, Análise, Carteira e Ajustes e o cartão «Decisão» da ficha (pela ponte) | o resto da ficha e os gráficos, os dados ao vivo, o estado e os gestos (`mercados.js`, 2 720 linhas) |
 | Mercados — conector (Cloudflare) | nada | tudo |
 | Meteo — app | o gráfico da chuva e o céu animado do cartão «Agora» (campos) | o resto da app, o conector e a tarefa do Claude |
 

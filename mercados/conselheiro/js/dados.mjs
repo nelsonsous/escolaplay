@@ -5,7 +5,7 @@
 //     → <pasta>/dados.json (tudo), dados.md (resumo compacto, uma linha por ativo) e modelo.json (esqueleto da análise)
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { AO, px, kvKeys, kvGet, todayLisbon, isMain, STOCKS, FUNDS, CRYPTO, MARKET, MINE, ACTION_LABEL, HZ, LEVELS, yahooOf, kindOf, nameOf } from './comum.mjs';
+import { AO, px, kvKeys, kvGet, todayLisbon, isMain, STOCKS, FUNDS, CRYPTO, MARKET, MINE, ACTION_LABEL, HZ, LEVELS, sameFam, isoDate, yahooOf, kindOf, nameOf } from './comum.mjs';
 
 const SYM = /^(c:[A-Z0-9]{2,10}|[A-Z0-9^][A-Z0-9.=^-]{0,19})$/;
 const CTX = ['^TNX', 'DX-Y.NYB'];
@@ -39,7 +39,9 @@ const KIND_PT = { fund: 'ETF', stock: 'ação', crypto: 'cripto', ref: 'ref' };
 export function lineOf(r) {
     const eur = r.cur && r.cur !== 'EUR' && r.priceEur != null ? ` (≈${r.priceEur}€)` : '';
     const day = r.day == null ? '—' : (r.day > 0 ? '+' : '') + r.day.toFixed(1) + '%';
-    const prev = r.prev ? ` | antes ${r.prev.action || r.prev.key}${HZ.every((h) => Number.isFinite(r.prev[h])) ? ' ' + HZ.map((h) => r.prev[h]).join('/') : ''}` : '';
+    const was = r.prev && typeof r.prev.was === 'string' ? r.prev.was : null;
+    const prev = r.prev ? ` | antes ${r.prev.action || r.prev.key}${HZ.every((h) => Number.isFinite(r.prev[h])) ? ' ' + HZ.map((h) => r.prev[h]).join('/') : ''}`
+        + `${r.prev.since ? ` desde ${r.prev.since}` : ''}${was ? ` (era ${Object.hasOwn(ACTION_LABEL, was) ? ACTION_LABEL[was] : was})` : ''}` : '';
     return `- ${r.s} ${r.name} [${KIND_PT[r.kind] || r.kind}] ${r.price ?? '—'}${r.cur ? ' ' + r.cur : ''}${eur} | dia ${day} · 1M ${pc(r.r1m)} · 3M ${pc(r.r3m)} · 1A ${pc(r.r1y)}`
         + ` | alg C${n0(r.short)} M${n0(r.mid)} L${n0(r.long)} · RSI ${n0(r.rsi)} · vol ${r.vol == null ? '—' : Math.round(r.vol * 100) + '%'}`
         + ` | máx ${pc(r.dd)}${r.ma200 != null ? ` · MM200 ${pc(r.ma200)}${r.longUp === true ? '↑' : r.longUp === false ? '↓' : ''}` : ''}`
@@ -137,14 +139,28 @@ export function pastLines(ev) {
     if (conv.length) L.push('- Por convicção a médio prazo: ' + conv.map((k) => `${k} ${f(ev.byConv[k])}`).join(' · '));
     return L;
 }
-// o último veredicto de cada ativo (para dar continuidade; o da manhã conta na análise da tarde)
+// o último veredicto de cada ativo (para dar continuidade; o da manhã conta na análise da tarde), desde quando o
+// mantém (since: o dia em que começou a série com a mesma família) e o que dizia antes dessa série (was).
+// O publicar grava a série em cada veredicto (since, was) e aqui continua-se a partir dela, por longa que seja; nas
+// análises anteriores a isso, conta-se para trás, de análise em análise, enquanto a família for a mesma
 export function lastVerdicts(advices) {
-    const out = {};
+    const out = {}, fim = {};
     for (const a of (advices || []).slice().sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0))) {
         for (const x of a.actions || []) {
-            if (!x || !x.s || out[x.s]) continue;
-            out[x.s] = { date: a.date, key: x.key, action: x.action || ACTION_LABEL[x.key] || x.key };
-            for (const h of HZ.concat(LEVELS)) if (Number.isFinite(x[h])) out[x.s][h] = x[h];
+            if (!x || !x.s) continue;
+            const o = out[x.s];
+            if (!o) {
+                const n = out[x.s] = { date: a.date, key: x.key, action: x.action || ACTION_LABEL[x.key] || x.key, since: a.date };
+                for (const h of HZ.concat(LEVELS)) if (Number.isFinite(x[h])) n[h] = x[h];
+                if (isoDate(x.since) && isoDate(a.date) && x.since <= a.date) {
+                    n.since = x.since;
+                    if (typeof x.was === 'string' && x.was) n.was = x.was;
+                    fim[x.s] = true;
+                }
+            } else if (!fim[x.s] && a.date !== o.since) {
+                if (sameFam(x.key, o.key)) o.since = a.date;
+                else { fim[x.s] = true; if (typeof x.key === 'string') o.was = x.key; }
+            }
         }
     }
     return out;
@@ -160,7 +176,8 @@ export function modelOf(rows, prev, { last = null, lessons = [], movers = [] } =
             const p = prev[r.s] || {};
             const o = { s: r.s, key: p.key || '', action: p.action || '' };
             for (const k of HZ.concat(LEVELS)) o[k] = Number.isFinite(p[k]) ? p[k] : null;
-            return { ...o, why: '', plan: '', algWhy: '' };
+            // nos ativos que se compram: o tom das notícias (0–100), o catalisador e o que faria a decisão estar errada
+            return r.kind === 'ref' ? { ...o, why: '', plan: '', algWhy: '' } : { ...o, why: '', plan: '', algWhy: '', news: null, cat: '', risk: '' };
         }),
         rank: { short: [], mid: [], long: [] },
         movers: movers.map((m) => ({ s: m.s, why: '' })),
@@ -330,7 +347,7 @@ async function main() {
     const when = new Intl.DateTimeFormat('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date());
     L.push(`# Dados de ${today} (${when} em Lisboa)`);
     L.push(`Cobre em "actions" TODOS os ${rows.length} ativos abaixo (a app mostra o teu veredicto em cada um). Ponto de partida: modelo.json.`);
-    L.push('Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L | FONTES = o que as outras fontes da decisão dizem: analistas (recomendação, nota de 1 a 5, quantos, alvo, revisões das estimativas em 30 dias ↑↓, resultados acima do esperado), fundamentos (P/E esperado, vendas num ano, margem, ROE, dívida/capital), o fundo por dentro, o F&G da cripto, e a média delas de 0 a 100 na escala da app, sem o teu voto');
+    L.push('Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L, desde que dia manténs essa família (entrar, ficar ou sair) e o que dizias antes | FONTES = o que as outras fontes da decisão dizem: analistas (recomendação, nota de 1 a 5, quantos, alvo, revisões das estimativas em 30 dias ↑↓, resultados acima do esperado), fundamentos (P/E esperado, vendas num ano, margem, ROE, dívida/capital), o fundo por dentro, o F&G da cripto, e a média delas de 0 a 100 na escala da app, sem o teu voto');
     const mk = ['^GSPC', '^IXIC', '^STOXX50E', 'PSI20.LS', '^VIX', 'EURUSD=X', 'BZ=F', 'GC=F'].map((k) => rows.find((r) => r.s === k)).filter(Boolean);
     L.push('## Mercado', mk.map((r) => `${MARKET[r.s]} ${r.price} (${r.day == null ? '—' : (r.day > 0 ? '+' : '') + r.day.toFixed(2) + '%'})`).join(' · '));
     // o contexto: os juros a 10 anos dos EUA, o dólar e o medo da cripto

@@ -63,8 +63,9 @@ const REFS = ['BZ=F', 'CL=F', 'RB=F', 'HO=F', 'NG=F', 'GC=F', '^GSPC', '^IXIC', 
 // sem veredicto hoje (ex.: sem dados nesse dia): o Ether fica com o último conselho; o XRP, a TSMC e a Rheinmetall com o algoritmo
 const SKIP = ['c:ETH', 'c:XRP', 'TSM', 'RHM.DE'];
 const SPECIAL = {
-    NVDA: { key: 'scale', action: 'Comprar aos poucos', short: 48, mid: 88, long: 81, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% com a tendência longa a favor; resultados a 17/11.', plan: 'Metade agora, metade depois dos resultados.', algWhy: 'A regra vê L36 e o preço abaixo da MM200; não vê os resultados de 17/11; concordo se perder 149 €.' },
-    'ALV.DE': { key: 'buy', action: 'Comprar', short: 70, mid: 84, long: 70, why: 'Sobe 6,8% com resultados acima do esperado.' },
+    NVDA: { key: 'scale', action: 'Comprar aos poucos', short: 48, mid: 88, long: 81, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% com a tendência longa a favor; resultados a 17/11.', plan: 'Metade agora, metade depois dos resultados.', algWhy: 'A regra vê L36 e o preço abaixo da MM200; não vê os resultados de 17/11; concordo se perder 149 €.',
+        news: 72, cat: 'Resultados a 17/11: o guidance dos centros de dados', risk: 'Fecho abaixo de 172 $ ou corte do guidance' },
+    'ALV.DE': { key: 'buy', action: 'Comprar', short: 70, mid: 84, long: 70, why: 'Sobe 6,8% com resultados acima do esperado.', risk: 'Perde os 300 € ou corta o dividendo' },
     'VWCE.DE': { key: 'hold', action: 'Manter e reforçar', short: 40, mid: 82, long: 90, why: 'Núcleo do plano.' },
     MSFT: { key: 'hold', action: 'Manter', short: 50, mid: 76, long: 70, why: 'Tendência longa a favor.' },
     AAPL: { key: 'hold', action: 'Manter', short: 50, mid: 76, long: 60, why: 'Perto do máximo do ano.' },
@@ -76,7 +77,8 @@ function verdictOf(s) {
     const sc = (h) => 25 + (hash(s + h) % 51); // 25 a 75
     const mid = sc('m');
     const key = REFS.includes(s) ? (mid >= 58 ? 'up' : mid <= 42 ? 'down' : 'flat') : mid >= 60 ? 'buy' : mid <= 35 ? 'avoid' : 'hold';
-    return { key, short: sc('c'), mid, long: sc('l'), why: `${s}: leitura de teste.` };
+    // quem manda entrar ou sair diz o que faria a decisão estar errada (o publicar exige-o)
+    return { key, short: sc('c'), mid, long: sc('l'), why: `${s}: leitura de teste.`, ...(key === 'buy' || key === 'avoid' ? { risk: `${s}: perde a média de 200 dias.` } : {}) };
 }
 const NEWS = (q) => ({ q, items: [
     { title: `${q}: ações disparam após lucros recorde`, link: 'https://news.example/1', source: 'Jornal de Negócios', time: 1762299000 },
@@ -115,9 +117,11 @@ function proxyBody(u) {
     const { buildAdvice } = await import(require('url').pathToFileURL(path.join(__dirname, '../conselheiro/publicar.mjs')).href);
     const covered = [...FUNDS, 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP', ...WATCH, ...REFS].filter((s) => !SKIP.includes(s));
     // a Nvidia leva a regra automática do dia (o publicar só guarda o algWhy de quem a tem; e exige-o a quem discorda dela)
-    const dadosRows = covered.map((s) => ({ s, kind: REFS.includes(s) ? 'ref' : 'x', price: s === 'NVDA' ? 196 : s === 'c:BTC' ? 88000 : null, ...(s === 'NVDA' ? { rule: 'turn' } : {}) }));
+    // e o veredicto anterior: a Nvidia mudou hoje (dizia esperar); a Allianz compra-se desde dia 1 (antes era manter)
+    const PREV = { NVDA: { date: '2026-11-05', key: 'wait', since: '2026-11-01' }, 'ALV.DE': { date: '2026-11-05', key: 'scale', since: '2026-11-01', was: 'hold' } };
+    const dadosRows = covered.map((s) => ({ s, kind: REFS.includes(s) ? 'ref' : 'x', price: s === 'NVDA' ? 196 : s === 'c:BTC' ? 88000 : null, ...(s === 'NVDA' ? { rule: 'turn' } : {}), ...(PREV[s] ? { prev: PREV[s] } : {}) }));
     // mais um da lista toda da TR (fora das listas da app): a PUMA
-    const pick = { s: 'PUM.DE', key: 'buy', action: 'Comprar', short: 60, mid: 70, long: 72, why: 'PUMA: tendência forte na lista da TR.' };
+    const pick = { s: 'PUM.DE', key: 'buy', action: 'Comprar', short: 60, mid: 70, long: 72, why: 'PUMA: tendência forte na lista da TR.', risk: 'Perde a média de 200 dias.' };
     const built = buildAdvice({ ...ADV_BASE, actions: covered.map((s) => ({ s, ...verdictOf(s) })).concat(pick), rank: { mid: ['NVDA', 'ALV.DE', 'VWCE.DE', 'MSFT', 'AAPL'] } }, { rows: dadosRows }, [{ s: 'PUM.DE' }]);
     assert.deepEqual(built.errs, [], 'a análise de teste passa na validação do publicar.mjs');
     ADV.doc = { ...built.out, date: '2026-11-06', generatedAt: '2026-11-06T07:16:00Z' };
@@ -658,7 +662,8 @@ function proxyBody(u) {
     assert.deepEqual(fontes[2].slice(1), ['fortes', 'a favor', '65', 'P/E 28,4 · vendas +60% · margem 55%'], 'os fundamentos: o P/E, as vendas e a margem');
     assert.match(fontes[3][4], /^C\d+ · M\d+ · L\d+$/, 'a técnica: as pontuações por prazo');
     assert.deepEqual(fontes.map((x) => x[2]), dec.d.f.map((x, i) => (i === 0 ? 'decide' : x.d > 0 ? 'a favor' : x.d < 0 ? 'contra' : 'ao lado')), 'de que lado fica cada uma');
-    assert.match(fontes[4][4], /^\d+ títulos? recentes$/);
+    assert.deepEqual(fontes[4].slice(1), ['positivas', 'a favor', '72', 'lidas pelo Claude'], 'as notícias: o tom que o Claude leu (news 72), em vez do dos títulos');
+    assert.equal(dec.e.news, (72 - 50) / 50, 'o tom do Claude entra na decisão de -1 a 1');
     assert.match(fontes[5].join('|'), /^Sentimento\|(calmo|nervoso|medo)\|.+\|\d+\|VIX \d+$/, 'o sentimento nas ações: o VIX');
     assert.match((await page.locator('#mk-sheet .stats').textContent()).replace(/\s+/g, ' '), /P\/E esperado\s*28,4\s*Vendas num ano\s*\+60,0%\s*Margem de lucro\s*55,0%/, 'os fundamentos nos números da ficha');
     // o desenho: nada sai do cartão, a confiança fica ao lado do veredicto e cada fonte ocupa duas linhas curtas
@@ -677,7 +682,15 @@ function proxyBody(u) {
     assert.match(lv[0], /^Entrada\s*164,93\s€\s*−3,06%$/, 'entrada em euros e a distância ao preço: ' + lv[0]);
     assert.match(lv[1], /^Alvo\s*199,65\s€\s*\+17,35%$/, lv[1]);
     assert.match(lv[2], /^Stop\s*149,31\s€\s*−12,24%$/, lv[2]);
-    assert.match(await page.locator(adv).textContent(), /Desconto de 22%[\s\S]*Plano:\s*Metade agora/);
+    assert.match(await page.locator(adv).textContent(), /Desconto de 22%[\s\S]*Plano:\s*Metade agora[\s\S]*Catalisador:\s*Resultados a 17\/11: o guidance dos centros de dados\s*Risco:\s*Fecho abaixo de 172 \$ ou corte do guidance/, 'o catalisador e o risco, por baixo do plano');
+    // desde quando: a Nvidia mudou nesta análise (o publicar deu-lhe a data de hoje e o que dizia antes); em destaque
+    assert.match(await page.locator(adv + ' .dec-desde.novo').textContent(), /^Mudou (hoje|ontem) · antes: Aguardar$/);
+    const dg = await page.evaluate(() => { const b = document.querySelector('#mk-sheet .dec-box'), r = (s) => b.querySelector(s).getBoundingClientRect(); return [r('.dec-top').bottom, r('.adv-nu').bottom, r('.dec-desde').top, r('.dec-desde').bottom, r('.dec-p').top]; });
+    assert.ok(dg[1] <= dg[2] + 0.5 && dg[3] <= dg[4] + 0.5 && dg[0] <= dg[2], 'entre o veredicto e a média das fontes: ' + dg.map(Math.round));
+    // a Allianz mantém a compra desde dia 1 (a série gravada continua) e antes dizia manter: sem destaque
+    const alv = await page.evaluate(() => { const s = window.__mk.decSnapOf('ALV.DE'); return [s.desde, s.dias >= 2, s.era, s.cat, s.risk, s.nc]; });
+    assert.match(alv[0], /^01\/11(\/2026)?$/);
+    assert.deepEqual(alv.slice(1), [true, 'hold', undefined, 'Perde os 300 € ou corta o dividendo', false]);
     assert.match(await page.locator(adv + ' .adv-ev').textContent(), /Resultados daqui a 5 dias/);
     assert.equal(await page.locator(adv + ' .adv-meta').count(), 0, 'os impostos saem do cartão');
     // porque o Claude discorda: de quem está contra; sem ninguém contra, da técnica, se ficou ao lado
