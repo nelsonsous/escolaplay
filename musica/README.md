@@ -32,16 +32,18 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
 - **Worker** ([`proxy/`](proxy/)) — fala com o Tidal em teu nome: login com PKCE (sem segredo, só o Client ID), tokens
   renovados sozinhos, o teu gosto (cache de 6 h), encontrar faixas (pesquisa + verificação de artista e título,
   versão de estúdio antes de ao vivo, preferência por Hi-Res), criar playlists (lotes de 50) e a biblioteca da app,
-  afinar na **mesma** playlist (troca as faixas no Tidal, sem cópias), **«Mais como esta»** (as faixas parecidas do
-  Tidal), apagar também no Tidal e, para o Maestro, as tuas mixes e os álbuns novos dos artistas que segues.
+  afinar na **mesma** playlist (troca as faixas no Tidal, sem cópias), **trocar ou tirar uma faixa na hora**
+  (`POST /api/playlists/:id/trocar`: a que entra é uma candidata guardada, escolhida pelo motor no telemóvel, ou uma
+  parecida do Tidal; dá para desfazer), **«Mais como esta»** (as faixas parecidas do Tidal), apagar também no Tidal e, para o Maestro, as tuas mixes e os álbuns novos dos artistas que segues.
   Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Maestro).
 - **App em Onda** ([`app/musica.onda`](app/musica.onda)) — na Onda fluida (moldes, o ponto, a fala e moldes com
   nome), monta-se com a biblioteca da Onda (`onda/lib`) e o motor (`node musica/onda/compilar.mjs`, que tira da fonte
   as funções que o anfitrião chama) e corre no anfitrião das apps Onda. O plano da revisão em dez voltas está em
   [`PLANO.md`](PLANO.md). Os ecrãs:
-  Playlists (cada uma abre numa **folha** que é o único sítio onde se mexe nela: ouvir 30 s, ✕ «não esta», o «⋯»
-  para mudar o nome, atualizar sozinha e apagar, «Sobre esta playlist» com o porquê e a mistura, tocar no título de
-  uma faixa para **«Mais como esta»**, afinar com o Maestro), **Afinar no telemóvel**, Pedir, Gosto e Ajustes; o
+  Playlists (cada uma abre numa **folha** que é o único sítio onde se mexe nela: ouvir 30 s, **⇄ trocar uma faixa**
+  por outra — vê-se logo e fica gravada no Tidal —, arrastar para a esquerda para a tirar, «Desfazer», o «⋯» para
+  mudar o nome, atualizar sozinha e apagar, «Sobre esta playlist» com o porquê e a mistura, tocar no título de uma
+  faixa para tirar ou **«Mais como esta»**, afinar com o Maestro), **Afinar no telemóvel**, Pedir, Gosto e Ajustes; o
   estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
   app a cada mudança (estilo, arco, número de faixas, máximo por artista, fixar, tirar, juntar do Tidal) em menos de
   1 ms, e o juiz dos testes confirma que dá a mesma ordem que o `curador.wasm`. Ao guardar, a app manda só a decisão

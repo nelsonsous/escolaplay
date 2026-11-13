@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.19.0';
+const VERSION = '1.20.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -91,13 +91,14 @@ async function route(req, env, url) {
         return json(await guardarIdeias(ue, await corpo(req)), 201);
     }
     if (p === '/api/avaliacoes' && m === 'GET') return json(await avaliacoes(ue));
-    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/afinar|\/previas)?$/.exec(p);
+    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/trocar|\/afinar|\/previas)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
     if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/versoes' && m === 'POST') return json(await versao(ue, pl[1], await corpo(req), quem), 201);
     if (pl && pl[2] === '/previas' && m === 'GET') return json(await previas(ue, pl[1]));
     if (pl && pl[2] === '/rejeitar' && m === 'POST') return json(await rejeitar(ue, pl[1], await corpo(req)));
+    if (pl && pl[2] === '/trocar' && m === 'POST') return json(await trocar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/afinar' && m === 'POST') return json(await afinarPedido(ue, pl[1], await corpo(req)), 201);
     if (pl && pl[2] === '/nome' && m === 'POST') return json(await renomear(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovar' && m === 'POST') return json(await renovar(ue, pl[1], await corpo(req)));
@@ -883,12 +884,91 @@ async function rejeitar(env, id, c) {
     await env.KV.put('playlist:' + d.id, JSON.stringify(d));
     return d;
 }
+// Trocar ou tirar uma faixa, na hora (em vez de marcar e esperar pelo Maestro). A app diz qual sai e qual entra:
+//   { sai, entra }            troca no mesmo sítio — «entra» é uma candidata guardada (o motor escolhe-a no telemóvel)
+//                             ou outra faixa do Tidal, pelo id
+//   { sai, parecida: true }   troca pela primeira faixa parecida que o Tidal der (quando já não há candidatas)
+//   { sai }                   a faixa sai
+//   { entra, pos }            põe uma faixa nesse sítio
+//   { desfazer: true }        desfaz a última troca ou a última faixa tirada: fica tudo como estava antes dela
+// A que sai fica em «rejeitadas» (não volta a entrar: nem nas trocas seguintes, nem quando o Maestro a afinar) e a
+// playlist do Tidal fica igual à da app: as mesmas faixas, pela mesma ordem, no mesmo link. Cada mudança fica em
+// «trocas» (as últimas 50; as 5 mais recentes guardam a faixa que saiu, para se poderem desfazer).
+async function trocar(env, id, c) {
+    const d = await obter(env, id);
+    const trocas = Array.isArray(d.trocas) ? d.trocas : [];
+    const gravar = async (faixas, mais) => {
+        const em = new Date().toISOString();
+        Object.assign(d, { faixas }, mais);
+        if (d.tidal?.id) {
+            await substituirNoTidal(env, d.tidal.id, faixas.map((f) => f.id));
+            d.tidal = { ...d.tidal, faixas: faixas.length, atualizadaEm: em };
+        }
+        await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+        const idx = (await env.KV.get('playlists', 'json')) || [];
+        await env.KV.put('playlists', JSON.stringify(idx.map((x) => (x.id === d.id ? resumoDe(d) : x))));
+        return d;
+    };
+    if (c?.desfazer === true) {
+        const u = trocas.at(-1);
+        if (!u?.sai || !u.faixa) throw new Erro(400, 'nada_a_desfazer', 'Não há nada para desfazer.');
+        const faixas = d.faixas.slice();
+        const onde = u.entra ? faixas.findIndex((x) => String(x.id) === u.entra) : -1;
+        if (onde >= 0) faixas[onde] = u.faixa; else faixas.splice(Math.min(faixas.length, u.pos), 0, u.faixa);
+        return gravar(faixas, { rejeitadas: (d.rejeitadas || []).map(String).filter((x) => x !== u.sai), trocas: trocas.slice(0, -1) });
+    }
+    const sai = c?.sai ? String(c.sai) : '';
+    let entra = c?.entra ? String(c.entra) : '';
+    if (!sai && !entra) throw new Erro(400, 'troca_invalida', 'Indica "sai", "entra" ou as duas.');
+    const p = sai ? d.faixas.findIndex((x) => String(x.id) === sai) : -1;
+    if (sai && p < 0) throw new Erro(400, 'faixa_invalida', 'Essa faixa não está na playlist.');
+    if (entra && !/^\d+$/.test(entra)) throw new Erro(400, 'faixa_invalida', '"entra" tem de ser um id do Tidal.');
+    const na = new Set(d.faixas.map((x) => String(x.id)));
+    if (entra && na.has(entra)) throw new Erro(409, 'ja_esta', 'Essa faixa já está na playlist.');
+    const fora = new Set((d.rejeitadas || []).map(String));
+    const cands = Array.isArray(d.candidatas) ? d.candidatas.filter(Boolean) : [];
+    const daqui = (x) => cands.find((k) => String(k?.faixa?.id) === x);
+    let nova = entra ? daqui(entra) : null;
+    if ((entra && !nova) || (!entra && sai && c.parecida === true)) {
+        const t = await acesso(env);
+        const pais = t.pais || 'PT';
+        let ids = [entra];
+        if (!entra) {
+            const doc = await tidal(env, `/tracks/${sai}/relationships/similarTracks`, { query: { countryCode: pais } });
+            ids = idsDe(doc).filter((x) => x !== sai && !na.has(x) && !fora.has(x)).slice(0, 12);
+        }
+        const det = ids.length ? await porIds(env, ids, pais) : new Map();
+        const escolhida = ids.map((x) => det.get(x)).find((f) => f && !(d.opcoes?.limpa && f.explicita));
+        if (!escolhida) throw new Erro(404, entra ? 'nao_encontrada' : 'sem_parecidas', entra ? 'Essa faixa já não está no Tidal.' : 'Não encontrei outra faixa parecida com esta.');
+        entra = String(escolhida.id);
+        const de = sai ? d.faixas[p] : null;
+        const q = { artista: escolhida.artistas[0] || '', titulo: escolhida.titulo, motivo: c.parecida === true && de ? `Parecida com «${de.titulo}».` : 'Escolhida por ti.' };
+        nova = daqui(entra) || { ...q, faixa: escolhida, sinais: sinais(q, escolhida, perfilGosto((await env.KV.get('perfil', 'json')) || {})) };
+        if (!daqui(entra)) cands.push(nova);
+    }
+    const faixas = d.faixas.slice();
+    const linha = nova ? { ...nova.faixa, genero: nova.sinais?.genero || '', motivo: nova.motivo || '' } : null;
+    const registo = { em: new Date().toISOString() };
+    if (sai) {
+        Object.assign(registo, { sai, titulo: txt(d.faixas[p].titulo, 120), pos: p, faixa: d.faixas[p] });
+        if (linha) faixas[p] = linha; else faixas.splice(p, 1);
+        fora.add(sai);
+    } else faixas.splice(Math.max(0, Math.min(faixas.length, Number.isInteger(c.pos) ? c.pos : faixas.length)), 0, linha);
+    if (!faixas.length) throw new Erro(400, 'sem_faixas', 'A playlist não pode ficar sem faixas: apaga-a.');
+    if (entra) { registo.entra = entra; fora.delete(entra); }
+    // (só as 5 últimas guardam a faixa que saiu: chega para desfazer e a playlist não engorda)
+    const todas = [...trocas, registo].slice(-50).map((r, i, l) => (i < l.length - 5 && r.faixa ? (({ faixa, ...resto }) => resto)(r) : r));
+    return gravar(faixas, { candidatas: cands, rejeitadas: [...fora], trocas: todas });
+}
 async function afinarPedido(env, id, c) {
     const d = await obter(env, id);
     const texto = txt(c?.texto, 500);
-    const fora = new Set(d.rejeitadas || []);
-    const rejeitadas = d.faixas.filter((f) => fora.has(String(f.id))).map((f) => ({ id: String(f.id), artista: f.artistas?.[0] || '', titulo: f.titulo || '' }));
-    if (!texto && !rejeitadas.length) throw new Erro(400, 'afinar_vazio', 'Diz o que mudar, ou marca as faixas de que não gostaste.');
+    // as faixas que a pessoa tirou ou trocou (já não estão na playlist: o nome vem das candidatas) e as marcadas à
+    // antiga (ainda lá estão): o Maestro não as volta a pôr
+    const nomes = new Map([...(d.candidatas || []).map((x) => x?.faixa), ...d.faixas].filter(Boolean).map((f) => [String(f.id), f]));
+    const rejeitadas = (d.rejeitadas || []).map(String).map((x) => ({ id: x, artista: nomes.get(x)?.artistas?.[0] || '', titulo: nomes.get(x)?.titulo || '' }));
+    const marcadas = new Set(d.faixas.map((f) => String(f.id)).filter((x) => rejeitadas.some((r) => r.id === x)));
+    if (!texto && !marcadas.size) throw new Erro(400, 'afinar_vazio', 'Diz o que mudar.');
     const lista = (await env.KV.get('pedidos', 'json')) || [];
     if (lista.filter((x) => x.estado === 'pendente').length >= MAX_PEDIDOS) throw new Erro(429, 'demasiados', `Já há ${MAX_PEDIDOS} pedidos à espera.`);
     const p = { id: novoId('q'), texto: texto || `Afinar «${d.nome}»`, opcoes: normalizarOpcoes(d.opcoes || {}), estado: 'pendente', criadoEm: new Date().toISOString(),

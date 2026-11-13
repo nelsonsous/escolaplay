@@ -39,7 +39,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.19.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.20.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -330,6 +330,85 @@ test('afinar na mesma playlist: no Tidal, troca as faixas da própria playlist (
     await post(`/api/playlists/${d.id}/versoes`, { ordem: [0, 1], tidal: false }, chave);
     assert.deepEqual(sim.listas[pid].map((x) => x.id), ['106', '101', '102']);
     assert.deepEqual((await (await get('/api/playlists/' + d.id, chave)).json()).faixas.map((x) => x.id), ['101', '102']);
+});
+
+test('trocar e tirar uma faixa, na hora: no mesmo sítio, logo no Tidal; a que sai não volta; parecidas do Tidal; repor', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const f = (id, titulo) => ({ id, titulo, artistas: ['Miles Davis'], duracao: 180 });
+    const candidatas = [f('101', 'So What'), f('102', 'Feeling Good'), f('106', 'Teardrop'), f('105', 'Blue in Green')].map((faixa) => ({ faixa, sinais: { genero: 'jazz' }, motivo: 'm' }));
+    const d = await (await post('/api/playlists', { nome: 'Noite', faixas: candidatas.slice(0, 3).map((x) => x.faixa), candidatas, tidal: true }, agente)).json();
+    const pid = d.tidal.id;
+    const noTidal = () => sim.listas[pid].map((x) => x.id);
+    assert.deepEqual(noTidal(), ['101', '102', '106']);
+    // trocar a do meio por uma candidata guardada: fica no mesmo sítio, na app e no Tidal (a mesma playlist)
+    const criadas = sim.criadas.length;
+    const r = await post(`/api/playlists/${d.id}/trocar`, { sai: '102', entra: '105' }, chave);
+    assert.equal(r.status, 200);
+    const v = await r.json();
+    assert.deepEqual(v.faixas.map((x) => x.id), ['101', '105', '106']);
+    assert.deepEqual([v.faixas[1].titulo, v.faixas[1].genero, v.faixas[1].motivo], ['Blue in Green', 'jazz', 'm'], 'a faixa vem das candidatas guardadas');
+    assert.deepEqual(noTidal(), ['101', '105', '106']);
+    assert.equal(sim.criadas.length, criadas, 'nenhuma playlist nova no Tidal');
+    assert.deepEqual(v.rejeitadas, ['102'], 'a que saiu não volta');
+    assert.deepEqual([v.trocas.length, v.trocas[0].sai, v.trocas[0].titulo, v.trocas[0].pos, v.trocas[0].entra], [1, '102', 'Feeling Good', 1, '105']);
+    assert.equal(v.candidatas.length, 4);
+    // sem candidatas livres: a primeira parecida do Tidal que não está na playlist nem saiu de lá (102 e 106 ficam de fora)
+    const r2 = await post(`/api/playlists/${d.id}/trocar`, { sai: '101', parecida: true }, chave);
+    assert.equal(r2.status, 200);
+    const v2 = await r2.json();
+    assert.deepEqual(v2.faixas.map((x) => x.id), ['103', '105', '106']);
+    assert.match(v2.faixas[0].motivo, /^Parecida com «So What»\.$/);
+    assert.ok(sim.chamadas.some((c) => c.includes('/tracks/101/relationships/similarTracks')));
+    assert.deepEqual(noTidal(), ['103', '105', '106']);
+    assert.equal(v2.candidatas.length, 5, 'a faixa nova fica nas candidatas (com os sinais), para afinar depois');
+    assert.ok(v2.candidatas[4].sinais);
+    assert.deepEqual(v2.rejeitadas.sort(), ['101', '102']);
+    // tirar: a playlist fica mais curta; o índice acompanha
+    const v3 = await (await post(`/api/playlists/${d.id}/trocar`, { sai: '105' }, chave)).json();
+    assert.deepEqual(v3.faixas.map((x) => x.id), ['103', '106']);
+    assert.deepEqual(noTidal(), ['103', '106']);
+    assert.equal((await (await get('/api/playlists', chave)).json()).find((x) => x.id === d.id).faixas, 2);
+    assert.deepEqual([v3.trocas.at(-1).sai, v3.trocas.at(-1).pos, v3.trocas.at(-1).entra], ['105', 1, undefined]);
+    // desfazer: a que saiu volta ao sítio, deixa de estar nas que saíram e o registo dessa mudança desaparece
+    const v4 = await (await post(`/api/playlists/${d.id}/trocar`, { desfazer: true }, chave)).json();
+    assert.deepEqual(v4.faixas.map((x) => x.id), ['103', '105', '106']);
+    assert.deepEqual(noTidal(), ['103', '105', '106']);
+    assert.ok(!v4.rejeitadas.includes('105'));
+    assert.equal(v4.trocas.length, 2);
+    // outra vez: desfaz a troca anterior (a 101 volta ao lugar da 103, que não fica nas que saíram)
+    const v4b = await (await post(`/api/playlists/${d.id}/trocar`, { desfazer: true }, chave)).json();
+    assert.deepEqual(v4b.faixas.map((x) => x.id), ['101', '105', '106']);
+    assert.deepEqual(v4b.rejeitadas, ['102']);
+    assert.deepEqual(noTidal(), ['101', '105', '106']);
+    // pôr uma faixa num sítio (pelo id), e voltar a ter a 103 no início para o resto do teste
+    await post(`/api/playlists/${d.id}/trocar`, { sai: '101', entra: '103' }, chave);
+    assert.deepEqual((await (await post(`/api/playlists/${d.id}/trocar`, { sai: '105' }, chave)).json()).faixas.map((x) => x.id), ['103', '106']);
+    assert.deepEqual((await (await post(`/api/playlists/${d.id}/trocar`, { entra: '105', pos: 1 }, chave)).json()).faixas.map((x) => x.id), ['103', '105', '106']);
+    // o que não pode ser: uma faixa que não está, uma que já está, nada, um id que não é do Tidal, ficar sem faixas
+    assert.equal((await post(`/api/playlists/${d.id}/trocar`, { sai: '999' }, chave)).status, 400);
+    assert.equal((await post(`/api/playlists/${d.id}/trocar`, { sai: '103', entra: '106' }, chave)).status, 409);
+    assert.equal((await post(`/api/playlists/${d.id}/trocar`, {}, chave)).status, 400);
+    assert.equal((await post(`/api/playlists/${d.id}/trocar`, { sai: '103', entra: 'abc' }, chave)).status, 400);
+    assert.equal((await post(`/api/playlists/${d.id}/trocar`, { sai: '103' }, chave)).status, 200);
+    assert.equal((await post(`/api/playlists/${d.id}/trocar`, { sai: '105' }, chave)).status, 200);
+    const ultimo = await post(`/api/playlists/${d.id}/trocar`, { sai: '106' }, chave);
+    assert.deepEqual([ultimo.status, (await ultimo.json()).error], [400, 'sem_faixas']);
+    // sem mais parecidas (todas já entraram ou saíram): diz que não encontrou
+    const semMais = await post(`/api/playlists/${d.id}/trocar`, { sai: '106', parecida: true }, chave);
+    assert.deepEqual([semMais.status, (await semMais.json()).error], [404, 'sem_parecidas']);
+    // só na app (sem Tidal): troca na app e não toca no Tidal
+    const so = await (await post('/api/playlists', { nome: 'Só app', faixas: candidatas.slice(0, 2).map((x) => x.faixa), candidatas }, agente)).json();
+    const antes = sim.chamadas.length;
+    const v5 = await (await post(`/api/playlists/${so.id}/trocar`, { sai: '101', entra: '106' }, chave)).json();
+    assert.deepEqual(v5.faixas.map((x) => x.id), ['106', '102']);
+    assert.equal(sim.chamadas.length, antes, 'sem chamadas ao Tidal');
+    // desfazer sem nada para desfazer; e só as 5 últimas mudanças guardam a faixa que saiu
+    await post(`/api/playlists/${so.id}/trocar`, { desfazer: true }, chave);
+    assert.deepEqual([(await post(`/api/playlists/${so.id}/trocar`, { desfazer: true }, chave)).status], [400]);
+    for (let i = 0; i < 7; i++) await post(`/api/playlists/${so.id}/trocar`, i % 2 ? { sai: '106', entra: '101' } : { sai: '101', entra: '106' }, chave);
+    const v6 = await (await get('/api/playlists/' + so.id, chave)).json();
+    assert.deepEqual([v6.trocas.length, v6.trocas.filter((x) => x.faixa).length, !!v6.trocas.at(-1).faixa], [7, 5, true]);
 });
 
 test('mais como esta: uma playlist de faixas parecidas, logo no Tidal', async () => {
