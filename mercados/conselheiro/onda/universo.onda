@@ -8,35 +8,27 @@
 #   9 Number(closes[último])  10 há um elemento null/undefined (o p[1] do JS lança)  11 n  12 onde começa o JSON da
 #   currency (posição no registo)  13.. n fechos (o que não é número vai como NaN) e o JSON.stringify(q.currency || '')
 
-#k k_lote lote
-#k k_rkna —
-#k k_rk1 Risco baixo
-#k k_rk2 Risco médio
-#k k_rk3 Risco alto
-#k k_rk4 Risco muito alto
-#k k_jsoninv JSON inválido
-#k k_seriesnf Q[x.s].series.map is not a function
 
 : un_corre >i {
   ! g_scr 2
-  ! g_out cs_argou 1 k_tmp
-  ? ~ _an_pasta @ g_out cs_lanca k_Error _an_erro 0
-  _an_abre 0 _tx_p @ g_dir "/conselheiro/universo.json" = f _an_fecha
-  = t _an_fich f ? ~ t cs_lanca k_Error _an_erro 0
-  = u _js_parse _tx_norm t 0 ? ~ u cs_lanca k_SyntaxError k_jsoninv 0
+  ! g_out cs_argou 1 $"/tmp/conselheiro"
+  Se ~ _an_pasta @ g_out cs_lanca $"Error" _an_erro
+  `{ _an_abre 0 }{ crut @ g_dir }/conselheiro/universo.json` = f _an_fecha
+  = t _an_fich f Se ~ t cs_lanca $"Error" _an_erro
+  = u _js_parse _tx_norm t 0 Se ~ u cs_lanca $"SyntaxError" $"JSON inválido"
   # list = Object.entries(U).flatMap(([t, o]) => Object.keys(o).map((s) => ({ s, t, n: o[s] })))
   = us _js_lst 1400 = ut _js_lst 1400 = un _js_lst 1400
   = ord _js_ordem u = i 0
   W < i _js_on u {
     = p _js_pos ord i = ty _js_ok u p = o _js_ov u p
-    ? _js_ehobj o { = ks _js_chaves o = j 0 W < j _js_len ks { = s _js_it ks j _js_push us s _js_push ut ty _js_push un _js_oget o s = j + j 1 } 0 } 0
+    Se _js_ehobj o { = ks _js_chaves o = j 0 W < j _js_len ks { = s _js_it ks j _js_push us s _js_push ut ty _js_push un _js_oget o s = j + j 1 } }
     = i + i 1 }
   ! g_us us ! g_ut ut ! g_un un
   = n _js_len us
   ! g_qt A + n 1 ! g_toc A + n 1
   # os símbolos da lista numa tabela de dispersão (FNV-1a, 4096 cabeças; 0 = vazia, senão índice + 1)
   ! g_hcab A 4096 ! g_hseg A + n 1
-  = j 0 W < j n { = h un_hash _js_it us j ! + @ g_hseg j @ + @ g_hcab h ! + @ g_hcab h + j 1 = j + j 1 }
+  L j n { = h un_hash _js_it us j ! + @ g_hseg j @ + @ g_hcab h ! + @ g_hcab h + j 1 }
   ! g_i 0 ! g_tent 0 ! g_ph 1
   cs_passo }
 : un_passo >i { = p @ g_ph ? == p 1 un_p1 ? == p 2 un_p2 ? == p 4 un_p4 ? == p 5 un_p5 0 }
@@ -45,69 +37,68 @@
   = i @ g_i = n _js_len @ g_us
   ? < i n {
       ! g_marca @ -1
-      _an_abre 0 = j i W < j Mn n + i 40 { ? > j i P ', 0 _tx_p _js_it @ g_us j = j + j 1 } = sy _an_fecha
+      _an_abre 0 = j i W < j Mn n + i 40 { Se > j i P ', crut _js_it @ g_us j = j + j 1 } = sy _an_fecha
       ! g_ph 2
-      ? _tx_urimal sy { cs_falha k_urimal 1 } { cs_wini "/quotes?symbols=" _tx_uri sy "&range=1y" ~ cs_wfim 60000 } }
+      ? _tx_urimal sy { cs_falha $"URI malformed" 1 } { `{ cs_wini }/quotes?symbols={ _tx_uri sy }&range=1y` ~ cs_wfim 60000 } }
     { ! g_ph 4 1 } }
 # o JSON.stringify(v) como texto (para guardar no registo)
 : un_jtxt i>i v { _an_abre 0 _js_pj v 0 0 _an_fecha }
 # o registo compacto de uma cotação (reservado no topo do monte)
 : un_rec i>i q {
-  = ser _js_get q k_series
+  = ser _js_get q $"series"
   = lst _js_ehlst ser = n ? lst _js_len ser 0
-  = cur _js_get q k_currency = cj un_jtxt ? _js_v cur cur _tx_novo 0
+  = cur _js_get q $"currency" = cj un_jtxt ? _js_v cur cur _tx_novo 0
   = nc _tx_len cj
   = r A + + 14 n + 1 nc
   ! r + + 14 n + 1 nc
   ! + r 1 _js_v ser
-  ! + r 2 >= _js_tonum _js_get ser k_length 60.
+  ! + r 2 >= _js_tonum _js_get ser $"length" 60.
   ! + r 3 lst
-  ! + r 4 _js_fin _js_get q k_price
-  = ch _js_get q k_changePct ! + r 5 _js_fin ch !f + r 6 ? _js_fin ch _js_f ch 0.
+  ! + r 4 _js_fin _js_get q $"price"
+  = ch _js_get q $"changePct" ! + r 5 _js_fin ch !f + r 6 ? _js_fin ch _js_f ch 0.
   ! + r 11 n
   = j 0 = mau 0
   W < j n {
     = p _js_it ser j
     ? _js_nulo p { = mau 1 !f + + r 13 j Bw 2146959360 0 0 } {
-      = x _js_get p k_1
+      = x _js_get p $"1"
       !f + + r 13 j ? _js_ehnum x _js_f x Bw 2146959360 0
-      ? == j 0 { ! + r 7 _js_v x !f + r 8 _js_tonum x 0 } 0
-      ? == j - n 1 { !f + r 9 _js_tonum x 0 } 0 }
+      Se == j 0 { ! + r 7 _js_v x !f + r 8 _js_tonum x }
+      Se == j - n 1 !f + r 9 _js_tonum x }
     = j + j 1 }
   ! + r 10 mau
-  ? == n 0 { !f + r 8 Bw 2146959360 0 !f + r 9 Bw 2146959360 0 0 } 0
+  Se == n 0 { !f + r 8 Bw 2146959360 0 !f + r 9 Bw 2146959360 0 }
   # o JSON da currency no fim
   = c + + r 13 n ! + r 12 - c r
-  ! c nc = j 0 W < j nc { ! + + c 1 j _tx_b cj j = j + j 1 }
+  ! c nc L j nc ! + + c 1 j _tx_b cj j
   r }
 # Q[q.symbol] = q: todas as entradas da lista com esse símbolo (a última resposta ganha)
 : un_hash i>i t { = h 2166136261 = q + t 1 = e @ t W < q e { = h & * ^ h @ q 16777619 4294967295 = q + q 1 } & h 4095 }
 : un_poe ii>i s r {
   = us @ g_us = j - @ + @ g_hcab un_hash s 1
-  W >= j 0 { ? _tx_igual _js_it us j s { ! + @ g_qt j r ! + @ g_toc @ g_ntoc j ! g_ntoc + @ g_ntoc 1 0 } 0 = j - @ + @ g_hseg j 1 }
-  0 }
+  W >= j 0 { Se mesmo _js_it us j s { ! + @ g_qt j r ! + @ g_toc @ g_ntoc j ! g_ntoc + @ g_ntoc 1 } = j - @ + @ g_hseg j 1 } }
 : un_p2 >i {
   ! g_ntoc 0
   cs_rget
   = rs 0
-  ? ~ @ g_err {
-      = qs da_itl cs_tget @ g_res k_quotes
+  Se ~ @ g_err {
+      = qs da_itl cs_tget @ g_res $"quotes"
       = rs @ -1
       = j 0 W && < j _js_len qs ~ @ g_err {
         = q _js_it qs j
-        = e cs_tget q k_error
-        ? && ~ @ g_err ~ _js_v e { = s _js_str _js_get q k_symbol un_poe s un_rec q 0 } 0
-        = j + j 1 } 0 } 0
+        = e cs_tget q $"error"
+        Se && ~ @ g_err ~ _js_v e { = s _js_str _js_get q $"symbol" un_poe s un_rec q }
+        = j + j 1 } }
   # a mensagem do erro (texto do lote) vai com os registos para baixo da marca
   = rs ? rs rs @ -1
-  ? @ g_err { = mc _tx_copia @ g_err ! g_err mc 0 } 0
+  Se @ g_err { = mc _tx_copia @ g_err ! g_err mc }
   = d un_compacta rs
-  ? @ g_err { = t - @ g_err d ! t - @ t d ! g_err t 0 } 0
+  Se @ g_err { = t - @ g_err d ! t - @ t d ! g_err t }
   ? @ g_err {
       ! g_tent + @ g_tent 1
-      ? == @ g_tent 3 { _an_abre 0 "lote " N + / @ g_i 40 1 = w _an_fecha cs_aviso w ! g_tent 0 ! g_i + @ g_i 40 0 } { cs_semerro }
+      ? == @ g_tent 3 { `{ _an_abre 0 }lote { N + / @ g_i 40 1 }` = w _an_fecha cs_aviso w ! g_tent 0 ! g_i + @ g_i 40 0 } { cs_semerro }
       ! g_ph 1
-      ! g_tid Y 103 3000 k_un_tique 0 }
+      ! g_tid Y 103 3000 $"un_tique" 0 }
     { ! g_tent 0 ! g_i + @ g_i 40 ! g_ph 1 1 } }
 # depois dos 3 s: continua (a mesma tentativa ou o lote seguinte)
 : un_tique i>i z { Y 104 @ g_tid 0 cs_passo }
@@ -116,111 +107,100 @@
   = m @ g_marca = top @ -1
   = rs ? rs rs top
   = d - rs m = tam - top rs
-  = j 0 W < j tam { ! + m j @ + rs j = j + j 1 }
+  L j tam ! + m j @ + rs j
   = j + m tam W < j top { ! j 0 = j + j 1 }
   = j 0
   W < j @ g_ntoc {
     = ix @ + @ g_toc j = p + @ g_qt ix
     = vu 0 = i 0 W && ~ vu < i j { = vu == @ + @ g_toc i ix = i + i 1 }
-    ? && ~ vu >= @ p rs ! p - @ p d 0
+    Se && ~ vu >= @ p rs ! p - @ p d
     = j + j 1 }
   ! -1 + m tam d }
 # a análise de um registo (o analyse de cada série do analyseMany): o mesmo que o serie de analise.onda, sem escrever o
 # JSON — lêem-se direto os globais do motor que esse JSON teria (os reais não finitos davam null nele)
-: un_rk i>i k ? == k 0 k_rkna ? == k 1 k_rk1 ? == k 2 k_rk2 ? == k 3 k_rk3 k_rk4
-: un_key i>i k ? == k 0 k_hold ? == k 1 k_buy ? == k 2 k_scale ? == k 3 k_wait ? == k 4 k_neutral ? == k 5 k_turn k_avoid
+: un_rk i>i k ? == k 0 $"—" ? == k 1 $"Risco baixo" ? == k 2 $"Risco médio" ? == k 3 $"Risco alto" $"Risco muito alto"
+: un_key i>i k ? == k 0 $"hold" ? == k 1 $"buy" ? == k 2 $"scale" ? == k 3 $"wait" ? == k 4 $"neutral" ? == k 5 $"turn" $"avoid"
 : un_an iii>i r kind cr {
   = n @ + r 11 = c + r 13
   ! 4 kind ! 3 cr ! 5 0 !f 6 0. ! 8 @ g_abuf
-  = v @ 8 = m 0 = i 0
-  W < i n { = w @ + c i ? && != & >> w 52 2047 2047 > @f + c i 0. { ! + v m w = m + m 1 } 0 = i + i 1 }
+  = v @ 8 = m 0 L i n { = w @ + c i Se && != & >> w 52 2047 2047 > @f + c i 0. { ! + v m w = m + m 1 } }
   ! 1 v ! 2 m
   ? < m 30 0 {
     metricas medio curto longo desconto niveis conselho
     # horizons.long.score (ou null), horizons.mid.score, metrics.ret1m, discount.dd, discount.opp, advice.key, risk.label
     ! g_al ? @ 34 @ 33 -1000000
     ! g_am @ 31
-    ! g_ar1 && @ 23 _nu_fin @f 22 !f g_ar1v @f 22
-    ! g_addn ~ _nu_fin @f 36 !f g_add @f 36
+    ! g_ar1 && @ 23 fin @f 22 !f g_ar1v @f 22
+    ! g_addn ~ fin @f 36 !f g_add @f 36
     ! g_aop @ 44
     ! g_ak un_key @ 47 ! g_ark un_rk @ 52
     1 } }
 # o comparador do sort (cs_cmp): 20 l e m descendentes (null = -1 / 0), 21 dd ascendente, 22 |d| descendente
-: un_vl ii>f r k { = v _js_get r k ? _js_nulo v ? _tx_igual k k_l -1. 0. _js_tonum v }
+: un_vl ii>f r k { = v _js_get r k ? _js_nulo v ? mesmo k $"l" -1. 0. _js_tonum v }
 : un_cmp iii>f k x y {
-  ? == k 20 { = a - un_vl y k_l un_vl x k_l ? && != a 0. == a a a - un_vl y k_m un_vl x k_m }
-  ? == k 21 - _js_tonum _js_get x k_dd _js_tonum _js_get y k_dd
-  ? == k 22 - Ab _js_tonum _js_get y k_d Ab _js_tonum _js_get x k_d 0. }
+  ? == k 20 { = a - un_vl y $"l" un_vl x $"l" ? && != a 0. == a a a - un_vl y $"m" un_vl x $"m" }
+  ? == k 21 - _js_tonum _js_get x $"dd" _js_tonum _js_get y $"dd"
+  ? == k 22 - Ab _js_tonum _js_get y $"d" Ab _js_tonum _js_get x $"d" 0. }
 : un_p4 >i {
   = us @ g_us = ut @ g_ut = un @ g_un = n _js_len us
   # com: as que têm série com 60 ou mais e preço
-  = mx 1 = j 0 W < j n { = r @ + @ g_qt j ? && r > @ + r 11 mx = mx @ + r 11 0 = j + j 1 }
+  = mx 1 L j n { = r @ + @ g_qt j Se && r > @ + r 11 mx = mx @ + r 11 }
   ! g_abuf A + mx 1
   # o map dos fechos de todas (antes de analisar): uma série que não é lista, ou com um null, faz o JS lançar
-  = j 0
-  W < j n {
+  L j n {
     = r @ + @ g_qt j
-    ? && && && r @ + r 1 @ + r 2 @ + r 4 { ? ~ @ + r 3 cs_lanca k_TypeError k_seriesnf 0 ? @ + r 10 cs_lanca k_TypeError k_null1 0 } 0
-    = j + j 1 }
-  = rows _js_lst n = j 0
-  W < j n {
+    Se && && && r @ + r 1 @ + r 2 @ + r 4 { Se ~ @ + r 3 cs_lanca $"TypeError" $"Q[x.s].series.map is not a function" Se @ + r 10 cs_lanca $"TypeError" $"Cannot read properties of null (reading '1')" } }
+  = rows _js_lst n L j n {
     = r @ + @ g_qt j
-    ? && && && r @ + r 1 @ + r 2 @ + r 4 {
-      = t _js_it ut j = kc _js_oget cs_c k_KIND t
-      ? un_an r cs_tipoan kc _js_eht t k_crypto {
+    Se && && && r @ + r 1 @ + r 2 @ + r 4 {
+      = t _js_it ut j = kc _js_oget cs_c $"KIND" t
+      Se un_an r cs_tipoan kc _js_eht t $"crypto" {
         = o _js_obj 13
-        _js_oset o k_s _js_it us j _js_oset o k_n _js_it un j _js_oset o k_t t
+        _js_oset o $"s" _js_it us j _js_oset o $"n" _js_it un j _js_oset o $"t" t
         = cj + r @ + r 12 = c A + 1 @ cj ! c + + c 1 @ cj = i 0 W < i @ cj { ! + + c 1 i @ + + cj 1 i = i + i 1 }
-        _js_oset o k_c _js_parse c
-        _js_oset o k_l ? == @ g_al -1000000 2 _js_num F @ g_al
-        _js_oset o k_m _js_num F @ g_am
-        _js_oset o k_d ? @ + r 5 cs_r1f @f + r 6 2
-        _js_oset o k_m1 ? @ g_ar1 cs_r1f * @f g_ar1v 100. 2
-        _js_oset o k_y ? @ + r 7 cs_r1f * - / @f + r 9 @f + r 8 1. 100. 2
-        _js_oset o k_dd cs_r1f * ? @ g_addn 0. @f g_add 100.
-        _js_oset o k_o _js_num ? @ g_aop 1. 0.
-        _js_oset o k_k @ g_ak _js_oset o k_rk @ g_ark
-        _js_push rows o 0 } 0 } 0
-    = j + j 1 }
+        _js_oset o $"c" _js_parse c
+        _js_oset o $"l" ? == @ g_al -1000000 2 _js_num F @ g_al
+        _js_oset o $"m" _js_num F @ g_am
+        _js_oset o $"d" ? @ + r 5 cs_r1f @f + r 6 2
+        _js_oset o $"m1" ? @ g_ar1 cs_r1f * @f g_ar1v 100. 2
+        _js_oset o $"y" ? @ + r 7 cs_r1f * - / @f + r 9 @f + r 8 1. 100. 2
+        _js_oset o $"dd" cs_r1f * ? @ g_addn 0. @f g_add 100.
+        _js_oset o $"o" _js_num ? @ g_aop 1. 0.
+        _js_oset o $"k" @ g_ak _js_oset o $"rk" @ g_ark
+        _js_push rows o } } }
   cs_ordena rows 20
   ! g_rows rows
   = doc _js_obj 5
-  _js_oset doc k_date cs_hoje _js_oset doc k_generatedAt cs_iso
-  _js_oset doc k_n _js_num F _js_len rows _js_oset doc k_of _js_num F n _js_oset doc k_rows rows
+  _js_oset doc $"date" cs_hoje _js_oset doc $"generatedAt" cs_iso
+  _js_oset doc $"n" _js_num F _js_len rows _js_oset doc $"of" _js_num F n _js_oset doc $"rows" rows
   ! g_doc doc
-  da_gravaini k_universojson _js_pj doc 0 0 da_gravafim
-  ? > F _js_len rows / F n 2. { ! g_ph 5 ? cs_kvput k_unilatest doc 0 un_p5 } {
-    _an_abre 0 "só " N _js_len rows " de " N n " com dados: não gravei no KV" _js_push @ g_warn _an_fecha un_md } }
-#k k_null1 Cannot read properties of null (reading '1')
-#k k_universojson universo.json
-#k k_universomd universo.md
-: un_p5 >i { cs_rkvput k_unilatest cs_lancase un_md }
+  da_gravaini $"universo.json" _js_pj doc 0 0 da_gravafim
+  ? > F _js_len rows / F n 2. { ! g_ph 5 ? cs_kvput $"uni:latest" doc 0 un_p5 } {
+    `{ _an_abre 0 }só { N _js_len rows } de { N n } com dados: não gravei no KV{ _js_push @ g_warn _an_fecha }` un_md } }
+: un_p5 >i { cs_rkvput $"uni:latest" cs_lancase un_md }
 # o universo.md (e o stdout)
 : un_fmt i>i r {
-  "- " _js_pu _js_get r k_s P 32 _js_pu _js_get r k_n " [" _js_pu _js_get r k_t "] L" = l _js_get r k_l ? _js_nulo l "—" _js_pu l "/M" _js_pu _js_get r k_m
-  " | hoje " = v _js_get r k_d ? _js_nulo v "—" _js_pu v "% | 1 mês " = v _js_get r k_m1 ? _js_nulo v "—" _js_pu v
-  "% | 1 ano " = v _js_get r k_y ? _js_nulo v "—" _js_pu v "% | do máximo " _js_pu _js_get r k_dd "% | " _js_pu _js_get r k_rk 0 }
-: un_l >i { ? @ g_ln P 10 0 ! g_ln 1 0 }
-: un_ls ii>i l n { = j 0 W < j Mn n _js_len l { un_l un_fmt _js_it l j = j + j 1 } 0 }
+  `- { _js_pu _js_get r $"s" }{ P 32 }{ _js_pu _js_get r $"n" } [{ _js_pu _js_get r $"t" }] L` = l _js_get r $"l" `{ ? _js_nulo l "—" _js_pu l }/M{ _js_pu _js_get r $"m" }`
+  " | hoje " = v _js_get r $"d" `{ ? _js_nulo v "—" _js_pu v }% | 1 mês ` = v _js_get r $"m1" ? _js_nulo v "—" _js_pu v
+  "% | 1 ano " = v _js_get r $"y" `{ ? _js_nulo v "—" _js_pu v }% | do máximo { _js_pu _js_get r $"dd" }% | { _js_pu _js_get r $"rk" }` 0 }
+: un_l >i { Se @ g_ln P 10 ! g_ln 1 0 }
+: un_ls ii>i l n { = j 0 W < j Mn n _js_len l { un_l un_fmt _js_it l j = j + j 1 } }
 : un_texto >i {
   ! g_ln 0
   = rows @ g_rows
-  un_l "# Toda a Trade Republic — " N _js_len rows " de " N _js_len @ g_us " ativos com dados (" _tx_p _js_get @ g_doc k_date ")"
-  = gs cs_c k_UNI = i 0
-  W < i 3 {
+  `{ un_l }# Toda a Trade Republic — { N _js_len rows } de { N _js_len @ g_us } ativos com dados ({ crut _js_get @ g_doc $"date" })`
+  = gs cs_c $"UNI" L i 3 {
     = t _js_it _js_it gs i 0 = lb _js_it _js_it gs i 1
-    = g _js_lst 64 = j 0 W < j _js_len rows { = r _js_it rows j ? _js_eht _js_get r k_t t _js_push g r 0 = j + j 1 }
-    un_l "## " _tx_p lb " (" N _js_len g "): as 10 mais fortes a longo prazo" un_ls g 10
-    un_l "## " _tx_p lb ": desconto com tendência longa a favor (até 8)"
-    = o _js_lst 16 = j 0 W < j _js_len g { = r _js_it g j ? _js_v _js_get r k_o _js_push o r 0 = j + j 1 }
+    = g _js_lst 64 = j 0 W < j _js_len rows { = r _js_it rows j Se _js_eht _js_get r $"t" t _js_push g r = j + j 1 }
+    `{ un_l }## { crut lb } ({ N _js_len g }): as 10 mais fortes a longo prazo{ un_ls g 10 }`
+    `{ un_l }## { crut lb }: desconto com tendência longa a favor (até 8)`
+    = o _js_lst 16 = j 0 W < j _js_len g { = r _js_it g j Se _js_v _js_get r $"o" _js_push o r = j + j 1 }
     cs_ordena o 21 un_ls o 8
-    un_l "## " _tx_p lb ": as 5 mais fracas (armadilhas)"
-    = f _js_lst 16 = j 0 W < j _js_len g { = r _js_it g j ? ~ _js_nulo _js_get r k_l _js_push f r 0 = j + j 1 }
-    = k _js_len f un_ls _js_fatia f Mx 0 - k 5 k 5
-    = i + i 1 }
-  un_l "## Maiores movimentos de hoje (toda a lista)"
-  = d _js_lst 64 = j 0 W < j _js_len rows { = r _js_it rows j ? ~ _js_nulo _js_get r k_d _js_push d r 0 = j + j 1 }
+    `{ un_l }## { crut lb }: as 5 mais fracas (armadilhas)`
+    = f _js_lst 16 = j 0 W < j _js_len g { = r _js_it g j Se ~ _js_nulo _js_get r $"l" _js_push f r = j + j 1 }
+    = k _js_len f un_ls _js_fatia f Mx 0 - k 5 k 5 }
+  `{ un_l }## Maiores movimentos de hoje (toda a lista)`
+  = d _js_lst 64 = j 0 W < j _js_len rows { = r _js_it rows j Se ~ _js_nulo _js_get r $"d" _js_push d r = j + j 1 }
   cs_ordena d 22 un_ls d 12
-  = w @ g_warn ? _js_len w { un_l "## Avisos" = j 0 W < j _js_len w { un_l "- " _js_pu _js_it w j = j + j 1 } 0 } 0
-  0 }
-: un_md >i { da_gravaini k_universomd un_texto da_gravafim un_texto P 10 _an_sair 0 }
+  = w @ g_warn Se _js_len w { `{ un_l }## Avisos` = j 0 W < j _js_len w { `{ un_l }- { _js_pu _js_it w j }` = j + j 1 } } }
+: un_md >i { da_gravaini $"universo.md" un_texto da_gravafim un_texto P 10 _an_sair 0 }

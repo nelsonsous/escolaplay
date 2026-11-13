@@ -253,7 +253,8 @@ test('conselheiro em Onda: as listas da app (STOCKS, FUNDS, CRYPTO, MARKET, MINE
     const R = await import('../conselheiro/js/comum.mjs');
     const src = readFileSync(path.join(raiz, 'mercados/conselheiro/onda/comum.onda'), 'utf8');
     const corpo = src.slice(src.indexOf(': cs_cfgjson'), src.indexOf(': cs_c i>i'));
-    const cfg = JSON.parse([...corpo.matchAll(/^\s*"(.*)"\s*$/gm)].map((m) => m[1].replace(/\\"/g, '"')).join(''));
+    // o JSON da configuração está em moldes, um por linha (as chavetas escapadas: \{ \})
+    const cfg = JSON.parse([...corpo.matchAll(/^\s*`(.*)`[\s}]*$/gm)].map((m) => m[1].replace(/\\([{}])/g, '$1')).join(''));
     for (const k of ['STOCKS', 'FUNDS', 'CRYPTO', 'MARKET', 'MINE', 'ACTION_KEYS', 'REF_KEYS', 'ACTION_LABEL', 'FAM', 'HZ', 'LEVELS']) assert.deepEqual(cfg[k], R[k], k);
 });
 

@@ -3,107 +3,98 @@
 #   correr.mjs outros publicar <ficheiro> → valida e grava ua:<id> de cada app e cfg:lastRun
 # Das outras apps só se leem símbolos (validados) e números: nunca texto escrito por elas.
 
-#k k_offmsg Análise para as outras apps desligada pelo dono: nada a fazer.
-#k k_outrosjson outros.json
-#k k_outrosmd outros.md
-#k k_ua ua:
-#k k_mymapnf ((doc && doc.my) || []).map is not a function
-#k k_usersnf d.users is not iterable
 
 : ou_corre >i {
   = c _an_arg 1
-  ? _js_eht c k_dados od_corre ? _js_eht c k_publicar op_corre {
-    _an_fd 2 "uso: outros.mjs dados [pasta] | publicar <ficheiro>" P 10 _an_volta _an_sair 2 } }
+  ? _js_eht c $"dados" od_corre ? _js_eht c $"publicar" op_corre {
+    `{ _an_fd 2 }uso: outros.mjs dados [pasta] | publicar <ficheiro>{ P 10 }{ _an_volta }` _an_sair 2 } }
 # yahoo(k): c:XYZ → XYZ-EUR
-: ou_yahoo i>i k ? cs_cpref k { = r _tx_sub k 2 _tx_len k _an_abre 0 _tx_p r "-EUR" _an_fecha } k
+: ou_yahoo i>i k ? cs_cpref k { = r _tx_sub k 2 _tx_len k `{ _an_abre 0 }{ crut r }-EUR` _an_fecha } k
 # o comparador do sort (cs_cmp): 30 a.metadata.s < b.metadata.s ? 1 : -1
-: ou_cmp iii>f k x y ? _js_lt _js_get _js_get x k_metadata k_s _js_get _js_get y k_metadata k_s 1. -1.
+: ou_cmp iii>f k x y ? _js_lt _js_get _js_get x $"metadata" $"s" _js_get _js_get y $"metadata" $"s" 1. -1.
 
 # ---------- dados ----------
 : od_corre >i {
   ! g_scr 3
-  ! g_out cs_argou 2 k_tmp
-  ? ~ _an_pasta @ g_out cs_lanca k_Error _an_erro 0
+  ! g_out cs_argou 2 $"/tmp/conselheiro"
+  Se ~ _an_pasta @ g_out cs_lanca $"Error" _an_erro
   ! g_at cs_iso
   ! g_ph 1
-  ? cs_kvget k_cfgothers 0 cs_passo }
+  ? cs_kvget $"cfg:others" 0 cs_passo }
 : od_passo >i {
   = p @ g_ph
   ? == p 1 od_p1 ? == p 2 od_p2 ? == p 3 od_p3 ? == p 4 od_p4 ? == p 5 od_p5 ? == p 6 od_p6 ? == p 7 od_p7
   ? == p 8 od_p8 ? == p 9 od_p9 ? == p 10 od_p10 0 }
 : od_p1 >i {
-  cs_rkvget k_cfgothers cs_lancase
+  cs_rkvget $"cfg:others" cs_lancase
   = o @ g_res
-  ? && _js_v o == _js_get o k_claude 3 {
-      = d _js_obj 3 _js_oset d k_date cs_hoje _js_oset d k_off 4 _js_oset d k_users _js_lst 0
-      da_gravaini k_outrosjson _js_pj d 0 0 da_gravafim
-      _tx_pu k_offmsg P 10 _an_sair 0 } {
-    ! g_ph 2 ~ cs_kvget k_cfgowner } }
+  ? && _js_v o == _js_get o $"claude" 3 {
+      = d _js_obj 3 _js_oset d $"date" cs_hoje _js_oset d $"off" 4 _js_oset d $"users" _js_lst 0
+      da_gravaini $"outros.json" _js_pj d 0 0 da_gravafim
+      _tx_pu $"Análise para as outras apps desligada pelo dono: nada a fazer." P 10 _an_sair 0 } {
+    ! g_ph 2 ~ cs_kvget $"cfg:owner" } }
 : od_p2 >i {
-  cs_rkvget k_cfgowner cs_lancase
+  cs_rkvget $"cfg:owner" cs_lancase
   ! g_owner @ g_res
   _an_abre 0 _dt_pdia - I _an_agoraf 259200000 ! g_since _an_fecha
-  ! g_ph 3 cs_lista k_jdois 3 0 }
+  ! g_ph 3 cs_lista $"j:" 3 0 }
 : od_p3 >i {
   cs_lancase
   = l @ g_res = as _js_lst 16
-  _an_abre 0 "j:" _js_ps @ g_owner = jo _an_fecha
+  `{ _an_abre 0 }j:{ _js_ps @ g_owner }` = jo _an_fecha
   = j 0
   W < j _js_len l {
-    = k _js_it l j = m cs_getx k k_metadata
-    ? && && _js_v m _js_v cs_getx m k_c && _js_ge { = s _js_get m k_s ? _js_v s s _tx_novo 0 } @ g_since ~ _js_eq _js_get k k_name jo _js_push as k 0
+    = k _js_it l j = m cs_getx k $"metadata"
+    Se && && _js_v m _js_v cs_getx m $"c" && _js_ge { = s _js_get m $"s" ? _js_v s s _tx_novo 0 } @ g_since ~ _js_eq _js_get k $"name" jo _js_push as k
     = j + j 1 }
   cs_ordena as 30
   ! g_asked as ! g_users _js_lst 8 ! g_i 0 ! g_ph 4 1 }
 : od_p4 >i {
   = i @ g_i
-  ? < i Mn 20 _js_len @ g_asked { ! g_ph 5 ~ cs_kvget _js_get _js_it @ g_asked i k_name } {
+  ? < i Mn 20 _js_len @ g_asked { ! g_ph 5 ~ cs_kvget _js_get _js_it @ g_asked i $"name" } {
     # syms: os ativos de todas, sem repetidos
     = sy _js_lst 32 = us @ g_users = j 0
-    W < j _js_len us { = a _js_oget _js_it us j k_assets = m 0 W < m _js_len a { = s _js_it a m ? ~ _js_inc sy s _js_push sy s 0 = m + m 1 } = j + j 1 }
+    W < j _js_len us { = a _js_oget _js_it us j $"assets" = m 0 W < m _js_len a { = s _js_it a m Se ~ _js_inc sy s _js_push sy s = m + m 1 } = j + j 1 }
     ! g_syms sy ! g_q1d _js_obj 32 ! g_q1y _js_obj 32 ! g_i 0 ! g_qr 1 ! g_ph 6 1 } }
 : od_p5 >i {
   = k _js_it @ g_asked @ g_i
-  cs_rkvget _js_get k k_name
+  cs_rkvget _js_get k $"name"
   = d ? @ g_err { cs_semerro 2 } @ g_res
-  = my ? _js_v d _js_get d k_my d = my ? _js_v my my _js_lst 0
-  ? ~ _js_ehlst my cs_lanca k_TypeError k_mymapnf 0
+  = my ? _js_v d _js_get d $"my" d = my ? _js_v my my _js_lst 0
+  Se ~ _js_ehlst my cs_lanca $"TypeError" $"((doc && doc.my) || []).map is not a function"
   = as _js_lst 12 = j 0
-  W < j _js_len my { = s _js_str _js_it my j ? && cs_sym s ~ _js_inc as s _js_push as s 0 = j + j 1 }
+  W < j _js_len my { = s _js_str _js_it my j Se && cs_sym s ~ _js_inc as s _js_push as s = j + j 1 }
   = as _js_fatia as 0 Mn 12 _js_len as
-  ? _js_len as {
+  Se _js_len as {
       = u _js_obj 3 = us @ g_users
-      _an_abre 0 "A" N + _js_len us 1 _js_oset u k_ref _an_fecha
-      = nm _js_str _js_get k k_name _js_oset u k_id _tx_s16 nm 2 Mx 2 _tx_l16 nm
-      _js_oset u k_assets as _js_push us u 0 } 0
+      `{ _an_abre 0 }A{ N + _js_len us 1 }{ _js_oset u $"ref" _an_fecha }`
+      = nm _js_str _js_get k $"name" _js_oset u $"id" _tx_s16 nm 2 Mx 2 _tx_l16 nm
+      _js_oset u $"assets" as _js_push us u }
   ! g_i + @ g_i 1 ! g_ph 4 1 }
 # as cotações, de 40 em 40: 1d e 1y; um erro só deixa esse pedido sem dados
 : od_p6 >i {
   = i @ g_i = sy @ g_syms = n _js_len sy
   ? < i n {
       = part _js_fatia sy i Mn n + i 40 ! g_part part
-      _an_abre 0 = j 0 W < j _js_len part { ? j P ', 0 _tx_p ou_yahoo _js_it part j = j + j 1 } = ys _an_fecha
+      _an_abre 0 = j 0 W < j _js_len part { Se j P ', crut ou_yahoo _js_it part j = j + j 1 } = ys _an_fecha
       ! g_ph 7
-      ? _tx_urimal ys { cs_falha k_urimal 1 } { cs_wini "/quotes?symbols=" _tx_uri ys "&range=" ? == @ g_qr 1 "1d" "1y" ~ cs_wfim 60000 } }
+      ? _tx_urimal ys { cs_falha $"URI malformed" 1 } { `{ cs_wini }/quotes?symbols={ _tx_uri ys }&range={ ? == @ g_qr 1 "1d" "1y" }` ~ cs_wfim 60000 } }
     { od_linhas ! g_i 0 ! g_ph 8 1 } }
 : od_p7 >i {
   cs_rget
   = dst ? == @ g_qr 1 @ g_q1d @ g_q1y
-  ? ~ @ g_err {
-      = qs da_itl cs_tget @ g_res k_quotes = part @ g_part = j 0
+  Se ~ @ g_err {
+      = qs da_itl cs_tget @ g_res $"quotes" = part @ g_part = j 0
       W && < j _js_len qs ~ @ g_err {
         = q _js_it qs j
-        = sym cs_tget q k_symbol
-        ? ~ @ g_err {
-            = s 0 = m 0 W && ~ s < m _js_len part { = x _js_it part m ? _js_eq ou_yahoo x sym = s x 0 = m + m 1 }
-            ? && s ~ _js_v _js_get q k_error _js_oset dst s q 0 } 0
-        = j + j 1 } 0 } 0
+        = sym cs_tget q $"symbol"
+        Se ~ @ g_err {
+            = s 0 = m 0 W && ~ s < m _js_len part { = x _js_it part m Se _js_eq ou_yahoo x sym = s x = m + m 1 }
+            Se && s ~ _js_v _js_get q $"error" _js_oset dst s q }
+        = j + j 1 } }
   cs_semerro
   ? == @ g_qr 1 { ! g_qr 2 0 } { ! g_qr 1 ! g_i + @ g_i 40 0 }
   ! g_ph 6 1 }
-#k k_etf ETF
-#k k_etc ETC
-#k k_etn ETN
 # /ETF|ETC|ETN/i.test(t)
 : ou_etf i>i t {
   = n _tx_len t = r 0 = j 0
@@ -117,179 +108,177 @@
   W < i _js_len sy {
     = s _js_it sy i
     = d _js_oget @ g_q1y s = t _js_oget @ g_q1d s
-    = ser ? _js_v d _js_get d k_series d
-    ? || || ~ _js_v d ~ _js_v ser < _js_tonum _js_get ser k_length 60. 0 {
-      ? ~ _js_ehlst ser cs_lanca k_TypeError da_mapnf 0
-      = n _js_len ser = cl _js_lst n = j 0
-      W < j n { _js_push cl cs_getx _js_it ser j k_1 = j + j 1 }
-      = tp ? _js_v t _js_get t k_price t
-      ? && _js_v t _js_v tp { ! + @ + cl 3 - n 1 tp 0 } 0
-      = nm ? _js_v _js_get d k_longName _js_get d k_longName _js_get d k_name
-      = kind ? cs_cpref s k_crypto ? ou_etf _js_str ? _js_v nm nm _tx_novo 0 k_fund k_stock
-      = r cs_analisa cl cs_tipoan kind _js_eht kind k_crypto
-      ? _js_v r {
+    = ser ? _js_v d _js_get d $"series" d
+    ? || || ~ _js_v d ~ _js_v ser < _js_tonum _js_get ser $"length" 60. 0 {
+      Se ~ _js_ehlst ser cs_lanca $"TypeError" da_mapnf
+      = n _js_len ser = cl _js_lst n L j n _js_push cl cs_getx _js_it ser j $"1"
+      = tp ? _js_v t _js_get t $"price" t
+      Se && _js_v t _js_v tp ! + @ + cl 3 - n 1 tp
+      = nm ? _js_v _js_get d $"longName" _js_get d $"longName" _js_get d $"name"
+      = kind ? cs_cpref s $"crypto" ? ou_etf _js_str ? _js_v nm nm _tx_novo 0 $"fund" $"stock"
+      = r cs_analisa cl cs_tipoan kind _js_eht kind $"crypto"
+      Se _js_v r {
         = o _js_obj 11
-        = a ? _js_v t { = b _js_get t k_longName ? _js_v b b _js_get t k_name } t
-        = a ? _js_v a a _js_get d k_longName = a ? _js_v a a _js_get d k_name = a ? _js_v a a s
+        = a ? _js_v t { = b _js_get t $"longName" ? _js_v b b _js_get t $"name" } t
+        = a ? _js_v a a _js_get d $"longName" = a ? _js_v a a _js_get d $"name" = a ? _js_v a a s
         = a _js_str a
-        _js_oset o k_name _tx_s16 a 0 60
-        _js_oset o k_kind kind
-        = c ? _js_v t _js_get t k_currency t = c ? _js_v c c _js_get d k_currency = c ? _js_v c c _tx_novo 0
-        _js_oset o k_cur c
-        _js_oset o k_price ? && _js_v t _js_fin tp _js_num _nu_rprec _js_f tp 6 2
-        _js_oset o k_day cs_r1 ? _js_v t _js_get t k_changePct t
-        = me _js_get r k_metrics = r1m _js_get me k_ret1m
-        _js_oset o k_m1 ? _js_fin r1m cs_r1f * _js_f r1m 100. 2
-        = hz _js_get r k_horizons = lo _js_get hz k_long
-        _js_oset o k_long ? _js_v lo _js_get lo k_score 2
-        _js_oset o k_mid _js_get _js_get hz k_mid k_score
-        = dd _js_get _js_get r k_discount k_dd
-        _js_oset o k_dd cs_r1f * ? _js_nulo dd 0. _js_tonum dd 100.
-        _js_oset o k_risk _js_get _js_get r k_risk k_label
-        _js_oset o k_rule _js_get _js_get r k_advice k_action
-        _js_oset rows s o 0 } 0 }
+        _js_oset o $"name" _tx_s16 a 0 60
+        _js_oset o $"kind" kind
+        = c ? _js_v t _js_get t $"currency" t = c ? _js_v c c _js_get d $"currency" = c ? _js_v c c _tx_novo 0
+        _js_oset o $"cur" c
+        _js_oset o $"price" ? && _js_v t _js_fin tp _js_num _nu_rprec _js_f tp 6 2
+        _js_oset o $"day" cs_r1 ? _js_v t _js_get t $"changePct" t
+        = me _js_get r $"metrics" = r1m _js_get me $"ret1m"
+        _js_oset o $"m1" ? _js_fin r1m cs_r1f * _js_f r1m 100. 2
+        = hz _js_get r $"horizons" = lo _js_get hz $"long"
+        _js_oset o $"long" ? _js_v lo _js_get lo $"score" 2
+        _js_oset o $"mid" _js_get _js_get hz $"mid" $"score"
+        = dd _js_get _js_get r $"discount" $"dd"
+        _js_oset o $"dd" cs_r1f * ? _js_nulo dd 0. _js_tonum dd 100.
+        _js_oset o $"risk" _js_get _js_get r $"risk" $"label"
+        _js_oset o $"rule" _js_get _js_get r $"advice" $"action"
+        _js_oset rows s o } }
     = i + i 1 }
   ! g_orows rows
   # as notícias dos movimentos fortes: pela ordem das chaves do objeto (Object.entries)
   = ns _js_lst 8 = ord _js_ordem rows = j 0
-  W < j _js_on rows { = p _js_pos ord j = r _js_ov rows p = dy _js_get r k_day ? && ~ _js_nulo dy >= Ab _js_tonum dy 3. _js_push ns _js_ok rows p 0 = j + j 1 }
+  W < j _js_on rows { = p _js_pos ord j = r _js_ov rows p = dy _js_get r $"day" Se && ~ _js_nulo dy >= Ab _js_tonum dy 3. _js_push ns _js_ok rows p = j + j 1 }
   ! g_nsyms ns ! g_onews _js_obj 8 0 }
 : od_p8 >i {
   = i @ g_i = ns @ g_nsyms
   ? < i _js_len ns {
       = s _js_it ns i = r _js_oget @ g_orows s
-      = nm _js_str _js_get r k_name = ys ou_yahoo s
+      = nm _js_str _js_get r $"name" = ys ou_yahoo s
       ! g_ph 9
-      ? || _tx_urimal nm _tx_urimal ys { cs_falha k_urimal 1 } { cs_wini "/news?q=" _tx_uri nm "&lang=en&sym=" _tx_uri ys ~ cs_wfim 30000 } }
+      ? || _tx_urimal nm _tx_urimal ys { cs_falha $"URI malformed" 1 } { `{ cs_wini }/news?q={ _tx_uri nm }&lang=en&sym={ _tx_uri ys }` ~ cs_wfim 30000 } }
     { od_saida } }
 : od_p9 >i {
   cs_rget
   = s _js_it @ g_nsyms @ g_i
-  ? ~ @ g_err {
-      = it cs_tget @ g_res k_items
+  Se ~ @ g_err {
+      = it cs_tget @ g_res $"items"
       = it ? _js_v it it _js_lst 0
-      ? _js_ehlst it {
+      Se _js_ehlst it {
         = m Mn 2 _js_len it = out _js_lst m = j 0
         W && < j m ~ @ g_err {
-          = x _js_it it j = ti cs_tget x k_title
-          ? ~ @ g_err { = so _js_get x k_source _an_abre 0 _js_ps ti " (" ? _js_v so _js_ps so 0 ")" _js_push out _an_fecha 0 } 0
+          = x _js_it it j = ti cs_tget x $"title"
+          Se ~ @ g_err { = so _js_get x $"source" `{ _an_abre 0 }{ _js_ps ti } ({ Se _js_v so _js_ps so }){ _js_push out _an_fecha }` }
           = j + j 1 }
-        ? ~ @ g_err _js_oset @ g_onews s out 0 0 } 0 } 0
+        Se ~ @ g_err _js_oset @ g_onews s out } }
   cs_semerro
   ! g_i + @ g_i 1 ! g_ph 8 1 }
 : od_saida >i {
   = d _js_obj 7
-  _js_oset d k_date cs_hoje _js_oset d k_at @ g_at
-  _js_oset d k_queued _js_num F _js_len @ g_asked _js_oset d k_max _js_num 20.
-  _js_oset d k_users @ g_users _js_oset d k_rows @ g_orows _js_oset d k_news @ g_onews
-  da_gravaini k_outrosjson _js_pj d 1 0 da_gravafim
+  _js_oset d $"date" cs_hoje _js_oset d $"at" @ g_at
+  _js_oset d $"queued" _js_num F _js_len @ g_asked _js_oset d $"max" _js_num 20.
+  _js_oset d $"users" @ g_users _js_oset d $"rows" @ g_orows _js_oset d $"news" @ g_onews
+  da_gravaini $"outros.json" _js_pj d 1 0 da_gravafim
   ? _js_len @ g_users od_md {
-    = l _js_obj 4 _js_oset l k_at @ g_at _js_oset l k_queued _js_num F _js_len @ g_asked _js_oset l k_done _js_num 0. _js_oset l k_max _js_num 20.
-    ! g_ph 10 ? cs_kvput k_cfglastRun l 0 od_p10 } }
-: od_p10 >i { cs_rkvput k_cfglastRun cs_lancase od_md }
+    = l _js_obj 4 _js_oset l $"at" @ g_at _js_oset l $"queued" _js_num F _js_len @ g_asked _js_oset l $"done" _js_num 0. _js_oset l $"max" _js_num 20.
+    ! g_ph 10 ? cs_kvput $"cfg:lastRun" l 0 od_p10 } }
+: od_p10 >i { cs_rkvput $"cfg:lastRun" cs_lancase od_md }
 : od_texto >i {
   ! g_ln 0
   = us @ g_users = na _js_len @ g_asked
-  un_l "# Outras apps: " N _js_len us " a analisar" ? > na _js_len us { " (" N na " pediram; limite 20)" } 0
+  `{ un_l }# Outras apps: { N _js_len us } a analisar{ Se > na _js_len us ` ({ N na } pediram; limite 20)` }`
   = j 0
   W < j _js_len us {
-    = u _js_it us j = as _js_oget u k_assets
-    un_l "## " _js_pu _js_oget u k_ref " (" N _js_len as " ativos)"
+    = u _js_it us j = as _js_oget u $"assets"
+    `{ un_l }## { _js_pu _js_oget u $"ref" } ({ N _js_len as } ativos)`
     = m 0
     W < m _js_len as {
       = s _js_it as m = r _js_oget @ g_orows s
       un_l ? _js_v r {
-          "- " _js_pu s P 32 _js_pu _js_get r k_name " [" _js_pu _js_get r k_kind "] " _js_pu _js_get r k_price P 32 _js_pu _js_get r k_cur
-          " | hoje " = v _js_get r k_day ? _js_nulo v "—" _js_pu v "% | 1 mês " = v _js_get r k_m1 ? _js_nulo v "—" _js_pu v
-          "% | L" = v _js_get r k_long ? _js_nulo v "—" _js_pu v "/M" _js_pu _js_get r k_mid " | do máximo " _js_pu _js_get r k_dd "% | "
-          _js_pu _js_get r k_risk " | regra: " _js_pu _js_get r k_rule
-          = nw _js_oget @ g_onews s ? _js_v nw { " | NOTÍCIAS: " da_pjoin nw 1 } 0 }
-        { "- " _js_pu s ": sem dados (dizer \"sem dados hoje\")" }
+          `- { _js_pu s }{ P 32 }{ _js_pu _js_get r $"name" } [{ _js_pu _js_get r $"kind" }] { _js_pu _js_get r $"price" }{ P 32 }{ _js_pu _js_get r $"cur" }`
+          " | hoje " = v _js_get r $"day" `{ ? _js_nulo v "—" _js_pu v }% | 1 mês ` = v _js_get r $"m1" ? _js_nulo v "—" _js_pu v
+          "% | L" = v _js_get r $"long" `{ ? _js_nulo v "—" _js_pu v }/M{ _js_pu _js_get r $"mid" } | do máximo { _js_pu _js_get r $"dd" }% | `
+          `{ _js_pu _js_get r $"risk" } | regra: { _js_pu _js_get r $"rule" }`
+          = nw _js_oget @ g_onews s Se _js_v nw ` | NOTÍCIAS: { da_pjoin nw 1 }` }
+        { `- { _js_pu s }: sem dados (dizer "sem dados hoje")` }
       = m + m 1 }
-    = j + j 1 }
-  0 }
-: od_md >i { da_gravaini k_outrosmd od_texto da_gravafim od_texto P 10 _an_sair 0 }
+    = j + j 1 } }
+: od_md >i { da_gravaini $"outros.md" od_texto da_gravafim od_texto P 10 _an_sair 0 }
 
 # ---------- publicar ----------
 # lê um ficheiro de JSON como o JSON.parse(readFileSync(f, 'utf8')) (um erro sai como o do Node)
 : cs_lejson i>i f {
-  = t _an_fich f ? ~ t cs_lanca k_Error _an_erro 0
+  = t _an_fich f Se ~ t cs_lanca $"Error" _an_erro
   = v _js_parse _tx_norm t 0
-  ? ~ v { _an_abre 0 _tx_pu f ": JSON inválido (" N _tx_len t " bytes)" = m _an_fecha cs_lanca k_SyntaxError m } 0
+  Se ~ v { `{ _an_abre 0 }{ _tx_pu f }: JSON inválido ({ N _tx_len t } bytes)` = m _an_fecha cs_lanca $"SyntaxError" m }
   v }
 # o path.dirname(f) do Node (POSIX)
 : cs_dirname i>i f {
   = n _tx_len f = e n W && > e 1 == _tx_b f - e 1 '/ = e - e 1
   = i - e 1 W && >= i 0 != _tx_b f i '/ = i - i 1
   ? < i 0 { _an_abre 0 P '. _an_fecha } { = i ? == i 0 1 i W && > i 1 == _tx_b f - i 1 '/ = i - i 1 _tx_sub f 0 i } }
-: cs_junta ii>i d nome { _an_abre 0 _tx_p d P '/ _tx_p nome = t _an_fecha cs_norma t }
+: cs_junta ii>i d nome { _an_abre 0 crut d P '/ crut nome = t _an_fecha cs_norma t }
 : op_corre >i {
   ! g_scr 4
   = f _an_arg 2
-  ? || ~ f == _tx_len f 0 { _an_fd 2 "uso: outros.mjs publicar outros-analise.json" P 10 _an_volta _an_sair 2 } 0
+  Se || ~ f == _tx_len f 0 `{ _an_fd 2 }uso: outros.mjs publicar outros-analise.json{ P 10 }{ _an_volta }{ _an_sair 2 }`
   = a cs_lejson f
-  = d cs_lejson cs_junta cs_dirname f k_outrosjson
-  = us cs_getx d k_users ? ~ _js_ehlst us cs_lanca k_TypeError k_usersnf 0
-  = rows _js_get d k_rows
+  = d cs_lejson cs_junta cs_dirname f $"outros.json"
+  = us cs_getx d $"users" Se ~ _js_ehlst us cs_lanca $"TypeError" $"d.users is not iterable"
+  = rows _js_get d $"rows"
   = out _js_lst 8 = i 0
   W < i _js_len us {
     = u _js_it us i
-    = rf cs_getx u k_ref = x cs_getx a _js_str rf
-    = as _js_get u k_assets
-    ? ~ _js_v x { cs_eini "falta a análise de " _js_ps rf cs_efim } {
+    = rf cs_getx u $"ref" = x cs_getx a _js_str rf
+    = as _js_get u $"assets"
+    ? ~ _js_v x { `{ cs_eini }falta a análise de { _js_ps rf }{ cs_efim }` } {
       = p _js_str rf
       = doc _js_obj 7
-      _js_oset doc k_date _js_get d k_date _js_oset doc k_generatedAt cs_iso _js_oset doc k_short 4
-      _js_oset doc k_headline cs_str _js_get x k_headline 160 cs_pc2 p k_headline 1
-      = tl _js_get x k_tldr = tl ? _js_ehlst tl tl _js_lst 0
+      _js_oset doc $"date" _js_get d $"date" _js_oset doc $"generatedAt" cs_iso _js_oset doc $"short" 4
+      _js_oset doc $"headline" cs_str _js_get x $"headline" 160 cs_pc2 p $"headline" 1
+      = tl _js_get x $"tldr" = tl ? _js_ehlst tl tl _js_lst 0
       = tr _js_lst 3 = j 0
-      W < j Mn 3 _js_len tl { _an_abre 0 _tx_p p ".tldr[" N j "]" = nm _an_fecha _js_push tr cs_str _js_it tl j 120 nm 1 = j + j 1 }
-      _js_oset doc k_tldr tr
-      = ac _js_get x k_actions = ac ? _js_ehlst ac ac _js_lst 0
+      W < j Mn 3 _js_len tl { `{ _an_abre 0 }{ crut p }.tldr[{ N j }]` = nm _an_fecha _js_push tr cs_str _js_it tl j 120 nm 1 = j + j 1 }
+      _js_oset doc $"tldr" tr
+      = ac _js_get x $"actions" = ac ? _js_ehlst ac ac _js_lst 0
       = ao _js_lst 12 = j 0
       W < j Mn 12 _js_len ac {
         = y _js_it ac j
-        _an_abre 0 _tx_p p ".actions[" N j "]" = q _an_fecha
-        ? || ~ _js_v y ~ _js_inc as _js_get y k_s { cs_eini _tx_p q ".s não é desta app: " _js_ps ? _js_v y _js_get y k_s y cs_efim } 0
-        = r ? _js_v y _js_get rows _js_str _js_get y k_s y
-        _js_push ao cs_norm y q 0 ? _js_v r _js_get r k_price 2 0 0
+        `{ _an_abre 0 }{ crut p }.actions[{ N j }]` = q _an_fecha
+        Se || ~ _js_v y ~ _js_inc as _js_get y $"s" `{ cs_eini }{ crut q }.s não é desta app: { _js_ps ? _js_v y _js_get y $"s" y }{ cs_efim }`
+        = r ? _js_v y _js_get rows _js_str _js_get y $"s" y
+        _js_push ao cs_norm y q 0 ? _js_v r _js_get r $"price" 2 0 0
         = j + j 1 }
-      _js_oset doc k_actions ao
-      = mv _js_get x k_movers = mv ? _js_ehlst mv mv _js_lst 0
+      _js_oset doc $"actions" ao
+      = mv _js_get x $"movers" = mv ? _js_ehlst mv mv _js_lst 0
       = mo _js_lst 6 = j 0
       W < j Mn 6 _js_len mv {
-        = y _js_it mv j = ys cs_getx y k_s
-        ? ~ _js_inc as ys { cs_eini _tx_p p ".movers[" N j "].s não é desta app: " _js_ps ys cs_efim } 0
-        = o _js_obj 2 _js_oset o k_s ys
-        _an_abre 0 _tx_p p ".movers[" N j "].why" = nm _an_fecha
-        _js_oset o k_why cs_str _js_get y k_why 260 nm 1
+        = y _js_it mv j = ys cs_getx y $"s"
+        Se ~ _js_inc as ys `{ cs_eini }{ crut p }.movers[{ N j }].s não é desta app: { _js_ps ys }{ cs_efim }`
+        = o _js_obj 2 _js_oset o $"s" ys
+        `{ _an_abre 0 }{ crut p }.movers[{ N j }].why` = nm _an_fecha
+        _js_oset o $"why" cs_str _js_get y $"why" 260 nm 1
         _js_push mo o = j + j 1 }
-      _js_oset doc k_movers mo
-      ? == _js_len tr 0 { cs_eini _tx_p p ".tldr vazio" cs_efim } 0
+      _js_oset doc $"movers" mo
+      Se == _js_len tr 0 `{ cs_eini }{ crut p }.tldr vazio{ cs_efim }`
       = j 0
       W < j _js_len as {
         = s _js_it as j
-        ? _js_v _js_get rows _js_str s {
-            = tem 0 = m 0 W && ~ tem < m _js_len ao { = tem _js_eq _js_get _js_it ao m k_s s = m + m 1 }
-            ? ~ tem { cs_eini _tx_p p ".actions sem " _js_ps s ": comenta todos os ativos da app" cs_efim } 0 } 0
+        Se _js_v _js_get rows _js_str s {
+            = tem 0 = m 0 W && ~ tem < m _js_len ao { = tem _js_eq _js_get _js_it ao m $"s" s = m + m 1 }
+            Se ~ tem `{ cs_eini }{ crut p }.actions sem { _js_ps s }: comenta todos os ativos da app{ cs_efim }` }
         = j + j 1 }
-      = par _js_lst 2 _js_push par _js_get u k_id _js_push par doc _js_push out par 0 }
+      = par _js_lst 2 _js_push par _js_get u $"id" _js_push par doc _js_push out par 0 }
     = i + i 1 }
   = e @ g_errs
-  ? _js_len e { _an_fd 2 "Análises inválidas:\n- " = j 0 W < j _js_len e { ? j "\n- " 0 _tx_pu _js_it e j = j + j 1 } P 10 _an_volta _an_sair 1 } 0
+  Se _js_len e { `{ _an_fd 2 }Análises inválidas:\n- ` = j 0 W < j _js_len e { Se j "\n- " _tx_pu _js_it e j = j + j 1 } P 10 _an_volta _an_sair 1 }
   ! g_d d ! g_pout out ! g_i 0 ! g_ph 1
   cs_passo }
 : op_passo >i { = p @ g_ph ? == p 1 op_p1 ? == p 2 op_p2 ? == p 3 op_p3 0 }
 : op_p1 >i {
   = i @ g_i = out @ g_pout
   ? < i _js_len out {
-      = par _js_it out i _an_abre 0 "ua:" _js_ps _js_it par 0 = k _an_fecha ! g_pk k
+      = par _js_it out i `{ _an_abre 0 }ua:{ _js_ps _js_it par 0 }` = k _an_fecha ! g_pk k
       ! g_ph 2 ~ cs_kvput k _js_it par 1 } {
     = d @ g_d
-    = l _js_obj 4 _js_oset l k_at cs_iso _js_oset l k_queued _js_get d k_queued _js_oset l k_done _js_num F _js_len out _js_oset l k_max _js_get d k_max
-    ! g_ph 3 ~ cs_kvput k_cfglastRun l } }
+    = l _js_obj 4 _js_oset l $"at" cs_iso _js_oset l $"queued" _js_get d $"queued" _js_oset l $"done" _js_num F _js_len out _js_oset l $"max" _js_get d $"max"
+    ! g_ph 3 ~ cs_kvput $"cfg:lastRun" l } }
 : op_p2 >i { cs_rkvput @ g_pk cs_lancase ! g_i + @ g_i 1 ! g_ph 1 1 }
 : op_p3 >i {
-  cs_rkvput k_cfglastRun cs_lancase
-  "Publicadas " N _js_len @ g_pout " análises (" _js_pu _js_get @ g_d k_queued " apps pediram)." P 10
+  cs_rkvput $"cfg:lastRun" cs_lancase
+  `Publicadas { N _js_len @ g_pout } análises ({ _js_pu _js_get @ g_d $"queued" } apps pediram).` P 10
   _an_sair 0 }

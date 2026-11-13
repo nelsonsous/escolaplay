@@ -8,15 +8,16 @@
 // listas BIBLIOTECA e ANALISE do mercados/onda/build.mjs, e depois os scripts (FONTES).
 //
 // Ligação (a Onda só tem M[0..63] de globais, e a análise usa M[0..62]): os nomes g_* são palavras num bloco que o
-// main reserva logo ao começar (o primeiro A do programa, num endereço fixo); `#g g_nome n` dá-lhe n palavras. Os
-// nomes k_* são textos constantes ("k_price" → "price"; `#k k_nome texto` para outro texto), feitos uma vez no
-// k_ini. O endereço do bloco sai de uma primeira compilação (o topo do monte depois do _ini do runtime), e a segunda
-// usa-o: só mudam números no código, não os dados, por isso o endereço não muda (confirma-se).
+// main reserva logo ao começar (o primeiro A do programa, num endereço fixo); `#g g_nome n` dá-lhe n palavras. O
+// endereço do bloco sai de uma primeira compilação (o topo do monte depois do _ini do runtime), e a segunda usa-o: só
+// mudam números no código, não os dados, por isso o endereço não muda (confirma-se). Os textos fixos são textos
+// constantes da linguagem ($"price"): até à it.149 eram nomes k_*, que este build fazia um a um no arranque.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BIBLIOTECA, ANALISE } from '../../onda/build.mjs';
+import { palavras, conteudo } from '../../../onda/tools/fluir.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.resolve(here, '../../..');
@@ -29,44 +30,23 @@ function analise() {
     return [...BIBLIOTECA, ...ANALISE].map((f) => readFileSync(path.join(raiz, 'mercados/onda', f), 'utf8')).join('\n').replace(/^: main >i/m, ': amain >i');
 }
 
-// os tokens fora de comentários e de textos
-function tokens(src) {
-    const out = [];
-    for (const linha of src.split('\n')) {
-        let i = 0;
-        while (i < linha.length) {
-            while (i < linha.length && /\s/.test(linha[i])) i++;
-            if (i >= linha.length || linha[i] === '#') break;
-            if (linha[i] === '"') { i++; while (i < linha.length && linha[i] !== '"') i += linha[i] === '\\' ? 2 : 1; i++; continue; }
-            const j = i; while (i < linha.length && !/\s/.test(linha[i])) i++;
-            out.push(linha.slice(j, i));
-        }
-    }
-    return out;
-}
-
 export function fonte(base = 0) {
     const src = FONTES.filter((f) => existsSync(path.join(here, f))).map((f) => readFileSync(path.join(here, f), 'utf8')).join('\n');
-    const tam = {}, txt = {};
+    const tam = {};
     for (const m of src.matchAll(/^#g (g_\w+) (\d+)\s*$/gm)) tam[m[1]] = Number(m[2]);
-    for (const m of src.matchAll(/^#k (k_\w+) (.*)$/gm)) txt[m[1]] = m[2];
-    const tk = tokens(src);
-    const gs = [...new Set(tk.filter((t) => /^g_\w+$/.test(t)))].sort();
-    const ks = [...new Set(tk.filter((t) => /^k_\w+$/.test(t)))].filter((k) => k !== 'k_ini').sort();
+    // as palavras e os textos constantes do programa (também os de dentro dos moldes)
+    const pal = palavras(src);
+    const gs = [...new Set(pal.filter((t) => t.k === 'name' && /^g_\w+$/.test(t.x)).map((t) => t.x))].sort();
     let p = base;
     const L = [];
     for (const g of gs) { L.push(`: ${g} >i ${p}`); p += tam[g] || 1; }
-    const k0 = p;
-    ks.forEach((k, j) => L.push(`: ${k} >i @ ${k0 + j}`));
-    p += ks.length;
-    const esc = (s) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    L.push(`: k_ini >i { = t 0`, ...ks.map((k, j) => `  = t _tx_abre 4096 "${esc(txt[k] ?? k.slice(2))}" ! ${k0 + j} _tx_fecha t`), '  0 }');
     L.push(`: gb >i ${base}`, `: gn >i ${p - base}`);
     // as entradas (ondac -w f g …): as funções que o anfitrião chama pelo nome — as que têm o nome num texto constante
     // (o cs_resp, que o _an_pede recebe) — e as t_* dos testes; o resto que nada usa fica de fora
     const defs = new Set([...src.matchAll(/^: ([a-z_][a-zA-Z0-9_]*) /gm)].map((m) => m[1]));
-    const entradas = [...new Set([...ks.map((k) => txt[k] ?? k.slice(2)).filter((t) => defs.has(t)), ...[...defs].filter((d) => d.startsWith('t_'))])].sort();
-    return { texto: analise() + '\n' + src + '\n# ---------- gerado pelo build.mjs ----------\n' + L.join('\n') + '\n', entradas, globais: gs.length, constantes: ks.length, palavras: p - base };
+    const ditos = new Set(pal.filter((t) => t.k === 'tc').map((t) => conteudo(t.x)));
+    const entradas = [...new Set([...[...ditos].filter((t) => defs.has(t)), ...[...defs].filter((d) => d.startsWith('t_'))])].sort();
+    return { texto: analise() + '\n' + src + '\n# ---------- gerado pelo build.mjs ----------\n' + L.join('\n') + '\n', entradas, globais: gs.length, palavras: p - base };
 }
 
 function compilar(texto, entradas) {
@@ -107,5 +87,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         process.exit(ok ? 0 : 1);
     }
     writeFileSync(DESTINO, r.wasm);
-    console.log(`conselheiro.wasm: ${linhas} linhas de Onda (mais a análise), ${r.wasm.length} bytes; ${r.globais} globais, ${r.constantes} textos constantes, bloco de ${r.palavras} palavras em M[${r.base}]`);
+    console.log(`conselheiro.wasm: ${linhas} linhas de Onda (mais a análise), ${r.wasm.length} bytes; ${r.globais} globais, bloco de ${r.palavras} palavras em M[${r.base}]`);
 }

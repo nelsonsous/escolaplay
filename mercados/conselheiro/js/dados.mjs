@@ -100,7 +100,7 @@ export function lastVerdicts(advices) {
 export function modelOf(rows, prev, { last = null, lessons = [], movers = [] } = {}) {
     const plan = last && Array.isArray(last.plan) && last.plan.length ? last.plan : [{ s: 'VWCE.DE', amount: '810 €' }, { s: 'c:BTC', amount: '90 €' }];
     return {
-        headline: '', tldr: ['Mercado: ', 'Plano: ', 'Atenção: '], market: '',
+        headline: '', tldr: ['Mercado: ', 'Hoje: ', 'Atenção: '], market: '',
         planNote: (last && last.planNote) || '', plan: plan.map((x) => ({ s: x.s, amount: x.amount, why: '' })),
         actions: rows.map((r) => {
             const p = prev[r.s] || {};

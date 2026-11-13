@@ -2,11 +2,10 @@
 #   arg 0 = dados | universo | outros | publicar | backtest, e depois os argumentos da linha de comando.
 # Sem argumentos (os testes), só prepara as tabelas: as funções t_* servem para comparar com o JS.
 : main >i {
-  # o bloco dos globais (g_*) e dos textos constantes (k_*): o primeiro A, no endereço que o build.mjs calculou
+  # o bloco dos globais (g_*): o primeiro A, no endereço que o build.mjs calculou
   = g A gn
-  ? != g gb { _an_fd 2 "conselheiro: os globais não ficaram onde o build os pôs" P 10 _an_sair 70 } 0
+  Se != g gb `{ _an_fd 2 }conselheiro: os globais não ficaram onde o build os pôs{ P 10 }{ _an_sair 70 }`
   ini
-  k_ini
   ? == Y 200 -1 0 0 0 cs_corre
   0 }
 
@@ -24,7 +23,7 @@
 : t_s16 iii>i t a b { = v _js_parse t _tx_pj _tx_s16 v a b }
 : t_l16 i>i t { = v _js_parse t N _tx_l16 v }
 : t_cmp ii>i a b N _tx_cmp _js_parse a _js_parse b
-: t_norm ii>i t bom _tx_p _tx_norm t bom
+: t_norm ii>i t bom crut _tx_norm t bom
 : t_uri i>i t { = v _js_parse t ? _tx_urimal v "URIError" _tx_uri v }
 : t_ord i>i t { = v _js_parse t ? v { cs_ordena v 1 _js_pj v 0 0 } "ERRO" }
 : t_branco i>i t N _tx_branco _js_parse t
