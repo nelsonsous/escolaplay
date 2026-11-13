@@ -58,6 +58,8 @@ function fonte(s, d, x, i) {
     if (x.f === 'sentimento') por = fg ? `Fear &amp; Greed ${Math.round(sv) || 0} de 100${x.fam > 0 ? ' · com medo compra-se melhor' : x.fam < 0 ? ' · com ganância compra-se pior' : ''}` : `VIX ${Math.round(sv)}`;
     return `<li class="d${x.d > 0 ? 1 : x.d < 0 ? 2 : 0}"><div class="dec-r"><b>${NOME[x.f]}</b><span class="dec-l ${tom(x.fam)}-t">${diz}</span><em>${lado}</em></div><div class="dec-s">${barra(x.p)}<small>${por}</small></div></li>`;
 }
+// o porquê de o Claude discordar mostra-se quando ele manda e há quem esteja contra (ou a técnica ficou ao lado)
+const discorda = (s, d) => !!s.algWhy && d.manda === 'claude' && (d.contra > 0 || d.f.some((x) => x.f === 'tecnica' && x.d === 0));
 const arr = (x) => (Array.isArray(x) ? x : []), ob = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : {});
 function cartao(s) {
     const d = O.decisao(s.d);
@@ -74,7 +76,7 @@ function cartao(s) {
         + (s.hoje ? `<div class="adv-why"><b>Porquê ${s.desce ? 'desce' : 'sobe'} hoje:</b> ${esc(s.hoje)}</div>` : '')
         + (s.why ? `<div class="adv-txt">${esc(s.why)}</div>` : '')
         + (s.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(s.plan)}</div>` : '')
-        + (s.algWhy ? `<div class="adv-alg diff"><b>O Claude discorda da técnica:</b> ${esc(s.algWhy)}</div>` : '')
+        + (discorda(s, d) ? `<div class="adv-alg diff"><b>Porque discorda ${d.contra ? lista(d.f.filter((x) => x.d === -1).map((x) => 'd' + ART[x.f])) : 'da técnica'}:</b> ${esc(s.algWhy)}</div>` : '')
         + arr(s.ev).map((v) => { const o = ob(v); return `<div class="adv-ev">${o.t === 'earnings' ? `<b>Resultados ${esc(o.q)} (${esc(o.d)}).</b> Nesses dias a ação costuma mexer ±5–10%.` : `<b>Ex-dividendo ${esc(o.q)} (${esc(o.d)}).</b> Para receber este dividendo tens de ter a ação antes dessa data.`}</div>`; }).join('')
         + '</div>';
 }
@@ -125,7 +127,7 @@ function fechado(h) {
 }
 
 test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
-    const r = rng(421), conta = { vazio: 0, claude: 0, voto: 0, niveis: 0, agenda: 0, contra: 0, lado: 0, acordo: 0, uma: 0, fundamentos: 0, medo: 0, vix: 0 };
+    const r = rng(421), conta = { vazio: 0, claude: 0, voto: 0, niveis: 0, agenda: 0, contra: 0, lado: 0, acordo: 0, uma: 0, fundamentos: 0, medo: 0, vix: 0, discorda: 0, calado: 0 };
     for (let i = 0; i < CASOS; i++) {
         const s = caso(r), h = O.ecra.decisao(s), quer = cartao(s);
         assert.equal(h, quer, `caso ${i}: ${JSON.stringify(s)}`);
@@ -133,7 +135,7 @@ test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
         assert.ok(fechado(h), `caso ${i}: etiquetas por fechar`);
         assert.ok(!/<img|<u>|<i>1/.test(h), `caso ${i}: HTML de fora por escapar`);
         const d = O.decisao(s.d);
-        conta[d.manda]++; conta.niveis += /cl-lv/.test(h); conta.agenda += /adv-ev/.test(h); conta.contra += d.contra > 0; conta.lado += d.favor + d.contra < d.n; conta.acordo += d.n > 1 && d.favor === d.n; conta.uma += d.n === 1; conta.fundamentos += />Fundamentos</.test(h); conta.medo += /Fear &amp; Greed/.test(h); conta.vix += /<small>VIX /.test(h);
+        conta[d.manda]++; conta.niveis += /cl-lv/.test(h); conta.agenda += /adv-ev/.test(h); conta.contra += d.contra > 0; conta.lado += d.favor + d.contra < d.n; conta.acordo += d.n > 1 && d.favor === d.n; conta.uma += d.n === 1; conta.discorda += /Porque discorda d[oa]s? /.test(h); conta.calado += !!s.algWhy && !/Porque discorda/.test(h); conta.fundamentos += />Fundamentos</.test(h); conta.medo += /Fear &amp; Greed/.test(h); conta.vix += /<small>VIX /.test(h);
     }
     for (const [nome, v] of Object.entries(conta)) assert.ok(v >= CASOS / 100, `poucos casos de ${nome}: ${v}`);
 });
@@ -152,7 +154,8 @@ test('casos lidos à mão', () => {
         + '|Técnica|Aguardar|ao lado|51|C52 · M68 · L36|Notícias|neutras|ao lado|50|6 títulos recentes|Sentimento|calmo|ao lado|48|VIX 17'
         + '|Entrada|164,93 €|−3,06%|Desconto de 22%.|Plano:| Metade agora.|Resultados daqui a 5 dias (18/11).| Nesses dias a ação costuma mexer ±5–10%.|');
     // tenho o ativo e o Claude diz reduzir contra todos: a decisão é a dele, com os contra à vista
-    const g = O.ecra.decisao({ d: { cl: { key: 'reduce', short: 30, mid: 30, long: 35 }, an: { key: 'buy', mean: 2, n: 30 }, tec: { key: 'buy', short: 70, mid: 70, long: 70 }, news: 0.5 }, own: true });
+    const g = O.ecra.decisao({ d: { cl: { key: 'reduce', short: 30, mid: 30, long: 35 }, an: { key: 'buy', mean: 2, n: 30 }, tec: { key: 'buy', short: 70, mid: 70, long: 70 }, news: 0.5 }, own: true, algWhy: 'A regra não vê os resultados.' });
+    assert.match(g, /<div class="adv-alg diff"><b>Porque discorda dos analistas, da técnica e das notícias:<\/b> A regra não vê os resultados\.<\/div>/);
     assert.match(g, /<div class="adv-act down-t">Vender parte<\/div><span class="dec-conf c0">confiança baixa<\/span>/);
     assert.match(g, /<div class="dec-voz">1 de 4 a favor · contra: os analistas, a técnica e as notícias<\/div>/);
     // cripto que tenho: o Claude diz esperar; o medo extremo do mercado fica ao lado, a puxar para comprar

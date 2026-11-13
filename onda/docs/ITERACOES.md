@@ -2785,3 +2785,19 @@ linhas. No cartão, duas linhas novas e os seus pormenores. O JS só passa os n�
 **Verificado.** Motor: 20 000 casos ao acaso iguais ao bit, com as fontes novas. Cartão: 4 000 instantâneos iguais
 byte a byte. Conector: o consenso com e sem fundamentos, com pedidos simulados. Interface: a ficha da Nvidia com as
 seis fontes e a da Bitcoin com o Fear & Greed.
+
+## Iteração 148: o conselheiro decide com as seis fontes (Mercados 4.22.1)
+
+**As regras do Claude (`mercados/CONSELHEIRO.md`).** Uma secção nova diz-lhe o que a app faz com o veredicto dele: o
+cartão «Decisão», as seis fontes e os pesos, quem manda (ele) e como sai a confiança. Daí três regras: o veredicto
+tem de ser a decisão consolidada (vê as outras fontes antes de decidir); uma decisão por ativo, não um parecer (o
+veredicto, quanto, a que preço e o que o invalida); e a convicção tem de bater com o veredicto. O passo das outras
+fontes passa a pedir, além dos analistas, os fundamentos (no mesmo pedido) e o sentimento (Fear & Greed e VIX).
+
+**Porque discorda.** O `algWhy` era só para quando o Claude ia contra a regra automática. Passa a ser para quando vai
+contra qualquer fonte de peso (a regra, os analistas, os fundamentos). No cartão, a linha diz de quem: «Porque
+discorda dos analistas e da técnica: …». Quem decide se a linha aparece é a decisão (há quem esteja contra, ou a
+técnica ficou ao lado), e não uma conta à parte no JS, que saiu.
+
+**Verificado.** O cartão em 4 000 instantâneos (com a linha e sem ela), um caso lido à mão e a ficha da Nvidia no
+teste de interface, com a análise passada pelo validador verdadeiro do `publicar`.
