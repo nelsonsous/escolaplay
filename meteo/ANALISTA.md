@@ -87,7 +87,9 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
       consenso dava e o que as estações mediram, dia a dia — se erra há dias para o mesmo lado, corrige nesse sentido), o
       observado agora (estações, radar, avisos do utilizador), o relevo do ponto, as tuas lições e o satélite. Repetir o
       consenso quando a verificação mostra um erro que se repete é errar com ele. Sem razão para um dia, repete o consenso.
-      Diz em `tecnica`, numa frase, onde te afastas do consenso e porquê.
+      Diz em `tecnica`, numa frase, onde a previsão se afasta do consenso dos modelos e porquê — **sem falar de ti**:
+      quem usa a app não sabe o que é o Claude («a previsão dá menos chuva do que os modelos porque…», nunca «os meus
+      números…»). Na app só se vê o valor final (a análise junta-se à média dos modelos por dentro).
       **A app junta estes números à média ponderada dos modelos** (máxima, mínima, chuva e rajadas de cada dia, espalhadas
       pelas horas) com um peso por variável que começa em 50% e **se afina sozinho**: o `dados.mjs` verifica os teus
       números anteriores contra as estações e contra o consenso da mesma altura (secção «Os teus números anteriores») e o

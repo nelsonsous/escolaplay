@@ -187,9 +187,6 @@ button.row:active { background: #0e0e10; }
 .warn.miss { background: none; border: 1px dashed var(--line2); border-left: 4px dashed var(--w); }
 .warn.miss p.w-here { margin-top: 4px; }
 /* 1.21: os números do Claude a meias com a média dos modelos (folha do dia) */
-.cl-num { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--card); color: var(--soft); font-size: calc(.84rem * var(--k)); line-height: 1.4; }
-.cl-num .i { flex: none; width: 1.1em; height: 1.1em; margin-top: 2px; color: var(--accent2); }
-.cl-num b { color: var(--text); font-weight: 650; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; }
 .tag { --c: var(--st-low); display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; background: color-mix(in srgb, var(--c) 16%, var(--card)); font-size: calc(.82rem * var(--k)); color: var(--soft); }
 .tag b { color: var(--text); font-weight: 650; }
@@ -370,14 +367,6 @@ div.claude { cursor: auto; }
 .cmp { padding: 6px 0 12px; }
 .cmp-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .cmp-scroll::-webkit-scrollbar { display: none; }
-/* os números do Claude: três linhas curtas por célula (as três colunas cabem no telemóvel); a branco o que muda */
-.num-t th, .num-t td { padding: 8px 4px; vertical-align: top; }
-.num-t th:first-child { padding-left: 10px; }
-.num-t td:last-child, .num-t th:last-child { padding-right: 10px; }
-.num-t td { color: var(--muted); }
-.num-t td span { display: block; line-height: 1.5; }
-.num-t td .dif { color: var(--text); font-weight: 650; }
-.an-sec .num-k { margin: 8px 0 0; font-size: calc(.794rem * var(--k)); color: var(--muted); line-height: 1.45; }
 .cmp-t { font-size: calc(.8rem * var(--k)); }
 .cmp-t th, .cmp-t td { padding: 7px 4px; vertical-align: top; }
 .cmp-t thead th { position: static; background: none; color: var(--muted); font-size: calc(.75rem * var(--k)); }
@@ -682,3 +671,8 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
     :root[data-fs="l"] .day, :root[data-fs="xl"] .day { grid-template-columns: calc(4.1rem * var(--k)) 28px calc(2.1rem * var(--k)) minmax(24px, 1fr) calc(2.1rem * var(--k)); gap: 5px; }
     :root[data-fs="l"] .day .d-p, :root[data-fs="xl"] .day .d-p, :root[data-fs="l"] .day .d-c, :root[data-fs="xl"] .day .d-c { display: none; }
 }
+/* «IA» pequeno e subido, como o º: o que vem da análise diária (escrita por inteligência artificial) — o nome dela e os
+   valores que ela muda. Nas linhas dos dias fica por cima, sem empurrar os números (as colunas continuam alinhadas). */
+.ia { position: relative; top: -.85em; vertical-align: baseline; margin-left: .14em; font-size: .5em; font-weight: 700; letter-spacing: .03em; line-height: 0; color: #bf5af2; cursor: default; }
+.day .d-lo, .day .d-hi { position: relative; }
+.day .d-lo .ia, .day .d-hi .ia { position: absolute; top: .2em; line-height: 1; }

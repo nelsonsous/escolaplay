@@ -232,6 +232,16 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     page.on('dialog', (d) => { errors.push('dialog (XSS?): ' + d.message()); d.dismiss(); });
     const shot = async (name) => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, name), fullPage: true }); } };
     const noOverflow = async (where) => assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `sem scroll horizontal em ${where}`);
+    // as pessoas não sabem o que é o Claude (1.23): o nome não aparece no que se vê nem no que o leitor de ecrã lê — só nos
+    // créditos (Ajustes → Avançado)
+    const noClaude = async (where) => {
+        const seen = await page.evaluate(() => {
+            const b = document.body.cloneNode(true);
+            b.querySelectorAll('.disc, script, style, template, [hidden]').forEach((e) => e.remove());
+            return [b.textContent, ...[...b.querySelectorAll('[aria-label], [title], [alt]')].map((e) => [e.getAttribute('aria-label'), e.getAttribute('title'), e.getAttribute('alt')].join(' '))].join(' ');
+        });
+        assert.doesNotMatch(seen, /Claude/, `«Claude» à vista em ${where}: …${(seen.match(/.{0,60}Claude.{0,60}/) || [''])[0]}…`);
+    };
     // um dedo a deslizar (TouchEvents sintéticos, como no iPhone): começa no 1.º ponto, passa pelos outros e larga no último
     const swipe = (sel, pts, { lift = true, cancelable = true } = {}) => page.evaluate(({ sel, pts, lift, cancelable }) => {
         const el = document.querySelector(sel);
@@ -277,9 +287,11 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(nowTxt, /Vale · 70 m abaixo do relevo à volta/, 'linha do relevo no Agora');
     assert.equal(await page.locator('.tile').count(), 12, 'indicadores');
     assert.ok(await page.locator('#nc-chart svg').count(), 'gráfico das 2 horas');
-    // a análise diária do Claude está desligada por omissão: o cartão diz o que é e oferece ligá-la para este local
-    await page.waitForFunction(() => /Ativar a análise diária do Claude para este local/.test(document.querySelector('#cl-teaser')?.textContent || ''));
-    assert.match(await page.locator('#cl-teaser').textContent(), /Opcional: o Claude escreve uma análise para este ponto exato às 07:12, 13:12 e 19:42.*Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma\./s);
+    // a análise diária está desligada por omissão: o cartão diz o que é (escrita por inteligência artificial — sem o nome
+    // «Claude», que as pessoas não conhecem) e oferece ligá-la para este local
+    await page.waitForFunction(() => /Ativar a análise diária para este local/.test(document.querySelector('#cl-teaser')?.textContent || ''));
+    assert.match(await page.locator('#cl-teaser').textContent(), /^Análise.*Opcional: uma análise escrita por inteligência artificial para este ponto exato, às 07:12, 13:12 e 19:42, com os modelos.*Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma\./s);
+    await noClaude('Agora (sem análise)');
     assert.equal(calls.filter((c) => c === 'POST /api/places').length, 0, 'nada ligado sem o utilizador escolher');
     await noOverflow('Agora (sem análise)');
     await shot('02-agora-sem-analise.png');
@@ -294,7 +306,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await toastIs(/Ligada\. A primeira análise chega hoje às 19:42/);
     assert.deepEqual(namePatches, [{ name: 'Ana' }]);
     assert.deepEqual(postBody, { name: RAW.place.name, lat: LAT, lon: LON });
-    await page.waitForFunction(() => /A análise diária do Claude está ligada para este local/.test(document.querySelector('#cl-teaser').textContent));
+    await page.waitForFunction(() => /A análise diária está ligada para este local/.test(document.querySelector('#cl-teaser').textContent));
     // a tarefa agendada fez a primeira análise
     analysed.add('casa');
     await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
@@ -302,6 +314,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const teaser = await page.locator('#cl-teaser').textContent();
     assert.match(teaser, new RegExp(MOCK_ANALYSIS.titulo.slice(0, 30)));
     assert.match(teaser, /Para Lisboa · 38,7223, −9,1393 · no ponto selecionado/, 'para que ponto é a análise');
+    assert.match(teaser, /^AnáliseIA · /, 'o cartão chama-se «Análise», com o «IA» pequeno e subido');
+    assert.equal(await page.locator('#cl-teaser .adv-src sup.ia').getAttribute('title'), 'Escrita por inteligência artificial');
+    await noClaude('Agora (com análise)');
     await page.click('#h-chart .twin > summary');
     await page.waitForSelector('#h-chart .tbl tbody tr');
     assert.equal(await page.locator('#h-chart .tbl tbody tr').count(), 72, '72 horas na tabela');
@@ -580,51 +595,54 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(await page.locator('.today .cl-for').textContent(), /^Para Lisboa · 38,7223, −9,1393 · no ponto selecionado$/);
     assert.equal(await page.locator('.far-pt').count(), 0, 'análise deste ponto: sem aviso');
     assert.ok(await page.locator('.today .an-sec').count() >= 8, 'secções da análise');
-    // os números do Claude (sábado e domingo) entram a meias com a média dos modelos: a tabela, ✦ nos dias e a folha do dia
-    assert.match(await page.locator('#an-num').textContent(), /Os números do Claude.*Amanhã.*17° \/ 11°2,0 mm35 km\/h.*Dom 8.*15° \/ 12°18 mm55 km\/h.*Máxima \/ mínima, chuva e rajada\. A branco, o que o Claude muda\..*Entram a meias \(50%\) com a média ponderada dos modelos\./s);
-    // a tabela cabe no telemóvel sem deslizar para o lado (até à 1.22.0 as colunas «Claude» e «Na app» ficavam fora do
-    // ecrã) e o que o Claude muda fica destacado, nele e no que a app mostra
+    // os números da análise (sábado e domingo) entram na previsão a meias com a média dos modelos, mas só se vê o valor
+    // final: nem tabela «modelos / Claude / na app», nem marca nos dias, nem nota na folha do dia (1.23: era confuso, e as
+    // pessoas não sabem o que é o Claude)
     await page.click('#d-an > summary');
-    await page.waitForSelector('#d-an[open] #an-num');
-    const fit = await page.evaluate(() => {
-        const el = document.querySelector('#an-num .cmp-scroll'), box = document.querySelector('#an-num table').getBoundingClientRect();
-        const row = [...document.querySelectorAll('#an-num tbody tr')].find((r) => /Dom 8/.test(r.textContent));
-        return { scroll: el.scrollWidth, client: el.clientWidth, right: Math.round(box.right), vw: innerWidth, cols: row.querySelectorAll('td').length,
-            dif: [...row.querySelectorAll('td')].map((td) => td.querySelectorAll('.dif').length) };
-    });
-    assert.ok(fit.scroll <= fit.client + 1 && fit.right <= fit.vw, `a tabela dos números cabe: ${JSON.stringify(fit)}`);
-    assert.equal(fit.cols, 3);
-    assert.ok(fit.dif[0] === 0 && fit.dif[1] > 0 && fit.dif[2] > 0, `modelos sem destaque; Claude e app com o que muda: ${fit.dif}`);
-    if (SHOTS) await page.locator('#an-num').screenshot({ path: path.join(SHOTS, '06c-numeros-claude.png') });
+    await page.waitForSelector('#d-an[open] .an-sec');
+    assert.equal(await page.locator('#an-num, .num-t, .cl-num').count(), 0, 'sem a tabela dos números');
+    await noClaude('Análise (completa)');
     await page.click('#d-an > summary');
     await page.waitForFunction(() => !document.querySelector('#d-an').open);
     await tab('dias');
-    assert.match(await page.locator('.row.day[data-day="2"] .d-x').textContent(), /^✦ com o Claude/);
-    assert.equal(await page.locator('.row.day[data-day="3"] .d-x', { hasText: 'com o Claude' }).count(), 0, 'segunda: sem números do Claude');
+    assert.equal(await page.locator('.d-x', { hasText: '✦' }).count(), 0, 'sem marca nos dias');
+    assert.match(await page.locator('.note', { hasText: 'Dias 1 a 7' }).textContent(), /corrigido com as observações e, até depois de amanhã, com a análise diária \(IA = valor que ela muda\)\./);
+    await noClaude('Dias');
+    // a máxima de domingo mostrada é a final: a meias entre a dos modelos (a previsão sem a análise) e a da análise (15°);
+    // quando muda à vista leva o «IA» pequeno e subido (como o º), sem empurrar a coluna
+    const mx = await page.evaluate(() => window.__mt.st.fc.daily[2].tmax);
+    const hiOf = async (i) => (await page.locator(`.row.day[data-day="${i}"] .d-hi`).textContent()).replace(/IA$/, '');
+    const shown = await hiOf(2);
+    assert.equal(shown, `${Math.round((mx + 15) / 2)}°`, `a máxima mostrada é a meias: modelos ${mx} e análise 15`);
+    const moved = Math.round(mx) !== Math.round((mx + 15) / 2);
+    assert.equal(await page.locator('.row.day[data-day="2"] .d-hi sup.ia').count(), moved ? 1 : 0, `«IA» na máxima de domingo só se muda à vista (${mx} → ${shown})`);
+    assert.equal(await page.locator('.row.day[data-day="3"] sup.ia').count(), 0, 'segunda (sem números da análise): sem «IA»');
+    assert.ok(await page.locator('.row.day sup.ia').count() >= 1, 'há valores marcados com «IA»');
+    const al = await page.evaluate(() => [...document.querySelectorAll('.row.day')].slice(0, 4).map((r) => Math.round(r.querySelector('.d-hi').getBoundingClientRect().left)));
+    assert.equal(new Set(al).size, 1, `as máximas continuam alinhadas: ${al}`);
     await page.click('.row.day[data-day="2"]');
-    await page.waitForSelector('#mt-sheet:not([hidden]) .cl-num');
-    const cn = await page.locator('.cl-num').textContent();
-    assert.match(cn, /^A meias com os números do Claude\. Modelos: (\d+)° \/ (\d+)°, [\d,]+ mm, rajada \d+ km\/h · Claude: 15° \/ 12°, 18 mm, rajada 55 km\/h\.$/);
-    const [, mx] = cn.match(/Modelos: (\d+)°/), shown = await page.locator('.d-big b').textContent();
-    assert.equal(shown.split(' / ')[0], `${Math.round((+mx + 15) / 2)}°`, 'a máxima mostrada é a meias: modelos e Claude');
-    assert.match(await page.locator('.d-sub').textContent(), /consenso de \d+ modelos e do Claude/);
+    await page.waitForSelector('#mt-sheet:not([hidden]) .d-big');
+    assert.equal(await page.locator('#mt-sheet .cl-num').count(), 0, 'sem nota na folha do dia');
+    assert.equal((await page.locator('.d-big b').textContent()).split(' / ')[0].replace(/IA$/, ''), shown);
+    assert.equal(await page.locator('.d-big b sup.ia').count() >= (moved ? 1 : 0), true);
+    assert.match(await page.locator('.d-sub').textContent(), /consenso de \d+ modelos e da análise$/);
+    await noClaude('folha do dia');
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
-    // com o peso afinado pela verificação (vem com a análise): 80% na máxima → a máxima de domingo chega-se mais ao Claude
-    const half = await page.evaluate(() => window.__mt.st.fc && document.querySelector('.row.day[data-day="2"] .d-hi').textContent);
+    // com o peso afinado pela verificação (vem com a análise): 80% na máxima → a máxima de domingo chega-se mais à da análise
     await page.evaluate(() => { const S = window.__mt.st; S.analysis = { ...S.analysis, analysis: { ...S.analysis.analysis, pesos: { tmax: 0.8, tmin: 0.5, chuva: 0.3, rajada: 0.5, n: 6 } } }; window.__mt.render(); });
-    const heavy = await page.locator('.row.day[data-day="2"] .d-hi').textContent();
-    assert.equal(heavy, `${Math.round(+mx + 0.8 * (15 - +mx))}°`, `a 80%: ${half} → ${heavy}`);
-    await tab('analise');
-    assert.match(await page.locator('#an-num .hint').textContent(), /^Peso do Claude ao lado da média dos modelos: máx\. 80% · mín\. 50% · chuva 30% · rajadas 50% \(afinado com 6 dias verificados\)\.$/);
+    const heavy = await hiOf(2);
+    assert.equal(heavy, `${Math.round(mx + 0.8 * (15 - mx))}°`, `a 80%: ${shown} → ${heavy}`);
     await page.evaluate(() => { const S = window.__mt.st, { pesos, ...a } = S.analysis.analysis; S.analysis = { ...S.analysis, analysis: a }; window.__mt.render(); });
-    assert.match(await page.locator('#an-num .hint').textContent(), /^Entram a meias \(50%\)/);
+    assert.equal(await hiOf(2), shown, 'sem pesos: a meias');
     // desligado nos Ajustes: os dias voltam a ser só dos modelos
     await tab('ajustes');
     if (!(await page.locator('#d-adv[open]').count())) await page.click('#d-adv > summary'); // as preferências estão em «Avançado»
+    assert.match(await page.locator('#claude-num').textContent(), /^Análise na previsão/);
     await page.click('[data-act="cnum-off"]');
     await tab('dias');
-    assert.equal(await page.locator('.d-x', { hasText: 'com o Claude' }).count(), 0);
+    assert.equal(await hiOf(2), `${Math.round(mx)}°`, 'desligado: a dos modelos');
+    assert.equal(await page.locator('.row.day sup.ia').count(), 0, 'desligado: sem «IA» nos dias');
     await tab('ajustes');
     if (!(await page.locator('#d-adv[open]').count())) await page.click('#d-adv > summary');
     await page.click('[data-act="cnum-on"]');
@@ -751,10 +769,12 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     // 6) Ajustes: conector, estado das fontes, tamanho da letra
     await tab('ajustes');
     // simples: Local, Notificações, Análise diária, Partilhar e Este telemóvel à vista; o resto em «Avançado» (fechado)
-    assert.deepEqual((await page.locator('#mt-body > section.sec > .sec-h h2').allTextContents()).slice(0, 5), ['Local', 'Notificações', 'Análise diária do Claude', 'Partilhar', 'Este telemóvel']);
+    assert.deepEqual((await page.locator('#mt-body > section.sec > .sec-h h2').allTextContents()).slice(0, 5), ['Local', 'Notificações', 'Análise diária', 'Partilhar', 'Este telemóvel']);
     assert.equal(await page.locator('#d-adv').getAttribute('open'), null);
     await shot('07-ajustes-simples.png');
     await page.click('#d-adv > summary');
+    await noClaude('Ajustes (com «Avançado» aberto)');
+    assert.match(await page.locator('.disc').textContent(), /Análise: inteligência artificial \(Claude, da Anthropic\)\./, 'o nome fica nos créditos');
     await page.waitForSelector('#d-adv[open] #f-proxy');
     assert.equal(await page.locator('#f-proxy').inputValue(), PROXY);
     await page.waitForFunction(() => /Ligado · versão 1\.0\.0/.test(document.querySelector('#f-proxy-msg').textContent));
@@ -901,7 +921,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await tab('agora');
     await page.waitForFunction(() => document.querySelector('h1.pg-t').textContent.trim() === 'Porto' && document.querySelector('.now'));
     await page.waitForFunction(() => !window.__mt.st.loading);
-    // o local pesquisado fica nos «meus locais»; a lista marca o atual e o que o Claude analisa (✦)
+    // o local pesquisado fica nos «meus locais»; a lista marca o atual e o que tem análise diária (✦)
     await toastIs(/Porto guardado nos teus locais/);
     assert.ok(await page.evaluate(() => window.__mt.cfg.favs.some((f) => f.name === 'Porto')));
     await page.click('h1.pg-t [data-act="place"]');
@@ -909,7 +929,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const locs = await page.locator('#mt-sheet .locs').textContent();
     assert.match(await page.locator('#mt-sheet-title').textContent(), /Os meus locais/);
     assert.match(locs, /Porto.*a ver agora/s);
-    assert.match(locs, /^Porto a ver agora✕\S.*✦ análise do Claude/s, 'o outro local (com análise diária) marcado com ✦');
+    assert.match(locs, /^Porto a ver agora✕\S.*✦ análise diária/s, 'o outro local (com análise diária) marcado com ✦');
+    await noClaude('Os meus locais');
     // arrastar uma linha para a esquerda apaga-a (com «Desfazer»); o vermelho «Apagar» aparece por trás
     const row0 = '#mt-sheet .locs .wl-i:first-child .wl-go';
     const rowState = () => page.evaluate(() => { const r = document.querySelector('#mt-sheet .locs .wl-i:first-child'); return [r.classList.contains('swp'), r.classList.contains('arm'), r.dataset.sw || '']; });

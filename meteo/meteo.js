@@ -5,7 +5,7 @@
 // análise diária do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps, tidyCache } from './lib/data.js';
-import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE_MAX_AGE_H, CLAUDE_W } from './lib/engine.js';
+import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE_MAX_AGE_H } from './lib/engine.js';
 import { mergeMemory, learnHistory, LVARS, LEADS } from './lib/learn.js';
 import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
 import { REPORT_KINDS, REPORT_MIN } from './lib/sources.js';
@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.22.1';
+const VERSION = '1.23.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -33,13 +33,18 @@ const RZOOMS = [7, 6]; // radar: imagens centradas no ponto, ~240 e ~470 km de l
 const RAIN_CLS = (mmh) => (mmh >= 10 ? 'r3' : mmh >= 2.5 ? 'r2' : mmh >= RADAR.wetMmh ? 'r1' : '');
 const REPORT_ICON = { chuva: 61, 'chuva-forte': 65, 'nao-chove': 2, nevoeiro: 45, granizo: 89, trovoada: 95 };
 const IND = { rain: ['rain', 'Chuva'], wind: ['wind', 'Vento'], thunder: ['bolt', 'Trovoada'], fog: ['fog', 'Nevoeiro'], frost: ['frost', 'Geada'], heat: ['heat', 'Calor'], snow: ['snow', 'Neve'], uv: ['sun', 'UV'] };
-const SRC = { marine: 'Mar (Open-Meteo Marine)', det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise do Claude', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
+const SRC = { marine: 'Mar (Open-Meteo Marine)', det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise diária', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
 const SHARE_KM = 5; // como o conector (lib/places.js): na mesma cidade junta-se à análise que já existe
 const FAR_KM = 2; // a análise mostrada é de um ponto a mais do que isto do ponto selecionado → avisar e oferecer mudar
 const TITLES = { dias: 'Próximos dias', satelite: 'Satélite', analise: 'Análise', ajustes: 'Ajustes' };
 const APP_URL = 'https://nelsonsous.github.io/escolaplay/meteo/';
 // texto de "Partilhar" (já leva o endereço: sem url à parte, que alguns sítios repetem)
-const SHARE_TEXT = '🌦️ Meteo — previsão do tempo para o sítio exato onde estás. Junta 9 modelos meteorológicos, 212 cenários, a previsão oficial do IPMA, as estações mais próximas e o radar, e ajusta tudo ao ponto e ao relevo onde estás: agora e próximas 2 horas, 72 horas e 16 dias com a confiança de cada dia, avisos do IPMA, incêndios, satélite e, opcional, uma análise escrita pelo Claude. Grátis, sem conta e sem publicidade. https://nelsonsous.github.io/escolaplay/meteo/ — iPhone: abre no Safari → Partilhar → «Adicionar ao ecrã principal». Android: abre no Chrome → ⋮ → «Instalar app».';
+const SHARE_TEXT = '🌦️ Meteo — previsão do tempo para o sítio exato onde estás. Junta 9 modelos meteorológicos, 212 cenários, a previsão oficial do IPMA, as estações mais próximas e o radar, e ajusta tudo ao ponto e ao relevo onde estás: agora e próximas 2 horas, 72 horas e 16 dias com a confiança de cada dia, avisos do IPMA, incêndios, satélite e, opcional, uma análise escrita por inteligência artificial. Grátis, sem conta e sem publicidade. https://nelsonsous.github.io/escolaplay/meteo/ — iPhone: abre no Safari → Partilhar → «Adicionar ao ecrã principal». Android: abre no Chrome → ⋮ → «Instalar app».';
+// «IA» pequeno e subido, como o º: marca o que vem da análise diária (escrita por inteligência artificial) — o nome da
+// análise e cada valor que ela muda à vista (o final, como se mostra, diferente do dos modelos sozinhos). As pessoas não
+// sabem o que é o Claude: o nome só aparece nos créditos.
+const iaSup = (t) => `<sup class="ia" title="${t}">IA</sup>`;
+const IA_AN = iaSup('Escrita por inteligência artificial'), IA_VAL = iaSup('Ajustado pela análise (inteligência artificial)');
 const OTHERS_UI = [['on', 'Ligada'], ['1x', 'Só 1× por dia (07:34)'], ['off', 'Desligada']]; // "análise dos outros" (só o dono)
 const PAUSE_DAYS = 14; // como o conector (lib/places.js): sem abrir a app 14 dias, a análise diária fica em pausa
 
@@ -164,7 +169,6 @@ function numFc() {
     return numMemo.out;
 }
 const viewFc = () => { const fc = numFc(); return fc ? withReport(fc, currentReport(), Date.now()) : null; };
-const claudeDay = (date) => numFc()?.claude?.days?.find((x) => x.date === date) || null;
 let reportT = 0;
 function reportTimer() { // ao fim dos 45 min o aviso deixa de contar: volta a desenhar
     clearTimeout(reportT);
@@ -389,7 +393,7 @@ function renderStatus() {
     let b = `${F.num(cfg.loc.lat, 4)}, ${F.num(cfg.loc.lon, 4)}`;
     if (F.isNum(L?.elevation)) b += ` · ${F.num(L.elevation)} m`;
     if (cfg.loc.gps && F.isNum(cfg.loc.acc)) b += ` · GPS ±${F.num(cfg.loc.acc)} m`;
-    el.innerHTML = `${a}<span class="num">${esc(b)}</span>${nearPlace() ? '<span class="cl-on">✦ análise do Claude</span>' : ''}`;
+    el.innerHTML = `${a}<span class="num">${esc(b)}</span>${nearPlace() ? '<span class="cl-on">✦ análise diária</span>' : ''}`;
 }
 // o céu animado pára quando o cartão sai do ecrã (poupa bateria)
 let skyWatch = null;
@@ -438,7 +442,7 @@ function banners() {
 function viewNow() {
     if (!cfg.loc) {
         return { title: 'Meteo', html: `<div class="welcome">${weatherIcon(2, true, 72, '', cfg.anim !== false)}<h2>Previsão para o sítio exato onde estás</h2>
-            <p>Combina 9 modelos meteorológicos, mais de 200 cenários de ensemble e observações reais e, se quiseres, uma análise escrita pelo Claude.</p>
+            <p>Combina 9 modelos meteorológicos, mais de 200 cenários de ensemble e observações reais e, se quiseres, uma análise escrita por inteligência artificial.</p>
             <div class="btns"><button type="button" class="btn pri" data-act="gps">${ui('gps')}Usar a minha localização</button><button type="button" class="btn" data-act="place">${ui('search')}Pesquisar local</button></div></div>` };
     }
     const title = `<button type="button" class="pg-loc" data-act="place" aria-label="${esc(placeName())} — mudar de local">${esc(placeName())}${ui('chevron')}</button>`;
@@ -483,7 +487,7 @@ function nowBox(fc) {
                 <div class="now-c">${esc(F.wxText(n.code))}</div></div>
             <div class="now-i">${weatherIcon(n.code, n.isDay, 96, F.wxText(n.code), cfg.anim !== false)}</div>
         </div>
-        <div class="now-m num"><span>Máx. ${esc(F.deg(d0.tmax))}</span><span>Mín. ${esc(F.deg(d0.tmin))}</span><span>Sensação ${esc(F.deg(n.feels))}</span></div>
+        <div class="now-m num"><span>Máx. ${esc(F.deg(d0.tmax))}${aiMark(d0.date, 'tmax', F.deg)}</span><span>Mín. ${esc(F.deg(d0.tmin))}${aiMark(d0.date, 'tmin', F.deg)}</span><span>Sensação ${esc(F.deg(n.feels))}</span></div>
         ${main.length ? `<ul class="now-l">${main.join('')}</ul>` : ''}
         <div class="now-rpt"><button type="button" class="btn sm" data-act="report">${ui('drop')}${rp ? 'Mudar o aviso' : 'Está a chover?'}</button>
             ${more('d-now', 'Detalhes', `${lines.length ? `<ul class="now-l">${lines.join('')}</ul>` : ''}${conf ? `<p class="hint">${esc(F.CONF[conf] || '')} para hoje.</p>` : ''}`, 'in-box')}</div>
@@ -564,12 +568,12 @@ function nextRun() {
 }
 function teaserHtml() {
     const r = st.analysis;
-    if (r === undefined) return `<div class="claude" id="cl-teaser" aria-busy="true"><div class="adv-src">Análise do Claude</div><div class="skel skel-l"></div><div class="skel skel-l s"></div></div>`;
+    if (r === undefined) return `<div class="claude" id="cl-teaser" aria-busy="true"><div class="adv-src">Análise${IA_AN}</div><div class="skel skel-l"></div><div class="skel skel-l s"></div></div>`;
     const a = r?.analysis;
     if (!a) return `<div class="claude cl-opt" id="cl-teaser">${optInHtml()}</div>`;
     const ap = analysedPoint();
     const tomorrow = a.notificacao?.amanha || a.vestir || '';
-    const main = `<div class="adv-src">Análise do Claude <span>· ${esc(F.ago(r.ageMin ?? 0))}</span></div>${ap ? forLine(ap) : ''}
+    const main = `<div class="adv-src">Análise${IA_AN} <span>· ${esc(F.ago(r.ageMin ?? 0))}</span></div>${ap ? forLine(ap) : ''}
         <div class="cl-head">${esc(a.titulo)}</div>${tomorrow ? `<p class="cl-tom"><b>Amanhã</b> ${esc(tomorrow)}</p>` : a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise</span>`;
     // feita para outro ponto (> 2 km): dizê-lo e oferecer mudar a análise diária para aqui
     if (ap?.far && ap.reg && !ap.moved) {
@@ -583,17 +587,17 @@ function teaserHtml() {
 // Sem análise para este ponto. A análise diária do Claude está desligada por omissão: ligá-la é uma escolha clara, para
 // este local e só para este telemóvel (os outros telemóveis têm 1 local: ligar aqui muda-o para aqui)
 function optInHtml() {
-    const head = '<div class="adv-src">Análise do Claude</div>';
+    const head = `<div class="adv-src">Análise${IA_AN}</div>`;
     if (st.analysis?.error && !st.analysis.offline) return `${head}<p>Não foi possível obter a análise (${esc(st.analysis.error)}).</p>`;
     const here = nearPlace();
-    if (here) return `${head}<p>A análise diária do Claude está ligada para este local (${esc(here.name)}). A primeira chega ${esc(nextRun())}.</p>`;
+    if (here) return `${head}<p>A análise diária está ligada para este local (${esc(here.name)}). A primeira chega ${esc(nextRun())}.</p>`;
     const owner = isOwner(), mine = owner ? null : myPlaces()[0];
     if (!owner && mine?.off && mine.offBy === 'owner') return `${head}<p>A análise diária deste telemóvel foi desligada pelo dono da app.</p>`;
-    if (!owner && othersMode() === 'off') return `${head}<p>A análise diária do Claude está desligada, por agora, pelo dono da app.</p>`;
+    if (!owner && othersMode() === 'off') return `${head}<p>A análise diária está desligada, por agora, pelo dono da app.</p>`;
     const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
-    return `${head}<p>Opcional: o Claude escreve uma análise para este ponto exato ${esc(when)}, com os modelos, as observações, o radar e o satélite. Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma.</p>
+    return `${head}<p>Opcional: uma análise escrita por inteligência artificial para este ponto exato, ${esc(when)}, com os modelos, as observações, o radar e o satélite. Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma.</p>
         ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada pessoa tem 1 local: a tua análise diária passa de ${mine.name} para aqui.`)}</p>` : ''}
-        <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise diária do Claude para este local</span></button>`;
+        <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise diária para este local</span></button>`;
 }
 // o mar (só num ponto na costa ou na praia): a temperatura da água, as ondas e o UV de hoje; os próximos dias em «Ver mais»
 const uvWord = (u) => (!F.isNum(u) ? '' : u < 3 ? 'baixo' : u < 6 ? 'moderado' : u < 8 ? 'alto' : u < 11 ? 'muito alto' : 'extremo');
@@ -680,7 +684,7 @@ function viewDays() {
     return { title, html: `<section class="sec"><div class="sec-h"><h2>${D.length} dias</h2><span class="sub">toca num dia para ver as horas</span></div>
         <div class="list">${rows}</div>
         <p class="legend-inline" aria-hidden="true"><span class="lg"><i class="k-rb"></i>mín.–máx.</span><span class="lg"><i class="k-wh"></i>80% dos cenários</span><span class="lg">${ui('signal3')}confiança</span></p>
-        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações${fc.claude ? '; nos dias com ✦, a meias com os números da análise do Claude' : ''}. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
+        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações${fc.claude ? ` e, até depois de amanhã, com a análise diária (${IA_VAL} = valor que ela muda)` : ''}. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
 }
 // escala comum das barras mín.–máx. dos dias (e a faixa P10–P90 por trás)
 function dayScale(D) {
@@ -689,43 +693,12 @@ function dayScale(D) {
     const span = Math.max(1, hi - lo);
     return { lo, hi, pos: (v) => (((v - lo) / span) * 100).toFixed(2), wid: (a, b) => Math.max(0, ((b - a) / span) * 100).toFixed(2) };
 }
-// o que os modelos e o Claude davam para um dia (a app usa a meias)
-const numsTxt = (x) => `${F.deg(x.tmax)} / ${F.deg(x.tmin)}, ${F.mm(x.precip || 0)}, rajada ${F.kmh(x.gust)}`;
-// o peso do Claude em cada número, por extenso (a meias = 50% em todos)
-const pc = (x) => `${F.num(Math.round(x * 100))}%`;
-const halves = (W) => !W || ['tmax', 'tmin', 'chuva', 'rajada'].every((k) => Math.abs((W[k] ?? CLAUDE_W) - CLAUDE_W) < 0.005);
-const weightsTxt = (W) => `máx. ${pc(W.tmax)} · mín. ${pc(W.tmin)} · chuva ${pc(W.chuva)} · rajadas ${pc(W.rajada)}`;
-function claudeDayLine(c) {
-    if (!c?.changed) return ''; // quase igual aos modelos: sem nota
-    const W = numFc()?.claude?.w;
-    return `<p class="cl-num">${ui('sparkle')}<span><b>${halves(W) ? 'A meias com os números do Claude.' : 'Com os números do Claude.'}</b> Modelos: ${esc(numsTxt(c.model))} · Claude: ${esc(numsTxt(c.claude))}.</span></p>`;
-}
-// uma célula da tabela dos números: máxima / mínima, chuva e rajada em três linhas curtas, para as três colunas caberem
-// no telemóvel sem deslizar para o lado; o que for diferente do que dão os modelos (ref) fica destacado
-const numLines = (x) => [`${F.deg(x.tmax)} / ${F.deg(x.tmin)}`, F.mm(x.precip || 0), F.kmh(x.gust)];
-function numCell(x, ref) {
-    if (!x) return '<td>–</td>';
-    const R = ref ? numLines(ref) : null;
-    return `<td>${numLines(x).map((t, i) => `<span${R && R[i] !== t ? ' class="dif"' : ''}>${esc(t)}</span>`).join('')}</td>`;
-}
-// a tabela dos números da análise (separador Análise): o que dão os modelos, o Claude e a app (a meias)
-function claudeNumsHtml(a, today) {
-    const N = a?.numeros || [];
-    if (!N.length) return '';
-    const cl = numFc()?.claude, used = !!cl, nv = a.pesos?.n || 0;
-    const why = cfg.claudeNums === false ? 'Desligado nos Ajustes: não entram na previsão.'
-        : !claudeNums() ? 'Não entram na previsão: a análise não é deste ponto ou já tem mais de 16 h.'
-        : !used ? 'Iguais aos dos modelos, ou para horas que já passaram: a previsão fica como estava.'
-        : halves(cl.w) ? `Entram a meias (${F.num(CLAUDE_W * 100)}%) com a média ponderada dos modelos.`
-        : `Peso do Claude ao lado da média dos modelos: ${weightsTxt(cl.w)}${nv ? ` (afinado com ${F.num(nv)} ${nv === 1 ? 'dia verificado' : 'dias verificados'})` : ''}.`;
-    const rows = N.map((n) => {
-        const c = claudeDay(n.data), lab = today ? F.dayLabel(n.data, today) : n.data;
-        const mine = { tmax: n.tmax, tmin: n.tmin, precip: n.chuva, gust: n.rajada };
-        return `<tr><th scope="row">${esc(cap1(lab))}</th>${numCell(c?.model)}${numCell(mine, c?.model)}${numCell(c?.final, c?.model)}</tr>`;
-    }).join('');
-    return `<div class="an-sec" id="an-num"><h4>Os números do Claude</h4><div class="cmp-scroll"><table class="tbl num-t"><thead><tr><th scope="col">Dia</th><th scope="col">Modelos</th><th scope="col">Claude</th><th scope="col">Na app</th></tr></thead><tbody>${rows}</tbody></table></div>
-        <p class="num-k">Máxima / mínima, chuva e rajada. A branco, o que o Claude muda.</p>
-        <p class="hint" style="margin-top:4px">${esc(why)}</p></div>`;
+// o que a análise fez a um dia (os valores dos modelos sozinhos e os finais) e a marca «IA» de um valor que ela mudou à
+// vista (fmt = como o valor se mostra nesse sítio)
+const aiDay = (date) => numFc()?.claude?.days?.find((x) => x.date === date) || null;
+function aiMark(date, k, fmt) {
+    const c = aiDay(date), a = c?.model?.[k], b = c?.final?.[k];
+    return F.isNum(a) && F.isNum(b) && fmt(a) !== fmt(b) ? IA_VAL : '';
 }
 // uma linha de dia (separador Dias e próximos dias do Agora): nome, ícone, chuva, mín., barra, máx.
 function dayRow(d, i, fc, S, { extras = true } = {}) {
@@ -742,22 +715,22 @@ function dayRow(d, i, fc, S, { extras = true } = {}) {
             <span class="d-n" aria-hidden="true"><b>${esc(label)}</b><small>${esc(F.dateShort(d.date))}</small></span>
             <span aria-hidden="true">${weatherIcon(d.code, true, 30)}</span>
             <span class="d-p" aria-hidden="true">${(d.pop || 0) >= 10 ? esc(F.pct(d.pop)) : ''}</span>
-            <span class="d-lo" aria-hidden="true">${esc(F.deg(d.tmin))}</span>
+            <span class="d-lo" aria-hidden="true">${esc(F.deg(d.tmin))}${aiMark(d.date, 'tmin', F.deg)}</span>
             <span class="rng" aria-hidden="true">${rng}</span>
-            <span class="d-hi" aria-hidden="true">${esc(F.deg(d.tmax))}</span>
+            <span class="d-hi" aria-hidden="true">${esc(F.deg(d.tmax))}${aiMark(d.date, 'tmax', F.deg)}</span>
             <span class="d-c" aria-hidden="true">${sig(d.confidence, false)}</span>
-            ${x.length ? `<span class="d-x" aria-hidden="true">${esc(x.join(' · '))}</span>` : ''}
+            ${x.length ? `<span class="d-x" aria-hidden="true">${x.join(' · ')}</span>` : ''}
         </button>`;
 }
+// o que mais conta num dia, em HTML (cada parte já escapada; «IA» na chuva e nas rajadas que a análise mudou)
 function dayExtras(d) {
     const x = [];
-    if (d.claude) x.push('✦ com o Claude');
-    if ((d.precip || 0) >= 1) x.push(`${F.mm(d.precip)}${F.isNum(d.precipP90) && d.precipP90 > d.precip * 1.3 + 0.5 ? ` (até ${F.mm(d.precipP90)})` : ''}`);
-    if ((d.popHeavy || 0) >= 20) x.push(`chuva forte ${F.pct(d.popHeavy)}`);
-    if ((d.gustMax || 0) >= 50) x.push(`rajadas ${F.kmh(d.gustMax)}`);
-    if (F.isNum(d.anomaly) && Math.abs(d.anomaly) >= 2) x.push(`${F.num(Math.abs(d.anomaly), 1)}° ${d.anomaly > 0 ? 'acima' : 'abaixo'} do normal`);
-    if (d.change24h && F.isNum(d.change24h.tmax) && Math.abs(d.change24h.tmax) >= 1.5) x.push(`máx. ${F.signed(d.change24h.tmax, 1)}° desde ontem`);
-    if (d.change24h && F.isNum(d.change24h.precip) && Math.abs(d.change24h.precip) >= 3) x.push(`chuva ${F.signed(d.change24h.precip, 0)} mm desde ontem`);
+    if ((d.precip || 0) >= 1) x.push(`${esc(F.mm(d.precip))}${aiMark(d.date, 'precip', F.mm)}${F.isNum(d.precipP90) && d.precipP90 > d.precip * 1.3 + 0.5 ? esc(` (até ${F.mm(d.precipP90)})`) : ''}`);
+    if ((d.popHeavy || 0) >= 20) x.push(esc(`chuva forte ${F.pct(d.popHeavy)}`));
+    if ((d.gustMax || 0) >= 50) x.push(`${esc(`rajadas ${F.kmh(d.gustMax)}`)}${aiMark(d.date, 'gust', F.kmh)}`);
+    if (F.isNum(d.anomaly) && Math.abs(d.anomaly) >= 2) x.push(esc(`${F.num(Math.abs(d.anomaly), 1)}° ${d.anomaly > 0 ? 'acima' : 'abaixo'} do normal`));
+    if (d.change24h && F.isNum(d.change24h.tmax) && Math.abs(d.change24h.tmax) >= 1.5) x.push(esc(`máx. ${F.signed(d.change24h.tmax, 1)}° desde ontem`));
+    if (d.change24h && F.isNum(d.change24h.precip) && Math.abs(d.change24h.precip) >= 3) x.push(esc(`chuva ${F.signed(d.change24h.precip, 0)} mm desde ontem`));
     return x;
 }
 
@@ -888,7 +861,7 @@ function viewAnalysis() {
     const fc = st.fc;
     const today = fc ? todayOf(fc) : '';
     let h = '<section class="sec">';
-    if (r === undefined) h += '<div class="today"><div class="adv-src">Análise do Claude</div><div class="skel skel-l"></div><div class="skel skel-l"></div><div class="skel skel-l s"></div></div>';
+    if (r === undefined) h += `<div class="today"><div class="adv-src">Análise${IA_AN}</div><div class="skel skel-l"></div><div class="skel skel-l"></div><div class="skel skel-l s"></div></div>`;
     else if (a) {
         const g = a.generatedAt ? new Date(a.generatedAt) : null;
         const hm = g && !Number.isNaN(+g) ? `${String(g.getHours()).padStart(2, '0')}:${String(g.getMinutes()).padStart(2, '0')}` : '';
@@ -903,12 +876,12 @@ function viewAnalysis() {
                 ${ap.reg && !ap.moved && !ap.reg.shared ? `<button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise diária para este ponto</button>` : ''}</div></div>`;
         }
         h += `<article class="today">
-            <div class="adv-src">Análise do Claude <span>· ${a.by === 'claude-api' ? 'a pedido' : 'agendada'}${hm ? ` às ${esc(hm)}` : ''}${r.offline ? ' · guardada' : ''}</span></div>
+            <div class="adv-src">Análise${IA_AN} <span>· ${a.by === 'claude-api' ? 'a pedido' : 'agendada'}${hm ? ` às ${esc(hm)}` : ''}${r.offline ? ' · guardada' : ''}</span></div>
             ${ap ? forLine(ap) : ''}
             <div class="cl-head">${esc(a.titulo)}</div>${a.resumo ? `<p style="margin:6px 0 0;color:var(--soft)">${esc(a.resumo)}</p>` : ''}
-            ${a.alertas?.length ? `<ul class="tags" aria-label="Alertas do Claude">${a.alertas.map((x) => `<li class="tag ${esc(x.nivel || 'info')}"><span class="dot"></span><span><b>${esc(cap1(x.tipo))}</b>${x.quando ? ` · ${esc(x.quando)}` : ''}${x.texto ? ` — ${esc(x.texto)}` : ''}</span></li>`).join('')}</ul>` : ''}
+            ${a.alertas?.length ? `<ul class="tags" aria-label="Alertas da análise">${a.alertas.map((x) => `<li class="tag ${esc(x.nivel || 'info')}"><span class="dot"></span><span><b>${esc(cap1(x.tipo))}</b>${x.quando ? ` · ${esc(x.quando)}` : ''}${x.texto ? ` — ${esc(x.texto)}` : ''}</span></li>`).join('')}</ul>` : ''}
             ${sec('Amanhã', a.amanha)}${sec('O que vestir amanhã', a.vestir)}
-            ${more('d-an', 'Ver a análise completa', `${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}${claudeNumsHtml(a, today)}
+            ${more('d-an', 'Ver a análise completa', `${sec('Próximas horas', a.agora)}${sec('Hoje', a.hoje)}
             ${a.dias?.length ? `<div class="an-sec"><h4>Próximos dias</h4><ul class="an-days">${a.dias.map((d) => `<li><b>${esc(today ? F.dayLabel(d.data, today) : d.data)}</b>${sig(d.confianca)}<span>${esc(d.texto)}</span></li>`).join('')}</ul></div>` : ''}
             ${sec('A semana em resumo', a.semana, 'an-semana')}${sec('Tendência (dias 7 a 15)', a.tendencia)}${sec('Incêndios', a.incendios)}${sec('O que mostra o satélite', a.satelite)}
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
@@ -981,7 +954,7 @@ function locsHtml({ remove = true } = {}) {
     if (!rows.length) return '<div class="hint">Ainda não guardaste locais. Pesquisa um abaixo: fica logo aqui.</div>';
     return `<div class="wl locs">${rows.map(({ f, i, p }) => {
         const here = L && near(f, L);
-        const sub = [here ? 'a ver agora' : '', p ? '✦ análise do Claude' : '', !here && !p ? `${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}` : ''].filter(Boolean).join(' · ');
+        const sub = [here ? 'a ver agora' : '', p ? '✦ análise diária' : '', !here && !p ? `${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}` : ''].filter(Boolean).join(' · ');
         const go = i >= 0 ? `data-fav="${i}"` : `data-goplace="${esc(p.id)}"`;
         return `<div class="wl-i${here ? ' here' : ''}"><button type="button" class="wl-go" ${go}><b>${esc(f.name)}${here ? ` ${ui('check')}` : ''}</b><small class="num${p ? ' cl' : ''}">${esc(sub)}</small></button>${remove && i >= 0 ? `<button type="button" class="xbtn" data-rmfav="${i}" aria-label="${esc('Tirar ' + f.name)}">✕</button>` : ''}</div>`;
     }).join('')}</div>`;
@@ -1098,11 +1071,11 @@ function viewSettings() {
         <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>
         <div class="sw" id="animacoes"><span><b>Animações</b><br><small class="hint">O céu do cartão «Agora» e os ícones grandes a mexer (chuva, sol, neve…).</small></span>
         <div class="seg" role="group" aria-label="Animações"><button type="button" data-act="anim-on" class="${cfg.anim !== false ? 'on' : ''}" aria-pressed="${cfg.anim !== false}">Sim</button><button type="button" data-act="anim-off" class="${cfg.anim === false ? 'on' : ''}" aria-pressed="${cfg.anim === false}">Não</button></div></div>
-        <div class="sw" id="claude-num"><span><b>Números do Claude</b><br><small class="hint">Hoje, amanhã e depois: a máxima, a mínima, a chuva e as rajadas a meias com a média dos modelos, quando há análise diária deste ponto (✦ nos dias).</small></span>
-        <div class="seg" role="group" aria-label="Números do Claude"><button type="button" data-act="cnum-on" class="${cfg.claudeNums !== false ? 'on' : ''}" aria-pressed="${cfg.claudeNums !== false}">Sim</button><button type="button" data-act="cnum-off" class="${cfg.claudeNums === false ? 'on' : ''}" aria-pressed="${cfg.claudeNums === false}">Não</button></div></div></div></section>`;
+        <div class="sw" id="claude-num"><span><b>Análise na previsão</b><br><small class="hint">Hoje, amanhã e depois, a máxima, a mínima, a chuva e as rajadas contam também com a análise diária deste ponto, quando a há.</small></span>
+        <div class="seg" role="group" aria-label="Análise na previsão"><button type="button" data-act="cnum-on" class="${cfg.claudeNums !== false ? 'on' : ''}" aria-pressed="${cfg.claudeNums !== false}">Sim</button><button type="button" data-act="cnum-off" class="${cfg.claudeNums === false ? 'on' : ''}" aria-pressed="${cfg.claudeNums === false}">Não</button></div></div></div></section>`;
     const S = st.fc?.status;
     if (S) adv += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
-    adv += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: Claude. Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
+    adv += `<div class="disc"><b>Meteo ${VERSION}.</b> Modelos e ensembles: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), com dados do ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA e CMA. Observações e avisos: IPMA e NOAA AWC (METAR). Incêndios: NASA FIRMS e ANEPC via fogos.pt. Satélite: EUMETSAT. Análise: inteligência artificial (Claude, da Anthropic). Previsão automática: confirma sempre os avisos oficiais do IPMA e da Proteção Civil.</div>`;
     h += more('d-adv', 'Avançado', adv, 'sec-more');
     h += `<p class="ver-line">Meteo ${VERSION} · fontes e licenças em Avançado</p>`;
     return { title, html: h };
@@ -1157,7 +1130,7 @@ function notifHtml() {
     let body;
     if (isIos() && !isStandalone()) body = '<div class="hint">No iPhone, as notificações só chegam à app instalada no ecrã principal (iOS 16.4 ou mais recente): Partilhar → «Adicionar ao ecrã principal», abre a Meteo de lá e liga aqui.</div>';
     else if (!pushSupported()) body = '<div class="hint">Este browser não recebe notificações.</div>';
-    else if (!onPlaces().length && !P.on) body = '<div class="hint">A notificação traz a análise diária do Claude do teu local: liga-a primeiro (Análise → «Análise diária para este local»).</div>';
+    else if (!onPlaces().length && !P.on) body = '<div class="hint">A notificação traz a análise diária do teu local: liga-a primeiro (Análise → «Análise diária para este local»).</div>';
     else {
         const own = onPlaces(), cur = pushPlace();
         body = `<div class="sw"><span><b>Resumo ao fim do dia</b><br><small class="hint">${esc(P.on ? `Às ${P.time}${cur ? ` · ${cur.name}` : ''}` : 'Como vai estar amanhã e o que vestir')}</small></span>${seg('push', P.on, 'Notificação ao fim do dia')}</div>
@@ -1165,7 +1138,7 @@ function notifHtml() {
             <div class="sw"><span><b>Ao domingo: a semana que vem</b><br><small class="hint">Em vez de amanhã, a semana toda</small></span>${seg('push-sun', P.sunday !== false, 'Ao domingo, a semana')}</div>
             ${own.length > 1 ? `<div><label for="f-push-place">Local</label><select id="f-push-place" class="inp">${own.map((p) => `<option value="${esc(p.id)}"${p.id === cur?.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>` : ''}
             <button type="button" class="btn blk" data-act="push-test"${st.pushBusy ? ' disabled' : ''}>${ui('bell')}Enviar uma agora (teste)</button>
-            <div class="hint">Da análise do Claude das 17:34, à hora deste telemóvel.</div>`
+            <div class="hint">Da análise das 17:34, à hora deste telemóvel.</div>`
                 : '<div class="hint">Às 19:00 por omissão; ao domingo, a semana que vem.</div>'}`;
     }
     return `<section class="sec" id="notificacoes"><div class="sec-h"><h2>Notificações</h2></div><div class="form">${body}</div></section>`;
@@ -1250,15 +1223,15 @@ function placeRow(p, other = false) {
 function placesSettingsHtml() {
     const owner = isOwner(), mineOn = onPlaces();
     const byOwner = !owner && myPlaces().some((p) => p.off && p.offBy === 'owner');
-    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Análise diária do Claude</h2><span class="sub">${owner ? 'sem limite de locais' : '1 local por pessoa'}</span></div><div class="form">
-        <div class="wl">${mineOn.length ? mineOn.map((p) => placeRow(p)).join('') : `<div class="hint">${byOwner ? 'Desligada pelo dono da app.' : 'Desligada (é opcional). Liga-a no cartão «Análise do Claude» do local que quiseres.'}</div>`}</div>`;
+    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Análise diária</h2><span class="sub">${owner ? 'sem limite de locais' : '1 local por pessoa'}</span></div><div class="form">
+        <div class="wl">${mineOn.length ? mineOn.map((p) => placeRow(p)).join('') : `<div class="hint">${byOwner ? 'Desligada pelo dono da app.' : 'Desligada (é opcional). Liga-a no cartão «Análise» do local que quiseres.'}</div>`}</div>`;
     if (owner) {
         const others = st.places.filter((p) => p.mine === false);
         h += `<div><label>Dos outros telemóveis</label><div class="wl">${others.length ? others.map((p) => placeRow(p, true)).join('') : '<div class="hint">Ainda nenhum.</div>'}</div>
             <div class="hint">Só o nome e a zona (~1 km), nunca o ponto exato. ✕ desliga a análise desse telemóvel e só tu a voltas a ligar.</div></div>`;
     }
     const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
-    return h + `<div class="hint">O Claude escreve a análise ${esc(when)}, com os modelos, as observações, o radar e as imagens de satélite.${owner ? ''
+    return h + `<div class="hint">A análise é escrita por inteligência artificial ${esc(when)}, com os modelos, as observações, o radar e as imagens de satélite.${owner ? ''
         : ` Uma análise por cidade (partilhada com quem a ligar na mesma cidade); se ninguém abrir a app durante ${PAUSE_DAYS} dias, fica em pausa até voltarem.`}</div></div></section>`;
 }
 // Ajustes → "Utilização" (só o dono): telemóveis que abrem a app, locais, análises do Claude e a "análise dos outros"
@@ -1284,14 +1257,14 @@ function usageHtml() {
             <div><small>Analisados por corrida</small><b class="num">${esc(`${F.num(P.analysed)} de ${F.num(P.cap)}`)}</b><em>os teus nunca ficam de fora</em></div></div>
             ${D.list?.length ? `<div><label>Telemóveis <small>(o nome que escolheram, ou o código)</small></label><ul class="use-l">${D.list.map((d) => `<li><b>${esc(d.name ? `${d.name} · ${d.id}` : `Telemóvel ${d.id}`)}${d.owner ? ' (teu)' : ''}</b><span>${esc([seenTxt(d.days), d.places.length ? d.places.join(', ') : 'sem análise diária', d.push ? 'notificações' : null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul></div>` : ''}
             <div><label>Locais dos outros <small>(só o nome)</small></label>${guests.length ? `<ul class="use-l">${guests.map((x) => `<li><b>${esc(x.name)}</b><span>${esc(useState(x))}</span></li>`).join('')}</ul>` : '<div class="hint">Ainda nenhum.</div>'}</div>
-            <div><label>Análises do Claude, últimos 7 dias</label><div class="cmp-scroll"><table class="tbl use-t"><thead><tr><th scope="col">Dia</th><th scope="col">Agendadas</th><th scope="col">Imediatas</th><th scope="col">De outros</th></tr></thead>
+            <div><label>Análises, últimos 7 dias</label><div class="cmp-scroll"><table class="tbl use-t"><thead><tr><th scope="col">Dia</th><th scope="col">Agendadas</th><th scope="col">Imediatas</th><th scope="col">De outros</th></tr></thead>
                 <tbody>${u.analyses.map((d) => `<tr><th scope="row">${esc(pastDay(d.date, u.today))}</th><td>${esc(F.num(d.scheduled))}</td><td>${esc(F.num(d.instant))}</td><td>${esc(F.num(d.guest))}</td></tr>`).join('')}</tbody>
                 <tfoot><tr><th scope="row">7 dias</th><td>${esc(F.num(sum.s))}</td><td>${esc(F.num(sum.i))}</td><td>${esc(F.num(sum.g))}</td></tr></tfoot></table></div></div>`;
     }
     const mode = u?.others || othersMode();
     return `<section class="sec" id="uso"><div class="sec-h"><h2>Utilização</h2><span class="sub">só tu vês isto</span></div><div class="form">${b}
-        <div><label>Análise dos outros</label><div class="seg use-seg" role="group" aria-label="Análise diária do Claude nos outros telemóveis">${OTHERS_UI.map(([v, l]) => `<button type="button" data-others="${v}" class="${mode === v ? 'on' : ''}" aria-pressed="${mode === v}">${l}</button>`).join('')}</div>
-        <div class="hint">A análise diária do Claude nos outros telemóveis. «Só 1× por dia»: só na análise das 07:34. «Desligada»: os outros não a ligam nem a recebem, e a análise imediata fica só para ti. Os teus locais nunca são cortados; no máximo ${esc(F.num(u?.places?.cap ?? 15))} locais por corrida.</div></div></div></section>`;
+        <div><label>Análise dos outros</label><div class="seg use-seg" role="group" aria-label="Análise diária nos outros telemóveis">${OTHERS_UI.map(([v, l]) => `<button type="button" data-others="${v}" class="${mode === v ? 'on' : ''}" aria-pressed="${mode === v}">${l}</button>`).join('')}</div>
+        <div class="hint">A análise diária nos outros telemóveis. «Só 1× por dia»: só na análise das 07:34. «Desligada»: os outros não a ligam nem a recebem, e a análise imediata fica só para ti. Os teus locais nunca são cortados; no máximo ${esc(F.num(u?.places?.cap ?? 15))} locais por corrida.</div></div></div></section>`;
 }
 
 // ---------- folhas ----------
@@ -1321,7 +1294,7 @@ function renderSheet() {
     if (!s) return;
     if (s.kind === 'place') {
         const L = cfg.loc, saved = L && cfg.favs.some((f) => near(f, L));
-        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Os meus locais</h2><div class="d-sub">Toca num local para o ver. ✦ = o Claude analisa-o todos os dias.</div></div>${closeBtn}</div>
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Os meus locais</h2><div class="d-sub">Toca num local para o ver. ✦ = com análise diária.</div></div>${closeBtn}</div>
             ${locsHtml()}
             ${L && !saved ? `<button type="button" class="btn blk" data-act="fav" style="margin-top:10px">${ui('plus')}Guardar ${esc(placeName())} nos meus locais</button>` : ''}
             <div class="grp-h" style="margin-top:20px">Adicionar um local</div>
@@ -1339,7 +1312,7 @@ function renderSheet() {
     if (s.kind === 'report') {
         const cur = currentReport(), day = st.fc?.now?.isDay !== false;
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Está a chover?</h2>
-            <div class="d-sub">Diz o que vês aí agora. O teu aviso manda no «agora» durante ${REPORT_MIN} min e ajuda a análise do Claude.</div></div>${closeBtn}</div>
+            <div class="d-sub">Diz o que vês aí agora. O teu aviso manda no «agora» durante ${REPORT_MIN} min e ajuda a análise.</div></div>${closeBtn}</div>
             <div class="rpt-grid" role="group" aria-label="O que vês agora">${Object.entries(REPORT_KINDS).map(([k, label]) => `<button type="button" data-report="${k}" class="${cur?.kind === k ? 'on' : ''}" aria-pressed="${cur?.kind === k}">${weatherIcon(REPORT_ICON[k], day, 36)}<span>${esc(label)}</span></button>`).join('')}</div>
             ${cur ? `<p class="note">O teu último aviso: ${esc(REPORT_KINDS[cur.kind])}, ${esc(F.ago((Date.now() - Date.parse(cur.time)) / 6e4))}. Um aviso novo substitui-o.</p>` : ''}`;
         return;
@@ -1350,9 +1323,9 @@ function renderSheet() {
         const other = p.mine === false; // o dono a desligar o local de outro telemóvel
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Desligar a análise diária de ${esc(p.name)}?</h2>
             <div class="d-sub">${other ? 'É o local de outro telemóvel.' : p.shared ? 'É uma análise partilhada.' : 'A análise atual fica guardada.'}</div></div>${closeBtn}</div>
-            <p class="note" style="margin:0 2px 14px">${other ? 'Esse telemóvel deixa de receber a análise do Claude e não a pode voltar a ligar; tu podes, em Ajustes.'
+            <p class="note" style="margin:0 2px 14px">${other ? 'Esse telemóvel deixa de receber a análise diária e não a pode voltar a ligar; tu podes, em Ajustes.'
                 : p.shared ? 'Deixa de aparecer neste telemóvel; continua para quem a ligou.'
-                : `O Claude deixa de analisar este local às ${esc(schedTxt())}. Se voltares a ligar, aparece outra vez a última análise.`}</p>
+                : `Este local deixa de ter análise às ${esc(schedTxt())}. Se voltares a ligar, aparece outra vez a última análise.`}</p>
             <div class="btns-col"><button type="button" class="btn blk danger" data-act="off-yes">Desligar</button><button type="button" class="btn blk" data-act="close">Cancelar</button></div>`;
         return;
     }
@@ -1371,11 +1344,11 @@ function renderSheet() {
         const next12 = d.date === today && hours.length < 12;
         if (next12) hours = (fc.hourly || []).slice(0, 12);
         const stats = [
-            ['Máxima', F.deg(d.tmax, 1), pr(d.tmaxP10, d.tmaxP90)],
-            ['Mínima', F.deg(d.tmin, 1), pr(d.tminP10, d.tminP90)],
-            ['Chuva', F.mm(d.precip || 0), `${F.pct(d.pop)} prob.${F.isNum(d.precipP90) && d.precipP90 > (d.precip || 0) ? ` · até ${F.mm(d.precipP90)}` : ''}`],
+            ['Máxima', F.deg(d.tmax, 1), pr(d.tmaxP10, d.tmaxP90), aiMark(d.date, 'tmax', (v) => F.deg(v, 1))],
+            ['Mínima', F.deg(d.tmin, 1), pr(d.tminP10, d.tminP90), aiMark(d.date, 'tmin', (v) => F.deg(v, 1))],
+            ['Chuva', F.mm(d.precip || 0), `${F.pct(d.pop)} prob.${F.isNum(d.precipP90) && d.precipP90 > (d.precip || 0) ? ` · até ${F.mm(d.precipP90)}` : ''}`, aiMark(d.date, 'precip', F.mm)],
             ['Chuva forte (≥10 mm)', F.pct(d.popHeavy), 'dos cenários'],
-            ['Rajada máxima', F.kmh(d.gustMax), `vento ${F.num(d.windMax)} km/h ${F.compass(d.dir)}`],
+            ['Rajada máxima', F.kmh(d.gustMax), `vento ${F.num(d.windMax)} km/h ${F.compass(d.dir)}`, aiMark(d.date, 'gust', F.kmh)],
             ['Índice UV máx.', F.num(d.uvMax, 1), ''],
             ['Sol', `${d.sunrise || '–'} – ${d.sunset || '–'}`, 'nascer e pôr'],
             ['Normal', d.normal ? `${F.deg(d.normal.tmax)} / ${F.deg(d.normal.tmin)}` : '–', F.isNum(d.anomaly) ? `${F.signed(d.anomaly, 1)}° na máxima` : ''],
@@ -1383,10 +1356,9 @@ function renderSheet() {
             ['Confiança', cap1(d.confidence === 'media' ? 'média' : d.confidence || '–'), F.isNum(d.spread) ? `dispersão ${F.num(d.spread, 1)}°` : ''],
         ];
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">${esc(cap1(F.dayDiff(today, d.date) <= 1 ? F.dayLabel(d.date, today) : F.wdLong(d.date)))}, ${esc(F.dateShort(d.date))}</h2>
-            <div class="d-sub">${esc(F.wxText(d.code))} · ${esc(d.source === 'ensemble' ? `mediana de ${F.num(fc.ensemble?.members || 0)} cenários` : `consenso de ${fc.models?.length || 0} modelos${d.claude ? ' e do Claude' : ''}`)}</div></div>${closeBtn}</div>
-            <div class="d-big">${weatherIcon(d.code, true, 64, '', cfg.anim !== false)}<div><b class="num">${esc(F.deg(d.tmax))} / ${esc(F.deg(d.tmin))}</b><br><span>máxima e mínima</span></div></div>
-            ${claudeDayLine(claudeDay(d.date))}
-            <div class="stats">${stats.map(([k, v, e]) => `<div><small>${esc(k)}</small><b class="num">${esc(v)}</b>${e ? `<em>${esc(e)}</em>` : ''}</div>`).join('')}</div>
+            <div class="d-sub">${esc(F.wxText(d.code))} · ${esc(d.source === 'ensemble' ? `mediana de ${F.num(fc.ensemble?.members || 0)} cenários` : `consenso de ${fc.models?.length || 0} modelos${d.claude ? ' e da análise' : ''}`)}</div></div>${closeBtn}</div>
+            <div class="d-big">${weatherIcon(d.code, true, 64, '', cfg.anim !== false)}<div><b class="num">${esc(F.deg(d.tmax))}${aiMark(d.date, 'tmax', F.deg)} / ${esc(F.deg(d.tmin))}${aiMark(d.date, 'tmin', F.deg)}</b><br><span>máxima e mínima</span></div></div>
+            <div class="stats">${stats.map(([k, v, e, ia]) => `<div><small>${esc(k)}</small><b class="num">${esc(v)}${ia || ''}</b>${e ? `<em>${esc(e)}</em>` : ''}</div>`).join('')}</div>
             ${hours.length ? `<div class="sec-h"><h2>${next12 ? 'Próximas 12 horas' : 'Hora a hora'}</h2><span class="sub">toca numa hora</span></div><div class="box"><div id="d-chart" class="chart"></div></div>` : '<p class="note">O detalhe hora a hora existe para as próximas 72 horas. Para este dia, os valores vêm da distribuição dos cenários.</p>'}`;
         if (hours.length) renderHourly($('#d-chart'), hours, { todayIso: today });
     }

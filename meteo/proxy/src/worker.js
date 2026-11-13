@@ -13,7 +13,7 @@ import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.8.1';
+const VERSION = '1.8.2';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -298,12 +298,12 @@ function nearestOf(me, places, lat, lon, maxKm) {
 // O que impede outro telemóvel de ligar (ou voltar a ligar) a análise diária: a análise dos outros desligada pelo dono,
 // um local desligado pelo dono, ou já haver 15 locais em análise (os do dono e os dos outros em uso).
 async function guestBlock(env, places, cur) {
-    if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise diária do Claude nos outros telemóveis.' }, 403);
+    if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise diária nos outros telemóveis.' }, 403);
     if (cur?.off && cur.offBy === 'owner') return json({ error: 'desligado_pelo_dono', message: 'A análise diária deste telemóvel foi desligada pelo dono da app.' }, 403);
     const rest = places.filter((p) => p.id !== cur?.id && !p.off);
     const seen = await lastSeenOf(env, rest.filter((p) => !isOwnerPlace(p)).flatMap((p) => [placeOwner(p), ...placeMembers(p)]));
     if (rest.filter((p) => placeStatus(p, lastSeenOfPlace(p, (id) => seen[id])) === 'active').length >= ANALYSED_MAX) {
-        return json({ error: 'cheio', message: `De momento não há vagas para a análise diária do Claude (máx. ${ANALYSED_MAX} locais). Tenta mais tarde.` }, 409);
+        return json({ error: 'cheio', message: `De momento não há vagas para a análise diária (máx. ${ANALYSED_MAX} locais). Tenta mais tarde.` }, 409);
     }
     return null;
 }
@@ -356,7 +356,7 @@ async function addPlace(req, env, url) {
         const join = places.filter((p) => !p.off && !mine(me, p) && dk(p) <= SHARE_KM)
             .sort((a, b) => Number(isOwnerPlace(b)) - Number(isOwnerPlace(a)) || dk(a) - dk(b))[0];
         if (join) {
-            if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise diária do Claude nos outros telemóveis.' }, 403);
+            if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise diária nos outros telemóveis.' }, 403);
             const next = places.map((p) => (p.id === join.id ? { ...p, members: [...placeMembers(p).filter((x) => x !== me.id), me.id] }
                 : mine(me, p) && !p.off ? { ...leave(p, me.id), off: true, offAt: nowIso, offBy: 'device' } : leave(p, me.id)));
             if (JSON.stringify(next) !== JSON.stringify(places)) await savePlaces(env, next);
@@ -565,7 +565,7 @@ async function savePush(req, env, url) {
     const sub = validSubscription(b?.subscription), time = validTime(b?.time);
     if (!sub || !time) return bad('Notificação inválida.');
     const place = (await getPlaces(env)).find((p) => p.id === b?.place && !p.off && uses(me, p));
-    if (!place) return json({ error: 'sem_local', message: 'As notificações trazem a análise diária do Claude: liga-a primeiro para um local teu (Análise → Análise diária).' }, 409);
+    if (!place) return json({ error: 'sem_local', message: 'As notificações trazem a análise diária: liga-a primeiro para um local teu (Análise → Análise diária).' }, 409);
     const idx = await pushIndex(env), old = idx.find((e) => e.id === me.id), rest = idx.filter((e) => e.id !== me.id);
     if (rest.length >= PUSH_MAX) return json({ error: 'cheio', message: 'De momento não há vagas para mais notificações.' }, 409);
     const entry = { id: me.id, ep: sub.endpoint, k: sub.keys, time, tz: validTz(b?.tz) || 'Europe/Lisbon', sunday: b?.sunday !== false, place: place.id,
@@ -695,7 +695,7 @@ async function settings(req, env, url) {
 
 // ---------- análise imediata pela API do Claude (opcional: precisa do segredo ANTHROPIC_API_KEY) ----------
 async function refresh(req, env, url) {
-    if (!env.ANTHROPIC_API_KEY) return json({ error: 'sem_chave', message: 'A análise imediata precisa de uma chave da API do Claude no Worker. As análises agendadas continuam a funcionar.' }, 503);
+    if (!env.ANTHROPIC_API_KEY) return json({ error: 'sem_chave', message: 'A análise imediata não está disponível (falta a chave da API no conector). As análises diárias continuam a funcionar.' }, 503);
     if (!trusted(req, env, url)) return notTrusted();
     const me = await who(req, env, url);
     if (me.error) return me.error;
@@ -735,15 +735,15 @@ async function refresh(req, env, url) {
             ] }],
         });
     } catch (e) {
-        if (e instanceof Anthropic.AuthenticationError) return json({ error: 'chave', message: 'A chave da API do Claude é inválida.' }, 502);
-        if (e instanceof Anthropic.RateLimitError) return json({ error: 'limite', message: 'A API do Claude está ocupada; tenta daqui a pouco.' }, 429);
-        if (e instanceof Anthropic.APIError) return json({ error: 'api', message: `Erro da API do Claude (${e.status}).` }, 502);
+        if (e instanceof Anthropic.AuthenticationError) return json({ error: 'chave', message: 'A chave da API da análise é inválida.' }, 502);
+        if (e instanceof Anthropic.RateLimitError) return json({ error: 'limite', message: 'O serviço da análise está ocupado; tenta daqui a pouco.' }, 429);
+        if (e instanceof Anthropic.APIError) return json({ error: 'api', message: `Erro no serviço da análise (${e.status}).` }, 502);
         throw e;
     }
-    if (msg.stop_reason === 'refusal') return json({ error: 'recusa', message: 'O Claude não conseguiu fazer esta análise.' }, 502);
+    if (msg.stop_reason === 'refusal') return json({ error: 'recusa', message: 'Não foi possível fazer esta análise.' }, 502);
     const text = msg.content.filter((x) => x.type === 'text').map((x) => x.text).join('');
     let parsed;
-    try { parsed = JSON.parse(text); } catch { return json({ error: 'formato', message: 'Resposta do Claude em formato inesperado.' }, 502); }
+    try { parsed = JSON.parse(text); } catch { return json({ error: 'formato', message: 'A análise veio num formato inesperado.' }, 502); }
     const { value } = validateAnalysis(parsed);
     // place = o ponto analisado (as coordenadas do pedido), com o id e o nome do local quando é um dos seus
     const analysis = { ...value, generatedAt: new Date().toISOString(), by: 'claude-api', model: msg.model || model,

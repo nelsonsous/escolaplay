@@ -78,7 +78,12 @@ meias no início; depois, com o peso que cada número ganha na verificação: a 
 Claude e o consenso da mesma altura com o que as estações mediram, e quem erra menos pesa mais (20% a 80%,
 [`lib/nums.js`](lib/nums.js)). Para o Claude não repetir os modelos, o resumo mostra-lhe o **previsto na véspera vs
 observado** dos últimos dias (ex.: máxima 0,8 °C abaixo, chuva observada a 59% da prevista). Nas próximas horas manda
-a observação: o ajuste entra aos poucos (5 h) e a máxima ou a mínima que já passaram não se mexem.
+a observação: o ajuste entra aos poucos (5 h) e a máxima ou a mínima que já passaram não se mexem. **Desde a 1.23 a app
+mostra só o valor final** — sem a tabela «modelos / Claude / na app» nem marcas nos dias — e o nome «Claude» não aparece
+no que as pessoas veem: é «a análise» (escrita por inteligência artificial; o nome está nos créditos, em Ajustes →
+Avançado). A análise também não fala de si («os meus números»): fala da previsão. O que vem dela leva um **«IA» pequeno
+e subido**, como o º: o nome («Análiseᴵᴬ») e cada valor que ela muda à vista (máxima, mínima, chuva e rajada nos dias e
+na folha do dia); a nota dos dias explica-o.
 
 **Probabilidade de chuva calibrada (1.22).** Medido contra 5 estações do IPMA e os aeroportos do Porto, Lisboa e Faro
 (11/2026): com a regra «um modelo dá ≥ 0,1 mm, logo chove», os modelos tinham chuva em 1,6 a 3,3 vezes mais horas do que
@@ -92,7 +97,7 @@ pedem o que acontece no ponto, em mm, km/h e °C, com os sistemas regionais só 
 sudoeste deve chegar ao ponto por volta das 21h») e os efeitos do relevo (vale: geada, nevoeiro, inversões; topo:
 vento). O `publicar.mjs` recusa frases genéricas sobre o distrito ou a região.
 
-Na app a análise diária está **desligada por omissão**: o cartão «Análise do Claude» de um local sem análise oferece
+Na app a análise diária está **desligada por omissão**: o cartão «Análise» de um local sem análise oferece
 **Ativar a análise diária do Claude para este local**. Cada telemóvel (cada instalação da app) tem **1 local**, e a análise
 desse local só aparece nesse telemóvel (nunca a de outras pessoas por estar perto); ligar noutro sítio muda o local para
 lá, com a última análise e as lições. Se o telemóvel não abrir a app durante **14 dias**, o local fica em pausa (não é
@@ -122,7 +127,7 @@ Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem
 
 Tocar no nome do local (no topo) abre **Os meus locais**: os locais guardados (até 12) e os que o Claude analisa todos os
 dias, marcados com **✦**; o local que estás a ver aparece realçado. Um local pesquisado (ex.: Mindelo) fica logo guardado;
-✕ tira-o. No topo, por baixo do nome, «✦ análise do Claude» diz quando o local que estás a ver tem análise diária (ligar
+✕ tira-o. No topo, por baixo do nome, «✦ análise diária» diz quando o local que estás a ver tem análise diária (ligar
 ou desligar: separador Análise → «Análise diária para este local»; o dono não tem limite de locais).
 
 ## Mar (1.14)
