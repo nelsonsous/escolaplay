@@ -630,9 +630,14 @@ test('análise dos outros (ligada, só 1× por dia ou desligada): só o dono a m
 
 test('validação da análise: limites, listas e valores permitidos', () => {
     assert.equal(validateAnalysis(ANALISE, { strict: true }).ok, true);
-    const bad = validateAnalysis({ ...ANALISE, titulo: 'x'.repeat(91), alertas: [{ tipo: 'tornado', nivel: 'roxo', texto: 'x' }] }, { strict: true });
+    const bad = validateAnalysis({ ...ANALISE, titulo: 'x'.repeat(100), alertas: [{ tipo: 'tornado', nivel: 'roxo', texto: 'x' }] }, { strict: true });
     assert.equal(bad.ok, false);
-    assert.equal(bad.errors.length, 3);
+    assert.deepEqual(bad.errors, ['titulo com 100 caracteres (máx. 90)', 'alertas[0].tipo inválido: tornado', 'alertas[0].nivel inválido: roxo']);
+    // ao publicar há 10% de folga (quem escreve não conta caracteres ao certo: os rascunhos saíam 0,2% a 6% acima e cada
+    // recusa custava mais uma volta à tarefa): o texto passa inteiro, sem corte
+    const quase = validateAnalysis({ ...ANALISE, titulo: 'x'.repeat(99), agora: 'y'.repeat(440), verificacao: 'z'.repeat(423) }, { strict: true });
+    assert.deepEqual([quase.ok, quase.value.titulo.length, quase.value.agora.length, quase.value.verificacao.length], [true, 99, 440, 423]);
+    assert.deepEqual(validateAnalysis({ ...ANALISE, agora: 'y'.repeat(441) }, { strict: true }).errors, ['agora com 441 caracteres (máx. 400)']);
     const soft = validateAnalysis({ ...ANALISE, titulo: 'x'.repeat(200) });
     assert.equal(soft.value.titulo.length, 90);
     assert.equal(ANALYSIS_SCHEMA.additionalProperties, false);

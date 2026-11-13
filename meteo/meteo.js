@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.22.0';
+const VERSION = '1.22.1';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -700,6 +700,14 @@ function claudeDayLine(c) {
     const W = numFc()?.claude?.w;
     return `<p class="cl-num">${ui('sparkle')}<span><b>${halves(W) ? 'A meias com os números do Claude.' : 'Com os números do Claude.'}</b> Modelos: ${esc(numsTxt(c.model))} · Claude: ${esc(numsTxt(c.claude))}.</span></p>`;
 }
+// uma célula da tabela dos números: máxima / mínima, chuva e rajada em três linhas curtas, para as três colunas caberem
+// no telemóvel sem deslizar para o lado; o que for diferente do que dão os modelos (ref) fica destacado
+const numLines = (x) => [`${F.deg(x.tmax)} / ${F.deg(x.tmin)}`, F.mm(x.precip || 0), F.kmh(x.gust)];
+function numCell(x, ref) {
+    if (!x) return '<td>–</td>';
+    const R = ref ? numLines(ref) : null;
+    return `<td>${numLines(x).map((t, i) => `<span${R && R[i] !== t ? ' class="dif"' : ''}>${esc(t)}</span>`).join('')}</td>`;
+}
 // a tabela dos números da análise (separador Análise): o que dão os modelos, o Claude e a app (a meias)
 function claudeNumsHtml(a, today) {
     const N = a?.numeros || [];
@@ -713,10 +721,11 @@ function claudeNumsHtml(a, today) {
     const rows = N.map((n) => {
         const c = claudeDay(n.data), lab = today ? F.dayLabel(n.data, today) : n.data;
         const mine = { tmax: n.tmax, tmin: n.tmin, precip: n.chuva, gust: n.rajada };
-        return `<tr><th scope="row">${esc(cap1(lab))}</th><td>${esc(c ? numsTxt(c.model) : '–')}</td><td>${esc(numsTxt(mine))}</td><td>${esc(c ? numsTxt(c.final) : '–')}</td></tr>`;
+        return `<tr><th scope="row">${esc(cap1(lab))}</th>${numCell(c?.model)}${numCell(mine, c?.model)}${numCell(c?.final, c?.model)}</tr>`;
     }).join('');
-    return `<div class="an-sec" id="an-num"><h4>Os números do Claude</h4><div class="cmp-scroll"><table class="tbl"><thead><tr><th scope="col">Dia</th><th scope="col">Modelos</th><th scope="col">Claude</th><th scope="col">Na app</th></tr></thead><tbody>${rows}</tbody></table></div>
-        <p class="hint" style="margin-top:6px">${esc(why)}</p></div>`;
+    return `<div class="an-sec" id="an-num"><h4>Os números do Claude</h4><div class="cmp-scroll"><table class="tbl num-t"><thead><tr><th scope="col">Dia</th><th scope="col">Modelos</th><th scope="col">Claude</th><th scope="col">Na app</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <p class="num-k">Máxima / mínima, chuva e rajada. A branco, o que o Claude muda.</p>
+        <p class="hint" style="margin-top:4px">${esc(why)}</p></div>`;
 }
 // uma linha de dia (separador Dias e próximos dias do Agora): nome, ícone, chuva, mín., barra, máx.
 function dayRow(d, i, fc, S, { extras = true } = {}) {

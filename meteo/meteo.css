@@ -370,6 +370,14 @@ div.claude { cursor: auto; }
 .cmp { padding: 6px 0 12px; }
 .cmp-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .cmp-scroll::-webkit-scrollbar { display: none; }
+/* os números do Claude: três linhas curtas por célula (as três colunas cabem no telemóvel); a branco o que muda */
+.num-t th, .num-t td { padding: 8px 4px; vertical-align: top; }
+.num-t th:first-child { padding-left: 10px; }
+.num-t td:last-child, .num-t th:last-child { padding-right: 10px; }
+.num-t td { color: var(--muted); }
+.num-t td span { display: block; line-height: 1.5; }
+.num-t td .dif { color: var(--text); font-weight: 650; }
+.an-sec .num-k { margin: 8px 0 0; font-size: calc(.794rem * var(--k)); color: var(--muted); line-height: 1.45; }
 .cmp-t { font-size: calc(.8rem * var(--k)); }
 .cmp-t th, .cmp-t td { padding: 7px 4px; vertical-align: top; }
 .cmp-t thead th { position: static; background: none; color: var(--muted); font-size: calc(.75rem * var(--k)); }
