@@ -2749,3 +2749,17 @@ com a média das fontes a decidir.
 **Verificado.** `mercados/tests/ecra-decisao.test.mjs`: o cartão escrito outra vez em JS e 4 000 instantâneos ao acaso
 (fontes que faltam, textos com HTML) iguais byte a byte. O teste de interface confere a ficha da Nvidia, da Bitcoin,
 de um índice (que fica com a leitura do Claude), de um ativo com análise antiga e de um sem análise.
+
+## Iteração 146: o Painel sem o plano repetido (Mercados 4.21.1)
+
+**O cartão «Hoje».** O plano do mês via-se duas vezes no mesmo cartão: no resumo (a próxima execução, com os valores
+por ativo) e na dobra (o plano, com os mesmos valores). O resumo passa a dizer quando é a próxima execução e quanto
+leva («quarta-feira, 2 de dezembro · 900 €»); os valores por ativo ficam num só sítio, o plano. Nos dias de agir (a
+execução e o último dia para ajustar) voltam ao resumo, que é quando contam.
+
+**«Os meus ativos» e a ficha dizem o mesmo.** Sem o Claude, a etiqueta da lista vinha só do sinal automático e a ficha
+(desde a it.145) da média das fontes. A lista passa a mostrar o veredicto da decisão consolidada. O tom das notícias
+de cada ativo calcula-se uma vez por cada lista que chega, e não em cada desenho.
+
+**Verificado.** `ecra-painel.test.mjs`: 600 estados, com o dia de agir, o total e o plano só em percentagens; 857
+linhas com a etiqueta da decisão. Os 95 testes e o teste de interface, também na versão minificada.
