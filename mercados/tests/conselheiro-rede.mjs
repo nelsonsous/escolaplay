@@ -76,6 +76,29 @@ function agenda(s) {
     return { symbol: s, earnings: aj(s).resultados ?? d(), earningsEnd: null, exDividend: d(), dividend: null };
 }
 
+// o /consensus do conector (1.8.0): os analistas, os fundamentos, as revisões e as surpresas de uma ação; o fundo por
+// dentro; e respostas estranhas à mistura (campos que faltam, tipos errados), como as que o Yahoo dá de vez em quando
+function consenso(s) {
+    const r = rng(hash('k|' + s + '|' + (cena.semente || 1))), a = aj(s);
+    if (a.consErro) return { symbol: s, error: 'HTTP 500' };
+    if ('cons' in a) return a.cons;
+    if (tipo(s) === 'ETF' || /^(VWCE|EUNL|SXR8|SXRV|IS3N|EXSA|4GLD)\.DE$/.test(s)) {
+        return r() < 0.3 ? { symbol: s, none: true } : { symbol: s, none: true, fund: { pe: r() < 0.2 ? null : 12 + r() * 14, pb: 1 + r() * 4, ter: r() < 0.2 ? null : 0.0005 + r() * 0.006, top: [['Empresa A', 0.05]] } };
+    }
+    if (r() < 0.1) return { symbol: s, none: true };
+    const KEYS = ['strong_buy', 'buy', 'hold', 'underperform', 'sell', 'strong_sell', 'esquisito'], price = 20 + r() * 300;
+    const o = { symbol: s, key: KEYS[Math.floor(r() * KEYS.length)], mean: r() < 0.1 ? null : 1 + r() * 4, n: r() < 0.1 ? 0 : Math.floor(1 + r() * 60),
+        target: r() < 0.15 ? null : price * (0.7 + r() * 0.8), low: null, high: null, price: r() < 0.1 ? 0 : price, currency: 'USD', votes: null };
+    if (r() < 0.7) o.f = { pe: r() < 0.15 ? null : r() < 0.1 ? -8 : 5 + r() * 60, cr: r() < 0.15 ? null : r() * 0.8 - 0.2, mg: r() < 0.15 ? null : r() * 0.6 - 0.1, ...(r() < 0.5 ? { roe: r() * 0.6 - 0.1, de: r() * 300 } : {}) };
+    if (r() < 0.6) o.rev = { up: Math.floor(r() * 20), down: Math.floor(r() * 12), chg: r() < 0.3 ? null : r() * 0.4 - 0.2 };
+    if (r() < 0.6) o.sur = { n: 4, beats: Math.floor(r() * 5), avg: r() * 0.2 - 0.05 };
+    return o;
+}
+function criptoGlobal() {
+    const r = rng(hash('g|' + (cena.semente || 1)));
+    return { mcap: null, mcapChg: r() * 8 - 4, vol: null, btcDom: 40 + r() * 30, ethDom: 8 + r() * 10, fng: { v: Math.floor(r() * 101), label: ['Extreme Fear', 'Fear', 'Neutral', 'Greed', ''][Math.floor(r() * 5)], prev: r() < 0.3 ? null : Math.floor(r() * 101) } };
+}
+
 // ---------- KV ----------
 const KV = new Map(Object.entries(cena.kv || {}).map(([k, v]) => [k, { v: typeof v === 'string' ? v : JSON.stringify(v.valor), m: v.meta ?? null }]));
 for (const [k, v] of Object.entries(cena.kvTexto || {})) KV.set(k, { v, m: null });
@@ -127,6 +150,9 @@ globalThis.fetch = async (url, init = {}) => {
     }
     if (p.pathname === '/news') { const q = p.searchParams.get('q') || ''; return resp({ q, items: noticias(q, p.searchParams.get('sym') || '') }); }
     if (p.pathname === '/calendar') return resp({ at: Math.floor(T / 1000), items: (p.searchParams.get('symbols') || '').split(',').map(agenda) });
+    // cena.consCorpo e cena.cg: o corpo inteiro, quando o cenário quer uma resposta estranha
+    if (p.pathname === '/consensus') return resp('consCorpo' in cena ? JSON.stringify(cena.consCorpo) : { at: Math.floor(T / 1000), items: (p.searchParams.get('symbols') || '').split(',').map(consenso) });
+    if (p.pathname === '/cryptoglobal') return resp('cg' in cena ? JSON.stringify(cena.cg) : criptoGlobal());
     return resp({ error: 'rota desconhecida' }, 404);
 };
 process.on('exit', () => {
