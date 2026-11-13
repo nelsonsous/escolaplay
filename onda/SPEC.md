@@ -146,7 +146,7 @@ Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.j
 Chromium 153 em `test/biblioteca-*.test.js`). Junta-se antes da app, por esta ordem (cada módulo só usa os de cima):
 
 ```
-cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao}.onda app.onda | ondac -w > app.wasm
+cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala}.onda app.onda | ondac -w main clique > app.wasm
 ```
 
 | módulo | prefixo | o quê |
@@ -161,6 +161,7 @@ cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao}.ond
 | `ordenar` | `_or_` | o `sort` do V8, comparação a comparação: o PowerSort do Chromium e o TimSort do Node 22, com o comparador num código |
 | `html` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
 | `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–110` e `Y 200–214`) com nomes |
+| `fala` | (sem `_`) | a fala das apps, opcional: nomes curtos para ler um nó (`ha`, `eh`, `num`, `int`, `txt`, `pri`, `seg`…), escrever (`esc`, `cru`, `plural`), números pt-PT (`casas`, `ate`, `inteiro`, `moeda`) e ações dos botões (`acao`, `arg`, `eacao`). Com os moldes e o ponto: `` `<b>{ esc c.nome }</b>` `` |
 
 - **Nomes:** `_` + o prefixo do módulo + `_` + o nome. As apps não começam nomes por `_` e o runtime não usa um segundo `_`: não
   colidem. Como são privados no `-w`, só entra o que a app usa: com a biblioteca toda junta, o módulo sai igual ao byte

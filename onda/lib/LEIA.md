@@ -11,7 +11,7 @@ ecrã e o conselheiro).
 Uma app em Onda é um só texto: junta-se a biblioteca **antes** da app, por esta ordem (cada módulo só usa os de cima):
 
 ```
-cat onda/lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao}.onda app.onda | onda/build/ondac -w > app.wasm
+cat onda/lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala}.onda app.onda | onda/build/ondac -w main clique > app.wasm
 ```
 
 Pode-se juntar a biblioteca toda: os nomes dela começam por `_`, que no `-w` são privados — só entram as funções que a
@@ -21,6 +21,26 @@ que só usa o `Intl` ~9 KB, o JSON ~36 KB, as datas ~3 KB, o sort ~18 KB (`test/
 
 Para o `-w` (apps e scripts) e também o `-x`/`-a`; no C (`./onda run`) não, porque usa o topo do monte do runtime
 (`M[-1]`), o `Oc` e o `_ow`.
+
+### A fala das apps (`fala.onda`)
+
+O último módulo é opcional e é o único com nomes sem `_`: as palavras curtas que um ecrã usa a toda a hora. Com os
+moldes e o ponto da linguagem (`onda/SPEC.md`), um pedaço de ecrã escreve-se como se lê:
+
+```
+: linha i>i c `<li class="linha{ Se ha c.fav ` on` }"><b>{ esc c.nome }</b> { inteiro num c.valor }</li>`
+```
+
+| Para… | Palavras |
+|---|---|
+| ler um nó da árvore | `a.b` (da linguagem), `ha n`, `eh n t`, `igual a b`, `num n`, `int n`, `txt n`, `tipo n`, `pri n`, `seg c`, `quantos n`, `idx n i` |
+| escrever | `esc n` (escapado), `cru n`, `esct t`, `crut t`, `plural n um muitos` |
+| textos e números pt-PT | `mesmo a b`, `fin x`, `casas x d`, `ate x d`, `inteiro x`, `moeda x d c` |
+| ações dos botões (`data-onda="ação:número"`) | `acao t`, `arg t`, `eacao t nome` |
+
+Uma app que a junta não pode ter funções com estes nomes, e monta-se com as entradas ditas (`ondac -w main clique …`)
+para o módulo levar só o que usa. O `esc` serve qualquer valor do JS (também números), por isso traz o `String(x)`
+(~4 KB); onde só há textos e o tamanho conta, `esct txt c.nome` fica só com o escape. Exemplo completo: `onda/molde`.
 
 ## Nomes
 

@@ -18,10 +18,9 @@
 
 # ---------- os dados ----------
 : no i>i i @ + @ 7 i
-: txt ii>i i k _ar_txt _ar_get no i k
-: valor i>f i _ar_num _ar_get no i $"valor"
 : fav i>i i @ + @ 4 i
 : existe i>i i && >= i 0 < i @ 8
+: grupo i>i i { = c no i txt c.grupo }
 
 # minúscula de um byte (só o ASCII; os acentos comparam-se tal e qual)
 : minb i>i c ? && >= c 'A <= c 'Z + c 32 c
@@ -34,77 +33,75 @@
   r }
 # copia até max bytes de t para o texto fixo d (sem cortar um carácter UTF-8 a meio)
 : fixa iii>i d t max {
-  = n _tx_len t ? > n max = n max 0
+  = n _tx_len t Se > n max = n max
   W ? > n 0 && >= _tx_b t n 128 < _tx_b t n 192 0 = n - n 1
-  = j 0 W < j n { ! + + d 1 j _tx_b t j = j + j 1 }
+  L j n ! + + d 1 j _tx_b t j
   ! d + + d 1 n }
 # o item i aparece? (a aba, o grupo e a procura)
-: passa i>i i
+: passa i>i i {
+  = c no i
   ? ? @ 1 ~ fav i 0 0
-  ? ? < @ 2 0 0 ~ _tx_igual txt i $"grupo" txt @ 2 $"grupo" 0
-  contem txt i $"nome" @ 5
-: nfav >i { = c 0 = i 0 W < i @ 8 { = c + c fav i = i + i 1 } c }
+  ? ? < @ 2 0 0 ~ mesmo grupo i grupo @ 2 0
+  contem txt c.nome @ 5 }
+: nfav >i { = n 0 L i @ 8 = n + n fav i n }
 
 # ---------- favoritos no armazém do browser: os ids separados por vírgulas ----------
 : temid ii>i g id {
   = r 0 = j 0 = f _tx_campo g 0 44
-  W ? r 0 > _tx_len f 0 { = r _tx_igual f id = j + j 1 = f _tx_campo g j 44 }
+  W ? r 0 > _tx_len f 0 { = r mesmo f id = j + j 1 = f _tx_campo g j 44 }
   r }
 : lefav >i {
   = m _me_marca
-  = g _an_ler $"favoritos" = i 0
-  W < i @ 8 { ! + @ 4 i ? g temid g txt i $"id" 0 = i + i 1 }
+  = g _an_ler $"favoritos"
+  L i @ 8 { = c no i ! + @ 4 i ? g temid g txt c.id 0 }
   _me_solta m }
 : gravafav >i {
-  = c 1 = i 0 W < i @ 8 { = c + + c 1 _tx_len txt i $"id" = i + i 1 }
-  = t _tx_abre c = i 0
-  W < i @ 8 { ? fav i { _tx_p txt i $"id" P 44 } 0 = i + i 1 }
+  = n 1 L i @ 8 { = c no i = n + + n 1 _tx_len txt c.id }
+  = t _tx_abre n
+  L i @ 8 { = c no i Se fav i { crut txt c.id P 44 } }
   _tx_fecha t
   _an_gravar $"favoritos" t }
 
 # ---------- o ecrã: cada função desenha um pedaço (um elemento do index.html) ----------
 : dfiltros >i {
   = h _ht_ini + 400 * 200 @ 8
-  "<button data-onda=\"grupo:-1\"" ? < @ 2 0 " class=\"on\"" 0 ">Todos</button>"
-  = i 0
-  W < i @ 8 {
+  `<button data-onda="grupo:-1"{ Se < @ 2 0 ` class="on"` }>Todos</button>`
+  L i @ 8 {
     # um botão por grupo: no primeiro item de cada grupo
-    = novo 1 = j 0 W ? novo < j i 0 { = novo ~ _tx_igual txt j $"grupo" txt i $"grupo" = j + j 1 }
-    ? novo {
-      "<button data-onda=\"grupo:" N i "\""
-      ? ? < @ 2 0 0 _tx_igual txt i $"grupo" txt @ 2 $"grupo" " class=\"on\"" 0
-      ">" _tx_html txt i $"grupo" "</button>" } 0
-    = i + i 1 }
+    = novo 1 = j 0 W ? novo < j i 0 { = novo ~ mesmo grupo j grupo i = j + j 1 }
+    Se novo `<button data-onda="grupo:{N i}"{ Se ? < @ 2 0 0 mesmo grupo i grupo @ 2 ` class="on"` }>{ esct grupo i }</button>` }
   _ht_poe $"#filtros" h }
 : dlista >i {
   = h _ht_ini + 600 * 400 @ 8
-  ? == @ 6 0 "<p class=\"vazio\">A carregar…</p>" 0
-  ? == @ 6 2 "<p class=\"vazio\">Sem ligação.</p><button class=\"acao\" data-onda=\"tenta:0\">Tentar outra vez</button>" 0
-  = c 0 = tot 0. = i 0
-  W < i @ 8 {
-    ? passa i {
-      "<button class=\"linha\" data-onda=\"abre:" N i "\"><span><b>" _tx_html txt i $"nome" "</b><small>"
-      _tx_html txt i $"grupo" "</small></span><span class=\"num\">" ? fav i "<i>★</i> " 0 _nu_intl valor i 0 "</span></button>"
-      = c + c 1 = tot + tot valor i 0 } 0
-    = i + i 1 }
-  ? && == @ 6 1 == c 0 "<p class=\"vazio\">Nada por aqui.</p>" 0
-  ? > c 0 { "<p class=\"total\">" N c ? == c 1 " lugar · " " lugares · " _nu_intl tot 0 " habitantes</p>" } 0
+  Se == @ 6 0 `<p class="vazio">A carregar…</p>`
+  Se == @ 6 2 `<p class="vazio">Sem ligação.</p><button class="acao" data-onda="tenta:0">Tentar outra vez</button>`
+  = n 0 = tot 0.
+  L i @ 8 {
+    = c no i
+    Se passa i {
+      `<button class="linha" data-onda="abre:{N i}"><span><b>{ esc c.nome }</b><small>{ esc c.grupo }</small></span>`
+      `<span class="num">{ Se fav i `<i>★</i> ` }{ inteiro num c.valor }</span></button>`
+      = n + n 1 = tot + tot num c.valor } }
+  Se && == @ 6 1 == n 0 `<p class="vazio">Nada por aqui.</p>`
+  Se > n 0 `<p class="total">{ plural n $"lugar" $"lugares" } · { inteiro tot } habitantes</p>`
   _ht_poe $"#lista" h }
 : dabas >i {
   = h _ht_ini 400
-  "<button data-onda=\"aba:0\"" ? @ 1 0 " class=\"on\"" ">Tudo</button>"
-  "<button data-onda=\"aba:1\"" ? @ 1 " class=\"on\"" 0 ">Favoritos" = f nfav ? f { " · " N f } 0 "</button>"
+  = f nfav
+  `<button data-onda="aba:0"{ Se ~ @ 1 ` class="on"` }>Tudo</button>`
+  `<button data-onda="aba:1"{ Se @ 1 ` class="on"` }>Favoritos{ Se f ` · {N f}` }</button>`
   _ht_poe $"#abas" h }
 : dfolha >i {
   = i @ 3
   = h _ht_ini 2000
-  ? existe i {
-    "<div class=\"veu\" data-onda=\"fecha:0\"></div><div class=\"cartao" ? @ 9 " entra" 0 "\">"
-    "<small>" _tx_html txt i $"grupo" "</small><h2>" _tx_html txt i $"nome" "</h2>"
-    "<p class=\"grande\">" _nu_intl valor i 0 "<span> habitantes</span></p>"
-    "<p>" _tx_html txt i $"nota" "</p>"
-    "<button class=\"acao" ? fav i " on" 0 "\" data-onda=\"fav:" N i "\">" ? fav i "★ Guardado" "☆ Guardar" "</button>"
-    "<button class=\"acao fraco\" data-onda=\"fecha:0\">Fechar</button></div>" } 0
+  Se existe i {
+    = c no i
+    `<div class="veu" data-onda="fecha:0"></div><div class="cartao{ Se @ 9 ` entra` }">`
+    `<small>{ esc c.grupo }</small><h2>{ esc c.nome }</h2>`
+    `<p class="grande">{ inteiro num c.valor }<span> habitantes</span></p>`
+    `<p>{ esc c.nota }</p>`
+    `<button class="acao{ Se fav i ` on` }" data-onda="fav:{N i}">{ ? fav i `★ Guardado` `☆ Guardar` }</button>`
+    `<button class="acao fraco" data-onda="fecha:0">Fechar</button></div>` }
   ! 9 0
   _ht_poe $"#folha" h }
 : desenha >i { dfiltros dlista dabas dfolha }
@@ -112,24 +109,25 @@
 # ---------- os eventos ----------
 : pede >i { ! 6 0 _an_buscar $"dados.json" $"lido" }
 : clique i>i t {
-  = a _tx_campo t 0 58 = v _tx_int _tx_campo t 1 58
-  ? _tx_igual a $"aba" ! 1 != v 0 0
-  ? _tx_igual a $"grupo" ! 2 ? existe v v -1 0
-  ? _tx_igual a $"abre" { ! 3 ? existe v v -1 ! 9 1 } 0
-  ? _tx_igual a $"fecha" ! 3 -1 0
-  ? && _tx_igual a $"fav" existe v { ! + @ 4 v ~ fav v gravafav } 0
-  ? _tx_igual a $"tenta" pede 0
+  = v arg t
+  Se eacao t $"aba" ! 1 != v 0
+  Se eacao t $"grupo" ! 2 ? existe v v -1
+  Se eacao t $"abre" { ! 3 ? existe v v -1 ! 9 1 }
+  Se eacao t $"fecha" ! 3 -1
+  Se && eacao t $"fav" existe v { ! + @ 4 v ~ fav v gravafav }
+  Se eacao t $"tenta" pede
   desenha
   _me_solta t }
 : escreve i>i t {
-  ? _tx_igual _tx_campo t 0 9 $"procura" fixa @ 5 _tx_campo t 1 9 80 0
+  Se mesmo _tx_campo t 0 9 $"procura" fixa @ 5 _tx_campo t 1 9 80
   dlista
   _me_solta t }
 : lido ii>i t estado {
-  = l _ar_get _ar_json t $"itens"
-  ? && == estado 200 == _ar_tipo l 6 {
-    = n _ar_n l ! 8 n ! 7 A + n 1 ! 4 A + n 1
-    = c _ar_prim l = i 0 W c { ! + @ 7 i c = c _ar_prox c = i + i 1 }
+  = r _ar_json t
+  = l r.itens
+  ? && == estado 200 == tipo l 6 {
+    = n quantos l ! 8 n ! 7 A + n 1 ! 4 A + n 1
+    = c pri l = i 0 W c { ! + @ 7 i c = c seg c = i + i 1 }
     ! 0 l ! 2 -1 ! 3 -1 ! 6 1
     lefav } ! 6 2
   desenha }

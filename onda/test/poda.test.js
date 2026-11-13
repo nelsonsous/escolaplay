@@ -68,3 +68,21 @@ test('poda: o anfitriao de apps continua a chamar as funcoes de evento pelo nome
   for (const f of ['_oa', '_fl', '_ini', 'ola', 'tpor', 'json']) assert.strictEqual(typeof app.exports[f], 'function', f);
   assert.strictEqual(app.exports._jval, undefined, 'as _ da biblioteca sao privadas');
 });
+
+// it.142: os textos constantes de uma funcao morta nao entram na zona dos dados -- nem na dispersao dos textos. Antes,
+// um texto igual numa funcao viva achava a entrada desfeita e ficava com um endereco sem dados (lia-se vazio).
+test('poda: um texto constante usado numa funcao morta e, a seguir, numa viva tem os seus dados', () => {
+  const src = `
+: _morta >i { = a $"primeiro" = b $"segundo" = c $"terceiro" + + a b c }
+: _outra >i $"segundo"
+: pt i>i t { = j + t 1 W < j @ t { P @ j = j + j 1 } 0 }
+: main >i {
+  pt $"segundo" P 32 pt $"primeiro" P 32 pt $"terceiro" P 32 pt $"quarto" P 32
+  N == $"segundo" $"segundo" N != $"primeiro" $"terceiro" P 10
+  0 }`;
+  assert.strictEqual(corre(w(src, ['main'])), 'segundo primeiro terceiro quarto 11\n');
+  // com todas as funcoes vivas (sem nomes no comando as _ que nada usa ficam mortas na mesma) e no x86 da o mesmo
+  assert.strictEqual(corre(w(src)), 'segundo primeiro terceiro quarto 11\n');
+  fs.writeFileSync(path.join(t, 'px'), execFileSync(ondac, ['-x'], { input: src }), { mode: 0o755 });
+  assert.strictEqual(execFileSync(path.join(t, 'px')).toString(), 'segundo primeiro terceiro quarto 11\n');
+});

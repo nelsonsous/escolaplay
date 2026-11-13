@@ -458,7 +458,7 @@
   rdall
   ? || || isw isx isa { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 } 0
   # a zona dos dados (textos; ver dent): em todas as formas, porque o $"..." tambem vive em M no C
-  ! 20 64 ! 21 A 105536 ! 22 0
+  ! 20 64 ! 21 A 125536 ! 22 0
   # a matematica (wmat) e o armazem do x86 (xkrt) sao fontes em Onda que so entram se o programa as usa: escrevem-se a
   # seguir a fonte (n0..n1 e n1..n2), le-se a fonte e, pelos tokens, ve-se se tambem se leem
   = n0 @ 2
@@ -498,6 +498,6 @@
   ? isw wdce 0
   ? isc outz
     { = k 0
-      W < k @ 6 { ? isi rifun k ? && isw ~ @ fe k 10 { = sa @ 20 = sn @ 22 cfun k ! 20 sa ! 22 sn } cfun k = k + k 1 }
+      W < k @ 6 { ? isi rifun k ? && isw ~ @ fe k 10 { = sa @ 20 = sn @ 22 cfun k ! 20 sa tdesf sn } cfun k = k + k 1 }
       ? isx outx ? isw outw ? isa ? ismx outmx ? ismo outm outa ? isd 0 ? isjs outj ? @ 12 outg outc }
   0 }

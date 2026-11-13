@@ -1,0 +1,65 @@
+# fala.onda — a fala das apps: nomes curtos para o que um ecrã faz a toda a hora (ler o que vem do JS ou de um JSON,
+# escrever escapado, números pt-PT, ações dos botões). Junta-se depois dos outros módulos e é opcional.
+#
+# Ao contrário do resto da biblioteca, os nomes NÃO começam por _ (são para se escreverem muito). Por isso:
+#   - uma app que junta a fala não pode ter funções com estes nomes (o compilador diz "funcao repetida");
+#   - monta-se com as entradas ditas (ondac -w main clique …), para o módulo levar só o que a app usa.
+# Com os moldes e o ponto da linguagem, um pedaço de ecrã escreve-se como se lê:
+#   `<li class="linha{ Se ha c.fav ` on` }"><b>{ esc c.nome }</b> { inteiro num c.valor }</li>`
+#
+# LER UM NÓ — da árvore (arvore.onda): o instantâneo que a ponte de uma app escreve, ou um JSON lido com _ar_json
+#   a.b             o membro b do nó a (é da linguagem: _mb a $"b"); 0 se não há
+#   ha n            a verdade do JS: false, 0, NaN, '', null e undefined são falsos
+#   eh n t          o nó é o texto t (v === t)                 igual a b    v === w (dois nós)
+#   num n           Number(v), real (NaN se não é número)      int n        o inteiro de um número finito (senão 0)
+#   txt n           o texto de um nó de texto (0 se não é)     tipo n       0 undefined, 1 null, 2 false, 3 true,
+#                                                                           4 número, 5 texto, 6 lista, 7 objeto
+#   pri n           o primeiro filho (lista ou objeto)         seg c        o irmão seguinte
+#   quantos n       quantos filhos                             idx n i      o elemento i de uma lista
+#   Para percorrer:  = c pri lista W c { … = c seg c }
+# ESCREVER — na saída (o ecrã que se está a fazer)
+#   esc n           o valor de um nó escapado para HTML (& < > " '); null e undefined não escrevem nada
+#   cru n           o valor tal e qual (String(v))
+#   esct t / crut t o mesmo para um texto t (0 não escreve nada)
+#   plural n um mt  "1 dia" ou "3 dias": o inteiro n, um espaço e o texto um (n = 1) ou mt
+# TEXTOS
+#   mesmo a b       dois textos com os mesmos bytes
+# NÚMEROS — o Intl.NumberFormat('pt-PT')
+#   fin x           é finito (nem NaN nem ±Infinity)
+#   casas x d       com d casas: 1234,50                       ate x d      até d casas (sem zeros à direita)
+#   inteiro x       arredondado, sem casas: 1235               moeda x d c  com d casas e o símbolo de c ($"EUR")
+# AÇÕES — o data-onda="ação:número" de um botão (o texto t que a função do evento recebe)
+#   acao t          o que vem antes dos dois pontos (um texto novo)
+#   arg t           o inteiro que vem depois (0 se não há)
+#   eacao t nome    a ação é nome
+# Precisa de memoria, texto, numero e arvore. Globais: nenhum.
+
+: ha i>i n _ar_verd n
+: eh ii>i n t _ar_eqt n t
+: igual ii>i a b _ar_igual a b
+: num i>f n _ar_vnum n
+: int i>i n { = x _ar_vnum n ? _nu_fin x I x 0 }
+: txt i>i n _ar_txt n
+: tipo i>i n _ar_tipo n
+: pri i>i n _ar_prim n
+: seg i>i c _ar_prox c
+: quantos i>i n _ar_n n
+: idx ii>i n i _ar_idx n i
+
+: esc i>i n _ar_ps n 1
+: cru i>i n _ar_ps n 0
+: esct i>i t _tx_html t
+: crut i>i t _tx_p t
+: plural iii>i n um mt { N n P 32 _tx_p ? == n 1 um mt }
+
+: mesmo ii>i a b _tx_igual a b
+
+: fin f>i x _nu_fin x
+: casas fi>i x d _nu_intl x d
+: ate fi>i x d _nu_intlm x d
+: inteiro f>i x _nu_intl x 0
+: moeda fii>i x d c _nu_moeda x d c
+
+: acao i>i t _tx_campo t 0 58
+: arg i>i t _tx_int _tx_campo t 1 58
+: eacao ii>i t nome _tx_igual _tx_campo t 0 58 nome
