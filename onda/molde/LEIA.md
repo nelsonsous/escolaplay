@@ -5,7 +5,7 @@ exemplo é uma lista que vem da rede, com procura, filtro por grupo, folha de po
 O estilo é o da Mercados e da Música: preto, letra grande, pouca coisa no ecrã.
 
 ```sh
-node onda/molde/build.mjs               # app.onda + onda/lib → gerado/app.wasm (45 KB) e gerado/anfitriao.js
+node onda/molde/build.mjs               # app.onda + onda/lib → gerado/app.wasm (49 KB) e gerado/anfitriao.js
 npx serve onda/molde                    # ou qualquer servidor de ficheiros; abrir index.html
 node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
 ```
@@ -14,7 +14,7 @@ node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
 
 | Ficheiro | O que é | Mexe-se? |
 |---|---|---|
-| `app.onda` | a app: o estado, o que se desenha e o que cada toque faz (143 linhas) | sim: é aqui que se trabalha |
+| `app.onda` | a app: o estado, o que se desenha e o que cada toque faz (141 linhas) | sim: é aqui que se trabalha |
 | `index.html` | os lugares fixos do ecrã (`#filtros`, `#lista`, `#abas`, `#folha`) e o campo da procura | sim |
 | `app.css` | o aspeto | sim |
 | `dados.json` | os dados de exemplo | troca-se pelos da app (ou por um endereço na rede) |
@@ -42,11 +42,15 @@ node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
   para 80 bytes reservados no início (`fixa`).
 - **Cada evento solta o que reservou.** O texto do evento chega no topo do monte: `_me_solta t` no fim devolve tudo o
   que se fez depois. O teste confirma que 300 eventos deixam o monte exatamente onde estava.
+- **Escreve-se como se lê (a Onda fluida).** O HTML vai em moldes (crases), com as aspas tal e qual e o código no
+  sítio, entre chavetas; os campos leem-se com o ponto e as palavras da fala (`onda/lib/fala.onda`):
+  `` `<b>{ esc c.nome }</b> { inteiro num c.valor }` ``. Um `Se` não precisa de ramo vazio (`Se fav i ` on` `), um
+  ciclo contado é `L i n …`, e os parênteses conferem a aridade quando há dúvida.
 - **Desenhar é escrever HTML para um lugar.** `= h _ht_ini n … _ht_poe $"#lista" h`: tudo o que se escreve pelo meio
   vai para esse elemento. Cada pedaço do ecrã tem a sua função (`dlista`, `dfiltros`, `dabas`, `dfolha`); um evento
   redesenha só o que mudou (escrever na procura só refaz a lista, por isso o campo não perde o cursor).
-- **O que vem de fora é sempre escapado** (`_tx_html`). O exemplo tem um `<` e um `&` nos dados para o teste o provar.
-- **Números e datas como o utilizador os lê:** `_nu_intl x casas` é o `Intl.NumberFormat('pt-PT')`, igual ao bit.
+- **O que vem de fora é sempre escapado** (`esc` para um nó, `esct` para um texto). O exemplo tem um `<` e um `&` nos dados para o teste o provar.
+- **Números e datas como o utilizador os lê:** `inteiro x` e `casas x d` são o `Intl.NumberFormat('pt-PT')`, igual ao bit.
 - **A rede pode falhar:** `lido` recebe o estado HTTP; o ecrã diz «Sem ligação» e deixa tentar outra vez.
 
 ## O que o molde não tem (e onde ir buscar)

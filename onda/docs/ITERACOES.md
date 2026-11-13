@@ -2659,3 +2659,25 @@ a fonte da biblioteca só se lê se for precisa. No C e no JavaScript, o emissor
 - `test/fluida.test.js` (6 testes): o mesmo resultado em C, WebAssembly e x86 (e arm64 no qemu, quando há); os erros
   com a linha e a coluna; a GPU e o JavaScript; o significado (`web/significado.js`) lê a mesma sintaxe.
 - `node --test test/*.test.js`: 151 passam, 0 falham, 17 saltados (os do Mac e do arm64).
+
+## Iteração 142: a fala das apps, o molde na Onda fluida e um defeito da poda
+
+**1. `lib/fala.onda`: as palavras curtas das apps.** Nos ecrãs da Mercados, `_ar_get` aparece 383 vezes, `_ar_ps` 178
+e `_ar_verd` 175. Com o ponto da it.141 e 26 palavras sem `_` — `ha`, `eh`, `igual`, `num`, `int`, `txt`, `tipo`,
+`pri`, `seg`, `quantos`, `idx`; `esc`, `cru`, `esct`, `crut`, `plural`; `mesmo`; `fin`, `casas`, `ate`, `inteiro`,
+`moeda`; `acao`, `arg`, `eacao` — uma linha de ecrã lê-se: `` `<b>{ esc c.nome }</b> { inteiro num c.valor }` ``.
+É opcional e é o único módulo com nomes públicos; `test/biblioteca-fala.test.js` confere cada palavra contra o JS.
+
+**2. O molde reescrito.** `molde/app.onda` passa a usar moldes, o ponto, `Se`, `L` e a fala (141 linhas). O HTML de
+cada pedaço do ecrã é igual ao de antes, byte a byte, em 14 passos de uso (lista, filtro, procura, folha, favoritos,
+recarregar, sem rede): 20 985 bytes comparados com o módulo de antes. O módulo passa de 45 para 49 KB (o `esc` serve
+qualquer valor do JS e traz o `String(x)`).
+
+**3. Um defeito da poda (desde a it.140).** No `-w`, as funções mortas compilam-se até à RI e os textos constantes
+delas desfazem-se — mas ficavam na dispersão dos textos. Um texto igual numa função viva, logo a seguir, achava a
+entrada desfeita e ficava com um endereço sem dados: lia-se vazio (apanhado pelo `_ar_json` a ler `true` com a
+biblioteca junta e as entradas ditas). Agora cada entrada sabe o seu lugar na dispersão e desfaz-se com ela
+(`tdesf`). Os módulos das apps não mudam (não tinham o caso); `test/poda.test.js` ganhou o teste, que falha com o
+compilador de antes.
+
+**Verificado.** Pontos fixos: WebAssembly (519 155 bytes), x86-64 e a ponte C. `node --test test/*.test.js`.

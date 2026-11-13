@@ -163,7 +163,17 @@
   = q + @ 21 * @ 22 2
   ! q i
   ! + q 1 adr
+  ! + + @ 21 105536 @ 22 -1
   ! 22 + @ 22 1 }
+# desfaz as entradas da zona dos dados a partir da sn (as dos textos de uma funcao morta do -w, que nao se emite): as
+# de textos constantes saem tambem da dispersao (o lugar de cada uma esta em @21 + 105536 + entrada), senao um texto
+# igual numa funcao viva achava a entrada desfeita e ficava com um endereco sem dados
+: tdesf i>i sn {
+  W > @ 22 sn {
+    ! 22 - @ 22 1
+    = h @ + + @ 21 105536 @ 22
+    ? >= h 0 ! + + @ 21 40000 h 0 0 }
+  0 }
 : sreg i>i i {
   = n slen i
   = adr @ 20
@@ -193,6 +203,7 @@
       { = r @ 20
         ! 20 + + r slen i 1
         dent - 0 i r
+        ! + + @ 21 105536 - @ 22 1 h
         ! + + @ 21 40000 h @ 22 } }
   r }
 : dadr i>i j @ + + @ 21 * j 2 1

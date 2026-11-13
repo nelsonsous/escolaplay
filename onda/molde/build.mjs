@@ -11,7 +11,7 @@ const onda = process.env.ONDA ? path.resolve(process.env.ONDA) : path.join(aqui,
 const ondac = path.join(onda, 'build/ondac');
 if (!existsSync(ondac)) execFileSync('sh', [path.join(onda, 'build.sh')], { stdio: 'inherit' });
 
-const MODULOS = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao'];
+const MODULOS = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao', 'fala'];
 // as funções que o anfitrião chama (o main e as dos eventos): o resto fica privado e o que não se usa não entra
 const EVENTOS = ['main', 'clique', 'escreve', 'lido'];
 
