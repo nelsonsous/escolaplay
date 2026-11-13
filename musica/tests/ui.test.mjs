@@ -511,16 +511,22 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.getByRole('button', { name: 'Fechar' }).click();
     await page.getByText(/· sem letras explícitas/).waitFor();
     await page.getByRole('button', { name: 'Pedir ao Maestro' }).click();
-    await page.getByText('Os teus pedidos').waitFor();
+    // pedido feito: vai-se para a lista das playlists, onde ele fica à espera, no cimo (o «Pedir» só pede)
+    await page.locator('#mu-aviso').getByText(/^Pedido feito/).waitFor();
+    await assente(1);
+    const espera = page.locator('#mu-body .mu-espera');
+    await espera.getByRole('heading', { name: /^À espera do Maestro 1$/ }).waitFor();
+    await foto('5c-espera');
     const pedido = JSON.parse(await env.KV.get('pedidos'))[0];
     assert.equal(pedido.texto, 'Faixas bem gravadas para testar o som do carro');
     assert.equal(pedido.opcoes.limpa, true);
-    // o cartão «pedido à espera» nas playlists leva à lista dos pedidos (não ao topo do Pedir)
-    await nav(1);
-    await assente(1);
-    await page.locator('#mu-body .mu-cartao', { hasText: /à espera do Maestro/ }).click();
-    await page.waitForFunction(() => { const r = document.getElementById('mu-pedidos')?.getBoundingClientRect(); return r && scrollY > 0 && r.top >= 0 && r.bottom <= innerHeight; });
-    await page.evaluate(() => window.scrollTo(0, 0));
+    assert.match(await espera.locator('.mu-pedido').first().textContent(), /^«Faixas bem gravadas para testar o som do carro»pedido a \d+\/\d+ · \d+ faixas · \S+.*Cancelar$/);
+    await page.locator('#mu-body .mu-pl').first().waitFor();
+    assert.ok(await page.evaluate(() => document.querySelector('#mu-body .mu-espera').compareDocumentPosition(document.querySelector('#mu-body .mu-pl')) & Node.DOCUMENT_POSITION_FOLLOWING), 'os pedidos à espera ficam antes das playlists');
+    await nav(3);
+    await assente(3);
+    assert.equal(await page.locator('#mu-body .mu-pedido').count(), 0, 'o «Pedir» já não tem lista de pedidos');
+    assert.equal(await page.locator('[data-onda="ptx"]').inputValue(), '', 'feito o pedido, o campo fica limpo');
     // mudar de separador a arrastar: para a direita, o anterior (Playlists); para a esquerda, o seguinte (Pedir)
     assert.equal(await separador(), 'ir\t3');
     await deslizarEm('#mu-body h1', 60, 330);
@@ -578,13 +584,18 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     page.off('request', ouvirRede);
     assert.deepEqual(rede, [], 'tudo da memória');
     // tocar outra vez no separador em que se está atualiza (vai à rede)
+    await nav(1);
+    await em(1);
+    await page.waitForFunction(() => document.getElementById('mu-espreita').hidden);
     const pediu = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/pedidos', { timeout: 5000 });
-    await nav(3);
+    await nav(1);
     await pediu;
-    // arrastar um pedido à espera para a esquerda cancela-o
-    await page.locator('.mu-pedido[data-esq]').first().waitFor();
-    await deslizarEm('.mu-pedido[data-esq]', 330, 60);
-    await page.locator('.mu-pedido[data-esq]').waitFor({ state: 'detached' });
+    // arrastar um pedido à espera para a esquerda cancela-o (e a secção desaparece com o último)
+    await page.locator('#mu-body .mu-pedido[data-esq]').first().waitFor();
+    await page.waitForLoadState('networkidle');
+    await deslizarEm('#mu-body .mu-pedido[data-esq]', 330, 60);
+    await page.locator('#mu-aviso').getByText('Pedido cancelado.').waitFor();
+    await page.locator('#mu-body .mu-espera').waitFor({ state: 'detached' });
     assert.equal(JSON.parse(await env.KV.get('pedidos')).some((x) => x.id === pedido.id), false, 'o pedido foi cancelado');
     // no topo da página, puxar para baixo atualiza (o motor de gestos decide; a Onda volta a pedir os dados)
     await page.waitForLoadState('networkidle');
@@ -667,7 +678,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await hist.getByText('«Mais vozes, menos jazz»').waitFor();
     assert.equal(await hist.locator('h3').textContent(), 'Pedidos desta playlist');
     assert.match(await hist.locator('li').first().textContent(), /^«.+»O pedido · /);
-    assert.match(await hist.locator('li.espera').textContent(), /Afinação · à espera do Maestro · sem 1 que tiraste/);
+    assert.match(await hist.locator('li.espera').textContent(), /Afinação · à espera do Maestro · sem 1 que tiraste · Cancelar$/);
     assert.ok(af.afinar.rejeitadas[0].titulo, 'o Maestro recebe o nome da faixa que saiu (já não está na playlist)');
     // o Maestro afina-a (refá-la com menos uma e dá o pedido por feito): a lista mostra «afinada» e a playlist o que mudou
     const agAf = await env.KV.get('agente:chave');
@@ -684,6 +695,24 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await afinada.locator('.mu-pl-a').click();
     await page.locator('.mu-folha .mu-hist .mu-mudou').getByText('0 novas, 1 saiu').waitFor();
     assert.match(await page.locator('.mu-folha .mu-hist li').last().textContent(), /Afinação · feita a /);
+    // outra afinação pedida: o cartão da playlist diz «afinação pedida», e cancela-se na folha, na linha dela
+    await page.locator('[data-onda="af-tx"]').fill('Mais calma');
+    await page.getByRole('button', { name: 'Pedir ao Maestro' }).click();
+    await page.locator('.mu-folha .mu-hist li.espera').getByText('«Mais calma»').waitFor();
+    await page.locator('.mu-folha .mu-fechar').click();
+    await page.waitForFunction(() => !document.querySelector('.mu-folha'));
+    await afinada.locator('.mu-pedida').getByText('afinação pedida').waitFor();
+    assert.equal(await page.locator('#mu-body .mu-espera').count(), 0, 'uma afinação não é um pedido novo: não vai para o cimo da lista');
+    await afinada.locator('.mu-pl-a').click();
+    await page.locator('.mu-folha .mu-hist li.espera').getByRole('button', { name: 'Cancelar' }).click();
+    await page.locator('#mu-aviso').getByText('Pedido cancelado.').waitFor();
+    await page.locator('.mu-folha .mu-hist li.espera').waitFor({ state: 'detached' });
+    assert.equal(JSON.parse(await env.KV.get('pedidos')).some((x) => x.texto === 'Mais calma'), false);
+    await page.locator('.mu-folha .mu-fechar').click();
+    await page.waitForFunction(() => !document.querySelector('.mu-folha'));
+    assert.equal(await afinada.locator('.mu-pedida').count(), 0, 'cancelada, o selo sai do cartão');
+    await afinada.locator('.mu-pl-a').click();
+    await page.locator('.mu-folha .mu-hist').waitFor();
     await page.locator('.mu-folha .mu-fechar').click();
     await page.waitForFunction(() => !document.querySelector('.mu-folha'));
     await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
