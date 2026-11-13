@@ -31,7 +31,7 @@ function decide(d0) {
     const d = obj(d0), fs = [];
     let manda = false;
     const cl = obj(d.cl), fc = de(FAM, cl.key);
-    if (fc !== null) { const p = prazos(cl); fs.push(fonte('claude', fc, cl.key, p < 0 ? 50 + 20 * fc : p, cl.old ? 1.5 : 3)); manda = !cl.old; }
+    if (fc !== null) { const p = prazos(cl); fs.push(fonte('claude', fc, cl.key, p < 0 ? 50 + 20 * fc : p, cl.old ? 1.5 : 3)); manda = true; }
     const an = obj(d.an), nota = de(NOTA, an.key);
     if (nota !== null && e(an.n) && an.n > 0) {
         const f = nota <= 2 ? 1 : nota >= 4 ? -1 : 0, m = e(an.mean) ? Math.max(1, Math.min(5, an.mean)) : nota;
@@ -125,7 +125,7 @@ test('casos feitos à mão', () => {
         { tec: { key: 'buy', short: 80, mid: 80, long: 80 } },
         // sem o Claude: analistas (o preço já passou o alvo: 92,5 conta 71), técnica e notícias a favor
         { an: { key: 'strong_buy', mean: 1.3, n: 40, target: 90, price: 100 }, tec: { key: 'buy', mid: 75, long: 82 }, news: 0.4 },
-        // o Claude de um dia anterior já não manda: é mais um voto, com metade do peso
+        // o Claude de um dia anterior continua a mandar, com metade do peso (a técnica, contra o «ficar» dele, fica ao lado)
         { cl: { key: 'hold', old: true }, tec: { key: 'avoid', short: 10, mid: 12, long: 20 } },
         // as referências (índices, câmbio: up, flat, down) não têm decisão
         { cl: { key: 'up', short: 60, mid: 60, long: 60 } },
@@ -136,7 +136,7 @@ test('casos feitos à mão', () => {
     assert.deepStrictEqual({ fam: c.fam, forte: c.forte, p: c.p, conf: c.conf, manda: c.manda, key: c.key }, { fam: 1, forte: 1, p: 80, conf: 0, manda: 'voto', key: 'buy' });
     assert.deepStrictEqual({ fam: d.fam, forte: d.forte, p: d.p, conf: d.conf, manda: d.manda }, { fam: 1, forte: 1, p: 74, conf: 2, manda: 'voto' });
     assert.equal(d.f[0].p, 71);
-    assert.deepStrictEqual({ fam: f.fam, forte: f.forte, p: f.p, conf: f.conf, manda: f.manda, key: f.key }, { fam: -1, forte: 0, p: 33, conf: 1, manda: 'voto', key: 'reduce' });
+    assert.deepStrictEqual({ fam: f.fam, forte: f.forte, p: f.p, conf: f.conf, manda: f.manda, key: f.key, w: f.f[0].w }, { fam: 0, forte: 0, p: 33, conf: 1, manda: 'claude', key: 'hold', w: 1.5 });
     assert.equal(g, null);
     assert.deepStrictEqual(O.decisao({ tec: { key: 'buy', short: 80, mid: 80, long: 80 } }), c);
     assert.deepStrictEqual(O.decisoes([]), []);
@@ -160,8 +160,8 @@ test('as propriedades que contam', () => {
         const x = s1[i], y = s2[i];
         if (!x) return;
         const cl = obj(obj(d).cl);
-        // manda o Claude de hoje: a família e o veredicto são os dele
-        if (de(FAM, cl.key) !== null && !cl.old) { comClaude++; assert.deepStrictEqual([x.manda, x.fam, x.key], ['claude', FAM[cl.key], cl.key]); }
+        // manda o Claude, se falou: a família e o veredicto são os dele
+        if (de(FAM, cl.key) !== null) { comClaude++; assert.deepStrictEqual([x.manda, x.fam, x.key], ['claude', FAM[cl.key], cl.key]); }
         else { assert.equal(x.manda, 'voto'); assert.equal(x.fam, x.p >= 58 ? 1 : x.p <= 42 ? -1 : 0); assert.ok(y.p >= x.p && y.fam >= x.fam, `caso ${i}`); subiu += y.p > x.p; }
         // forte e confiança alta só sem ninguém contra; as contas das fontes batem certo
         if (x.forte || x.conf === 2) assert.equal(x.contra, 0);

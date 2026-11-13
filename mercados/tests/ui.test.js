@@ -8,6 +8,18 @@ const assert = require('assert/strict');
 
 const ROOT = path.resolve(process.env.MK_ROOT || path.join(__dirname, '..'));
 const SHOTS = process.argv[2];
+// a ficha inteira numa imagem: o cartão tem deslize próprio, por isso solta-se só para a fotografia
+async function fichaInteira(page, nome) {
+    if (!SHOTS) return;
+    const solta = (on) => page.evaluate((on) => {
+        const f = document.querySelector('#mk-sheet'), c = document.querySelector('#mk-sheet-card');
+        f.style.cssText = on ? 'position:absolute;inset:0 0 auto 0;overflow:visible' : '';
+        c.style.cssText = on ? 'position:relative;max-height:none;animation:none' : '';
+    }, on);
+    await solta(true);
+    await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, nome) });
+    await solta(false);
+}
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
 function rnd(seed) { let s = seed % 2147483647 || 1; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
@@ -611,56 +623,84 @@ function proxyBody(u) {
     assert.equal(await page.locator(lst + ' .alg-diff').count(), 0, 'no desconto a lista já é a do algoritmo: sem ≠');
     console.log('✓ modo desconto: n =', dScores.length);
     await page.click('.seg.hz [data-hz="mid"]');
-    // ficha a partir da lista: veredicto, convicção por prazo, níveis e porquê do Claude; o algoritmo fechado
+    // ficha a partir da lista (4.21): um só cartão «Decisão» — o veredicto, a confiança, a média das fontes, cada fonte
+    // numa linha, os níveis, o porquê e o plano do Claude; os pormenores de cada fonte ficam dobrados por baixo
     await page.click(lst + ' .row[data-open="NVDA"]');
-    await page.waitForSelector('#mk-sheet:not([hidden]) .cl-adv');
-    const adv = '#mk-sheet .advice.cl-adv';
-    assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar forte', 'rótulo da família, forte com convicção de 88');
-    // o consenso dos analistas (4.14): a segunda opinião de fora, ao lado do veredicto do Claude
-    await page.waitForSelector('#mk-sheet .cons-box');
-    assert.match(await page.locator('#mk-sheet .cons-box .adv-act').textContent(), /^Compra forte\s+58 recomendações este mês$/);
-    assert.equal(await page.locator('#mk-sheet .cons-box .cons-bar i').count(), 5, 'os votos');
-    // a legenda com as cores da barra: um ponto por categoria (as que têm votos), com quantos e a %
-    assert.deepEqual(await page.locator('#mk-sheet .cons-box .cons-leg span').allTextContents(), ['20 compra forte · 34 %', '30 comprar · 52 %', '6 manter · 10 %', '1 vender · 2 %', '1 venda forte · 2 %'], 'por extenso');
-    assert.deepEqual(await page.locator('#mk-sheet .cons-box .cons-leg i').evaluateAll((is) => is.map((i) => i.className)), ['c0', 'c1', 'c2', 'c3', 'c4'], 'a cor de cada pedaço da barra');
-    const cm = await page.locator('#mk-sheet .cons-box .adv-meta').allTextContents();
-    assert.match(cm[0], /^Nota média 1,4, numa escala de 1 \(compra forte\) a 5 \(venda forte\)\.$/);
-    assert.match(cm[1], /^Preço-alvo médio a 12 meses, de 58 analistas: .+€ \(230,50\sUS\$\) \+17,60% face a hoje · o mais baixo .+€ \(150,00\sUS\$\), o mais alto .+€ \(300,00\sUS\$\)\.$/, 'em euros e em dólares: ' + cm[1]);
-    assert.match(await page.locator('#mk-sheet .cons-box .adv-alg').textContent(), /Claude: Comprar · concorda com os analistas/);
-    if (SHOTS) await page.locator('#mk-sheet .cons-box').screenshot({ path: path.join(SHOTS, '9-consenso.png') });
-    // a decisão consolidada (4.20.5, decisao.onda): o que a app já sabe de cada fonte, numa só decisão
+    await page.waitForSelector('#mk-sheet:not([hidden]) .dec-box');
+    const adv = '#mk-sheet .advice.dec-box';
+    await page.waitForSelector('#mk-sheet .cons-box', { state: 'attached' }); // o consenso chega da rede e entra na decisão
+    assert.equal(await page.locator('#mk-sheet .advice').count(), 1, 'uma só caixa a dizer o que fazer');
+    assert.equal(await page.locator(adv + ' h3').textContent(), 'Decisão');
+    assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar forte', 'rótulo da família; forte: média de 70 ou mais e ninguém contra');
+    // a decisão consolidada (decisao.onda): o que a app já sabe de cada fonte, numa só decisão
     const dec = await page.evaluate(() => {
         const m = window.__mk, ref = Object.keys(m.REG).find((k) => m.REG[k].kind === 'index');
         return { e: m.decIn('NVDA'), d: m.decOf('NVDA'), ref: m.decOf(ref), fora: m.decOf('NAO-EXISTE') };
     });
-    assert.deepEqual([dec.d.manda, dec.d.fam, dec.d.key], ['claude', 1, dec.e.cl.key], 'manda o Claude de hoje');
-    assert.deepEqual(dec.d.f.map((x) => x.f), ['claude', 'analistas', 'tecnica', 'noticias'].filter((f) => dec.d.f.some((x) => x.f === f)), 'as fontes pela ordem');
+    assert.deepEqual([dec.d.manda, dec.d.fam, dec.d.key, dec.d.forte], ['claude', 1, dec.e.cl.key, 1], 'manda o Claude de hoje');
+    assert.deepEqual(dec.d.f.map((x) => x.f), ['claude', 'analistas', 'tecnica', 'noticias'], 'as quatro fontes, pela ordem');
     const dAn = dec.d.f.find((x) => x.f === 'analistas');
     assert.deepEqual([dAn.p, dAn.fam, dAn.w, dAn.d, dAn.key], [90, 1, 2, 1, 'strong_buy'], 'nota 1,4 → 90; com 58 analistas, o peso inteiro');
-    assert.ok(dec.d.f.some((x) => x.f === 'tecnica') && dec.d.n === dec.d.f.length && Number.isInteger(dec.d.p), 'a técnica também vota');
+    assert.ok(dec.d.n === dec.d.f.length && Number.isInteger(dec.d.p) && dec.d.p >= 70, 'a média das fontes');
     assert.deepEqual([dec.ref, dec.fora], [null, null], 'um índice (ou o que a app não tem) não tem decisão');
+    // o cartão mostra essa decisão: a confiança, a média, quantas a favor e cada fonte numa linha
+    assert.equal(await page.locator(adv + ' .dec-conf').textContent(), 'confiança ' + ['baixa', 'média', 'alta'][dec.d.conf]);
+    assert.equal(await page.locator(adv + ' .dec-p .val').textContent(), String(dec.d.p));
+    const voz = await page.locator(adv + ' .dec-voz').textContent();
+    assert.ok(voz.startsWith(dec.d.favor === dec.d.n ? `As ${dec.d.n} fontes de acordo.` : `${dec.d.favor} de ${dec.d.n} a favor`), voz);
+    const fontes = await page.locator(adv + ' .dec-f li').evaluateAll((ls) => ls.map((l) => [...l.querySelectorAll('.dec-r b, .dec-r .dec-l, .dec-r em, .dec-s .val, .dec-s small')].map((x) => x.textContent)));
+    assert.deepEqual(fontes.map((x) => x[0]), ['Claude', 'Analistas', 'Técnica', 'Notícias']);
+    assert.deepEqual(fontes[0].slice(1), ['Comprar', 'decide', String(dec.d.f[0].p), 'C48 · M88 · L81'], 'o Claude: o veredicto, quem decide e a convicção por prazo');
+    assert.deepEqual(fontes[1].slice(1), ['Compra forte', 'a favor', '90', '58 analistas · alvo +17,60%'], 'os analistas: a recomendação, quantos e o alvo');
+    assert.match(fontes[2][4], /^C\d+ · M\d+ · L\d+$/, 'a técnica: as pontuações por prazo');
+    assert.deepEqual(fontes.map((x) => x[2]), dec.d.f.map((x, i) => (i === 0 ? 'decide' : x.d > 0 ? 'a favor' : x.d < 0 ? 'contra' : 'ao lado')), 'de que lado fica cada uma');
+    assert.match(fontes[3][4], /^\d+ títulos? recentes$/);
+    // o desenho: nada sai do cartão, a confiança fica ao lado do veredicto e cada fonte ocupa duas linhas curtas
+    const geo = await page.evaluate(() => {
+        const b = document.querySelector('#mk-sheet .dec-box'), r = (el) => el.getBoundingClientRect(), bx = r(b);
+        const act = r(b.querySelector('.dec-top .adv-act')), conf = r(b.querySelector('.dec-conf'));
+        return { cabe: [...b.querySelectorAll('*')].every((el) => r(el).right <= bx.right + 0.5 && r(el).left >= bx.left - 0.5), aoLado: conf.top < act.bottom && conf.left >= act.right - 1, linhas: [...b.querySelectorAll('.dec-f li')].map((l) => Math.round(r(l).height)), alto: Math.round(bx.height) };
+    });
+    assert.ok(geo.cabe, 'nada sai do cartão');
+    assert.ok(geo.aoLado, 'a confiança ao lado do veredicto');
+    assert.ok(geo.linhas.every((h) => h >= 36 && h <= 70), 'cada fonte em duas linhas curtas: ' + geo.linhas);
+    console.log('✓ cartão «Decisão»: fontes com', geo.linhas.join(', '), 'px de altura; o cartão todo', geo.alto, 'px');
     assert.equal(await page.locator(adv + ' .adv-nu').textContent(), 'Comprar aos poucos', 'o pormenor do Claude por baixo');
     assert.match(await page.locator(adv + ' .adv-src').textContent(), /^Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)$/);
-    assert.deepEqual(await page.locator(adv + ' .cl-conv .val').allTextContents(), ['48', '88', '81'], 'convicção curto/médio/longo');
-    assert.deepEqual(await page.locator(adv + ' .cl-conv small').allTextContents(), ['Curto prazo', 'Médio prazo', 'Longo prazo']);
     const lv = await page.locator(adv + ' .cl-lv li').allTextContents();
     assert.match(lv[0], /^Entrada\s*164,93\s€\s*−3,06%$/, 'entrada em euros e a distância ao preço: ' + lv[0]);
     assert.match(lv[1], /^Alvo\s*199,65\s€\s*\+17,35%$/, lv[1]);
     assert.match(lv[2], /^Stop\s*149,31\s€\s*−12,24%$/, lv[2]);
     assert.match(await page.locator(adv).textContent(), /Desconto de 22%[\s\S]*Plano:\s*Metade agora/);
     assert.match(await page.locator(adv + ' .adv-ev').textContent(), /Resultados daqui a 5 dias/);
-    // segunda opinião: o sinal automático ao lado, a dizer se o Claude concorda
-    const algTx = (await page.locator(adv + ' .adv-alg').textContent()).replace(/\s+/g, ' ').trim();
-    assert.match(algTx, /^Algoritmo: \S.+ — .+\(C\d+ · M\d+ · L\d+\) Claude: (concorda|discorda)/, 'a razão da regra, as pontuações e a do Claude: ' + algTx);
-    if (SHOTS) await page.locator(adv).screenshot({ path: path.join(SHOTS, '3c-algoritmo.png') });
+    assert.equal(await page.locator(adv + ' .adv-meta').count(), 0, 'os impostos saem do cartão');
+    if (SHOTS) await page.locator(adv).screenshot({ path: path.join(SHOTS, '3c-decisao.png') });
+    if (SHOTS) { await page.locator(adv).scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(SHOTS, '3b-ficha-claude.png') }); }
+    await fichaInteira(page, '3d-ficha-inteira.png');
+    // os pormenores de cada fonte, dobrados: a convicção por prazo, os analistas, os sinais automáticos e os impostos
     const shAuto = '#mk-sheet details.sh-auto';
-    assert.equal(await page.locator(shAuto + ':not([open])').count(), 1, 'sinais automáticos fechados na ficha');
+    assert.equal(await page.locator(shAuto + ':not([open])').count(), 1, 'os pormenores fechados na ficha');
+    assert.match(await page.locator(shAuto + ' > summary').textContent(), /^Pormenores de cada fonte/);
+    assert.deepEqual(await page.locator(shAuto + ' .cl-conv .val').allTextContents(), ['48', '88', '81'], 'convicção curto/médio/longo');
+    assert.deepEqual(await page.locator(shAuto + ' .cl-conv small').allTextContents(), ['Curto prazo', 'Médio prazo', 'Longo prazo']);
+    // o consenso dos analistas (4.14): a recomendação, os votos do mês, a nota e o preço-alvo
+    assert.match(await page.locator(shAuto + ' .cons-box .adv-act').textContent(), /^Compra forte\s+58 recomendações este mês$/);
+    assert.equal(await page.locator(shAuto + ' .cons-box .cons-bar i').count(), 5, 'os votos');
+    // a legenda com as cores da barra: um ponto por categoria (as que têm votos), com quantos e a %
+    assert.deepEqual(await page.locator(shAuto + ' .cons-box .cons-leg span').allTextContents(), ['20 compra forte · 34 %', '30 comprar · 52 %', '6 manter · 10 %', '1 vender · 2 %', '1 venda forte · 2 %'], 'por extenso');
+    assert.deepEqual(await page.locator(shAuto + ' .cons-box .cons-leg i').evaluateAll((is) => is.map((i) => i.className)), ['c0', 'c1', 'c2', 'c3', 'c4'], 'a cor de cada pedaço da barra');
+    const cm = await page.locator(shAuto + ' .cons-box .adv-meta').allTextContents();
+    assert.match(cm[0], /^Nota média 1,4, numa escala de 1 \(compra forte\) a 5 \(venda forte\)\.$/);
+    assert.match(cm[1], /^Preço-alvo médio a 12 meses, de 58 analistas: .+€ \(230,50\sUS\$\) \+17,60% face a hoje · o mais baixo .+€ \(150,00\sUS\$\), o mais alto .+€ \(300,00\sUS\$\)\.$/, 'em euros e em dólares: ' + cm[1]);
+    assert.equal(await page.locator(shAuto + ' .cons-box .adv-alg').count(), 0, 'quem concorda com quem está no cartão');
     assert.equal(await page.locator(shAuto + ' .box:has-text("Análise técnica") .hzb').count(), 3, 'pontuações automáticas por prazo');
     assert.equal(await page.locator(shAuto + ' .algo-box .adv-act').count(), 1, 'sinal automático lá dentro');
-    assert.equal(await page.locator('#mk-sheet .disc-box').count(), 1);
-    if (SHOTS) { await page.locator(adv).scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(SHOTS, '3b-ficha-claude.png') }); }
+    assert.equal(await page.locator(shAuto + ' .disc-box').count(), 1);
+    assert.match(await page.locator(shAuto + ' .fx-box').textContent(), /Impostos e dividendos[\s\S]*28% até 2 anos/);
     await page.click(shAuto + ' > summary');
     assert.ok(await page.locator(shAuto + ' .algo-box').isVisible(), 'abre ao tocar');
+    if (SHOTS) await page.locator(shAuto + ' .cons-box').screenshot({ path: path.join(SHOTS, '9-consenso.png') });
+    await fichaInteira(page, '3e-ficha-pormenores.png');
     await page.click(shAuto + ' > summary');
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
@@ -697,6 +737,7 @@ function proxyBody(u) {
     assert.match(await page.locator('#d-tip').textContent(), /€/);
     console.log('✓ detalhe: gráfico, análise e notícias; tooltip', await page.locator('#d-tip').textContent());
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '4-detalhe-btc.png') });
+    await fichaInteira(page, '4b-ficha-btc-inteira.png');
     await page.click('.ranges [data-range="6mo"]');
     await page.waitForFunction(() => document.querySelector('#d-load').hidden);
     assert.match(await page.locator('#d-px .alt').textContent(), /6 meses/, 'variação do período escolhido');
@@ -1134,16 +1175,22 @@ function proxyBody(u) {
     assert.equal(await page.locator('details.uni .row[data-open="ADA-EUR"] .r-sub').textContent(), 'ADA-EUR · +2,10%', 'símbolo e variação do dia');
     await page.click('details.uni .row[data-open="PUM.DE"]');
     await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && /PUMA/.test(document.querySelector('#mk-sheet-card').textContent));
-    assert.equal(await page.locator('#mk-sheet .cl-adv h3').textContent(), 'O que fazer na Trade Republic');
-    assert.equal(await page.locator('#mk-sheet .cl-adv .adv-act').textContent(), 'Comprar forte', 'convicção de 70 a médio prazo: forte');
-    assert.equal(await page.locator('#mk-sheet .cl-adv .adv-nu').count(), 0, 'sem pormenor quando a frase é o próprio rótulo');
+    assert.equal(await page.locator('#mk-sheet .dec-box h3').textContent(), 'Decisão');
+    const dPum = await page.evaluate(() => window.__mk.decOf('PUM.DE'));
+    assert.deepEqual([dPum.manda, dPum.fam], ['claude', 1], 'o veredicto do Claude para um ativo da lista toda');
+    assert.equal(await page.locator('#mk-sheet .dec-box .adv-act').textContent(), 'Comprar' + (dPum.forte ? ' forte' : ''), 'forte só com a média das fontes em 70 ou mais e ninguém contra');
+    assert.equal(await page.locator('#mk-sheet .dec-box .adv-nu').count(), 0, 'sem pormenor quando a frase é o próprio rótulo');
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     // um da lista toda que o Claude não analisou: o sinal automático, marcado (e os impostos da cripto)
     await page.click('details.uni .row[data-open="ADA-EUR"]');
     await page.waitForSelector('#mk-sheet:not([hidden]) .advice .adv-src');
-    assert.match(await page.locator('#mk-sheet .advice .adv-src').textContent(), /^Sinal automático \(algoritmo\) · o Claude não analisou este ativo$/);
-    assert.match(await page.locator('#mk-sheet .advice').textContent(), /365 dias ou mais está isento/);
+    assert.equal(await page.locator('#mk-sheet .advice .adv-src').textContent(), 'Média das fontes · o Claude não analisou este ativo');
+    const dAda = await page.evaluate(() => window.__mk.decOf('ADA-EUR'));
+    assert.equal(dAda.manda, 'voto', 'sem o Claude decide a média das fontes');
+    assert.equal(await page.locator('#mk-sheet .dec-box .dec-f li .dec-r b').first().textContent(), 'Técnica');
+    assert.equal(await page.locator('#mk-sheet .dec-box .cl-lv').count(), 0, 'sem níveis: são do Claude');
+    assert.match(await page.locator('#mk-sheet details.sh-auto .fx-box').textContent(), /365 dias ou mais está isento/);
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ dono: partilha (apps ligadas) e toda a Trade Republic em Análise (com as escolhas do Claude)');

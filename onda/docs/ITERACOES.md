@@ -2726,3 +2726,26 @@ fala (`eh`, `num`, `fin`) e o JSON com moldes. Compilou à primeira. O JS só ju
 que faltam, tipos errados, números nas fronteiras) com resultado igual ao bit; casos feitos à mão; e as propriedades
 (manda o Claude de hoje; sem ele, mais pontuação nunca piora a decisão; forte e confiança alta só sem ninguém
 contra). Os 93 testes da Mercados e o teste de interface. A ficha do ativo passa a usá-lo na volta seguinte.
+
+## Iteração 145: a ficha do ativo com uma só decisão (Mercados 4.21.0)
+
+**Antes.** A ficha de uma ação tinha três caixas a dizer o que fazer: a do Claude (com o algoritmo lá dentro, a
+dizer se concordava), a dos analistas (com o Claude lá dentro, a dizer se concordava) e os sinais automáticos. Quem
+lia tinha de fazer a conta de cabeça.
+
+**Agora.** Um cartão, «Decisão» (`mercados/onda/ecra-decisao.onda`, 97 linhas, sobre o motor da it.144): o veredicto e
+a confiança; a média das fontes e quantas estão a favor («2 de 4 a favor · ao lado: a técnica e as notícias»); cada
+fonte numa linha (o que diz, a pontuação, de que lado fica e o pormenor: a convicção por prazo, quantos analistas e o
+alvo, as pontuações da técnica); depois os níveis, o porquê e o plano do Claude, e a agenda. O que cada fonte viu em
+pormenor fica dobrado por baixo, com os impostos.
+
+**Uma regra do motor mudou.** O Claude manda sempre que falou do ativo; quando a análise não é a última pesa metade,
+e a confiança desce com isso. Assim a ficha diz o mesmo que a lista do Painel, que mostra o último veredicto dele.
+
+**O que saiu do JS.** A linha «Algoritmo / Claude concorda» (`algLine`), a linha «Claude concorda com os analistas»,
+a variante do sinal automático em primeiro plano e uma tabela de famílias repetida. Sem o Claude, o cartão é o mesmo,
+com a média das fontes a decidir.
+
+**Verificado.** `mercados/tests/ecra-decisao.test.mjs`: o cartão escrito outra vez em JS e 4 000 instantâneos ao acaso
+(fontes que faltam, textos com HTML) iguais byte a byte. O teste de interface confere a ficha da Nvidia, da Bitcoin,
+de um índice (que fica com a leitura do Claude), de um ativo com análise antiga e de um sem análise.

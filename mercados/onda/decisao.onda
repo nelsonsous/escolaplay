@@ -9,9 +9,9 @@
 #   noticias   o tom dos títulos (−1 a 1): p = 50 + 50 × tom     peso 0,75
 # Nos prazos pesa mais o longo: 25 % o curto, 35 % o médio e 40 % o longo (do que houver).
 #
-# A DECISÃO: P é a média das pontuações pelos pesos. Manda o Claude se a análise é de hoje (a família e o veredicto
-# são os dele); senão manda o voto: P ≥ 58 entrar, P ≤ 42 sair, o resto ficar. Cada fonte fica a favor (a mesma
-# família), contra (a oposta) ou ao lado.
+# A DECISÃO: P é a média das pontuações pelos pesos. Manda o Claude, se falou do ativo (a família e o veredicto são
+# os dele; se a análise é de um dia anterior, pesa metade e a confiança desce com isso); sem ele manda o voto:
+# P ≥ 58 entrar, P ≤ 42 sair, o resto ficar. Cada fonte fica a favor (a mesma família), contra (a oposta) ou ao lado.
 #   forte      ninguém contra e P ≥ 70 (entrar) ou P ≤ 30 (sair)
 #   confiança  alta: peso total ≥ 4, 75 % ou mais do peso a favor e ninguém contra
 #              baixa: peso total < 2, um terço ou mais do peso contra, ou menos de metade a favor
@@ -51,13 +51,13 @@
   ! r + @ r 1 }
 
 # ---------- as fontes ----------
-# o Claude; vale 1 se manda (a análise é de hoje)
+# o Claude; vale 1 se falou (é ele quem manda)
 : dc_claude ii>i r c {
   = f dc_fam c.key
   ? == f 9 0 {
     = p dc_pz c
     dc_poe r 0 f txt c.key ? < p 0. + 50. * 20. F f p ? ha c.old 1.5 3.
-    ~ ha c.old } }
+    1 } }
 : dc_analistas ii>i r c {
   = m dc_nota c.key
   Se && > m 0. && dc_e c.n > num c.n 0. {

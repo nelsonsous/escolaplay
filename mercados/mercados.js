@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.20.5';
+    const VERSION = '4.21.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1412,30 +1412,17 @@
     const whyToday = (k, q) => (moverWhy(k) ? `<div class="adv-why"><b>Porquê ${fin(q.changePct) && q.changePct < 0 ? 'desce' : 'sobe'} hoje:</b> ${esc(moverWhy(k))}</div>` : '');
     // compra-se na TR? (também o que se abre de "Toda a Trade Republic", que não está nas listas)
     const buyable = (k) => !!REG[k] && ['stock', 'fund', 'crypto'].includes(REG[k].kind);
-    // factos que contam numa decisão: agenda, tipo de ETF e impostos em Portugal
+    // o tipo de ETF e os impostos em Portugal (nos pormenores, por baixo da decisão)
     function factsHtml(k) {
         if (!buyable(k)) return '';
         const kind = REG[k].ut === 'crypto' ? 'crypto' : REG[k].kind;
-        return `${eventsOf(k).filter((e) => inDays(e.ms) <= 21).map((e) => `<div class="adv-ev">${e.type === 'earnings'
-                ? `<b>Resultados ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Nesses dias a ação costuma mexer ±5–10%.`
-                : `<b>Ex-dividendo ${whenTxt(inDays(e.ms))} (${dm(e.ms)}).</b> Para receber este dividendo tens de ter a ação antes dessa data.`}</div>`).join('')}
-            ${kind === 'fund' && FUND_TYPE[k] ? `<div class="adv-meta"><b>${{ acc: 'Acumulação', dist: 'Distribuição', etc: 'ETC (sem dividendos)' }[FUND_TYPE[k]]}</b> — ${{ acc: 'não paga dividendos: nada a declarar no IRS até venderes.', dist: 'paga dividendos: 28% e declaração no IRS (Anexo J) todos os anos. Para o plano, a versão de acumulação poupa essa declaração.', etc: 'não paga dividendos; só declaras quando venderes.' }[FUND_TYPE[k]]}</div>` : ''}
+        return `${kind === 'fund' && FUND_TYPE[k] ? `<div class="adv-meta"><b>${{ acc: 'Acumulação', dist: 'Distribuição', etc: 'ETC (sem dividendos)' }[FUND_TYPE[k]]}</b> — ${{ acc: 'não paga dividendos: nada a declarar no IRS até venderes.', dist: 'paga dividendos: 28% e declaração no IRS (Anexo J) todos os anos. Para o plano, a versão de acumulação poupa essa declaração.', etc: 'não paga dividendos; só declaras quando venderes.' }[FUND_TYPE[k]]}</div>` : ''}
             ${kind === 'stock' ? '<div class="adv-meta"><b>Dividendos</b> — se a empresa pagar, são 28% e entram na declaração de IRS (Anexo J) todos os anos.</div>' : ''}
             <div class="adv-meta">Impostos (PT): ${kind === 'crypto' ? 'vender ao fim de 365 dias ou mais está isento de IRS; antes disso paga 28%.' : kind === 'fund' ? 'só pagas quando venderes, e menos quanto mais tempo o tiveres: 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais. Um ETF de acumulação não paga nada enquanto o tiveres.' : 'ao vender, 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais; os dividendos pagam 28%.'}</div>`;
     }
-    // segunda opinião: o sinal automático do mesmo ativo ao lado do veredicto do Claude (família: entrar / ficar / sair)
-    const FAM = { buy: 1, scale: 1, hold: 0, wait: 0, neutral: 0, turn: 0, reduce: -1, sell: -1, avoid: -1 };
-    const algDiff = (k, c) => { const a = AN[k] && AN[k].advice; return !!(c && a && FAM[c.key] != null && FAM[a.key] != null && FAM[c.key] !== FAM[a.key]); };
-    function algLine(k, c) {
-        const a = AN[k] && AN[k].advice;
-        if (!a || !buyable(k) || FAM[c.key] == null) return '';
-        const diff = algDiff(k, c), h = AN[k] && AN[k].horizons;
-        // as pontuações da regra (curto, médio, longo): o que ela vê, em números
-        const pts = h ? ['short', 'mid', 'long'].map((z, i) => (h[z] && fin(h[z].score) ? `${'CML'[i]}${Math.round(h[z].score)}` : '')).filter(Boolean).join(' · ') : '';
-        return `<div class="adv-alg${diff ? ' diff' : ''}">
-            <div><b>Algoritmo:</b> ${esc(rotulo(a.key, owns(k)) || a.action)}${a.text ? ` — ${esc(a.text)}` : ''}${pts ? ` <span class="alg-pts num">(${pts})</span>` : ''}</div>
-            <div><b>Claude:</b> ${diff ? `<b>discorda</b>${c.algWhy ? ` — ${esc(c.algWhy)}` : ''}` : 'concorda'}</div></div>`;
-    }
+    // o Claude e o sinal automático do mesmo ativo dizem coisas de famílias diferentes (entrar / ficar / sair)
+    const algDiff = (k, c) => { const a = AN[k] && AN[k].advice; return !!(c && a && FAMS[c.key] != null && FAMS[a.key] != null && FAMS[c.key] !== FAMS[a.key]); };
+    // a leitura do Claude do que não se compra (índices, câmbio, futuros): os ativos têm o cartão «Decisão»
     function claudeBox(k, q) {
         const c = claudeFor(k);
         if (!c) return '';
@@ -1447,16 +1434,14 @@
         const conv = HZ.filter(([h]) => fin(c[h])).map(([h, l]) => `<div class="cv"><small>${l} prazo</small>${scoreBar({ score: c[h], tone: scoreTone(c[h]) })}</div>`).join('');
         const lv = [['entry', 'Entrada'], ['target', 'Alvo'], ['stop', 'Stop']].filter(([f]) => fin(clPx(k, q, c[f])))
             .map(([f, l]) => `<li class="${f}"><small>${l}</small><b class="num">${fmtPx(clPx(k, q, c[f]), A_, q.currency)}</b><span class="num">${dist(c[f])}</span></li>`).join('');
-        return `<div class="box advice cl-adv ${tone}"><h3>${buyable(k) ? 'O que fazer na Trade Republic' : 'Leitura do Claude'}</h3>
+        return `<div class="box advice cl-adv ${tone}"><h3>Leitura do Claude</h3>
             <div class="adv-src">${c.old ? `Análise do Claude de ${esc(dmy(c.date).slice(0, 5))} · último comentário a este ativo` : `Análise do Claude · ${esc(clWhen())}`}</div>
             <div class="adv-act ${tone}-t">${esc(lbl)}${forte ? ' <small class="adv-forte">forte</small>' : ''}</div>${nuance(lbl, c.action)}
             ${conv ? `<div class="cl-conv" role="group" aria-label="Convicção do Claude por prazo">${conv}</div>` : ''}
             ${lv ? `<ul class="cl-lv">${lv}</ul>` : ''}
-            ${algLine(k, c)}
             ${whyToday(k, q)}
             <div class="adv-txt">${esc(c.why || '')}</div>
-            ${c.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(c.plan)}</div>` : ''}
-            ${factsHtml(k)}</div>`;
+            ${c.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(c.plan)}</div>` : ''}</div>`;
     }
     // ---- o consenso dos analistas (Yahoo, pelo conector: /consensus) — a segunda opinião de fora, nas ações ----
     const CONS = {}, consAt = {};
@@ -1484,7 +1469,36 @@
         };
     }
     const decOf = (k) => (buyable(k) ? A.decisao(decIn(k)) : null);
-    function consBox(k, cl) {
+    // o cartão «Decisão» da ficha (ecra-decisao.onda): as fontes e o que só o JS sabe (de quando é a análise, os
+    // níveis já na moeda do ecrã, a agenda). dec é a decisão (decOf): diz quem manda e o veredicto
+    function decSnap(k, q, dec) {
+        const c = claudeFor(k), cons = CONS[k], n = NEWS[k], alg = AN[k] && AN[k].advice, manda = dec.manda === 'claude', lbl = rotulo(dec.key, owns(k));
+        const de = c && c.date ? dmy(c.date).slice(0, 5) : '';
+        const dist = (v) => { const p = clPx(k, q, v); return fin(p) && fin(q.price) && q.price ? fmtPct((p / q.price - 1) * 100) : ''; };
+        return {
+            d: decIn(k), own: owns(k),
+            src: manda ? (c.old ? `Análise do Claude de ${de} · último comentário a este ativo` : `Análise do Claude · ${clWhen()}`) : `Média das fontes · ${clDoc() ? 'o Claude não analisou este ativo' : claudeOn() ? 'ainda sem análise do Claude' : 'a análise do Claude liga-se em Ajustes'}`,
+            act: manda && c.action && c.action.trim().toLowerCase() !== lbl.toLowerCase() ? c.action : '',
+            // o porquê: o do Claude; sem ele, o da regra automática quando é ela que aponta para o mesmo lado
+            why: manda ? c.why : alg && FAMS[alg.key] === dec.fam ? alg.text : '', plan: manda ? c.plan : '', algWhy: manda && algDiff(k, c) ? c.algWhy : '',
+            lv: manda ? [['entry', 'Entrada'], ['target', 'Alvo'], ['stop', 'Stop']].filter(([f]) => fin(clPx(k, q, c[f]))).map(([f, l]) => ({ f, l, px: fmtPx(clPx(k, q, c[f]), REG[k], q.currency), d: dist(c[f]) })) : [],
+            anD: cons && fin(cons.target) && fin(cons.price) && cons.price > 0 ? (cons.target / cons.price - 1) * 100 : null,
+            nn: n && n.items ? Math.min(8, n.items.length) : 0,
+            hoje: moverWhy(k), desce: fin(q.changePct) && q.changePct < 0,
+            ev: eventsOf(k).filter((e) => inDays(e.ms) <= 21).map((e) => ({ t: e.type, q: whenTxt(inDays(e.ms)), d: dm(e.ms) })),
+        };
+    }
+    // os pormenores de cada fonte, dobrados por baixo da decisão: a convicção do Claude por prazo, os analistas, os
+    // sinais automáticos (o sinal, as pontuações por prazo com as razões, o desconto) e os impostos
+    function decFold(k, q) {
+        const c = claudeFor(k), facts = factsHtml(k);
+        const conv = c ? HZ.filter(([h]) => fin(c[h])).map(([h, l]) => `<div class="cv"><small>${l} prazo</small>${scoreBar({ score: c[h], tone: scoreTone(c[h]) })}</div>`).join('') : '';
+        return `<details class="auto sh-auto" data-fold="sheet-auto" ${foldAttr('sheet-auto')}><summary>Pormenores de cada fonte<small>o que cada uma viu, e os impostos</small></summary>
+            ${conv ? `<div class="box cl-box"><h3>Claude <small>convicção por prazo</small></h3><div class="cl-conv" role="group" aria-label="Convicção do Claude por prazo">${conv}</div></div>` : ''}
+            ${consBox(k)}${algoAdvice(k, q)}${techBox(k)}${discountBox(k, q)}
+            ${facts.trim() ? `<div class="box fx-box"><h3>Impostos e dividendos</h3>${facts}</div>` : ''}</details>`;
+    }
+    function consBox(k) {
         const c = CONS[k];
         if (!c || c.none || c.error || !CONS_LBL[c.key] || !(c.n > 0)) return '';
         const f = CONS_FAM[c.key], tone = f > 0 ? 'up' : f < 0 ? 'down' : 'flat', q = qv(k);
@@ -1505,28 +1519,23 @@
                 + (f > 0 && d < 0 ? '<div class="adv-meta cons-av">Dizem comprar, mas o preço já passou o alvo médio deles: a subida que esperavam já aconteceu.</div>'
                     : f < 0 && d > 0 ? '<div class="adv-meta cons-av">Dizem vender, mas o alvo médio está acima do preço de hoje.</div>' : '');
         }
-        const fc = cl ? FAMS[cl.key] : null;
-        const quem = fc == null ? '' : `<div class="adv-alg${fc !== f ? ' diff' : ''}"><b>Claude:</b> ${esc(rotulo(cl.key, owns(k)))} · ${fc === f ? 'concorda com os analistas' : `<b>discorda</b> — eles dizem ${CONS_LBL[c.key]}; o porquê do Claude está na leitura dele, acima`}</div>`;
         return `<div class="box cons-box"><h3>Analistas <small>Yahoo Finance</small></h3>
             <div class="adv-act ${tone}-t">${CONS_LBL[c.key]} <small class="cons-n">${tot ? `${tot} ${tot === 1 ? 'recomendação' : 'recomendações'} este mês` : `consenso de ${c.n} ${c.n === 1 ? 'analista' : 'analistas'}`}</small></div>
-            ${bar}${alvo}${quem}</div>`;
+            ${bar}${alvo}</div>`;
     }
-    // sinal automático (regras fixas de analise.js): em primeiro plano só quando o Claude não analisou o ativo
-    function algoAdvice(k, q, primary) {
+    // o sinal automático (regras fixas de analise.js), nos pormenores: a ação, o plano em preços e quando a ideia falha
+    function algoAdvice(k, q) {
         const r = AN[k];
         if (!r || !r.advice || !buyable(k)) return '';
         const a = r.advice;
         const fmt = (price) => fmtPx(lvPx(k, q, price), REG[k], q.currency);
         const al = rotulo(a.key, owns(k)) || a.action;
-        const body = `<div class="adv-act ${a.tone}-t">${esc(al)}</div>${nuance(al, a.action)}
+        return `<div class="box algo-box"><h3>Sinal automático</h3><div class="adv-act ${a.tone}-t">${esc(al)}</div>${nuance(al, a.action)}
             <div class="adv-txt">${esc(a.text)}</div>
             ${a.plan.length ? `<ul class="adv-plan">${a.plan.map((x) => `<li><span>${esc(x.t)}</span><b class="num">${fmt(x.price)}</b></li>`).join('')}</ul>` : ''}
             ${a.invalid ? `<div class="adv-meta">A ideia falha se fechar abaixo de <b class="num">${fmt(a.invalid)}</b></div>` : ''}
-            ${a.size ? `<div class="adv-meta">Tamanho: ${esc(a.size)}</div>` : ''}`;
-        if (!primary) return `<div class="box algo-box"><h3>Sinal automático</h3>${body}<div class="adv-meta faint">Regras fixas: tendência, desconto e níveis.</div></div>`;
-        return `<div class="box advice ${a.tone}"><h3>O que fazer na Trade Republic</h3>
-            <div class="adv-src">Sinal automático (algoritmo) · ${clDoc() ? 'o Claude não analisou este ativo' : claudeOn() ? 'ainda sem análise do Claude' : 'a análise do Claude liga-se em Ajustes'}</div>
-            ${whyToday(k, q)}${body}${factsHtml(k)}</div>`;
+            ${a.size ? `<div class="adv-meta">Tamanho: ${esc(a.size)}</div>` : ''}
+            <div class="adv-meta faint">Regras fixas: tendência, desconto e níveis.</div></div>`;
     }
     // pontuações automáticas por prazo, com as razões
     function techBox(k) {
@@ -2019,7 +2028,7 @@
     }
     function renderSheet() {
         const k = sheetKey; if (!k) return;
-        const a = REG[k], q = qv(k), r = AN[k], n = NEWS[k], cl = claudeFor(k);
+        const a = REG[k], q = qv(k), r = AN[k], n = NEWS[k], cl = claudeFor(k), dec = decOf(k);
         const following = cfg.watch.includes(k) || cfg.funds.includes(k);
         const stat = (l, v) => `<div><small>${l}</small><b class="num">${v}</b></div>`;
         const box = $('#mk-sheet-card');
@@ -2032,10 +2041,8 @@
             <div class="d-chart"><canvas id="d-cv"></canvas><div class="d-axis num" id="d-axis"></div><div class="loading" id="d-load">A carregar…</div></div>
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
             ${perfRow(k, q)}
-            ${cl ? claudeBox(k, q) : algoAdvice(k, q, true)}
-            ${consBox(k, cl)}
-            ${cl ? `<details class="auto sh-auto" data-fold="sheet-auto" ${foldAttr('sheet-auto')}><summary>Sinais automáticos (algoritmo)<small>regras fixas: tendência, momento, desconto</small></summary>
-                ${algoAdvice(k, q, false)}${techBox(k)}${discountBox(k, q)}</details>` : ''}
+            ${dec ? AO.ecra.decisao(decSnap(k, q, dec)) + decFold(k, q) : cl ? `${claudeBox(k, q)}<details class="auto sh-auto" data-fold="sheet-auto" ${foldAttr('sheet-auto')}><summary>Sinais automáticos (algoritmo)<small>regras fixas: tendência, momento, desconto</small></summary>
+                ${techBox(k)}${discountBox(k, q)}</details>` : ''}
             <div class="stats">
                 ${stat('Máx. do dia', fmtPx(q.dayHigh, a, q.currency))}${stat('Mín. do dia', fmtPx(q.dayLow, a, q.currency))}
                 ${a.kind === 'crypto' ? stat('Volume 24 h', fmtBig(q.volume) + ' ' + cfg.fiat) : stat('Fecho anterior', fmtPx(q.prevClose, a, q.currency))}
@@ -2043,10 +2050,10 @@
                 ${fin(q.high52) ? stat('Máx. 52 sem.', fmtPx(q.high52, a, q.currency)) + stat('Mín. 52 sem.', fmtPx(q.low52, a, q.currency)) : ''}
                 ${r ? stat('RSI (14)', fin(r.metrics.rsi) ? Math.round(r.metrics.rsi) : '—') + stat('Volatilidade', fin(r.metrics.vol) ? Math.round(r.metrics.vol * 100) + '%/ano' : '—') : ''}
             </div>
-            ${cl ? '' : techBox(k)}
+            ${cl || dec ? '' : techBox(k)}
             ${a.kind === 'energy' || k === 'GC=F' ? '<p class="note" style="margin:-4px 2px 14px">Contrato de futuros (referência). Na Trade Republic não se compra diretamente; existem ETC, com custos de rolagem a prazo.</p>' : ''}
             ${levelsBox(k, q)}
-            ${cl ? '' : discountBox(k, q)}
+            ${cl || dec ? '' : discountBox(k, q)}
             ${taxBox(k)}
             <div class="box"><h3>Notícias</h3>
                 ${!cfg.proxy ? '<div class="note">Liga o conector para ver notícias.</div>' : !n ? '<div class="note">A procurar notícias…</div>' : !n.items.length ? '<div class="note">Sem notícias nos últimos 3 dias.</div>'

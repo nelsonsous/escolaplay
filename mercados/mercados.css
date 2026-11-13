@@ -755,10 +755,28 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .sim-infl { margin: 4px 2px 12px; }
 
 /* ficha: a razão do algoritmo e a do Claude (4.15) */
-.adv-alg > div + div { margin-top: 4px; }
-.adv-alg .alg-pts { color: var(--muted); font-size: calc(.78rem * var(--k)); }
 .cons-av { color: #f59e0b; }
 .cons-box .adv-meta small { color: var(--muted); }
+
+/* a decisão consolidada (4.21.0): o veredicto e a confiança, a média das fontes e cada fonte numa linha */
+.dec-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; }
+.dec-conf { flex: none; font-size: calc(.76rem * var(--k)); font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.dec-conf.c2 { color: var(--up); border-color: rgba(34, 197, 94, .5); }
+.dec-conf.c0 { color: #f59e0b; border-color: rgba(245, 158, 11, .5); }
+.dec-p { margin: 10px 0 2px; }
+.dec-p small, .dec-voz { color: var(--muted); font-size: calc(.8rem * var(--k)); }
+.dec-voz { margin: 2px 0 6px; line-height: 1.4; }
+.dec-f { list-style: none; margin: 0 0 10px; padding: 0; }
+.dec-f li { padding: 8px 0; border-top: 1px solid var(--line); }
+.dec-r { display: flex; align-items: baseline; gap: 8px; font-size: calc(.9rem * var(--k)); }
+.dec-r b { flex: none; }
+.dec-r .dec-l { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dec-r em { flex: none; font-style: normal; font-size: calc(.74rem * var(--k)); color: var(--faint); }
+.dec-f .d1 em { color: var(--up); } .dec-f .d2 em { color: var(--down); }
+.dec-s { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.dec-s .score { flex: 0 0 44%; }
+.dec-s small { flex: 1; min-width: 0; color: var(--faint); font-size: calc(.76rem * var(--k)); line-height: 1.35; overflow-wrap: anywhere; }
+.cl-box h3 small, .fx-box h3 small { color: var(--muted); font-weight: 500; font-size: calc(.74rem * var(--k)); }
 .real .sec-h .real-edit { margin-left: auto; font-size: calc(.84rem * var(--k)); }
 .pl-nota { color: var(--muted); font-size: calc(.82rem * var(--k)); margin: 2px 0 8px; }
 .real-imp { padding: 10px 0 12px; } .real-imp textarea { width: 100%; box-sizing: border-box; min-height: 92px; font-family: ui-monospace, Menlo, monospace; font-size: 14px; margin-bottom: 8px; resize: vertical; }

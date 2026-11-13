@@ -51,6 +51,23 @@ O plano grátis da Cloudflare dá 100 000 pedidos/dia; com a app aberta a atuali
 
 Duas vezes por dia (07:14 e 15:14), uma tarefa agendada do Claude segue [`CONSELHEIRO.md`](CONSELHEIRO.md): corre `conselheiro/dados.mjs` (todos os ativos que a app mostra — o que tens, ETF, cripto, ações da lista e as que juntaste, índices e futuros — numa linha compacta cada, com notícias, agenda, diário e a avaliação dos veredictos anteriores; e um `modelo.json` com todos os ativos), escreve um veredicto por ativo (convicção 0–100 por prazo, entrada/alvo/stop, porquê), a sua classificação por prazo, o plano do mês e as lições, e publica com `conselheiro/publicar.mjs` no KV (os scripts são escritos em Onda: `conselheiro/onda/*.onda`) (`advice:<data>`, `advice:latest`, `advice:lessons`; o publicar recusa se faltar algum ativo). A app mostra-a no cartão **Hoje**, na **Análise** e na ficha de cada ativo (lida em `GET /advice`; a análise antiga, só com alguns veredictos, continua a ser lida). Não é preciso merge diário: só a base de dados muda; alterações às regras chegam como PR em rascunho, à sexta.
 
+## Decisão consolidada
+
+Na ficha de cada ativo que se compra há um só cartão, **Decisão**: o veredicto, a confiança e o que cada fonte diz. As regras estão em [`onda/decisao.onda`](onda/decisao.onda) e o cartão em [`onda/ecra-decisao.onda`](onda/ecra-decisao.onda).
+
+| Fonte | Pontuação (0–100) | Peso |
+|---|---|---|
+| Claude | a convicção por prazo (25 % curto, 35 % médio, 40 % longo) | 3 (1,5 se a análise não é a última) |
+| Analistas (Yahoo) | 100 − 25 × (nota − 1); metade do caminho até 50 se o preço já passou o alvo | 2 com 10 analistas ou mais |
+| Técnica | a pontuação por prazo, com os mesmos pesos | 1,5 |
+| Notícias | 50 + 50 × tom dos títulos | 0,75 |
+
+- **Quem manda:** o Claude, se falou do ativo. Sem ele, a média pelos pesos (≥ 58 entrar, ≤ 42 sair).
+- **Confiança:** alta com peso total ≥ 4, 75 % do peso a favor e ninguém contra. Baixa com uma fonte sozinha, um terço do peso contra ou menos de metade a favor.
+- **Forte:** ninguém contra e a média em 70 ou mais (30 ou menos para sair).
+
+Os pormenores de cada fonte (convicção por prazo, analistas, sinais automáticos, impostos) ficam dobrados por baixo do cartão.
+
 ## Diário e teste no passado
 
 - A app guarda **uma vez por dia** as sugestões de cada ativo (ação, pontuações, preço) no KV `JOURNAL` do conector (`POST /journal`), com um código anónimo gerado no telemóvel (visível em Ajustes, para recuperar o histórico).

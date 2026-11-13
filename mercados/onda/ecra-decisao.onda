@@ -1,0 +1,97 @@
+# ecra-decisao.onda — o cartão «Decisão» da ficha de um ativo: a decisão consolidada (decisao.onda) e o que a
+# sustenta, por esta ordem: o veredicto e a confiança; a média das fontes e quantas estão a favor; cada fonte numa
+# linha (o que diz, a pontuação, de que lado fica); os níveis, o porquê e o plano do Claude; a agenda.
+# Não escreve nada se nenhuma fonte fala.
+#
+# O INSTANTÂNEO: { d: as fontes (a entrada do dc_calc), own: tenho o ativo, src: de quando é a análise,
+#   act: a frase do Claude (se diz mais do que o rótulo), why, plan, algWhy (porque discorda da técnica),
+#   lv: [{ f, l, px, d }] (os níveis, já na moeda do ecrã), anD (o alvo dos analistas face a hoje, em %),
+#   nn (os títulos que contam para o tom), hoje (porque mexe hoje), desce, ev: [{ t, q, d }] (a agenda) }
+# Precisa do decisao.onda, do ecra.onda (es, ln_fin, fm_pct) e do ecra-analise.onda (an_sht, an_barv).
+
+# a família (1 entrar, 0 ficar, -1 sair) por extenso, para quem tem (o) ou não o ativo; parte: é um reduce
+: dv_rot iii>i f o parte ? > f 0 ? o "Reforçar" "Comprar" ? == f 0 ? o "Manter" "Aguardar"
+  ? o `Vender{ Se parte " parte" }` "Evitar"
+: dv_tom i>i f ? > f 0 "up" ? < f 0 "down" "flat"
+: dv_nome i>i q ? == q 0 "Claude" ? == q 1 "Analistas" ? == q 2 "Técnica" "Notícias"
+: dv_art i>i q ? == q 0 "o Claude" ? == q 1 "os analistas" ? == q 2 "a técnica" "as notícias"
+# a recomendação dos analistas (o CONS_LBL do JS)
+: dv_cons i>i k ? eh k $"strong_buy" "Compra forte" ? eh k $"buy" "Comprar" ? eh k $"hold" "Manter"
+  ? eh k $"underperform" "Abaixo do mercado" ? eh k $"sell" "Vender" "Venda forte"
+# as pontuações por prazo de um nó, das que há: "C48 · M88 · L81"
+: dv_pz i>i x {
+  = k 0
+  Se ln_fin x.short { `C{ _nu_ps _nu_round num x.short }` = k 1 }
+  Se ln_fin x.mid { Se k " · " `M{ _nu_ps _nu_round num x.mid }` = k 1 }
+  Se ln_fin x.long { Se k " · " `L{ _nu_ps _nu_round num x.long }` }
+  0 }
+# as fontes do resultado r que estão na posição p, por extenso: "os analistas, a técnica e as notícias"
+: dv_quem ii>i r p {
+  = tot 0 = k 0
+  L i @ r Se == @ + + + r 10 * 6 i 2 p = tot + tot 1
+  L i @ r {
+    = b + + r 10 * 6 i
+    Se == @ + b 2 p { Se k ? == k - tot 1 " e " ", " dv_art @ b = k + k 1 } }
+  0 }
+# quantas fontes estão a favor, e quais ficam contra e ao lado
+: dv_voz i>i r {
+  = n @ r = nf @ + r 6 = nc @ + r 7
+  ? == n 1 `Uma só fonte: { dv_art @ + r 10 }.`
+  ? == nf n `As {N n} fontes de acordo.` {
+    `{N nf} de {N n} a favor`
+    Se nc { " · contra: " dv_quem r -1 }
+    Se < + nf nc n { " · ao lado: " dv_quem r 0 }
+    0 } }
+# a fonte i do resultado r, numa linha: o que diz, de que lado fica, a pontuação e o pormenor
+: dv_fonte ii>i r i {
+  = b + + r 10 * 6 i = q @ b = f @ + b 1 = lado @ + b 2
+  = d es.d = o ha es.own
+  `<li class="d{ ? > lado 0 "1" ? < lado 0 "2" "0" }"><div class="dec-r"><b>{ dv_nome q }</b><span class="dec-l { dv_tom f }-t">`
+  ? == q 0 an_sht d.cl.key o ? == q 1 dv_cons d.an.key ? == q 2 an_sht d.tec.key o
+    ? > f 0 "positivas" ? < f 0 "negativas" "neutras"
+  `</span><em>{ ? && == q 0 @ + r 4 "decide" ? > lado 0 "a favor" ? < lado 0 "contra" "ao lado" }</em></div>`
+  `<div class="dec-s">{ an_barv @f + b 4 }<small>`
+  Se == q 0 dv_pz d.cl
+  Se == q 1 {
+    plural I num d.an.n $"analista" $"analistas"
+    Se ln_fin es.anD {
+      = a num es.anD
+      ` · alvo { fm_pct a }`
+      Se && > f 0 < a 0. " · o preço já passou o alvo"
+      Se && < f 0 > a 0. " · o alvo está acima do preço" } }
+  Se == q 2 dv_pz d.tec
+  Se && == q 3 ln_fin es.nn { plural I num es.nn $"título" $"títulos" " recentes" }
+  `</small></div></li>` }
+
+: ecra_decisao i>i s {
+  ! 53 s
+  = r dc_calc es.d
+  Se r {
+    = f @ + r 1 = c @ + r 3
+    `<div class="box advice dec-box { dv_tom f }"><h3>Decisão</h3>`
+    Se ha es.src `<div class="adv-src">{ esc es.src }</div>`
+    `<div class="dec-top"><div class="adv-act { dv_tom f }-t">{ dv_rot f ha es.own mesmo @ + r 5 $"reduce" }`
+    `{ Se @ + r 2 ` <small class="adv-forte">forte</small>` }</div>`
+    `<span class="dec-conf c{N c}">confiança { ? == c 2 "alta" ? == c 1 "média" "baixa" }</span></div>`
+    Se ha es.act `<div class="adv-nu">{ esc es.act }</div>`
+    `<div class="dec-p"><small>Média das fontes</small>{ an_barv @f + r 8 }</div>`
+    `<div class="dec-voz">{ dv_voz r }</div>`
+    `<ul class="dec-f">` L i @ r dv_fonte r i `</ul>`
+    Se quantos es.lv {
+      `<ul class="cl-lv">`
+      = n pri es.lv
+      W n { `<li class="{ esc n.f }"><small>{ esc n.l }</small><b class="num">{ esc n.px }</b><span class="num">{ esc n.d }</span></li>` = n seg n }
+      `</ul>` }
+    Se ha es.hoje `<div class="adv-why"><b>Porquê { ? ha es.desce "desce" "sobe" } hoje:</b> { esc es.hoje }</div>`
+    Se ha es.why `<div class="adv-txt">{ esc es.why }</div>`
+    Se ha es.plan `<div class="adv-txt"><b>Plano:</b> { esc es.plan }</div>`
+    Se ha es.algWhy `<div class="adv-alg diff"><b>O Claude discorda da técnica:</b> { esc es.algWhy }</div>`
+    = n pri es.ev
+    W n {
+      `<div class="adv-ev">`
+      ? eh n.t $"earnings" `<b>Resultados { esc n.q } ({ esc n.d }).</b> Nesses dias a ação costuma mexer ±5–10%.`
+        `<b>Ex-dividendo { esc n.q } ({ esc n.d }).</b> Para receber este dividendo tens de ter a ação antes dessa data.`
+      `</div>`
+      = n seg n }
+    `</div>` }
+  0 }
