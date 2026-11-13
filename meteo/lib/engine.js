@@ -1,7 +1,7 @@
 // Motor de previsão: junta modelos, ensembles e observações num só resultado (formato em docs/API.md).
 // Funções puras: corre no browser (PWA) e no Node (tarefa agendada do Claude). Sem acesso à rede.
 import { DET_MODELS, ENS_MODELS, inPortugal, FIRMS, IPMA_MODEL, IPMA_MAX_KM, OBS_RADIUS_KM, REPORT_KINDS, REPORT_MIN } from './sources.js';
-import { analyzeRadar, RADAR, rainLabel, fmtMmh, fmtKm, dirName } from './radar.js';
+import { analyzeRadar, RADAR, rainLabel, fmtMmh, fmtKm, dirName, radarAt, approachText } from './radar.js';
 import { learnWindow, mergeMemory, skillOf, factorsOf, factorAt, memoryInfo, metarWet, LEARN, LVARS, LEADS } from './learn.js';
 import {
     isNum, clamp, r1, r0, wmean, wstd, wquantile, wmedian, robustMean, robustKeep, wfrac, haversine, bearing, compass,
@@ -1316,7 +1316,7 @@ function outlookText(steps, { wet, from = 0, radar }) {
         const i = kinds.findIndex((k, j) => j >= from && k === 'nao');
         return i < 0 ? 'deve continuar nas próximas 2 horas' : `deve parar por volta das ${hh(steps[i].time)}`;
     }
-    if (radar?.approach) return `chuva a ${fmtKm(radar.approach.distanceKm)} km a ${WIND_FROM[radar.approach.fromDir] || ''}, deve chegar por volta das ${hh(radar.approach.time)}`;
+    if (radar?.approach) return approachText(radar);
     const i = kinds.findIndex((k, j) => j >= from && k === 'sim');
     if (i >= 0) return `${radar ? 'os modelos dão ' : ''}chuva ${rainLabel(Math.max(...steps.slice(i).map((s) => s.precip)) * 4)} a partir das ${hh(steps[i].time)}`;
     return kinds.some((k, j) => j >= from && k === 'talvez') ? 'possibilidade de chuva fraca nas próximas 2 horas' : 'sem chuva prevista nas próximas 2 horas';
@@ -1326,17 +1326,18 @@ function outlookText(steps, { wet, from = 0, radar }) {
 export function radarNowcastText(R, steps, off = 0, modelSteps = []) {
     const A = R.atPoint;
     if (A.raining) {
-        let s = `A chover agora (${A.label}, ${fmtMmh(A.mmh)} mm/h${A.trend && A.trend !== 'estável' ? `, ${A.trend}` : ''}); `;
+        const at = radarAt(R);
+        let s = `${at ? `A chover no radar${at}` : 'A chover agora'} (${A.label}, ${fmtMmh(A.mmh)} mm/h${A.trend && A.trend !== 'estável' ? `, ${A.trend}` : ''}); `;
         const modelsDry = modelSteps.length > 0 && !modelSteps.some((x) => x.prob >= 50 && x.precip >= 0.05);
         if (R.ends) {
-            s += `deve parar por volta das ${hh(R.ends.time)}`;
+            s += R.ends.passed ? 'pelo deslocamento dos ecos já deve estar a parar' : `deve parar por volta das ${hh(R.ends.time)}`;
             const again = steps.find((x) => stepKind(x) === 'sim' && localToMs(x.time, off) >= localToMs(R.ends.time, off) + 30 * 6e4);
             if (again) s += `, mas os modelos dão mais chuva a partir das ${hh(again.time)}`;
         } else if (modelsDry) s += R.compare?.models ? `os modelos só a davam a partir das ${hh(R.compare.models)}` : 'os modelos não a davam nas próximas horas';
         else s += outlookText(steps, { wet: true, from: 1 });
         return s + '.';
     }
-    let s = 'Sem chuva no radar';
+    let s = `Sem chuva no radar${radarAt(R)}`;
     if (R.approach) return `${s}; ${outlookText(steps, { radar: R })}.`;
     if (R.nearest) {
         const m = R.motion?.used ? R.motion : null, away = m && Math.abs((((m.deg - R.nearest.deg) % 360) + 540) % 360 - 180) <= 60;
@@ -1491,6 +1492,54 @@ function ipmaArea(ipma, lat, lon) {
     }
     if (!area && dist.length) area = dist.map((x) => ({ ...x, d: haversine(lat, lon, Number(x.latitude), Number(x.longitude)) })).sort((a, b) => a.d - b.d)[0];
     return { idAreaAviso: area?.idAreaAviso || null, district: area?.local || null, dico: muni && muni.d <= 40 ? muni.dico : null };
+}
+
+// ---------- os números do Claude ----------
+// A análise do Claude traz o seu prognóstico para o ponto (máxima, mínima, chuva do dia, rajada máxima; hoje, amanhã e
+// depois). Entra a meias com a média ponderada dos modelos, como se fossem dois modelos: o Claude e a média dos outros.
+// Um número muito longe da média (engano) não entra; o ajuste espalha-se pelas horas do dia mantendo a forma da curva.
+export const CLAUDE_W = 0.5;
+export const CLAUDE_MAX_AGE_H = 16; // 2× por dia (07:34 e 17:34): a análise seguinte chega em ≤ 14 h
+const CLAUDE_TMAX_DIFF = 8, CLAUDE_RAIN_F = [0.25, 4], CLAUDE_GUST_F = [0.6, 1.6];
+const shiftT = (x, d) => (isNum(x) ? r1(x + d) : x);
+const scaleV = (x, f, nd = 1) => (isNum(x) ? Math.round(x * f * 10 ** nd) / 10 ** nd : x);
+/** A previsão com os números do Claude a meias (fc.claude: o que mudou em cada dia). Sem números, devolve a mesma. */
+export function withClaude(fc, nums, { w = CLAUDE_W } = {}) {
+    if (!fc?.daily || !Array.isArray(nums) || !nums.length) return fc;
+    const by = new Map(nums.filter((n) => n?.data).map((n) => [n.data, n]));
+    const adj = new Map();
+    const daily = fc.daily.map((d) => {
+        const n = by.get(d.date);
+        if (!n) return d;
+        const a = { date: d.date, model: { tmax: d.tmax, tmin: d.tmin, precip: d.precip, gust: d.gustMax }, claude: { tmax: n.tmax, tmin: n.tmin, precip: n.chuva, gust: n.rajada },
+            dMax: 0, dMin: 0, rainF: 1, gustF: 1 };
+        if (isNum(n.tmax) && isNum(d.tmax) && Math.abs(n.tmax - d.tmax) <= CLAUDE_TMAX_DIFF) a.dMax = w * (n.tmax - d.tmax);
+        if (isNum(n.tmin) && isNum(d.tmin) && Math.abs(n.tmin - d.tmin) <= CLAUDE_TMAX_DIFF) a.dMin = w * (n.tmin - d.tmin);
+        let precip = d.precip;
+        // chuva muito acima até do cenário chuvoso dos modelos (P90): engano, não entra
+        if (isNum(n.chuva) && isNum(d.precip) && n.chuva <= 3 * Math.max(d.precipP90 || 0, d.precip, 2)) {
+            const want = (1 - w) * d.precip + w * n.chuva;
+            if (d.precip >= 0.2) { a.rainF = clamp(want / d.precip, ...CLAUDE_RAIN_F); precip = d.precip * a.rainF; } else precip = Math.min(want, 2); // seco nos modelos: só um pouco
+        }
+        if (isNum(n.rajada) && isNum(d.gustMax) && d.gustMax > 0) a.gustF = clamp(((1 - w) * d.gustMax + w * n.rajada) / d.gustMax, ...CLAUDE_GUST_F);
+        if (!a.dMax && !a.dMin && a.rainF === 1 && a.gustF === 1 && precip === d.precip) return d;
+        a.final = { tmax: shiftT(d.tmax, a.dMax), tmin: shiftT(d.tmin, a.dMin), precip: r1(precip), gust: isNum(d.gustMax) ? Math.round(d.gustMax * a.gustF) : d.gustMax };
+        adj.set(d.date, { ...a, lo: d.tmin, hi: d.tmax });
+        return { ...d, tmax: a.final.tmax, tmin: a.final.tmin, tmaxP10: shiftT(d.tmaxP10, a.dMax), tmaxP90: shiftT(d.tmaxP90, a.dMax),
+            tminP10: shiftT(d.tminP10, a.dMin), tminP90: shiftT(d.tminP90, a.dMin), precip: a.final.precip, precipP90: scaleV(d.precipP90, a.rainF),
+            gustMax: a.final.gust, claude: true };
+    });
+    if (!adj.size) return fc;
+    const hourly = (fc.hourly || []).map((h) => {
+        const a = adj.get(String(h.time).slice(0, 10));
+        if (!a) return h;
+        // a temperatura: o ajuste da mínima nas horas frias e o da máxima nas quentes (a forma da curva fica)
+        const k = isNum(h.temp) && isNum(a.lo) && isNum(a.hi) && a.hi - a.lo > 0.5 ? clamp((h.temp - a.lo) / (a.hi - a.lo), 0, 1) : 0.5;
+        const dT = a.dMin + k * (a.dMax - a.dMin);
+        return { ...h, temp: shiftT(h.temp, dT), tempLo: shiftT(h.tempLo, dT), tempHi: shiftT(h.tempHi, dT), feels: shiftT(h.feels, dT),
+            precip: scaleV(h.precip, a.rainF), precipHi: scaleV(h.precipHi, a.rainF), gust: scaleV(h.gust, a.gustF, 0), gustHi: scaleV(h.gustHi, a.gustF, 0) };
+    });
+    return { ...fc, daily, hourly, claude: { w, days: [...adj.values()].map(({ date, model, claude, final }) => ({ date, model, claude, final })) } };
 }
 
 // Critérios gerais do IPMA para os avisos de chuva: a partir de quantos mm numa hora ou em 6 h começa cada nível. Podem
@@ -1717,7 +1766,7 @@ export function buildSummary(fc, extra = {}) {
             if (!A.raining) L.push(R.nearest ? `Chuva mais perto (sem ecos parados): ${R.nearest.distanceKm} km para ${R.nearest.bearing}, ${f1(R.nearest.mmh)} mm/h.` : `Sem chuva até ${RADAR.nearKm} km (sem contar ecos parados).`);
             if (R.fixedKm2) L.push(`Ecos parados até ${RADAR.nearKm} km (no mesmo sítio em metade ou mais das imagens: eco fixo — relevo, interferência — ou chuva parada): ~${R.fixedKm2} km²; não contam para a chegada.`);
             L.push(R.motion ? `Deslocamento dos ecos: para ${R.motion.toDir || '—'} a ${R.motion.speedKmh} km/h (vêm de ${R.motion.fromDir || '—'}; confiança ${R.motion.corr}${R.motion.used ? '' : ' — baixa, não usado'}).` : 'Deslocamento dos ecos: sem estimativa (poucos ecos, ou mudam mais do que andam).');
-            if (R.approach) L.push(`Chegada ao ponto pelo radar: ~${hh(R.approach.time)} (daqui a ${R.approach.etaMin} min), ~${f1(R.approach.mmh)} mm/h; a chuva está a ${R.approach.distanceKm} km para ${R.approach.fromDir}, a ${R.approach.speedKmh} km/h.`);
+            if (R.approach) L.push(`Chegada ao ponto pelo radar: ~${hh(R.approach.time)} (${R.approach.passed ? 'essa hora já passou: deve estar a chegar' : `daqui a ${R.approach.etaMin} min`}), ~${f1(R.approach.mmh)} mm/h; na imagem (há ${R.ageMin} min) a chuva estava a ${R.approach.imageKm} km para ${R.approach.fromDir}; agora deve estar a ~${R.approach.distanceKm} km, a ${R.approach.speedKmh} km/h.`);
             if (R.ends) L.push(`Fim da chuva no ponto pelo radar: ~${hh(R.ends.time)}.`);
             if (R.compare?.text) L.push(`Radar vs modelos: ${R.compare.text}`);
             L.push(`Frase do radar: ${R.text}`);

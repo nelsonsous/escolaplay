@@ -254,7 +254,7 @@ Cabeçalhos: `x-sat-layer`, `x-sat-bbox` (`oeste,sul,este,norte`), `cache-contro
 
 ## GET /api/learning?lat=..&lon=..
 
-A memória da aprendizagem (`learn:<id>`, até 90 dias, a que a tarefa agendada atualiza 4× por dia) do local **deste
+A memória da aprendizagem (`learn:<id>`, até 90 dias, a que a tarefa agendada atualiza 2× por dia) do local **deste
 telemóvel** mais perto do ponto, até 3 km (o dono: os seus locais). `{ "place": { "id", "distanceKm" } | null, "memory":
 { "v": 1, "lat", "lon", "updated", "days": { "<data>": { "h", "hr", "src", "m": { … } } } } | null }`. A app junta-a à sua
 (`mergeMemory`: dia a dia fica a mais completa; uma memória de outro ponto, a mais de 3 km, não entra) e passa as duas
@@ -292,7 +292,7 @@ arredondados (~1 km). Um local desligado não tem análise.
 ```jsonc
 { "analysis": { /* ver "Análise" abaixo */ } | null,
   "place": { "id": "casa-k2m9xq", "name": "Casa", "lat": 38.72, "lon": -9.14, "distanceKm": 0.3, "mine": true, "kind": "guest" } | null,
-  "ageMin": 95, "schedule": ["07:34", "13:34", "17:34", "20:34"],
+  "ageMin": 95, "schedule": ["07:34", "17:34"],
   "onDemand": false, // há chave da API e quem pede a pode usar (o dono; os outros só com a análise dos outros "on")
   "others": "on" }   // análise dos outros: on | 1x | off
 ```
@@ -323,7 +323,9 @@ selecionado, avisa e oferece «Mudar a análise diária para este ponto» (`PATC
   "verificacao": "…",    // como correu a previsão anterior, ≤ 400 (opcional)
   "vestir": "…",         // o que vestir amanhã no ponto (manhã, tarde, noite), ≤ 400
   "semana": "…",         // a semana que vem no ponto, ≤ 700
-  "notificacao": { "amanha": "…", "semana": "…" } } // textos das notificações (amanhã + o que vestir; a de domingo), ≤ 180
+  "notificacao": { "amanha": "…", "semana": "…" }, // textos das notificações (amanhã + o que vestir; a de domingo), ≤ 180
+  "numeros": [{ "data": "2026-11-14", "tmax": 15.5, "tmin": 7, "chuva": 9, "rajada": 45 }] } // hoje, amanhã e depois (1.21):
+  // a app junta-os a meias com a média ponderada dos modelos (máx., mín., chuva do dia, rajada máx.); obrigatório ao publicar
 ```
 
 ## POST /api/analysis/refresh?lat=..&lon=..
@@ -395,7 +397,7 @@ O primeiro pedido da app ao abrir (regista o telemóvel; os outros pedidos esper
 
 ```jsonc
 { "version": "1.4.0", "onDemand": false, "places": 1, // locais ligados que quem pede vê
-  "schedule": ["07:34","13:34","17:34","20:34"],
+  "schedule": ["07:34","17:34"],
   "device": true, "owner": false, "ownerCode": "ok" | "errado" | "sem_codigo", // ownerCode só com x-meteo-owner
   "others": "on", "limit": 1 }                                                // limit = locais por telemóvel (dono: null)
 ```

@@ -196,11 +196,14 @@ test('radar: chuva a aproximar-se de sudoeste a 36 km/h — deslocamento, hora d
     assert.ok(R.motion.corr > 0.8);
     assert.equal(R.approach.fromDir, 'SO');
     assert.ok(Math.abs(R.approach.etaMin - 20) <= 5, `chega daqui a ${R.approach.etaMin} min (≈ 15 km a 36 km/h, menos 5 min de idade)`);
-    assert.ok(Math.abs(R.approach.distanceKm - 15) <= 2, `${R.approach.distanceKm} km`);
+    // a imagem tem 5 min: na imagem a chuva estava a ~15 km; agora já andou ~3 km (36 km/h × 5 min)
+    assert.ok(Math.abs(R.approach.imageKm - 15) <= 2, `${R.approach.imageKm} km na imagem`);
+    assert.ok(Math.abs(R.approach.distanceKm - 12) <= 2, `${R.approach.distanceKm} km agora`);
+    assert.equal(R.approach.passed, false);
     assert.ok(R.approach.mmh >= 2 && R.approach.mmh <= 3, `${R.approach.mmh} mm/h`);
     assert.equal(R.nearest.bearing, 'SO');
     assert.ok(R.fixedKm2 > 50, `eco fixo a NE (${R.fixedKm2} km²) fica de fora`);
-    assert.match(R.text, /^Sem chuva no radar; chuva a 1[4-6] km a sudoeste, deve chegar por volta das 16:0[05]\.$/);
+    assert.match(R.text, /^Sem chuva no radar; chuva a 1[1-3] km a sudoeste, deve chegar por volta das 16:0[05]\.$/);
     const fc = buildForecast({ ...wraw, radar }, { lat: LAT, lon: LON, now: NOW });
     assert.equal(fc.nowcast.text, R.text, 'a frase das próximas 2 h é a do radar');
     const S = fc.nowcast.steps, at = (hhmm) => S.find((s) => s.time.endsWith(hhmm));
@@ -218,6 +221,25 @@ test('radar: chuva a aproximar-se de sudoeste a 36 km/h — deslocamento, hora d
     assert.equal(E.atPoint.raining, true);
     assert.ok(E.ends && E.ends.etaMin >= 0 && E.ends.etaMin <= 10, `para daqui a ${E.ends?.etaMin} min (a borda de trás está a ~4 km)`);
     assert.match(E.text, /^A chover agora \(moderada, 2,7 mm\/h\); pelo deslocamento dos ecos deve parar por volta das 15:[45]\d\.$/);
+});
+
+test('radar: a imagem chega com 10–20 min — a chuva é levada até agora e, se a hora de chegada já passou, «já deve estar a chegar»', () => {
+    const cell = (e0) => (t) => [{ e: (e0 + 0.6 * t) * SW, n: (e0 + 0.6 * t) * SW, r: 10, dbz: 30 }];
+    // imagem de há 15 min, chuva a ~15 km a SO (36 km/h): chega 25 min depois da imagem, ou seja daqui a ~10 min; agora a ~6 km
+    const img = NOW - 15 * 6e4, at = new Date(img).toISOString().slice(11, 16);
+    const R = analyzeRadar({ ...synthFrames(LAT, LON, cell(-25), { lastMs: img }), nowMs: NOW });
+    assert.equal(R.ageMin, 15);
+    assert.ok(!R.approach.passed && Math.abs(R.approach.distanceKm - 6) <= 2 && Math.abs(R.approach.imageKm - 15) <= 2, JSON.stringify(R.approach));
+    assert.ok(Math.abs(R.approach.etaMin - 10) <= 5, `${R.approach.etaMin} min`);
+    assert.match(R.text, new RegExp(`^Sem chuva no radar das ${at}; chuva a [4-8](,\\d)? km a sudoeste, deve chegar por volta das \\d\\d:\\d\\d\\.$`));
+    // a mesma chuva mais perto (~7 km na imagem): devia chegar ~10 min depois da imagem, que já tem 15 → já deve estar a chegar
+    const P = analyzeRadar({ ...synthFrames(LAT, LON, cell(-17), { lastMs: img }), nowMs: NOW });
+    assert.equal(P.approach.passed, true);
+    assert.equal(P.approach.distanceKm, 0);
+    assert.equal(P.text, `Sem chuva no radar das ${at}; a chuva vinha de sudoeste a ${P.approach.speedKmh} km/h e já deve estar a chegar.`);
+    const fc = buildForecast({ ...wraw, radar: synthFrames(LAT, LON, cell(-17), { lastMs: img }) }, { lat: LAT, lon: LON, now: NOW });
+    assert.match(fc.nowcast.text, new RegExp(`^Sem chuva no radar das ${at}; a chuva vinha de sudoeste a \\d+ km/h e já deve estar a chegar\\.$`));
+    assert.match(buildSummary(fc), /Chegada ao ponto pelo radar: ~\d\d:\d\d \(essa hora já passou: deve estar a chegar\).*na imagem \(há 15 min\) a chuva estava a [\d.]+ km para SO; agora deve estar a ~0 km/);
 });
 
 test('aviso do utilizador: o mais forte no "agora" durante 45 min; depois do aviso perde peso; resumo para o Claude', () => {

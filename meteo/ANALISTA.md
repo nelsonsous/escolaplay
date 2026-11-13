@@ -1,7 +1,7 @@
 # Analista do tempo (tarefa agendada do Claude)
 
-Procedimento que a tarefa agendada segue **quatro vezes por dia: 07:34, 13:34, 17:34 e 20:34 (hora de Lisboa)**, a
-seguir às corridas das 00, 06 e 12 UTC dos modelos. A das **17:34** é a que vai nas **notificações do fim do dia** (19:00 por
+Procedimento que a tarefa agendada segue **duas vezes por dia: 07:34 e 17:34 (hora de Lisboa)**, a seguir às corridas
+das 00 e 12 UTC dos modelos (2× por dia desde 13/11/2026, para gastar menos). A das **17:34** é a que vai nas **notificações do fim do dia** (19:00 por
 omissão, cada telemóvel escolhe a hora): amanhã no ponto e o que vestir; ao domingo, a semana que vem. Para mudar o comportamento muda-se este ficheiro, os scripts em
 `meteo/analista/` e as regras em `meteo/lib/analysis.js`, e faz-se merge — o agendamento usa sempre o `main`.
 
@@ -70,7 +70,7 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
       prazo fala em probabilidades; respeita os avisos do IPMA.
    3. **Escreve sobre o ponto** (regras abaixo) em `/tmp/meteo/analise-<id>.json` com os campos de `meteo/docs/API.md` →
       "Análise" (titulo, resumo, agora, hoje, amanha, dias, tendencia, alertas, incendios, satelite, conselhos,
-      fiabilidade, tecnica, verificacao, licoes, **vestir**, **semana**, **notificacao** { amanha, semana }). `dias` começa
+      fiabilidade, tecnica, verificacao, licoes, **vestir**, **semana**, **notificacao** { amanha, semana }, **numeros**). `dias` começa
       depois de amanhã. `vestir`: o que vestir **amanhã** no ponto, de manhã, à tarde e à noite (temperatura e sensação nessas
       horas, chuva a que horas, vento, UV). `semana`: os próximos 7 dias em poucas palavras por dia. `notificacao.amanha` e
       `notificacao.semana` (até 180 caracteres cada, sem o nome do sítio, que já vai no título) são o texto das notificações:
@@ -80,6 +80,13 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
       a temperatura de amanhã: 1,1 °C; o GFS 2,2 °C»). Em `licoes` mantém as lições anteriores que continuem certas e junta o que aprendeste sobre o ponto
       (ex.: "o GFS aquece 1 °C a mais nas tardes de sol"; "nas noites limpas o vale fica 2 °C abaixo de Pedras Rubras";
       "os modelos atrasam ~2 h a chuva das frentes de sudoeste").
+      **`numeros`** (obrigatório): o teu prognóstico em números para o ponto, um objeto por dia — hoje (se ainda faltar boa
+      parte do dia), amanhã e depois — com `data`, `tmax` e `tmin` (°C), `chuva` (mm no dia) e `rajada` (km/h, a máxima).
+      Ex.: `[{ "data": "2026-11-14", "tmax": 15.5, "tmin": 7, "chuva": 9, "rajada": 45 }, …]`. Parte do consenso (tabela de
+      16 dias) e muda-o só com razões concretas que ele não tem: o observado agora (estações, radar, avisos do utilizador),
+      o relevo do ponto, o erro conhecido dos modelos aqui (verificação e lições), o satélite. Sem razão, repete o consenso.
+      **A app junta estes números a meias com a média ponderada dos modelos** (máxima, mínima, chuva e rajadas de cada dia,
+      espalhadas pelas horas): não exageres para dar ênfase nem arredondes.
    4. **Publica**:
 
       ```bash

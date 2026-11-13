@@ -8,6 +8,7 @@ export const ALERT_LEVELS = ['info', 'amarelo', 'laranja', 'vermelho'];
 export const CONF = ['alta', 'media', 'baixa'];
 
 const S = (description) => ({ type: 'string', description });
+const N = (description) => ({ type: 'number', description });
 const obj = (properties) => ({ type: 'object', additionalProperties: false, required: Object.keys(properties), properties });
 
 // JSON Schema para "structured outputs" da API
@@ -33,7 +34,11 @@ export const ANALYSIS_SCHEMA = obj({
         amanha: S('Notificação do fim do dia: amanhã no ponto numa ou duas frases, com o que vestir, até 180 caracteres'),
         semana: S('Notificação de domingo: a semana que vem no ponto numa ou duas frases, até 180 caracteres'),
     }),
+    numeros: { type: 'array', description: 'O teu prognóstico em números para o ponto: hoje (se ainda faltar o dia), amanhã e depois de amanhã. Entra a meias com a média dos modelos na previsão da app.',
+        items: obj({ data: S('AAAA-MM-DD'), tmax: N('Máxima do dia no ponto, °C'), tmin: N('Mínima do dia no ponto, °C'), chuva: N('Chuva total do dia no ponto, mm'), rajada: N('Rajada máxima do dia no ponto, km/h') }) },
 });
+// Os limites do que é plausível nos números do Claude (fora disto, o valor não entra)
+export const NUM_RANGE = { tmax: [-30, 50], tmin: [-35, 45], chuva: [0, 500], rajada: [0, 250] };
 
 export const SYSTEM_PROMPT = `És o meteorologista de serviço para UM PONTO exato: as coordenadas, a altitude e o relevo estão no bloco "## O ponto" do resumo. Recebes um resumo numérico: consenso ponderado de até 9 modelos (ECMWF, Met Office, Météo-France AROME, DWD ICON, AIFS, GFS, GEM, JMA, CMA) e da previsão oficial do IPMA para o concelho, 212 cenários de 6 ensembles, a observação combinada das estações perto (IPMA e METAR, ajustadas à altitude do ponto), o radar no ponto (RainViewer: chuva no ponto agora e nas últimas 2 h, à volta, deslocamento dos ecos, hora de chegada e "Radar vs modelos"), os avisos do utilizador ("Está a chover?": o que se via no ponto), a tabela hora a hora das próximas 12 h no ponto, a verificação local dos modelos nos últimos dias, a tabela "Fontes lado a lado" (cada modelo, o IPMA e o ensemble para hoje, amanhã e depois, com as divergências), avisos do IPMA, risco de incêndio, focos de calor por satélite (NASA FIRMS) e ocorrências da Proteção Civil. Às vezes recebes também imagens de satélite Meteosat (MTG) centradas no ponto: de perto (~280 km) e largas.
 
@@ -55,6 +60,7 @@ Como pensar:
 - Quando os modelos discordam, diz qual o cenário mais provável e porquê (resolução, verificação local, coerência com o satélite e com a tendência da pressão) e qual a alternativa.
 - No médio prazo fala em probabilidades e intervalos (P10–P90), não em certezas, e diz a partir de quando a previsão deixa de ser fiável.
 - Os avisos do IPMA são oficiais: nunca os contradigas sem explicar. Os teus alertas não os substituem. Em "Avisos oficiais IPMA" tens, para cada aviso, o que o ponto atinge nessas horas e como fica perto dos critérios do IPMA: diz-o numa frase ("o aviso laranja é do distrito; aqui ~14 mm em 6 h, abaixo do amarelo"), sem o desvalorizar: nas tempestades os modelos ficam aquém, sobretudo no vento. Em "Avisos em falta" estão as horas em que o consenso dos modelos chega no ponto ao nível de um aviso que o IPMA não emitiu: diz-o com cuidado ("os modelos dão aqui 35 mm em 6 h, nível de aviso amarelo, e o IPMA não tem aviso"), sem inventar avisos oficiais.
+- "numeros": o teu prognóstico em números para o ponto, para hoje (se ainda faltar boa parte do dia), amanhã e depois: máxima e mínima (°C), chuva total do dia (mm) e rajada máxima (km/h). Parte do consenso dos modelos (a tabela de 16 dias) e muda-o só com razões concretas que o consenso não tem: o que se observa agora (estações, radar, avisos do utilizador), o relevo do ponto, o erro conhecido dos modelos aqui (verificação e lições) e o que as imagens de satélite mostram. Sem razão concreta, repete o consenso. A app junta estes números a meias com a média ponderada dos modelos: não exageres para dar ênfase nem arredondes.
 - Nas imagens de satélite o ponto está no centro exato. Nas de perto (~280 × 210 km) vê o que já está sobre o ponto ou a menos de ~100 km; nas largas, o sistema todo. Para cada coisa que vai afetar o ponto (frente, banda de nebulosidade, célula convectiva, relâmpagos) diz a distância, o rumo, o deslocamento e a hora provável de chegada, e liga isso à previsão. Sem imagens, deixa "satelite" vazio.
 - Incêndios: com risco elevado ou superior, focos de calor ou ocorrências por perto, avalia com o vento, a humidade e a regra 30-30-30, dizendo a distância e o rumo ao ponto; lembra que um foco de satélite pode ser uma fonte industrial ou uma queima. Se nada for relevante, deixa "incendios" vazio.
 - Não inventes dados que não estejam no resumo. Usa a hora local do sítio.
@@ -162,6 +168,17 @@ export function validateAnalysis(a, { strict = false } = {}) {
             semana: str(a.notificacao?.semana, L.notificacao, 'notificacao.semana', true),
         },
     };
+    // números do Claude: hoje, amanhã e depois (obrigatórios ao publicar; as análises antigas não os têm)
+    if (strict && !Array.isArray(a.numeros)) errors.push('falta numeros (máxima, mínima, chuva e rajada de hoje, amanhã e depois)');
+    out.numeros = arr(a.numeros, 'numeros').slice(0, 3).map((d, i) => {
+        const n = { data: /^\d{4}-\d{2}-\d{2}$/.test(d?.data || '') ? d.data : (errors.push(`numeros[${i}].data inválida`), '') };
+        for (const [k, [lo, hi]] of Object.entries(NUM_RANGE)) {
+            const v = typeof d?.[k] === 'string' ? Number(d[k].replace(',', '.')) : d?.[k];
+            if (!Number.isFinite(v) || v < lo || v > hi) { errors.push(`numeros[${i}].${k} inválido: ${d?.[k]}`); n[k] = null; } else n[k] = Math.round(v * 10) / 10;
+        }
+        if (n.tmax != null && n.tmin != null && n.tmin > n.tmax) { errors.push(`numeros[${i}]: a mínima (${n.tmin}) é maior do que a máxima (${n.tmax})`); n.tmin = n.tmax = null; }
+        return n;
+    }).filter((n) => n.data);
     if (strict && Array.isArray(a.dias) && a.dias.length > 7) errors.push('dias com mais de 7 entradas');
     return { ok: errors.length === 0, errors, value: out };
 }
