@@ -25,9 +25,9 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 | # | O que muda para ti | Por dentro |
 |---|---|---|
 | **1** ✔ | Nada à vista. | `musica.onda` na Onda fluida e na biblioteca nova (1357 → 984 linhas). Na linguagem Onda: o molde com nome. Este plano. |
-| **2** | Uma só folha por playlist. Mudar o nome, apagar e «atualizar sozinha» passam para a folha. As faixas ficam simples. | Sai a vista 2 (`v_playlist`) e o que só ela usava; a folha lê um só documento. |
+| **2** ✔ | Uma só folha por playlist: mudar o nome, apagar e «atualizar sozinha» no «⋯»; o porquê, como correu e a mistura em «Sobre esta playlist»; faixas simples (tocar no título dá «Mais como esta»). «Afinar no telemóvel» fica num ecrã seu até à volta 4. Cada separador abre no topo. | A folha em pedaços que se redesenham sozinhos (`refolha`); a vista 2 fica só com o afinador; porta `_an_rolar` no anfitrião da Onda. |
 | **3** | **Trocar (⇄)** uma faixa, na hora e logo no Tidal. O ✕ passa a tirar a faixa (também na hora). | O motor escolhe a substituta entre as candidatas; o Worker dá as parecidas do Tidal; grava com `/versoes`. |
-| **4** | **Afinar** na folha com quatro botões e o gráfico da energia. | O afinador passa para a folha; o gráfico é SVG escrito pela Onda (uma função da app, depois da biblioteca). |
+| **4** | **Afinar** na folha com quatro botões e o gráfico da energia. | O afinador passa para a folha e a vista 2 desaparece; o gráfico é SVG escrito pela Onda (uma função da app, depois da biblioteca). |
 | **5** | Os pedidos à espera aparecem na lista das playlists (com cancelar). «Pedir» só pede. | Um só índice para a lista (playlists e pedidos); sai `lista_pedidos`. |
 | **6** | Cada pedido dá **uma** playlist, logo no Tidal. As antigas que só estão na app ganham um botão «Pôr no Tidal». | `CURADOR.md` e os scripts do Maestro: uma decisão consolidada, mais candidatas guardadas (para trocar e mudar de estilo); o Worker publica ao receber. |
 | **7** | Três separadores. O teu gosto num cartão dos Ajustes. | Sai a vista 4 (`v_gosto`) como separador; os gestos e a navegação passam a três. |

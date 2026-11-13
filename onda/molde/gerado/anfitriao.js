@@ -176,6 +176,13 @@
                     return 0n;
                 }
                 case 116: { const u = aTocar(); return u ? escrever(u) : 0n; }
+                // rolar: a página até ao elemento do seletor a (1 se existe); com 0, até ao topo (uma vista nova abre no topo)
+                case 118: {
+                    const el = Number(a) && doc ? doc.querySelector(ler(a)) : null;
+                    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+                    else if (!Number(a) && typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
+                    return el ? 1n : 0n;
+                }
             }
             return 0n;
         };

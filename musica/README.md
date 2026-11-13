@@ -39,8 +39,10 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   nome), monta-se com a biblioteca da Onda (`onda/lib`) e o motor (`node musica/onda/compilar.mjs`, que tira da fonte
   as funções que o anfitrião chama) e corre no anfitrião das apps Onda. O plano da revisão em dez voltas está em
   [`PLANO.md`](PLANO.md). Os ecrãs:
-  os ecrãs (Playlists com ▶ para ouvir no Tidal, a playlist com o porquê de cada faixa e a mistura — toca numa faixa
-  para **«Mais como esta»** —, **Afinar no telemóvel**, Pedir, Gosto, Ajustes), o estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
+  Playlists (cada uma abre numa **folha** que é o único sítio onde se mexe nela: ouvir 30 s, ✕ «não esta», o «⋯»
+  para mudar o nome, atualizar sozinha e apagar, «Sobre esta playlist» com o porquê e a mistura, tocar no título de
+  uma faixa para **«Mais como esta»**, afinar com o Maestro), **Afinar no telemóvel**, Pedir, Gosto e Ajustes; o
+  estado, a navegação e o motor de curadoria, tudo em Onda. No Afinar, o `motor.onda` corre na própria
   app a cada mudança (estilo, arco, número de faixas, máximo por artista, fixar, tirar, juntar do Tidal) em menos de
   1 ms, e o juiz dos testes confirma que dá a mesma ordem que o `curador.wasm`. Ao guardar, a app manda só a decisão
   (a ordem, o porquê e os ids das faixas juntadas) e o Worker monta a versão (`POST /api/playlists/:id/versoes`).
