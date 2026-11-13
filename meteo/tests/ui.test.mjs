@@ -606,7 +606,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.waitForFunction(() => !document.querySelector('#d-an').open);
     await tab('dias');
     assert.equal(await page.locator('.d-x', { hasText: '✦' }).count(), 0, 'sem marca nos dias');
-    assert.match(await page.locator('.note', { hasText: 'Dias 1 a 7' }).textContent(), /corrigido com as observações e, até depois de amanhã, com a análise diária \(IA = valor que ela muda\)\./);
+    assert.match(await page.locator('.note', { hasText: 'Dias 1 a 7' }).textContent(), /corrigido com as observações e, até depois de amanhã, com a análise diária\./);
+    assert.match(await page.locator('.note', { hasText: 'num valor quer dizer' }).textContent(), /^IA num valor quer dizer que foi ajustado pela análise diária \(escrita por inteligência artificial\): é a mistura .* a meias no início; .*até 80%.*até 20%.*Só hoje, amanhã e depois.*Nas próximas 5 horas manda o que se mede/);
     await noClaude('Dias');
     // a máxima de domingo mostrada é a final: a meias entre a dos modelos (a previsão sem a análise) e a da análise (15°);
     // quando muda à vista leva o «IA» pequeno e subido (como o º), sem empurrar a coluna

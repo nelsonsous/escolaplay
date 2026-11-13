@@ -5,7 +5,7 @@
 // análise diária do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps, tidyCache } from './lib/data.js';
-import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE_MAX_AGE_H } from './lib/engine.js';
+import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE_MAX_AGE_H, CLAUDE_RAMP_H } from './lib/engine.js';
 import { mergeMemory, learnHistory, LVARS, LEADS } from './lib/learn.js';
 import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
 import { REPORT_KINDS, REPORT_MIN } from './lib/sources.js';
@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.23.0';
+const VERSION = '1.23.1';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -684,7 +684,8 @@ function viewDays() {
     return { title, html: `<section class="sec"><div class="sec-h"><h2>${D.length} dias</h2><span class="sub">toca num dia para ver as horas</span></div>
         <div class="list">${rows}</div>
         <p class="legend-inline" aria-hidden="true"><span class="lg"><i class="k-rb"></i>mín.–máx.</span><span class="lg"><i class="k-wh"></i>80% dos cenários</span><span class="lg">${ui('signal3')}confiança</span></p>
-        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações${fc.claude ? ` e, até depois de amanhã, com a análise diária (${IA_VAL} = valor que ela muda)` : ''}. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p></section>` };
+        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações${fc.claude ? ' e, até depois de amanhã, com a análise diária' : ''}. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p>${fc.claude ? `
+        <p class="note">${IA_VAL} num valor quer dizer que foi ajustado pela análise diária (escrita por inteligência artificial): é a mistura do que ela apurou com a média dos modelos — a meias no início; depois a análise pesa mais (até 80%) ou menos (até 20%) conforme acerta mais ou menos do que os modelos. Só hoje, amanhã e depois, na máxima, na mínima, na chuva e nas rajadas, e só quando o número mostrado muda. Nas próximas ${CLAUDE_RAMP_H} horas manda o que se mede (radar e estações), e a máxima ou a mínima de hoje que já passaram não mudam.</p>` : ''}</section>` };
 }
 // escala comum das barras mín.–máx. dos dias (e a faixa P10–P90 por trás)
 function dayScale(D) {
