@@ -45,7 +45,8 @@ node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
 - **Escreve-se como se lê (a Onda fluida).** O HTML vai em moldes (crases), com as aspas tal e qual e o código no
   sítio, entre chavetas; os campos leem-se com o ponto e as palavras da fala (`onda/lib/fala.onda`):
   `` `<b>{ esc c.nome }</b> { inteiro num c.valor }` ``. Um `Se` não precisa de ramo vazio (`Se fav i ` on` `), um
-  ciclo contado é `L i n …`, e os parênteses conferem a aridade quando há dúvida.
+  ciclo contado é `L i n …`, e os parênteses conferem a aridade quando há dúvida. Um texto para dar a uma função
+  (um aviso, o URL de um pedido) é um molde com o nome dela: `` _an_buscar`/api/itens/{ N id }` $"lido" ``.
 - **Desenhar é escrever HTML para um lugar.** `= h _ht_ini n … _ht_poe $"#lista" h`: tudo o que se escreve pelo meio
   vai para esse elemento. Cada pedaço do ecrã tem a sua função (`dlista`, `dfiltros`, `dabas`, `dfolha`); um evento
   redesenha só o que mudou (escrever na procura só refaz a lista, por isso o campo não perde o cursor).

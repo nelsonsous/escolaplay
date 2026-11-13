@@ -1,12 +1,13 @@
-# Musica: a app, toda em Onda -- uma "app em Onda" (onda/rt/anfitriao.js corre-a no browser).
-# Monta-se com a biblioteca de apps e o motor de curadoria (musica/onda/compilar.mjs):
-#   cat onda/lib/app.onda musica/onda/motor.onda musica/app/musica.onda | ondac -w > musica/app/musica.wasm
-# O main prepara o estado; cada clique, campo e resposta da rede chama uma funcao daqui. A casca (musica.js) so
-# trata do que a Onda nao tem como porta: a chave do aparelho nos pedidos ao conector, os pedidos que escrevem
-# ("METODO caminho" + nova linha + corpo JSON), sair para o login do Tidal ("IR url") e o regresso dele.
+# Música: a app, toda em Onda — uma «app em Onda» (onda/rt/anfitriao.js corre-a no browser), na Onda fluida: moldes
+# (`…{ código }…`), o ponto (c.nome), a fala (esct, txt, int, mesmo, Se, L…) e moldes com nome (aviso`…`, pede`…` m).
+# Monta-se com a biblioteca da Onda e o motor de curadoria (musica/onda/compilar.mjs, que tira as entradas da fonte):
+#   cat onda/lib/{memoria,texto,…,fala}.onda musica/onda/motor.onda musica/app/musica.onda | ondac -w main clique …
+# O main prepara o estado; cada clique, campo e resposta da rede chama uma função daqui. A casca (musica.js) só
+# trata do que a Onda não tem como porta: a chave do aparelho nos pedidos ao conector, os pedidos que escrevem
+# («MÉTODO caminho» + nova linha + corpo JSON), sair para o login do Tidal («IR url») e o regresso dele.
 #
-# Globais (M[0..59] sao da app):
-#   fixos (criados no main): 0 textos fixos, 1 vista (1 playlists, 2 playlist, 3 pedir, 4 gosto, 5 ajustes),
+# Globais (M[1..59] são da app; M[63] é da biblioteca):
+#   fixos (criados no main): 1 vista (1 playlists, 2 playlist, 3 pedir, 4 gosto, 5 ajustes),
 #     2 base do monte (navegar solta tudo o que veio depois), 20 texto do pedido, 21 client id, 22 conector,
 #     23 pesquisa, 24..27 pedido: faixas, max por artista, estilo, arco, 29 relogio do aviso, 30 id da playlist,
 #     36 pesos dos estilos, 38 codigo de ligacao (colado), 45 pedido sem letras explicitas, 46 47 nome e descricao
@@ -59,8 +60,8 @@
 : erro_ped ii>i t s {
   ? s {
     = r _ar_json t = mg txt r.message
-    ? mg aviso mg { = a _tx_abre 400 `Erro { N s } do conector.{ _tx_fecha a }{ aviso a }` 0 } 0 }
-    { = a _tx_abre 400 `Sem ligação ao conector.{ _tx_fecha a }{ aviso a }` 0 } }
+    ? mg aviso mg { aviso`Erro { N s } do conector.` 0 } 0 }
+    { aviso $"Sem ligação ao conector." 0 } }
 
 # ===== estilos e arcos =====
 : nome_estilo i>i e ? == e 0 "Equilibrado" ? == e 1 "Descoberta" ? == e 2 "Na moda" ? == e 3 "O meu gosto" "Audiófilo"
@@ -310,7 +311,7 @@
 : n_esc i>i d { = n 0 = c pri d W c { Se && ~ pl_rasc c ttemid @ 58 txt c.id = n + n 1 = c seg c } n }
 : esc_alt i>i id {
   = d @ 4 = ja ttemid @ 58 id
-  ? && ~ ja >= n_esc d 10 { = a _tx_abre 400 `No máximo 10 playlists de cada vez.{ _tx_fecha a }{ aviso a }` 0 } {
+  ? && ~ ja >= n_esc d 10 { aviso $"No máximo 10 playlists de cada vez." 0 } {
     = s _tx_abre 400 ","
     = c pri d
     W c { = e txt c.id = x ttemid @ 58 e Se ? mesmo e id ~ x x { crut e P 44 } = c seg c }
@@ -327,14 +328,13 @@
   `<button type="button" class="mu-btn sec peq" data-onda="juntar_nao">Cancelar</button><button type="button" class="mu-btn peq" data-onda="juntar_sim"{ Se < n 2 " disabled" }>{ ic 12 }Juntar</button></div>` }
 : juntar_enviar >i ? ocupado 0 {
     = d @ 4
-    ? < n_esc d 2 { = a _tx_abre 400 `Escolhe pelo menos 2 playlists.{ _tx_fecha a }{ aviso a }` 0 } {
-      ! 31 1 ! 34 19
-      = r _tx_abre 400 `POST /api/juntar{ P 10 }\{"ids":[`
+    ? < n_esc d 2 { aviso $"Escolhe pelo menos 2 playlists." 0 } {
+      = r _tx_abre 1200 `POST /api/juntar{ P 10 }\{"ids":[`
       = c pri d = k 0
       W c { = e txt c.id Se && ~ pl_rasc c ttemid @ 58 e { Se k "," pjs e = k 1 } = c seg c }
-      `]\}{ _tx_fecha r }`
-      _an_buscar r $"lido_escrita"
-      = a _tx_abre 400 `A juntar…{ _tx_fecha a }{ aviso a }` 0 } }
+      `]\}`
+      pede _tx_fecha r 19
+      aviso $"A juntar…" 0 } }
 : pl_rasc i>i c == tipo c.rascunho 3
 # c e a primeira proposta do seu grupo (o pedido) na lista d?
 : pl_primeiro ii>i d c { = e pri d = r 1 W && e != e c { Se && pl_rasc e mesmo txt e.grupo txt c.grupo = r 0 = e seg e } r }
@@ -518,7 +518,7 @@
 : afinar_abrir >i {
   = d @ 4
   = cs d.candidatas = n quantos cs
-  ? ~ n { = a _tx_abre 400 `Esta playlist não tem candidatas para afinar.{ _tx_fecha a }{ aviso a }` 0 } {
+  ? ~ n { aviso $"Esta playlist não tem candidatas para afinar." 0 } {
     ! 37 n ! 35 n
     = cap + n 21
     ! 11 A cap ! 12 A cap ! 13 A cap ! 15 A cap ! 17 A cap ! 18 A cap ! 32 A cap
@@ -546,77 +546,75 @@
     ! + @ 17 ach 1 ! + @ 18 ach 0 ! 7 Mn + @ 7 1 usaveis
     ! 19 0 tvazio @ 23
     afinar_correr render
-    = a _tx_abre 400 `«{ crut txt f.titulo }» entra (fixada).{ _tx_fecha a }{ aviso a }` 0 }
-    { = a _tx_abre 400 `Já não cabem mais faixas.{ _tx_fecha a }{ aviso a }` 0 } }
+    aviso`«{ crut txt f.titulo }» entra (fixada).` 0 }
+    { aviso $"Já não cabem mais faixas." 0 } }
 
 # ===== escritas no conector =====
-: ocupado >i ? @ 31 { = a _tx_abre 400 `Um momento…{ _tx_fecha a }{ aviso a }` 1 } 0
+: ocupado >i ? @ 31 { aviso $"Um momento…" 1 } 0
+# uma escrita: r é «MÉTODO caminho» (com corpo: nova linha e o JSON) e m o que se está a fazer — o lido_escrita trata
+# a resposta por ele (1 config, 2 ligar, 3 enviar, 4/9 guardar versão, 5/11 apagar, 6 pedir, 7 cancelar, 8 desligar,
+# 10 aparelho, 12 mais, 13 convite, 14 código de aparelho, 15 renovar, 16 renomear, 17 rejeitar, 18 afinar, 19 juntar)
+: pede ii>i r m { ! 31 1 ! 34 m _an_buscar r $"lido_escrita" }
 : guardar_versao i>i tidal {
   ? ocupado 0 {
-    ! 31 1 ! 34 ? tidal 9 4
     = r _tx_abre + 4000 * 40 @ 35 `POST /api/playlists/{ purl @ 30 }/versoes` P 10
     `\{"ordem":[` = p 0 W < p @ 14 { Se p "," N @ + @ 13 p = p + p 1 }
     `],"porque":[` = p 0 W < p @ 14 { Se p "," P 34 porque_json @ + @ 15 p P 34 = p + p 1 }
     `],"pontos":[` = p 0 W < p @ 14 { Se p "," N @ + @ 32 p = p + p 1 }
     `],"extras":[` = i @ 37 W < i @ 35 { Se > i @ 37 "," pjs txt _ar_get cf i $"id" = i + i 1 }
     `],"opcoes":\{"faixas":{ N @ 7 },"maxArtista":{ N @ 8 },"estilo":"{ estilo_json @ 9 }","arco":"{ arco_json @ 10 }"\},"custo":{ N @ 16 },"tidal":{ ? tidal "true" "false" }\}`
-    _tx_fecha r
-    _an_buscar r $"lido_escrita"
-    = a _tx_abre 400 ? tidal "A criar no Tidal…" "A guardar…" _tx_fecha a aviso a 0 } }
-: enviar >i ? ocupado 0 { ! 31 1 ! 34 3 = r _tx_abre 400 `POST /api/playlists/{ purl @ 30 }/tidal{ P 10 }\{\}{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` = a _tx_abre 400 `A criar no Tidal…{ _tx_fecha a }{ aviso a }` 0 }
-: apagar_pl i>i t ? ocupado 0 { ! 31 1 ! 34 ? t 11 5 = r _tx_abre 400 `DELETE /api/playlists/{ purl @ 30 }{ Se t "?tidal=1" }{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` 0 }
-: mais_criar i>i b ? ocupado 0 { ! 31 1 ! 34 12 = r _tx_abre 400 `POST /api/mais{ P 10 }\{"faixa":"{ crut b }"{ Se == tipo _ar_get _ar_get @ 4 $"opcoes" $"limpa" 3 `,"limpa":true` }\}{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` = a _tx_abre 400 `A procurar faixas parecidas…{ _tx_fecha a }{ aviso a }` 0 }
+    pede _tx_fecha r ? tidal 9 4
+    aviso ? tidal $"A criar no Tidal…" $"A guardar…" 0 } }
+: enviar >i ? ocupado 0 { pede`POST /api/playlists/{ purl @ 30 }/tidal{ P 10 }\{\}` 3 aviso $"A criar no Tidal…" 0 }
+: apagar_pl i>i t ? ocupado 0 { pede`DELETE /api/playlists/{ purl @ 30 }{ Se t "?tidal=1" }` ? t 11 5 0 }
+: mais_criar i>i b ? ocupado 0 { pede`POST /api/mais{ P 10 }\{"faixa":"{ crut b }"{ Se == tipo _ar_get _ar_get @ 4 $"opcoes" $"limpa" 3 `,"limpa":true` }\}` 12 aviso $"A procurar faixas parecidas…" 0 }
 # convidar alguem: o Worker devolve o link (serve uma vez); a mensagem para partilhar fica ja codificada em @42
-: codaparelho_pedir >i ? ocupado 0 { ! 31 1 ! 34 14 = r _tx_abre 400 `POST /api/aparelho/codigo{ P 10 }\{\}{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` 0 }
-: convidar_pedir >i ? ocupado 0 { ! 31 1 ! 34 13 = r _tx_abre 400 `POST /api/convites{ P 10 }\{\}{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` 0 }
+: codaparelho_pedir >i ? ocupado 0 { pede`POST /api/aparelho/codigo{ P 10 }\{\}` 14 0 }
+: convidar_pedir >i ? ocupado 0 { pede`POST /api/convites{ P 10 }\{\}` 13 0 }
 : pedir_enviar >i ? ocupado 0 {
-    ? < _tx_len @ 20 3 { = a _tx_abre 400 `Escreve o que queres ouvir.{ _tx_fecha a }{ aviso a }` 0 } {
-      ! 31 1 ! 34 6
-      = r _tx_abre + 600 * 7 _tx_len @ 20 `POST /api/pedidos{ P 10 }\{"texto":{ pjs @ 20 },"opcoes":\{"faixas":{ N @ 24 },"maxArtista":{ N @ 25 },"estilo":"{ estilo_json @ 26 }","arco":"{ arco_json @ 27 }"{ Se @ 45 `,"limpa":true` }\}\}{ _tx_fecha r }`
-      _an_buscar r $"lido_escrita" 0 } }
-: cancelar_ped i>i b ? ocupado 0 { ! 31 1 ! 34 7 = r _tx_abre 400 `DELETE /api/pedidos/{ purl b }{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` 0 }
+    ? < _tx_len @ 20 3 { aviso $"Escreve o que queres ouvir." 0 } {
+      = r _tx_abre + 600 * 7 _tx_len @ 20 `POST /api/pedidos{ P 10 }\{"texto":{ pjs @ 20 },"opcoes":\{"faixas":{ N @ 24 },"maxArtista":{ N @ 25 },"estilo":"{ estilo_json @ 26 }","arco":"{ arco_json @ 27 }"{ Se @ 45 `,"limpa":true` }\}\}`
+      pede _tx_fecha r 6 0 } }
+: cancelar_ped i>i b ? ocupado 0 { pede`DELETE /api/pedidos/{ purl b }` 7 0 }
 : ligar_enviar >i ? ocupado 0 {
-    ! 31 1 ! 34 2
     = cod _an_ler $"codigo"
-    = r _tx_abre + 400 * 7 _tx_len cod `POST /api/ligar{ P 10 }\{"codigo":{ ? cod pjs cod "null" },"nome":"app Música"\}{ _tx_fecha r }`
-    _an_buscar r $"lido_escrita" 0 }
+    = r _tx_abre + 400 * 7 _tx_len cod `POST /api/ligar{ P 10 }\{"codigo":{ ? cod pjs cod "null" },"nome":"app Música"\}`
+    pede _tx_fecha r 2 0 }
 : config_enviar >i ? ocupado 0 {
-    ? ~ _tx_len @ 21 { = a _tx_abre 400 `Cola o Client ID.{ _tx_fecha a }{ aviso a }` 0 } {
-      ! 31 1 ! 34 1
+    ? ~ _tx_len @ 21 { aviso $"Cola o Client ID." 0 } {
       = cod _an_ler $"codigo"
-      = r _tx_abre + 1200 * 7 _tx_len cod `POST /api/config{ P 10 }\{"codigo":{ ? cod pjs cod "null" },"clientId":{ pjs @ 21 }\}{ _tx_fecha r }`
-      _an_buscar r $"lido_escrita" 0 } }
+      = r _tx_abre + 1200 * 7 _tx_len cod `POST /api/config{ P 10 }\{"codigo":{ ? cod pjs cod "null" },"clientId":{ pjs @ 21 }\}`
+      pede _tx_fecha r 1 0 } }
 : aparelho_enviar >i ? ocupado 0 {
-    ? < _tx_len @ 38 8 { = a _tx_abre 400 `Cola o código de ligação.{ _tx_fecha a }{ aviso a }` 0 } {
-      ! 31 1 ! 34 10
-      = r _tx_abre + 400 * 7 _tx_len @ 38 `POST /api/aparelho{ P 10 }\{"codigo":{ pjs @ 38 },"nome":"app Música"\}{ _tx_fecha r }`
-      _an_buscar r $"lido_escrita" 0 } }
-: desligar_enviar >i ? ocupado 0 { ! 31 1 ! 34 8 = r _tx_abre 400 `POST /api/desligar{ P 10 }\{\}{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` 0 }
+    ? < _tx_len @ 38 8 { aviso $"Cola o código de ligação." 0 } {
+      = r _tx_abre + 400 * 7 _tx_len @ 38 `POST /api/aparelho{ P 10 }\{"codigo":{ pjs @ 38 },"nome":"app Música"\}`
+      pede _tx_fecha r 10 0 } }
+: desligar_enviar >i ? ocupado 0 { pede`POST /api/desligar{ P 10 }\{\}` 8 0 }
 : lido_escrita ii>i t s {
   _an_esquecer
   = modo @ 34 ! 34 0 ! 31 0
   = r _ar_json t
   ? || == s 200 == s 201 {
-    ? == modo 1 { = a _tx_abre 400 `Client ID guardado. Agora liga o Tidal.{ _tx_fecha a }{ aviso a }{ _an_buscar $"/api/estado" $"lido_estado" }` 0 }
-    ? == modo 2 { = u txt r.url Se u { = q _tx_abre + _tx_len u 8 `IR { crut u }{ _tx_fecha q }{ _an_buscar q $"nada" }` } }
-    ? == modo 3 { ? == @ 1 1 { ! 51 r _an_buscar $"/api/playlists" $"lido_pl" 0 } { ! 4 r 0 } ! 28 0 render = a _tx_abre 400 `Criada no Tidal.{ _tx_fecha a }{ aviso a }` 0 }
-    ? || == modo 4 == modo 9 { ! 4 r tcopia @ 30 txt r.id 70 ! 6 0 ! 28 0 render = a _tx_abre 400 ? == modo 9 "Guardada no Tidal." "Guardada na app." _tx_fecha a aviso a 0 }
-    ? == modo 14 { = c txt r.codigo Se c { tcopia @ 43 c 40 = w _tx_abre 400 `Abre a Música (na app do ecrã principal, se a usares) e cola este código em «Código de ligação»: { crut c } — serve uma vez, durante 24 h.{ _tx_fecha w }` = x _tx_abre 400 purl w _tx_fecha x tcopia @ 44 x 580 render = a _tx_abre 400 `Código criado: usa-o no outro aparelho.{ _tx_fecha a }{ aviso a }` } }
-    ? == modo 13 { = l txt r.url Se l { tcopia @ 41 l 200 = w _tx_abre 400 `Experimenta a Música: playlists de qualidade no teu Tidal, feitas pelo Claude. Abre este link no iPhone (serve uma vez): { crut l }{ _tx_fecha w }` = x _tx_abre 400 purl w _tx_fecha x tcopia @ 42 x 880 render = a _tx_abre 400 `Convite criado: envia o link.{ _tx_fecha a }{ aviso a }` } }
+    ? == modo 1 { aviso $"Client ID guardado. Agora liga o Tidal." _an_buscar $"/api/estado" $"lido_estado" 0 }
+    ? == modo 2 { = u txt r.url Se u { = q _tx_abre + _tx_len u 8 `IR { crut u }` _tx_fecha q _an_buscar q $"nada" } }
+    ? == modo 3 { ? == @ 1 1 { ! 51 r _an_buscar $"/api/playlists" $"lido_pl" 0 } { ! 4 r 0 } ! 28 0 render aviso $"Criada no Tidal." 0 }
+    ? || == modo 4 == modo 9 { ! 4 r tcopia @ 30 txt r.id 70 ! 6 0 ! 28 0 render aviso ? == modo 9 $"Guardada no Tidal." $"Guardada na app." 0 }
+    ? == modo 14 { = c txt r.codigo Se c { tcopia @ 43 c 40 = w texto`Abre a Música (na app do ecrã principal, se a usares) e cola este código em «Código de ligação»: { crut c } — serve uma vez, durante 24 h.` = x _tx_abre 1800 purl w _tx_fecha x tcopia @ 44 x 580 render aviso $"Código criado: usa-o no outro aparelho." } }
+    ? == modo 13 { = l txt r.url Se l { tcopia @ 41 l 200 = w texto`Experimenta a Música: playlists de qualidade no teu Tidal, feitas pelo Claude. Abre este link no iPhone (serve uma vez): { crut l }` = x _tx_abre 1800 purl w _tx_fecha x tcopia @ 42 x 880 render aviso $"Convite criado: envia o link." } }
     ? == modo 17 { ? == @ 1 1 { ! 51 r render_cx 0 } { ! 4 r render 0 } }
-    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render = a _tx_abre 400 `Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas. Abre-a para a enviar para o Tidal.{ _tx_fecha a }{ aviso a }` 0 }
+    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas. Abre-a para a enviar para o Tidal.` 0 }
     ? == modo 18 { tvazio @ 49
-      = u _tx_abre 400 `/api/playlists/{ purl @ 30 }{ _tx_fecha u }{ ? == @ 1 2 { _an_buscar u $"lido_doc" 0 } { Se _tx_len @ 50 _an_buscar u $"lido_exp" } }`
-      render = a _tx_abre 400 `Pedido de afinação enviado: o Maestro refá-la na próxima corrida.{ _tx_fecha a }{ aviso a }` 0 }
-    ? == modo 16 { ! 4 r ! 28 0 render = a _tx_abre 400 ? == tipo r.tidal 7 "Nome mudado na app e no Tidal." "Nome mudado." _tx_fecha a aviso a 0 }
-    ? == modo 15 { ! 4 r render = a _tx_abre 400 ? == tipo r.renovar 3 "Passa a atualizar-se sozinha toda a semana." "Deixa de se atualizar sozinha." _tx_fecha a aviso a 0 }
-    ? == modo 12 { tcopia @ 30 txt r.id 70 ir 2 = a _tx_abre 400 `Criada no Tidal — já a podes ouvir.{ _tx_fecha a }{ aviso a }` 0 }
-    ? == modo 5 { ir 1 = a _tx_abre 400 `Apagada da app.{ _tx_fecha a }{ aviso a }` 0 }
-    ? == modo 11 { ir 1 = a _tx_abre 400 `Apagada no Tidal e na app.{ _tx_fecha a }{ aviso a }` 0 }
-    ? == modo 6 { tvazio @ 20 _an_buscar $"/api/pedidos" $"lido_ped" render = a _tx_abre 400 `Pedido feito — o Maestro trata dele na próxima corrida.{ _tx_fecha a }{ aviso a }` 0 }
-    ? == modo 7 { _an_buscar $"/api/pedidos" $"lido_ped" = a _tx_abre 400 `Pedido cancelado.{ _tx_fecha a }{ aviso a }` 0 }
-    ? == modo 8 { ir 5 = a _tx_abre 400 `Tidal desligado.{ _tx_fecha a }{ aviso a }` 0 }
-    Se == modo 10 { = ch txt r.chave Se ch { _an_gravar $"chave" ch tvazio @ 38 ir 1 = a _tx_abre 400 `Este aparelho fica com acesso.{ _tx_fecha a }{ aviso a }` } } }
+      = u texto`/api/playlists/{ purl @ 30 }` ? == @ 1 2 { _an_buscar u $"lido_doc" 0 } { Se _tx_len @ 50 _an_buscar u $"lido_exp" }
+      render aviso $"Pedido de afinação enviado: o Maestro refá-la na próxima corrida." 0 }
+    ? == modo 16 { ! 4 r ! 28 0 render aviso ? == tipo r.tidal 7 $"Nome mudado na app e no Tidal." $"Nome mudado." 0 }
+    ? == modo 15 { ! 4 r render aviso ? == tipo r.renovar 3 $"Passa a atualizar-se sozinha toda a semana." $"Deixa de se atualizar sozinha." 0 }
+    ? == modo 12 { tcopia @ 30 txt r.id 70 ir 2 aviso $"Criada no Tidal — já a podes ouvir." 0 }
+    ? == modo 5 { ir 1 aviso $"Apagada da app." 0 }
+    ? == modo 11 { ir 1 aviso $"Apagada no Tidal e na app." 0 }
+    ? == modo 6 { tvazio @ 20 _an_buscar $"/api/pedidos" $"lido_ped" render aviso $"Pedido feito — o Maestro trata dele na próxima corrida." 0 }
+    ? == modo 7 { _an_buscar $"/api/pedidos" $"lido_ped" aviso $"Pedido cancelado." 0 }
+    ? == modo 8 { ir 5 aviso $"Tidal desligado." 0 }
+    Se == modo 10 { = ch txt r.chave Se ch { _an_gravar $"chave" ch tvazio @ 38 ir 1 aviso $"Este aparelho fica com acesso." } } }
     { ! 28 0 tvazio @ 54
       # o codigo guardado (de um convite ou link ja usado) nao serve: esquece-o, para aparecer o campo do codigo
       Se && == modo 2 == s 401 _an_gravar $"codigo" 0
@@ -727,23 +725,22 @@
   ? mesmo b @ 50 { tvazio @ 50 render 0 } {
     tcopia @ 50 b 70 tcopia @ 30 b 70 tcopia @ 57 b 70 render
     # as faixas e as pré-escutas ficam 10 minutos na memória do anfitrião: abrir outra vez não vai à rede
-    = u _tx_abre 400 `/api/playlists/{ purl b }{ _tx_fecha u }`
+    = u texto`/api/playlists/{ purl b }`
     = cu _an_lembrar u 600000 ? cu { exp_doc cu 1 0 } { _an_buscar u $"lido_exp" 0 }
-    = v _tx_abre 400 `/api/playlists/{ purl b }/previas{ _tx_fecha v }`
+    = v texto`/api/playlists/{ purl b }/previas`
     = cv _an_lembrar v 600000 ? cv { exp_prev cv 1 0 } { _an_buscar v $"lido_prev" 0 } } }
 # ouvir 30 s: um só leitor (o do anfitrião); tocar outra vez a que está a tocar pára-a
 : ouvir i>i u { ? _an_som u { tcopia @ 55 u 900 0 } { tvazio @ 55 0 } Se _tx_len @ 50 render_cx 0 }
 # o som parou sem ser pela app (acabou, erro): a app volta a saber o que está a tocar
 : som_fim i>i z { = a _an_atocar ? a { tcopia @ 55 a 900 0 } { tvazio @ 55 0 } Se _tx_len @ 50 render_cx 0 }
-: naoesta_enviar i>i b ? ocupado 0 { ! 31 1 ! 34 17 = r _tx_abre 400 `POST /api/playlists/{ purl @ 30 }/rejeitar{ P 10 }\{"faixa":{ pjs b },"fora":{ ? rej_tem b "false" "true" }\}{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` 0 }
-: afinar_maestro >i ? ocupado 0 { ! 31 1 ! 34 18 = r _tx_abre + 400 * 7 _tx_len @ 49 `POST /api/playlists/{ purl @ 30 }/afinar{ P 10 }\{"texto":{ pjs @ 49 }\}{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` 0 }
+: naoesta_enviar i>i b ? ocupado 0 { pede`POST /api/playlists/{ purl @ 30 }/rejeitar{ P 10 }\{"faixa":{ pjs b },"fora":{ ? rej_tem b "false" "true" }\}` 17 0 }
+: afinar_maestro >i ? ocupado 0 { = r _tx_abre + 400 * 7 _tx_len @ 49 `POST /api/playlists/{ purl @ 30 }/afinar{ P 10 }\{"texto":{ pjs @ 49 }\}` pede _tx_fecha r 18 0 }
 : renomear_enviar >i ? ocupado 0 {
-    ? < _tx_len @ 46 1 { = a _tx_abre 400 `Escreve um nome para a playlist.{ _tx_fecha a }{ aviso a }` 0 } {
-      ! 31 1 ! 34 16
+    ? < _tx_len @ 46 1 { aviso $"Escreve um nome para a playlist." 0 } {
       = r _tx_abre + 400 * 7 + _tx_len @ 46 _tx_len @ 47
-      `POST /api/playlists/{ purl @ 30 }/nome{ P 10 }\{"nome":{ pjs @ 46 },"descricao":{ pjs @ 47 }\}{ _tx_fecha r }`
-      _an_buscar r $"lido_escrita" 0 } }
-: renovar_pedir >i ? ocupado 0 { ! 31 1 ! 34 15 = r _tx_abre 400 `POST /api/playlists/{ purl @ 30 }/renovar{ P 10 }\{"ativo":{ ? == tipo _ar_get @ 4 $"renovar" 3 "false" "true" }\}{ _tx_fecha r }{ _an_buscar r $"lido_escrita" }` 0 }
+      `POST /api/playlists/{ purl @ 30 }/nome{ P 10 }\{"nome":{ pjs @ 46 },"descricao":{ pjs @ 47 }\}`
+      pede _tx_fecha r 16 0 } }
+: renovar_pedir >i ? ocupado 0 { pede`POST /api/playlists/{ purl @ 30 }/renovar{ P 10 }\{"ativo":{ ? == tipo _ar_get @ 4 $"renovar" 3 "false" "true" }\}` 15 0 }
 
 # ===== Tendencias: o que se esta a ouvir (as tabelas que o conector recolhe todos os dias) =====
 : tend_estado i>i t ? mesmo t $"sobe" "a subir" ? mesmo t $"nova" "nova" Se mesmo t $"dura" "dura"
@@ -827,7 +824,7 @@
         "</div>" }
     `<div class="mu-card"><h3>Conector de dados</h3><label class="mu-campo"><span>Endereço</span><input data-onda="px" value="{ esct @ 22 }" inputmode="url" autocapitalize="off" spellcheck="false"></label><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="px-ok">Guardar</button><button type="button" class="mu-btn sec" data-onda="px-rep">Repor</button></div></div>`
     `<div class="mu-card"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="motor">{ ic 7 }Testar o motor</button></div><p class="mu-motor" id="aj-motor-r"></p></div>`
-    `<p class="mu-nota">Música 2.25.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.26.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
@@ -862,7 +859,7 @@
   = v @ 1
   Se acesso {
     ? == v 1 { _an_buscam $"/api/playlists" $"lido_pl" 30000 _an_buscam $"/api/pedidos" $"lido_ped" 30000 0 }
-    ? == v 2 { = u _tx_abre 400 `/api/playlists/{ purl @ 30 }{ _tx_fecha u }{ _an_buscar u $"lido_doc" }` 0 }
+    ? == v 2 { _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_doc" 0 }
     ? == v 3 { _an_buscam $"/api/pedidos" $"lido_ped" 30000 _an_buscam $"/api/ideias" $"lido_ideias" 300000 0 }
     Se == v 4 { _an_buscam $"/api/perfil" $"lido_perfil" 300000 _an_buscam $"/api/tendencias" $"lido_tend" 300000 } } }
 
@@ -874,8 +871,8 @@
     ? == s 200 { = d _ar_json t Se mesmo txt d.id @ 30 { ! 4 d render } }
       { erro_ped t s Se == s 404 ir 1 0 } }
 : lido_perfil ii>i t s Se == @ 1 4 ? == s 200 { ! 4 _ar_json t render 0 } { erro_ped t s 0 }
-: exp_doc ii>i t mem { = d _ar_json t Se mesmo txt d.id @ 50 { Se ~ mem { = k _tx_abre 400 `/api/playlists/{ purl @ 50 }{ _tx_fecha k }{ _an_guardar k t }` } ! 51 d render_cx } }
-: exp_prev ii>i t mem Se mesmo @ 57 @ 50 { Se ~ mem { = k _tx_abre 400 `/api/playlists/{ purl @ 50 }/previas{ _tx_fecha k }{ _an_guardar k t }` } ! 52 _ar_json t render_cx }
+: exp_doc ii>i t mem { = d _ar_json t Se mesmo txt d.id @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }` t } ! 51 d render_cx } }
+: exp_prev ii>i t mem Se mesmo @ 57 @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }/previas` t } ! 52 _ar_json t render_cx }
 : lido_exp ii>i t s Se && == @ 1 1 == s 200 exp_doc t 0
 : lido_prev ii>i t s Se && == @ 1 1 == s 200 exp_prev t 0
 : lido_ideias ii>i t s Se && == @ 1 3 == s 200 { ! 48 _ar_json t render }
@@ -904,7 +901,7 @@
   ? mesmo a $"af-mx" { ! 8 _tx_int b afinar_correr render 0 }
   ? mesmo a $"af-es" { ! 9 _tx_int b afinar_correr render 0 }
   ? mesmo a $"af-ar" { ! 10 _tx_int b afinar_correr render 0 }
-  ? mesmo a $"procurar" { ? < _tx_len @ 23 2 { = m _tx_abre 400 `Escreve pelo menos 2 letras.{ _tx_fecha m }{ aviso m }` 0 } { = u _tx_abre + 40 * 3 _tx_len @ 23 `/api/pesquisa?q={ purl @ 23 }{ _tx_fecha u }{ _an_buscar u $"lido_pesq" }` = m _tx_abre 400 `A procurar no Tidal…{ _tx_fecha m }{ aviso m }` 0 } }
+  ? mesmo a $"procurar" { ? < _tx_len @ 23 2 { aviso $"Escreve pelo menos 2 letras." 0 } { = u _tx_abre + 40 * 3 _tx_len @ 23 `/api/pesquisa?q={ purl @ 23 }` _tx_fecha u _an_buscar u $"lido_pesq" aviso $"A procurar no Tidal…" 0 } }
   ? mesmo a $"juntar" { = r @ 19 = f ? r idx r.faixas _tx_int b 0 Se f juntar_faixa f 0 }
   ? mesmo a $"guardar" { guardar_versao _tx_int b 0 }
   ? mesmo a $"sug" { tvazio @ 20 Oc @ 20 1990 sugestao _tx_int b O 0 render 0 }
@@ -939,13 +936,13 @@
   ? mesmo a $"cancelar" { cancelar_ped b 0 }
   ? mesmo a $"ligar" { ligar_enviar 0 }
   ? mesmo a $"config" { config_enviar 0 }
-  ? mesmo a $"atualizar" { _an_buscar $"/api/perfil?fresco=1" $"lido_perfil" = m _tx_abre 400 `A ler do Tidal…{ _tx_fecha m }{ aviso m }` 0 }
+  ? mesmo a $"atualizar" { _an_buscar $"/api/perfil?fresco=1" $"lido_perfil" aviso $"A ler do Tidal…" 0 }
   ? mesmo a $"desligar" { ! 28 2 render 0 }
   ? mesmo a $"desligar_sim" { desligar_enviar 0 }
   ? mesmo a $"esquecer" { ! 28 3 render 0 }
-  ? mesmo a $"esquecer_sim" { _an_gravar $"chave" 0 ir 5 = m _tx_abre 400 `Aparelho esquecido.{ _tx_fecha m }{ aviso m }` = fica 1 0 }
-  ? mesmo a $"px-ok" { _an_gravar $"proxy" @ 22 ir 5 = m _tx_abre 400 `Conector guardado.{ _tx_fecha m }{ aviso m }` = fica 1 0 }
-  ? mesmo a $"px-rep" { _an_gravar $"proxy" 0 tcopia @ 22 $"https://musica.mercados-proxy.workers.dev" 390 ir 5 = m _tx_abre 400 `Conector reposto.{ _tx_fecha m }{ aviso m }` = fica 1 0 }
+  ? mesmo a $"esquecer_sim" { _an_gravar $"chave" 0 ir 5 aviso $"Aparelho esquecido." = fica 1 0 }
+  ? mesmo a $"px-ok" { _an_gravar $"proxy" @ 22 ir 5 aviso $"Conector guardado." = fica 1 0 }
+  ? mesmo a $"px-rep" { _an_gravar $"proxy" 0 tcopia @ 22 $"https://musica.mercados-proxy.workers.dev" 390 ir 5 aviso $"Conector reposto." = fica 1 0 }
   ? mesmo a $"motor" { testar_motor 0 }
   Se mesmo a $"usar" aparelho_enviar
   ? fica 0 _me_solta t }

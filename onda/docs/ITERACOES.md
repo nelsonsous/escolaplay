@@ -2847,3 +2847,52 @@ scripts do conselheiro na Onda fluida, uma só tabela de veredictos, e o que nã
 e o consenso traz os fundamentos em produção (conferido com a Nvidia, a Allianz, a Microsoft e a Tesla). A Cloudflare
 guarda cada resposta do consenso 6 horas por endereço, e as que já lá estavam vinham sem fundamentos: a app passa a
 pedir com `&f=1`, um endereço novo, para os receber logo.
+
+## Iteração 151: o molde com nome — o texto de um molde como argumento (e a Música na Onda fluida)
+
+A Música era a última app no estilo antigo. Ao passá-la para a Onda fluida apareceu 60 vezes a mesma dança: abrir um
+texto, escrever nele, fechá-lo e dá-lo a uma função — um aviso, o URL de um pedido, o corpo de uma escrita. Com os
+moldes da it.141 ficava assim, com um local e um tamanho que não interessam a ninguém:
+
+```
+= a _tx_abre 400 `Erro { N s } do conector.` _tx_fecha a aviso a
+= r _tx_abre 400 `POST /api/playlists/{ purl id }/tidal` _tx_fecha r _an_buscar r $"lido_escrita"
+```
+
+**1. O molde com nome.** Um nome colado a um molde dá à função, como 1.º argumento, o texto que o molde escreve:
+
+```
+aviso`Erro { N s } do conector.`
+_an_buscar`POST /api/playlists/{ purl id }/tidal` $"lido_escrita"
+```
+
+O leitor (`lxw`) acaba um nome numa crase e dá três coisas: o nome, uma `` ` `` (operador) e o molde, como já o lia.
+A crase (`cmol`) chama `_ta`, corre o molde e chama `_tf`, que devolve o texto — como o ponto chama `_mb`, são as
+funções da biblioteca que o programa juntou. As de `lib/texto.onda` abrem um texto de até 2000 bytes com a guarda do
+`Oc` e repõem a saída de antes, por isso abrem-se umas dentro das outras; a fala ganha `` texto`…` `` (só o texto).
+Nada de novo desce à representação intermédia: são duas chamadas. O alcance do `-w` conta a crase como `_ta` e `_tf`,
+que só entram num módulo que a usa. Erros no sítio: um local ou uma função sem argumentos antes da crase, um nome com
+pontos, um programa sem `_ta`/`_tf`. Na GPU e no JavaScript não há (precisa de memória, como o ponto), e o
+significado lê a mesma sintaxe e recusa-a com esse erro. O `tools/fluir.mjs` lê-a também.
+
+Os outros programas não mudam um byte: a Mercados (a app, o gráfico, o protótipo e o conselheiro), a Meteo, o molde e
+os gestos compilam igual com o compilador novo.
+
+**2. As portas 111–117 com nome** (`lib/anfitriao.onda`): `_an_som`, `_an_somfim`, `_an_atocar`, `_an_guardar`,
+`_an_lembrar`, `_an_esquecer` e `_an_buscam` (o buscar com memória), que a Música usava pelo número.
+
+**3. A Música na Onda fluida** (`musica/app/musica.onda`, 1357 → 984 linhas, o mesmo comportamento, os 54 testes sem
+tocar): os 153 acessores `k_*` e a sua tabela passam a textos constantes; os nomes do `lib/app.onda` aos da
+biblioteca; o conversor põe os moldes, o ponto, a fala, `Se` e `L` (326 moldes, 266 pontos, 556 palavras da fala);
+31 avisos passam a textos constantes (`aviso $"Pedido cancelado."`) e 20 textos a moldes com nome. O build tira as
+entradas do `-w` da própria fonte (os nomes das funções que o anfitrião chama são textos constantes), por isso não
+há lista para manter. A guarda dos textos apanhou um tamanho curto que antes passava por sorte (os ids de «Juntar
+playlists» em 400 bytes).
+
+**Testes.** `test/fluida.test.js` ganha o molde com nome: em C, WebAssembly e x86 com um `_ta`/`_tf` do próprio
+programa; com a biblioteca (uns dentro dos outros, os outros argumentos, a saída reposta, o corte aos 2000 bytes); a
+poda; os seis erros; o leitor do significado. `test/biblioteca-fala.test.js` confere o `` texto`…` `` contra um
+template literal do JS. A bateria: 174 testes, 150 passam e 24 saltam (Mac e qemu).
+
+**Fica por fazer.** A ponte C do compilador (`build.sh --c`) não compila para `-a`/`-m` (já não compilava antes desta
+iteração): serve só para arrancar num CPU novo, e os testes usam o compilador nativo.

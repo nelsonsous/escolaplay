@@ -55,11 +55,12 @@ const Significado = (() => {
         j = q;
       }
     }
+    // um nome acaba tambem numa crase: f`...` e um molde com nome (o nome, uma ` operador e o molde)
     function palavra(s) {
-      const c = src.charCodeAt(s);
+      const c = src.charCodeAt(s), nm = (c >= 97 && c <= 122) || c === 95;
       let i = s + 1;
       if (c === 39 && i < n) i++;
-      while (i < n && !FIM(src.charCodeAt(i))) i++;
+      while (i < n && !FIM(src.charCodeAt(i)) && !(nm && src.charCodeAt(i) === 96)) i++;
       const x = src.slice(s, i), l = i - s;
       let k;
       if (DG(c) || (c === 45 && l > 1 && DG(src.charCodeAt(s + 1)))) k = x.includes('.') ? 2 : 1;
@@ -67,6 +68,11 @@ const Significado = (() => {
       else if ((c >= 97 && c <= 122) || c === 95) k = 0;
       else k = 5;
       if (k === 0 && x.includes('.')) ponto(s, i); else poe(k, s, i);
+      if (nm && i < n && src.charCodeAt(i) === 96) {
+        if (x.includes('.')) throw erro('o nome de um molde com nome nao leva pontos');
+        poe(5, i, i + 1);
+        return molde(i);
+      }
       return i;
     }
     // d = 1: uma interpolacao de um molde, ate a } que a fecha (devolve o indice dela)
@@ -195,6 +201,7 @@ const Significado = (() => {
             return { o: 43, y: 0, s: l.s, n: lim, b };
           }
           case '.': throw erro('operacao so de CPU: .');
+          case '`': throw erro('operacao so de CPU: molde com nome');
           case '{': {
             const xs = [];
             for (;;) { if (pos >= T.length) throw erro('falta }'); if (T[pos].x === '}') break; xs.push(ex()); }

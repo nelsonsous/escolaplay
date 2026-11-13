@@ -349,6 +349,7 @@
   ? == o 'L clp
   ? == o '( cpar
   ? == o '. cdot
+  ? == o 96 cmol i
   ? == o 'W cwh
   ? == o '{ cblk
   ? == o '= cset
