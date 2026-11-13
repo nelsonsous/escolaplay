@@ -2847,3 +2847,22 @@ scripts do conselheiro na Onda fluida, uma só tabela de veredictos, e o que nã
 e o consenso traz os fundamentos em produção (conferido com a Nvidia, a Allianz, a Microsoft e a Tesla). A Cloudflare
 guarda cada resposta do consenso 6 horas por endereço, e as que já lá estavam vinham sem fundamentos: a app passa a
 pedir com `&f=1`, um endereço novo, para os receber logo.
+
+## Iteração 151: mais dados do conector no mesmo pedido (conector 1.8.0, Mercados 4.23.0)
+
+**O conector (`/consensus`).** Pedia três módulos ao Yahoo por ação; passa a pedir seis, no mesmo pedido: saem daí as
+revisões das estimativas de lucro (quantos analistas as subiram e desceram em 30 dias, e quanto a estimativa mudou em
+90), as surpresas dos últimos quatro resultados, os votos de há 3 meses e mais fundamentos (ROE, dívida, PEG, P/B,
+beta, vendas a descoberto, dividendo). Se o Yahoo recusar o pedido maior, repete com os módulos de sempre: o consenso
+não se perde por causa dos novos. Para os fundos, um segundo pedido dá o P/E e o P/B das empresas que o fundo tem, o
+custo por ano e as cinco maiores posições. As cotações ganham uma segunda tentativa quando o Yahoo recusa por excesso
+de pedidos, com um orçamento por pedido para não passar o limite da Cloudflare.
+
+**Na decisão.** As revisões entram na fonte dos analistas: com 3 ou mais em 30 dias, somam 10 × (up − down) / (up +
+down). É o sinal mais fresco que os analistas dão: a recomendação muda devagar, as estimativas mexem todas as semanas.
+No cartão: «58 analistas · alvo +17,60% · revisões 12↑ 2↓». Nos pormenores: para onde vão as recomendações em 3
+meses, as revisões, as surpresas, e num fundo o que ele tem por dentro.
+
+**Verificado.** Conector: 21 testes com pedidos simulados (os dados novos, o pedido maior recusado, um fundo, a
+segunda tentativa). Motor e cartão: as referências em JS acompanham (20 000 e 4 000 casos). Interface: a ficha da
+Nvidia e a de um fundo. Os nomes dos campos do Yahoo ficam por confirmar em produção, depois da publicação.

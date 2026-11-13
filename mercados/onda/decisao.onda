@@ -5,7 +5,9 @@
 # CADA FONTE dá uma pontuação p (0–100), uma família (1 entrar, 0 ficar, -1 sair) e um peso:
 #   claude       o veredicto (key) e a convicção por prazo         peso 3 (1,5 se é de um dia anterior: old)
 #   analistas    a recomendação e a nota média do Yahoo (1 a 5)    peso 2 com 10 analistas ou mais (menos: n/10)
-#                p = 100 − 25 × (nota − 1); só metade do caminho até ao 50 se o preço já passou o alvo deles
+#                p = 100 − 25 × (nota − 1); só metade do caminho até ao 50 se o preço já passou o alvo deles;
+#                as revisões das estimativas de lucro em 30 dias (up e down, com 3 ou mais) somam
+#                10 × (up − down) / (up + down): quem as sobe puxa para cima
 #   fundamentos  os números da empresa, a média dos que há (pelo menos dois)                             peso 1
 #                pe  o preço a dividir pelos lucros esperados: 10 ou menos 85, 15 → 70, 22 → 50, 35 → 30, 60 ou mais 15
 #                cr  o crescimento das vendas num ano, em %: −10 ou menos 25, 0 → 45, 10 → 62, 25 ou mais 80
@@ -26,7 +28,7 @@
 #              baixa: peso a favor abaixo de 2, ou o peso contra passa de metade do peso a favor
 #              média: o resto. As fontes ao lado não contam para a confiança.
 #
-# A ENTRADA (um nó da árvore): { cl: { key, short, mid, long, old }, an: { key, mean, n, target, price },
+# A ENTRADA (um nó da árvore): { cl: { key, short, mid, long, old }, an: { key, mean, n, target, price, up, down },
 #   fun: { pe, cr, mg }, tec: { key, short, mid, long }, news: tom, sent: { fg } ou { vix } } — o que falta, ou não é
 #   do tipo certo, não conta.
 # O RESULTADO (dc_calc d → r; 0 se nenhuma fonte fala):
@@ -88,6 +90,7 @@
     Se && && dc_e c.target dc_e c.price > num c.price 0.
       Se || && > f 0 < num c.target num c.price && < f 0 > num c.target num c.price
         = p + 50. / - p 50. 2.
+    Se && dc_e c.up dc_e c.down { = t + num c.up num c.down Se >= t 3. = p + p / * 10. - num c.up num c.down t }
     dc_poe r 1 f txt c.key p * 2. Mn 1. / num c.n 10. } }
 : dc_fund ii>i r c {
   = a 0. = n 0

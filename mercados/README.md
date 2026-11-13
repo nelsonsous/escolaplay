@@ -58,7 +58,7 @@ Na ficha de cada ativo que se compra há um só cartão, **Decisão**: o veredic
 | Fonte | Pontuação (0–100) | Peso |
 |---|---|---|
 | Claude | a convicção por prazo (25 % curto, 35 % médio, 40 % longo) | 3 (1,5 se a análise não é a última) |
-| Analistas (Yahoo) | 100 − 25 × (nota − 1); metade do caminho até 50 se o preço já passou o alvo | 2 com 10 analistas ou mais |
+| Analistas (Yahoo) | 100 − 25 × (nota − 1); metade do caminho até 50 se o preço já passou o alvo; mais até 10 pontos pelas revisões das estimativas de lucro em 30 dias (quem as sobe puxa para cima) | 2 com 10 analistas ou mais |
 | Fundamentos (Yahoo) | a média do P/E esperado, do crescimento das vendas e da margem de lucro, cada um numa tabela (pelo menos dois) | 1 |
 | Técnica | a pontuação por prazo, com os mesmos pesos | 1,5 |
 | Notícias | 50 + 50 × tom dos títulos | 0,75 |
@@ -68,7 +68,7 @@ Na ficha de cada ativo que se compra há um só cartão, **Decisão**: o veredic
 - **Confiança:** alta com ninguém contra e peso a favor de 4 ou mais (o Claude e mais uma fonte de peso). Baixa com menos de 2 a favor, ou com o peso contra acima de metade do peso a favor. As fontes ao lado não contam.
 - **Forte:** ninguém contra e a média em 70 ou mais (30 ou menos para sair).
 
-As tabelas estão no cabeçalho do [`decisao.onda`](onda/decisao.onda). Os fundamentos vêm no `/consensus` do conector desde a 1.7.0; o Fear & Greed no `/cryptoglobal`; o VIX nas cotações.
+As tabelas estão no cabeçalho do [`decisao.onda`](onda/decisao.onda). Os fundamentos vêm no `/consensus` do conector desde a 1.7.0, e as revisões das estimativas, as surpresas dos resultados e os dados dos fundos (P/E, custo, maiores posições) desde a 1.8.0; o Fear & Greed no `/cryptoglobal`; o VIX nas cotações.
 
 Os pormenores de cada fonte (convicção por prazo, analistas, sinais automáticos, impostos) ficam dobrados por baixo do cartão.
 
