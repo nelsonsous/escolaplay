@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.22.0';
+    const VERSION = '4.22.1';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1421,8 +1421,6 @@
             ${kind === 'stock' ? '<div class="adv-meta"><b>Dividendos</b> — se a empresa pagar, são 28% e entram na declaração de IRS (Anexo J) todos os anos.</div>' : ''}
             <div class="adv-meta">Impostos (PT): ${kind === 'crypto' ? 'vender ao fim de 365 dias ou mais está isento de IRS; antes disso paga 28%.' : kind === 'fund' ? 'só pagas quando venderes, e menos quanto mais tempo o tiveres: 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais. Um ETF de acumulação não paga nada enquanto o tiveres.' : 'ao vender, 28% até 2 anos, 25,2% de 2 a 5, 22,4% de 5 a 8 e 19,6% com 8 anos ou mais; os dividendos pagam 28%.'}</div>`;
     }
-    // o Claude e o sinal automático do mesmo ativo dizem coisas de famílias diferentes (entrar / ficar / sair)
-    const algDiff = (k, c) => { const a = AN[k] && AN[k].advice; return !!(c && a && FAMS[c.key] != null && FAMS[a.key] != null && FAMS[c.key] !== FAMS[a.key]); };
     // a leitura do Claude do que não se compra (índices, câmbio, futuros): os ativos têm o cartão «Decisão»
     function claudeBox(k, q) {
         const c = claudeFor(k);
@@ -1487,7 +1485,7 @@
             src: manda ? (c.old ? `Análise do Claude de ${de} · último comentário a este ativo` : `Análise do Claude · ${clWhen()}`) : `Média das fontes · ${clDoc() ? 'o Claude não analisou este ativo' : claudeOn() ? 'ainda sem análise do Claude' : 'a análise do Claude liga-se em Ajustes'}`,
             act: manda && c.action && c.action.trim().toLowerCase() !== lbl.toLowerCase() ? c.action : '',
             // o porquê: o do Claude; sem ele, o da regra automática quando é ela que aponta para o mesmo lado
-            why: manda ? c.why : alg && FAMS[alg.key] === dec.fam ? alg.text : '', plan: manda ? c.plan : '', algWhy: manda && algDiff(k, c) ? c.algWhy : '',
+            why: manda ? c.why : alg && FAMS[alg.key] === dec.fam ? alg.text : '', plan: manda ? c.plan : '', algWhy: manda ? c.algWhy : '',
             lv: manda ? [['entry', 'Entrada'], ['target', 'Alvo'], ['stop', 'Stop']].filter(([f]) => fin(clPx(k, q, c[f]))).map(([f, l]) => ({ f, l, px: fmtPx(clPx(k, q, c[f]), REG[k], q.currency), d: dist(c[f]) })) : [],
             anD: cons && fin(cons.target) && fin(cons.price) && cons.price > 0 ? (cons.target / cons.price - 1) * 100 : null,
             nn: n && n.items ? Math.min(8, n.items.length) : 0,

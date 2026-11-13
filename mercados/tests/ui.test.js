@@ -63,7 +63,7 @@ const REFS = ['BZ=F', 'CL=F', 'RB=F', 'HO=F', 'NG=F', 'GC=F', '^GSPC', '^IXIC', 
 // sem veredicto hoje (ex.: sem dados nesse dia): o Ether fica com o último conselho; o XRP, a TSMC e a Rheinmetall com o algoritmo
 const SKIP = ['c:ETH', 'c:XRP', 'TSM', 'RHM.DE'];
 const SPECIAL = {
-    NVDA: { key: 'scale', action: 'Comprar aos poucos', short: 48, mid: 88, long: 81, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% com a tendência longa a favor; resultados a 17/11.', plan: 'Metade agora, metade depois dos resultados.' },
+    NVDA: { key: 'scale', action: 'Comprar aos poucos', short: 48, mid: 88, long: 81, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% com a tendência longa a favor; resultados a 17/11.', plan: 'Metade agora, metade depois dos resultados.', algWhy: 'A regra vê L36 e o preço abaixo da MM200; não vê os resultados de 17/11; concordo se perder 149 €.' },
     'ALV.DE': { key: 'buy', action: 'Comprar', short: 70, mid: 84, long: 70, why: 'Sobe 6,8% com resultados acima do esperado.' },
     'VWCE.DE': { key: 'hold', action: 'Manter e reforçar', short: 40, mid: 82, long: 90, why: 'Núcleo do plano.' },
     MSFT: { key: 'hold', action: 'Manter', short: 50, mid: 76, long: 70, why: 'Tendência longa a favor.' },
@@ -114,7 +114,8 @@ function proxyBody(u) {
     // a análise do dono no formato 4.0, exatamente como o publicar.mjs a grava no KV
     const { buildAdvice } = await import(require('url').pathToFileURL(path.join(__dirname, '../conselheiro/publicar.mjs')).href);
     const covered = [...FUNDS, 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP', ...WATCH, ...REFS].filter((s) => !SKIP.includes(s));
-    const dadosRows = covered.map((s) => ({ s, kind: REFS.includes(s) ? 'ref' : 'x', price: s === 'NVDA' ? 196 : s === 'c:BTC' ? 88000 : null }));
+    // a Nvidia leva a regra automática do dia (o publicar só guarda o algWhy de quem a tem; e exige-o a quem discorda dela)
+    const dadosRows = covered.map((s) => ({ s, kind: REFS.includes(s) ? 'ref' : 'x', price: s === 'NVDA' ? 196 : s === 'c:BTC' ? 88000 : null, ...(s === 'NVDA' ? { rule: 'turn' } : {}) }));
     // mais um da lista toda da TR (fora das listas da app): a PUMA
     const pick = { s: 'PUM.DE', key: 'buy', action: 'Comprar', short: 60, mid: 70, long: 72, why: 'PUMA: tendência forte na lista da TR.' };
     const built = buildAdvice({ ...ADV_BASE, actions: covered.map((s) => ({ s, ...verdictOf(s) })).concat(pick), rank: { mid: ['NVDA', 'ALV.DE', 'VWCE.DE', 'MSFT', 'AAPL'] } }, { rows: dadosRows }, [{ s: 'PUM.DE' }]);
@@ -679,6 +680,10 @@ function proxyBody(u) {
     assert.match(await page.locator(adv).textContent(), /Desconto de 22%[\s\S]*Plano:\s*Metade agora/);
     assert.match(await page.locator(adv + ' .adv-ev').textContent(), /Resultados daqui a 5 dias/);
     assert.equal(await page.locator(adv + ' .adv-meta').count(), 0, 'os impostos saem do cartão');
+    // porque o Claude discorda: de quem está contra; sem ninguém contra, da técnica, se ficou ao lado
+    const tecD = dec.d.f.find((x) => x.f === 'tecnica').d;
+    assert.equal(await page.locator(adv + ' .adv-alg').count(), dec.d.contra > 0 || tecD === 0 ? 1 : 0);
+    if (dec.d.contra === 0 && tecD === 0) assert.equal(await page.locator(adv + ' .adv-alg').textContent(), 'Porque discorda da técnica: A regra vê L36 e o preço abaixo da MM200; não vê os resultados de 17/11; concordo se perder 149 €.');
     if (SHOTS) await page.locator(adv).screenshot({ path: path.join(SHOTS, '3c-decisao.png') });
     if (SHOTS) { await page.locator(adv).scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(SHOTS, '3b-ficha-claude.png') }); }
     await fichaInteira(page, '3d-ficha-inteira.png');

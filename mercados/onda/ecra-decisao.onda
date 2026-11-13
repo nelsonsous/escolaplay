@@ -4,7 +4,7 @@
 # Não escreve nada se nenhuma fonte fala.
 #
 # O INSTANTÂNEO: { d: as fontes (a entrada do dc_calc), own: tenho o ativo, src: de quando é a análise,
-#   act: a frase do Claude (se diz mais do que o rótulo), why, plan, algWhy (porque discorda da técnica),
+#   act: a frase do Claude (se diz mais do que o rótulo), why, plan, algWhy (porque discorda das outras fontes),
 #   lv: [{ f, l, px, d }] (os níveis, já na moeda do ecrã), anD (o alvo dos analistas face a hoje, em %),
 #   nn (os títulos que contam para o tom), hoje (porque mexe hoje), desce, ev: [{ t, q, d }] (a agenda) }
 # Precisa do decisao.onda, do ecra.onda (es, ln_fin, fm_pct) e do ecra-analise.onda (an_sht, an_barv).
@@ -14,8 +14,9 @@
   ? o `Vender{ Se parte " parte" }` "Evitar"
 : dv_tom i>i f ? > f 0 "up" ? < f 0 "down" "flat"
 : dv_nome i>i q ? == q 0 "Claude" ? == q 1 "Analistas" ? == q 2 "Técnica" ? == q 3 "Notícias" ? == q 4 "Fundamentos" "Sentimento"
-: dv_art i>i q ? == q 0 "o Claude" ? == q 1 "os analistas" ? == q 2 "a técnica" ? == q 3 "as notícias"
-  ? == q 4 "os fundamentos" "o sentimento"
+# a fonte por extenso, com o artigo ("os analistas"); com de, "dos analistas"
+: dv_art ii>i q de { Se de "d" ? == q 0 "o Claude" ? == q 1 "os analistas" ? == q 2 "a técnica" ? == q 3 "as notícias"
+  ? == q 4 "os fundamentos" "o sentimento" }
 # a recomendação dos analistas (o CONS_LBL do JS)
 : dv_cons i>i k ? eh k $"strong_buy" "Compra forte" ? eh k $"buy" "Comprar" ? eh k $"hold" "Manter"
   ? eh k $"underperform" "Abaixo do mercado" ? eh k $"sell" "Vender" "Venda forte"
@@ -38,22 +39,25 @@
 # o sentimento por extenso: o Fear & Greed da cripto (0 medo … 100 ganância) ou o VIX
 : dv_sent i>i c ? ln_fin c.fg { = v num c.fg ? <= v 25. "medo extremo" ? <= v 45. "medo" ? < v 55. "neutro" ? < v 75. "ganância" "ganância extrema" }
   { = v num c.vix ? >= v 28. "medo" ? >= v 20. "nervoso" "calmo" }
-# as fontes do resultado r que estão na posição p, por extenso: "os analistas, a técnica e as notícias"
-: dv_quem ii>i r p {
+# as fontes do resultado r que estão na posição p, por extenso: "os analistas, a técnica e as notícias" (com de,
+# "dos analistas, da técnica e das notícias")
+: dv_quem iii>i r p de {
   = tot 0 = k 0
   L i @ r Se == @ + + + r 10 * 6 i 2 p = tot + tot 1
   L i @ r {
     = b + + r 10 * 6 i
-    Se == @ + b 2 p { Se k ? == k - tot 1 " e " ", " dv_art @ b = k + k 1 } }
+    Se == @ + b 2 p { Se k ? == k - tot 1 " e " ", " dv_art @ b de = k + k 1 } }
   0 }
+# a posição da fonte q no resultado r (1 a favor, 0 ao lado, -1 contra); 9 se não fala
+: dv_lado ii>i r q { = v 9 L i @ r { = b + + r 10 * 6 i Se == @ b q = v @ + b 2 } v }
 # quantas fontes estão a favor, e quais ficam contra e ao lado
 : dv_voz i>i r {
   = n @ r = nf @ + r 6 = nc @ + r 7
-  ? == n 1 `Uma só fonte: { dv_art @ + r 10 }.`
+  ? == n 1 `Uma só fonte: { dv_art @ + r 10 0 }.`
   ? == nf n `As {N n} fontes de acordo.` {
     `{N nf} de {N n} a favor`
-    Se nc { " · contra: " dv_quem r -1 }
-    Se < + nf nc n { " · ao lado: " dv_quem r 0 }
+    Se nc { " · contra: " dv_quem r -1 0 }
+    Se < + nf nc n { " · ao lado: " dv_quem r 0 0 }
     0 } }
 # a fonte i do resultado r, numa linha: o que diz, de que lado fica, a pontuação e o pormenor
 : dv_fonte ii>i r i {
@@ -105,7 +109,9 @@
     Se ha es.hoje `<div class="adv-why"><b>Porquê { ? ha es.desce "desce" "sobe" } hoje:</b> { esc es.hoje }</div>`
     Se ha es.why `<div class="adv-txt">{ esc es.why }</div>`
     Se ha es.plan `<div class="adv-txt"><b>Plano:</b> { esc es.plan }</div>`
-    Se ha es.algWhy `<div class="adv-alg diff"><b>O Claude discorda da técnica:</b> { esc es.algWhy }</div>`
+    # porque o Claude discorda: das fontes que estão contra; sem elas, da técnica, se ficou ao lado
+    Se && && ha es.algWhy @ + r 4 || @ + r 7 == dv_lado r 2 0
+      `<div class="adv-alg diff"><b>Porque discorda { ? @ + r 7 dv_quem r -1 1 "da técnica" }:</b> { esc es.algWhy }</div>`
     = n pri es.ev
     W n {
       `<div class="adv-ev">`
