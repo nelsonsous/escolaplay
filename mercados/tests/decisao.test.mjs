@@ -42,6 +42,8 @@ function decide(d0) {
         const f = nota <= 2 ? 1 : nota >= 4 ? -1 : 0, m = e(an.mean) ? Math.max(1, Math.min(5, an.mean)) : nota;
         let p = 100 - 25 * (m - 1);
         if (e(an.target) && e(an.price) && an.price > 0 && ((f > 0 && an.target < an.price) || (f < 0 && an.target > an.price))) p = 50 + (p - 50) / 2;
+        // as revisões das estimativas em 30 dias, com 3 ou mais: até 10 pontos para o lado de quem as mexeu
+        if (e(an.up) && e(an.down)) { const t = an.up + an.down; if (t >= 3) p = p + 10 * (an.up - an.down) / t; }
         fs.push(fonte('analistas', f, an.key, p, 2 * Math.min(1, an.n / 10)));
     }
     const fun = obj(d.fun);
@@ -105,6 +107,7 @@ function caso(r) {
             key: key(AKEYS, AKEYS_MAS), n: r() < 0.1 ? um([0, -2, NaN, null, '12', Infinity]) : um([1, 2, 3, 5, 9, 10, 11, 25, 60, 2.5]),
             ...(r() < 0.85 ? { mean: r() < 0.1 ? um(MAUS.concat(0, 9, -1)) : r() < 0.4 ? um([1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 2.32, 2.68]) : 1 + r() * 4 } : {}),
             ...(r() < 0.8 ? { target: r() < 0.08 ? um(MAUS) : price * (0.6 + r() * 0.9), price } : {}),
+            ...(r() < 0.5 ? { up: r() < 0.08 ? um(MAUS) : um([0, 1, 2, 3, 12, 30]), down: r() < 0.08 ? um(MAUS) : um([0, 1, 2, 3, 9, 30]) } : {}),
         };
     }
     if (r() < 0.8) d.tec = r() < 0.04 ? um([null, 'buy', 9]) : prazosDe({ key: key(KEYS.slice(0, 6).concat('avoid'), KEYS_MAS) });
