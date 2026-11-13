@@ -14,7 +14,7 @@ const destino = path.join(raiz, 'mercados/analise-onda.js');
 // analise.js (fase C) e o ecrã (fase D: os utilitários das vistas e as vistas), por esta ordem. O conselheiro
 // (mercados/conselheiro/onda/build.mjs) usa as mesmas listas BIBLIOTECA e ANALISE.
 export const BIBLIOTECA = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao', 'fala'].map((m) => `../../onda/lib/${m}.onda`);
-export const ANALISE = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda'];
+export const ANALISE = ['analise.onda', 'comum.onda', 'noticias.onda', 'mercado.onda', 'avisos.onda', 'cripto.onda', 'passado.onda', 'decisao.onda'];
 export const ECRA = ['ecra.onda', 'ajustes.onda', 'ecra-analise.onda', 'ecra-destaques.onda', 'ecra-painel.onda', 'ecra-carteira.onda'];
 export const FONTES = [...BIBLIOTECA, ...ANALISE, ...ECRA];
 const ehMain = !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -453,6 +453,11 @@ const anfitriao = String.raw`(function (root) {
     function vista(nome, snap) { const k = k0(), r = arvore(k, snap); k.vai(() => k.ex[nome](BigInt(r))); return k.saida(); }
     const ecra = { ajustes: (snap) => vista('ajustes', snap), analise: (snap) => vista('ecra_analise', snap), destaques: (snap) => vista('ecra_destaques', snap), painel: (snap) => vista('ecra_painel', snap), carteira: (snap) => vista('ecra_carteira', snap), fixa };
 
+    // ---------- a decisão consolidada (decisao.onda) ----------
+    // list: [{ cl, an, tec, news }] → [null | { fam, forte, p, conf, manda, key, n, favor, contra, f: [fontes] }]
+    function decisoes(list) { const k = k0(), r = arvore(k, Array.from(list || [])); k.vai(() => k.ex.decisoes(BigInt(r))); return JSON.parse(k.saida()); }
+    const decisao = (d) => decisoes([d])[0];
+
     // ---------- para os testes ----------
     // o que a função 'nome' da Onda imprime para cada real de xs (ex.: 'pct', 'pnum')
     function _texto(nome, xs) { const k = k0(); return xs.map((x) => { k.vai(() => k.ex[nome](x)); return k.saida(); }); }
@@ -472,7 +477,7 @@ const anfitriao = String.raw`(function (root) {
         ready, analyseMany, analyse,
         groupAlert, isQuiet, sma, emaSeries, rsi, macd, volatility, sentiment, newsTone, marketMood, usdGalToEurL, labelOf, riskOf,
         backtestAsset, summarize, benchFn, newAcc, planLots, cryptoTax,
-        sentimentMany, backtestMany, _texto, _norm, _vista, _ordena, ecra,
+        sentimentMany, backtestMany, decisoes, decisao, _texto, _norm, _vista, _ordena, ecra,
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else root.AnaliseOnda = api;

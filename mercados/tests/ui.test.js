@@ -628,6 +628,17 @@ function proxyBody(u) {
     assert.match(cm[1], /^Preço-alvo médio a 12 meses, de 58 analistas: .+€ \(230,50\sUS\$\) \+17,60% face a hoje · o mais baixo .+€ \(150,00\sUS\$\), o mais alto .+€ \(300,00\sUS\$\)\.$/, 'em euros e em dólares: ' + cm[1]);
     assert.match(await page.locator('#mk-sheet .cons-box .adv-alg').textContent(), /Claude: Comprar · concorda com os analistas/);
     if (SHOTS) await page.locator('#mk-sheet .cons-box').screenshot({ path: path.join(SHOTS, '9-consenso.png') });
+    // a decisão consolidada (4.20.5, decisao.onda): o que a app já sabe de cada fonte, numa só decisão
+    const dec = await page.evaluate(() => {
+        const m = window.__mk, ref = Object.keys(m.REG).find((k) => m.REG[k].kind === 'index');
+        return { e: m.decIn('NVDA'), d: m.decOf('NVDA'), ref: m.decOf(ref), fora: m.decOf('NAO-EXISTE') };
+    });
+    assert.deepEqual([dec.d.manda, dec.d.fam, dec.d.key], ['claude', 1, dec.e.cl.key], 'manda o Claude de hoje');
+    assert.deepEqual(dec.d.f.map((x) => x.f), ['claude', 'analistas', 'tecnica', 'noticias'].filter((f) => dec.d.f.some((x) => x.f === f)), 'as fontes pela ordem');
+    const dAn = dec.d.f.find((x) => x.f === 'analistas');
+    assert.deepEqual([dAn.p, dAn.fam, dAn.w, dAn.d, dAn.key], [90, 1, 2, 1, 'strong_buy'], 'nota 1,4 → 90; com 58 analistas, o peso inteiro');
+    assert.ok(dec.d.f.some((x) => x.f === 'tecnica') && dec.d.n === dec.d.f.length && Number.isInteger(dec.d.p), 'a técnica também vota');
+    assert.deepEqual([dec.ref, dec.fora], [null, null], 'um índice (ou o que a app não tem) não tem decisão');
     assert.equal(await page.locator(adv + ' .adv-nu').textContent(), 'Comprar aos poucos', 'o pormenor do Claude por baixo');
     assert.match(await page.locator(adv + ' .adv-src').textContent(), /^Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)$/);
     assert.deepEqual(await page.locator(adv + ' .cl-conv .val').allTextContents(), ['48', '88', '81'], 'convicção curto/médio/longo');
