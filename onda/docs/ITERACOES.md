@@ -2703,3 +2703,26 @@ sobra no fim de um bloco. Os comentários e o espaçamento ficam, e converter ou
 **Verificado.** Os 90 testes da Mercados (a paridade de cada vista com a referência em JavaScript, estado a estado, e a
 do motor ao bit) e o teste de interface, também na versão minificada. O conselheiro usa a mesma análise e continua
 igual ao JavaScript, byte a byte; os scripts dele (`conselheiro/onda`) ficam para a volta do conselheiro.
+
+## Iteração 144: a decisão consolidada da Mercados (o motor)
+
+**`mercados/onda/decisao.onda` (118 linhas).** Cada ativo tinha três caixas, cada uma com a sua opinião: o Claude, os
+analistas e os sinais automáticos. O motor junta-as numa só decisão, na escala que a app já usa (0–100: 50 neutro,
+≥ 58 a favor, ≤ 42 contra, ≥ 70 e ≤ 30 forte). Cada fonte dá uma pontuação, uma família (entrar, ficar, sair) e um
+peso: o Claude 3 (1,5 se a análise é de um dia anterior), os analistas 2 com 10 ou mais (a nota média de 1 a 5 passa a
+100 − 25 × (nota − 1), e vale metade se o preço já passou o alvo deles), a técnica 1,5 e as notícias 0,75. Nos prazos
+pesa mais o longo (25 %, 35 %, 40 %).
+
+Manda o Claude se a análise é de hoje; senão manda o voto (a média pelos pesos). As outras fontes ficam a favor,
+contra ou ao lado, e daí sai a confiança: alta com peso total ≥ 4, 75 % do peso a favor e ninguém contra; baixa com
+uma fonte sozinha, um terço do peso contra ou menos de metade a favor. Uma decisão do Claude contra todos sai como
+é, com a confiança em baixo e os contra à vista.
+
+**Escrito na Onda fluida de raiz.** As fontes leem-se com o ponto (`c.mean`, `x.long`), as regras com as palavras da
+fala (`eh`, `num`, `fin`) e o JSON com moldes. Compilou à primeira. O JS só junta o que cada fonte já deu
+(`decIn`, 12 linhas) e chama `AnaliseOnda.decisao`.
+
+**Verificado.** `mercados/tests/decisao.test.mjs`: as regras escritas outra vez em JS e 20 000 casos ao acaso (valores
+que faltam, tipos errados, números nas fronteiras) com resultado igual ao bit; casos feitos à mão; e as propriedades
+(manda o Claude de hoje; sem ele, mais pontuação nunca piora a decisão; forte e confiança alta só sem ninguém
+contra). Os 93 testes da Mercados e o teste de interface. A ficha do ativo passa a usá-lo na volta seguinte.

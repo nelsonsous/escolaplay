@@ -25,8 +25,9 @@
         cryptoTax: (lots, today) => (aoOk ? AO.cryptoTax(lots, today) : null),
         groupAlert: (items, held) => (aoOk ? AO.groupAlert(items, held) : null),
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
+        decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.20.4';
+    const VERSION = '4.20.5';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1470,6 +1471,19 @@
         } catch { CONS[k] = null; }
         if (sheetKey === k) renderSheet(true);
     }
+    // ---- a decisão consolidada (decisao.onda): o que o Claude, os analistas, a técnica e as notícias dizem de um
+    // ativo, numa só. Aqui só se junta o que cada fonte já deu; as regras e os pesos estão na Onda ----
+    function decIn(k) {
+        const cl = claudeFor(k), c = CONS[k], r = AN[k], n = NEWS[k], h = (r && r.horizons) || {};
+        const sc = (x) => (x ? x.score : null);
+        return {
+            cl: cl ? { key: cl.key, short: cl.short, mid: cl.mid, long: cl.long, old: !!cl.old } : null,
+            an: c && !c.none && !c.error ? { key: c.key, mean: c.mean, n: c.n, target: c.target, price: c.price } : null,
+            tec: r && r.advice ? { key: r.advice.key, short: sc(h.short), mid: sc(h.mid), long: sc(h.long) } : null,
+            news: n ? A.newsTone(n.items) : null,
+        };
+    }
+    const decOf = (k) => (buyable(k) ? A.decisao(decIn(k)) : null);
     function consBox(k, cl) {
         const c = CONS[k];
         if (!c || c.none || c.error || !CONS_LBL[c.key] || !(c.n > 0)) return '';
@@ -2659,6 +2673,6 @@
         highlightsSnap, highlightsHtml, fmtBig, get movers() { return MOVERS; }, set movers(v) { MOVERS = v; }, get cg() { return CG; }, set cg(v) { CG = v; },
         // o Painel (só em Onda): o instantâneo, o desenho e o que ele lê já feito (a variação no período, o conselho do Claude
         // de cada ativo, o imposto da cripto), e o estado dos combustíveis
-        panelSnap, panelHtml, perData, claudeFor, taxLine, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; } };
+        panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; } };
     boot();
 })();

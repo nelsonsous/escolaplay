@@ -1,0 +1,118 @@
+# decisao.onda — a decisão consolidada de um ativo: junta o que cada fonte diz (o Claude, os analistas, a análise
+# técnica, as notícias) numa só, na escala da app (0–100: 50 neutro, ≥ 58 a favor, ≤ 42 contra, ≥ 70 e ≤ 30 forte).
+#
+# CADA FONTE dá uma pontuação p (0–100), uma família (1 entrar, 0 ficar, -1 sair) e um peso:
+#   claude     o veredicto (key) e a convicção por prazo         peso 3 (1,5 se é de um dia anterior: old)
+#   analistas  a recomendação e a nota média do Yahoo (1 a 5)    peso 2 com 10 analistas ou mais (menos: n/10)
+#              p = 100 − 25 × (nota − 1); só metade do caminho até ao 50 se o preço já passou o alvo deles
+#   tecnica    o sinal automático (key) e a pontuação por prazo  peso 1,5
+#   noticias   o tom dos títulos (−1 a 1): p = 50 + 50 × tom     peso 0,75
+# Nos prazos pesa mais o longo: 25 % o curto, 35 % o médio e 40 % o longo (do que houver).
+#
+# A DECISÃO: P é a média das pontuações pelos pesos. Manda o Claude se a análise é de hoje (a família e o veredicto
+# são os dele); senão manda o voto: P ≥ 58 entrar, P ≤ 42 sair, o resto ficar. Cada fonte fica a favor (a mesma
+# família), contra (a oposta) ou ao lado.
+#   forte      ninguém contra e P ≥ 70 (entrar) ou P ≤ 30 (sair)
+#   confiança  alta: peso total ≥ 4, 75 % ou mais do peso a favor e ninguém contra
+#              baixa: peso total < 2, um terço ou mais do peso contra, ou menos de metade a favor
+#              média: o resto
+#
+# A ENTRADA (um nó da árvore): { cl: { key, short, mid, long, old }, an: { key, mean, n, target, price },
+#   tec: { key, short, mid, long }, news: tom } — o que falta, ou não é do tipo certo, não conta.
+# O RESULTADO (dc_calc d → r; 0 se nenhuma fonte fala):
+#   r+0 quantas fontes   r+1 família   r+2 forte   r+3 confiança (0 baixa, 1 média, 2 alta)   r+4 manda o Claude
+#   r+5 o veredicto (texto)   r+6 quantas a favor   r+7 quantas contra   r+8 P (real)   r+9 o peso total (real)
+#   r+10 + 6·i  a fonte i: qual (0 claude, 1 analistas, 2 tecnica, 3 noticias), família, posição (1 a favor, 0 ao
+#               lado, -1 contra), veredicto (texto, ou 0 nas notícias), p (real) e peso (real)
+# Precisa da fala (onda/lib). Globais: nenhum.
+
+# um número finito (o Number.isFinite do JS)
+: dc_e i>i n && == tipo n 4 fin num n
+# entre 0 e 100
+: dc_c f>f x Mx 0. Mn 100. x
+# a família de um veredicto (1 entrar, 0 ficar, -1 sair); 9 se não é um veredicto
+: dc_fam i>i k ? || eh k $"buy" eh k $"scale" 1
+  ? || || || eh k $"hold" eh k $"wait" eh k $"neutral" eh k $"turn" 0
+  ? || || eh k $"reduce" eh k $"sell" eh k $"avoid" -1 9
+# a nota (1 compra forte … 5 venda forte) que vale uma recomendação dos analistas; 0. se não é uma
+: dc_nota i>f k ? eh k $"strong_buy" 1.25 ? eh k $"buy" 2. ? eh k $"hold" 3. ? eh k $"underperform" 4.
+  ? eh k $"sell" 4.5 ? eh k $"strong_sell" 5. 0.
+# a pontuação de um nó com short, mid e long (0–100 cada): 25 %, 35 % e 40 % do que houver; -1. se não há nenhuma
+: dc_pz i>f x {
+  = a 0. = w 0.
+  Se dc_e x.short { = a + a * 0.25 dc_c num x.short = w + w 0.25 }
+  Se dc_e x.mid { = a + a * 0.35 dc_c num x.mid = w + w 0.35 }
+  Se dc_e x.long { = a + a * 0.4 dc_c num x.long = w + w 0.4 }
+  ? > w 0. / a w -1. }
+# junta a fonte q ao resultado r: a família f, o veredicto k, a pontuação p (fica inteira) e o peso w
+: dc_poe iiiiff>i r q f k p w {
+  = b + + r 10 * 6 @ r
+  ! b q ! + b 1 f ! + b 3 k !f + b 4 _nu_round dc_c p !f + b 5 w
+  ! r + @ r 1 }
+
+# ---------- as fontes ----------
+# o Claude; vale 1 se manda (a análise é de hoje)
+: dc_claude ii>i r c {
+  = f dc_fam c.key
+  ? == f 9 0 {
+    = p dc_pz c
+    dc_poe r 0 f txt c.key ? < p 0. + 50. * 20. F f p ? ha c.old 1.5 3.
+    ~ ha c.old } }
+: dc_analistas ii>i r c {
+  = m dc_nota c.key
+  Se && > m 0. && dc_e c.n > num c.n 0. {
+    = f ? <= m 2. 1 ? >= m 4. -1 0
+    Se dc_e c.mean = m Mx 1. Mn 5. num c.mean
+    = p - 100. * 25. - m 1.
+    Se && && dc_e c.target dc_e c.price > num c.price 0.
+      Se || && > f 0 < num c.target num c.price && < f 0 > num c.target num c.price
+        = p + 50. / - p 50. 2.
+    dc_poe r 1 f txt c.key p * 2. Mn 1. / num c.n 10. } }
+: dc_tecnica ii>i r c {
+  = f dc_fam c.key = p dc_pz c
+  Se && != f 9 >= p 0. dc_poe r 2 f txt c.key p 1.5 }
+: dc_noticias ii>i r c
+  Se dc_e c {
+    = t Mx -1. Mn 1. num c
+    dc_poe r 3 ? > t 0.15 1 ? < t -0.15 -1 0 0 + 50. * 50. t 0.75 }
+
+# ---------- a decisão ----------
+: dc_calc i>i d {
+  = r A 34
+  = cl dc_claude r d.cl
+  dc_analistas r d.an dc_tecnica r d.tec dc_noticias r d.news
+  = n @ r
+  ? == n 0 0 {
+    = sw 0. = sp 0.
+    L i n { = b + + r 10 * 6 i = sw + sw @f + b 5 = sp + sp * @f + b 5 @f + b 4 }
+    = pp _nu_round / sp sw
+    = f ? cl @ + r 11 ? >= pp 58. 1 ? <= pp 42. -1 0
+    = wf 0. = wc 0. = nf 0 = nc 0
+    L i n {
+      = b + + r 10 * 6 i = g @ + b 1
+      = lado ? == g f 1 ? && != f 0 == g - 0 f -1 0
+      ! + b 2 lado
+      Se == lado 1 { = wf + wf @f + b 5 = nf + nf 1 }
+      Se == lado -1 { = wc + wc @f + b 5 = nc + nc 1 } }
+    = forte && && != f 0 == nc 0 ? > f 0 >= pp 70. <= pp 30.
+    = conf ? && && >= sw 4. >= wf * 0.75 sw == nc 0 2
+      ? || || < sw 2. >= * 3. wc sw < * 2. wf sw 0 1
+    ! + r 1 f ! + r 2 forte ! + r 3 conf ! + r 4 cl
+    ! + r 5 ? cl @ + r 13 ? > f 0 ? forte $"buy" $"scale" ? < f 0 ? forte $"sell" $"reduce" $"hold"
+    ! + r 6 nf ! + r 7 nc !f + r 8 pp !f + r 9 sw
+    r } }
+
+# ---------- em JSON, para o JS ----------
+: dc_nome i>i q ? == q 0 $"claude" ? == q 1 $"analistas" ? == q 2 $"tecnica" $"noticias"
+: dc_json i>i r ? r {
+  `\{"fam":{N @ + r 1},"forte":{N @ + r 2},"p":{ _nu_pj @f + r 8 },"conf":{N @ + r 3},`
+  `"manda":"{ crut ? @ + r 4 $"claude" $"voto" }","key":"{ crut @ + r 5 }",`
+  `"n":{N @ r},"favor":{N @ + r 6},"contra":{N @ + r 7},"f":[`
+  L i @ r {
+    = b + + r 10 * 6 i
+    Se i P 44
+    `\{"f":"{ crut dc_nome @ b }","p":{ _nu_pj @f + b 4 },"fam":{N @ + b 1},"w":{ _nu_pj @f + b 5 },"d":{N @ + b 2}`
+    `{ Se @ + b 3 `,"key":"{ crut @ + b 3 }"` }\}` }
+  `]\}` } "null"
+# a decisão de cada ativo de uma lista: [ null | { fam, forte, p, conf, manda, key, n, favor, contra, f: [...] } ]
+: decisoes i>i l { P 91 = c pri l W c { dc_json dc_calc c = c seg c Se c P 44 } P 93 0 }
