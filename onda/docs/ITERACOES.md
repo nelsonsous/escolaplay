@@ -2763,3 +2763,25 @@ de cada ativo calcula-se uma vez por cada lista que chega, e não em cada desenh
 
 **Verificado.** `ecra-painel.test.mjs`: 600 estados, com o dia de agir, o total e o plano só em percentagens; 857
 linhas com a etiqueta da decisão. Os 95 testes e o teste de interface, também na versão minificada.
+
+## Iteração 147: mais duas fontes na decisão — os fundamentos e o sentimento (Mercados 4.22.0)
+
+**Fundamentos (ações).** O P/E esperado, o crescimento das vendas num ano e a margem de lucro, cada um numa tabela de
+pontos unidos por retas (P/E 10 ou menos 85 … 60 ou mais 15; vendas −10 % 25 … +25 % 80; margem 0 % 30 … 25 % 75), e
+a média dos que há (pelo menos dois). Peso 1. Vêm do Yahoo, no mesmo pedido do consenso (`/consensus`, conector
+1.7.0: mais um módulo, nenhum pedido novo). No cartão: «Fundamentos · fortes · P/E 28,4 · vendas +60% · margem 55%».
+
+**Sentimento.** O medo do mercado, lido ao contrário: na cripto o Fear & Greed (já vinha no `/cryptoglobal`), nas
+ações e fundos o VIX (já vinha nas cotações). Peso 0,75. Com medo extremo puxa para comprar; com ganância extrema,
+contra. Nas ações só ajuda ou fica neutro (o VIX baixo não conta contra).
+
+**A confiança ficou mais simples.** Com seis fontes, as que ficam ao lado (umas notícias neutras, um VIX normal)
+faziam descer a confiança sem razão. Agora só conta o peso a favor e o peso contra: alta com ninguém contra e 4 ou
+mais a favor; baixa com menos de 2 a favor ou com o contra acima de metade do favor.
+
+**Em Onda.** No motor, uma função para a reta entre dois pontos e uma linha por tabela; cada fonte nova são cinco
+linhas. No cartão, duas linhas novas e os seus pormenores. O JS só passa os números.
+
+**Verificado.** Motor: 20 000 casos ao acaso iguais ao bit, com as fontes novas. Cartão: 4 000 instantâneos iguais
+byte a byte. Conector: o consenso com e sem fundamentos, com pedidos simulados. Interface: a ficha da Nvidia com as
+seis fontes e a da Bitcoin com o Fear & Greed.

@@ -89,7 +89,7 @@ function proxyBody(u) {
     if (p === '/health') return { ok: true };
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
-    if (p === '/consensus') return { items: u.searchParams.get('symbols').split(',').map((s) => (s === 'NVDA' ? { symbol: s, key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, low: 150, high: 300, price: 196, currency: 'USD', votes: [20, 30, 6, 1, 1] } : s === 'TSLA' ? { symbol: s, key: 'hold', mean: 2.8, n: 40, target: 300, low: 120, high: 500, price: 250, currency: 'USD', votes: [5, 10, 18, 5, 2] } : { symbol: s, none: true })) };
+    if (p === '/consensus') return { items: u.searchParams.get('symbols').split(',').map((s) => (s === 'NVDA' ? { symbol: s, key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, low: 150, high: 300, price: 196, currency: 'USD', votes: [20, 30, 6, 1, 1], f: { pe: 28.4, cr: 0.6, mg: 0.55 } } : s === 'TSLA' ? { symbol: s, key: 'hold', mean: 2.8, n: 40, target: 300, low: 120, high: 500, price: 250, currency: 'USD', votes: [5, 10, 18, 5, 2] } : { symbol: s, none: true })) };
     if (p === '/movers') return { gainers: [{ symbol: 'XYZ', name: 'Xyz Therapeutics', price: 12.3, changePct: 38.2, volume: 9e6, currency: 'USD' }], losers: [{ symbol: 'ABCD', name: 'Abcd Corp', price: 4.1, changePct: -22.5, volume: 3e6, currency: 'USD' }], actives: [] };
     if (p === '/fuel' && u.searchParams.get('list') === '1') return { fuels: [{ id: +u.searchParams.get('tipos'), name: 'Gasolina simples 95', n: 3, median: 1.739, max: 1.799, updated: '2026-11-05 09:30',
         stations: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', addr: 'Rua A, Torres Novas', lat: 39.48, lon: -8.54 }, { price: 1.739, name: 'Galp Centro', brand: 'Galp', addr: 'Av. B', lat: null, lon: null }, { price: 1.799, name: 'BP Norte', brand: 'BP', place: 'Porto, Porto' }] }] };
@@ -632,17 +632,18 @@ function proxyBody(u) {
     await page.waitForSelector('#mk-sheet .cons-box', { state: 'attached' }); // o consenso chega da rede e entra na decisão
     assert.equal(await page.locator('#mk-sheet .advice').count(), 1, 'uma só caixa a dizer o que fazer');
     assert.equal(await page.locator(adv + ' h3').textContent(), 'Decisão');
-    assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar forte', 'rótulo da família; forte: média de 70 ou mais e ninguém contra');
     // a decisão consolidada (decisao.onda): o que a app já sabe de cada fonte, numa só decisão
     const dec = await page.evaluate(() => {
         const m = window.__mk, ref = Object.keys(m.REG).find((k) => m.REG[k].kind === 'index');
         return { e: m.decIn('NVDA'), d: m.decOf('NVDA'), ref: m.decOf(ref), fora: m.decOf('NAO-EXISTE') };
     });
-    assert.deepEqual([dec.d.manda, dec.d.fam, dec.d.key, dec.d.forte], ['claude', 1, dec.e.cl.key, 1], 'manda o Claude de hoje');
-    assert.deepEqual(dec.d.f.map((x) => x.f), ['claude', 'analistas', 'tecnica', 'noticias'], 'as quatro fontes, pela ordem');
+    assert.deepEqual([dec.d.manda, dec.d.fam, dec.d.key], ['claude', 1, dec.e.cl.key], 'manda o Claude');
+    assert.deepEqual(dec.d.f.map((x) => x.f), ['claude', 'analistas', 'fundamentos', 'tecnica', 'noticias', 'sentimento'], 'as seis fontes, pela ordem');
     const dAn = dec.d.f.find((x) => x.f === 'analistas');
     assert.deepEqual([dAn.p, dAn.fam, dAn.w, dAn.d, dAn.key], [90, 1, 2, 1, 'strong_buy'], 'nota 1,4 → 90; com 58 analistas, o peso inteiro');
-    assert.ok(dec.d.n === dec.d.f.length && Number.isInteger(dec.d.p) && dec.d.p >= 70, 'a média das fontes');
+    assert.deepEqual(dec.e.fun, { pe: 28.4, cr: 60, mg: 55 }, 'os fundamentos vêm com o consenso, em %');
+    assert.ok(dec.d.n === dec.d.f.length && Number.isInteger(dec.d.p) && dec.d.conf === 2, 'o Claude e os analistas a favor, ninguém contra: confiança alta');
+    assert.equal(await page.locator(adv + ' .adv-act').textContent(), 'Comprar' + (dec.d.forte ? ' forte' : ''), 'rótulo da família; forte: média de 70 ou mais e ninguém contra');
     assert.deepEqual([dec.ref, dec.fora], [null, null], 'um índice (ou o que a app não tem) não tem decisão');
     // o cartão mostra essa decisão: a confiança, a média, quantas a favor e cada fonte numa linha
     assert.equal(await page.locator(adv + ' .dec-conf').textContent(), 'confiança ' + ['baixa', 'média', 'alta'][dec.d.conf]);
@@ -650,12 +651,15 @@ function proxyBody(u) {
     const voz = await page.locator(adv + ' .dec-voz').textContent();
     assert.ok(voz.startsWith(dec.d.favor === dec.d.n ? `As ${dec.d.n} fontes de acordo.` : `${dec.d.favor} de ${dec.d.n} a favor`), voz);
     const fontes = await page.locator(adv + ' .dec-f li').evaluateAll((ls) => ls.map((l) => [...l.querySelectorAll('.dec-r b, .dec-r .dec-l, .dec-r em, .dec-s .val, .dec-s small')].map((x) => x.textContent)));
-    assert.deepEqual(fontes.map((x) => x[0]), ['Claude', 'Analistas', 'Técnica', 'Notícias']);
+    assert.deepEqual(fontes.map((x) => x[0]), ['Claude', 'Analistas', 'Fundamentos', 'Técnica', 'Notícias', 'Sentimento']);
     assert.deepEqual(fontes[0].slice(1), ['Comprar', 'decide', String(dec.d.f[0].p), 'C48 · M88 · L81'], 'o Claude: o veredicto, quem decide e a convicção por prazo');
     assert.deepEqual(fontes[1].slice(1), ['Compra forte', 'a favor', '90', '58 analistas · alvo +17,60%'], 'os analistas: a recomendação, quantos e o alvo');
-    assert.match(fontes[2][4], /^C\d+ · M\d+ · L\d+$/, 'a técnica: as pontuações por prazo');
+    assert.deepEqual(fontes[2].slice(1), ['fortes', 'a favor', '65', 'P/E 28,4 · vendas +60% · margem 55%'], 'os fundamentos: o P/E, as vendas e a margem');
+    assert.match(fontes[3][4], /^C\d+ · M\d+ · L\d+$/, 'a técnica: as pontuações por prazo');
     assert.deepEqual(fontes.map((x) => x[2]), dec.d.f.map((x, i) => (i === 0 ? 'decide' : x.d > 0 ? 'a favor' : x.d < 0 ? 'contra' : 'ao lado')), 'de que lado fica cada uma');
-    assert.match(fontes[3][4], /^\d+ títulos? recentes$/);
+    assert.match(fontes[4][4], /^\d+ títulos? recentes$/);
+    assert.match(fontes[5].join('|'), /^Sentimento\|(calmo|nervoso|medo)\|.+\|\d+\|VIX \d+$/, 'o sentimento nas ações: o VIX');
+    assert.match((await page.locator('#mk-sheet .stats').textContent()).replace(/\s+/g, ' '), /P\/E esperado\s*28,4\s*Vendas num ano\s*\+60,0%\s*Margem de lucro\s*55,0%/, 'os fundamentos nos números da ficha');
     // o desenho: nada sai do cartão, a confiança fica ao lado do veredicto e cada fonte ocupa duas linhas curtas
     const geo = await page.evaluate(() => {
         const b = document.querySelector('#mk-sheet .dec-box'), r = (el) => el.getBoundingClientRect(), bx = r(b);
@@ -664,7 +668,7 @@ function proxyBody(u) {
     });
     assert.ok(geo.cabe, 'nada sai do cartão');
     assert.ok(geo.aoLado, 'a confiança ao lado do veredicto');
-    assert.ok(geo.linhas.every((h) => h >= 36 && h <= 70), 'cada fonte em duas linhas curtas: ' + geo.linhas);
+    assert.ok(geo.linhas.every((h) => h >= 36 && h <= 84), 'cada fonte em duas linhas curtas (três, com um pormenor comprido): ' + geo.linhas);
     console.log('✓ cartão «Decisão»: fontes com', geo.linhas.join(', '), 'px de altura; o cartão todo', geo.alto, 'px');
     assert.equal(await page.locator(adv + ' .adv-nu').textContent(), 'Comprar aos poucos', 'o pormenor do Claude por baixo');
     assert.match(await page.locator(adv + ' .adv-src').textContent(), /^Análise do Claude · feita às \d\d:\d\d de \d\d\/\d\d · próxima (hoje|amanhã) às (07:14|15:14)$/);
@@ -726,6 +730,9 @@ function proxyBody(u) {
     assert.equal(await page.locator('.advice .adv-act').textContent(), 'Manter', 'tenho BTC: ficar = Manter');
     assert.equal(await page.locator('.advice .adv-nu').textContent(), 'Esperar', 'e a frase do Claude por baixo');
     assert.equal(await page.locator('#mk-sheet details.sh-auto').count(), 1, 'algoritmo como referência, à parte');
+    // o sentimento na cripto: o Fear & Greed (24: medo extremo), ao contrário — ao lado do «Manter» do Claude
+    await page.waitForSelector('#mk-sheet .dec-f li:has-text("Sentimento")', { state: 'attached' });
+    assert.equal((await page.locator('#mk-sheet .dec-f li:has-text("Sentimento")').textContent()).replace(/\s+/g, ' '), 'Sentimentomedo extremoao lado66Fear & Greed 24 de 100 · com medo compra-se melhor');
     assert.equal(await page.locator('.advice .cl-lv li').count(), 3, 'entrada, alvo e stop');
     assert.match(await page.locator('.advice').textContent(), /€/);
     assert.ok(await page.locator('.levels li').count() >= 2, 'níveis-chave');
