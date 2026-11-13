@@ -6,7 +6,7 @@
 // no CDN da Cloudflare (muitos pedidos iguais = uma ida à fonte).
 //
 //   GET /health                               → { ok, version }
-//   GET /consensus?symbols=NVDA,ALV.DE         → consenso dos analistas (recomendação, quantos, preço-alvo) — ações
+//   GET /consensus?symbols=NVDA,ALV.DE         → consenso dos analistas (recomendação, quantos, preço-alvo) e os fundamentos (P/E, vendas, margem) — ações
 //   GET /quotes?symbols=BZ=F,AAPL&range=1d    → cotações + série (até 40 símbolos)
 //   GET /news?q=Galp&lang=pt&sym=GALP.LS      → notícias (Google, Bing ou Yahoo, por esta ordem)
 //   GET /movers                               → maiores subidas/descidas/volume nos EUA (Yahoo)
@@ -30,7 +30,7 @@
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.6.1';
+const VERSION = '1.7.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -288,17 +288,22 @@ async function calendar(url) {
 // ---------- /consensus (o que os analistas dizem de uma ação; precisa de cookie + crumb) ----------
 // recomendação (strong_buy, buy, hold, underperform, sell), a média (1 = compra forte … 5 = venda), quantos
 // analistas, o preço-alvo (médio, mínimo, máximo) e os votos do mês. ETF, índices e cripto não têm: none.
+// Desde a 1.7.0 também os fundamentos da empresa, em f (só se o Yahoo os dá): o P/E esperado (sem ele, o dos últimos
+// 12 meses), o crescimento das vendas num ano e a margem de lucro (frações: 0,12 = 12 %).
 export function parseConsensus(d, symbol) {
     const r = d && d.quoteSummary && d.quoteSummary.result && d.quoteSummary.result[0];
     const f = r && r.financialData, t = r && r.recommendationTrend && Array.isArray(r.recommendationTrend.trend) ? r.recommendationTrend.trend.find((x) => x.period === '0m') : null;
-    const n = f ? rawTs(f.numberOfAnalystOpinions) : null;
-    if (!f || !n || !f.recommendationKey || f.recommendationKey === 'none') return { symbol, none: true };
     const num = (x) => { const v = rawTs(x); return Number.isFinite(v) ? v : null; };
+    const sd = r && r.summaryDetail, fu = { pe: sd ? num(sd.forwardPE) ?? num(sd.trailingPE) : null, cr: f ? num(f.revenueGrowth) : null, mg: f ? num(f.profitMargins) : null };
+    const comF = fu.pe != null || fu.cr != null || fu.mg != null ? { f: fu } : {};
+    const n = f ? rawTs(f.numberOfAnalystOpinions) : null;
+    if (!f || !n || !f.recommendationKey || f.recommendationKey === 'none') return { symbol, none: true, ...comF };
     return {
         symbol, key: String(f.recommendationKey).slice(0, 20), mean: num(f.recommendationMean), n,
         target: num(f.targetMeanPrice), low: num(f.targetLowPrice), high: num(f.targetHighPrice), price: num(f.currentPrice),
         currency: typeof f.financialCurrency === 'string' ? f.financialCurrency.slice(0, 5) : null,
         votes: t ? [t.strongBuy, t.buy, t.hold, t.sell, t.strongSell].map((v) => (Number.isFinite(v) ? v : 0)) : null,
+        ...comF,
     };
 }
 
@@ -310,7 +315,7 @@ async function consensus(url) {
     try { auth = await getCrumb(); } catch { /* tenta sem */ }
     const items = await Promise.all(symbols.map(async (s) => {
         try {
-            const qs = `modules=financialData,recommendationTrend${auth ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
+            const qs = `modules=financialData,recommendationTrend,summaryDetail${auth ? '&crumb=' + encodeURIComponent(auth.crumb) : ''}`;
             const r = await fetch(`${YH[1]}/v10/finance/quoteSummary/${encodeURIComponent(s)}?${qs}`, { headers: { 'User-Agent': UA, ...(auth ? { Cookie: auth.cookie } : {}) } });
             if (r.status === 404) return { symbol: s, none: true };
             if (!r.ok) throw new Error(`HTTP ${r.status}`);

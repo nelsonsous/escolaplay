@@ -180,8 +180,18 @@ test('/consensus: o consenso dos analistas com crumb', async () => {
                 recommendationTrend: { trend: [{ period: '0m', strongBuy: 20, buy: 30, hold: 6, sell: 1, strongSell: 1 }, { period: '-1m', strongBuy: 1 }] } }] } });
         }
         if (u.includes('quoteSummary/VWCE.DE')) return res({ quoteSummary: { result: [{ financialData: { recommendationKey: 'none', numberOfAnalystOpinions: {} } }] } });
+        // os fundamentos (1.7.0): com analistas (ALV.DE, só com o P/E dos últimos 12 meses) e sem eles (PEQ)
+        if (u.includes('quoteSummary/ALV.DE')) {
+            assert.ok(u.includes('summaryDetail'));
+            return res({ quoteSummary: { result: [{ financialData: { recommendationKey: 'buy', recommendationMean: { raw: 2.1 }, numberOfAnalystOpinions: { raw: 20 }, revenueGrowth: { raw: 0.043, fmt: '4.30%' }, profitMargins: { raw: 0.092 } },
+                summaryDetail: { trailingPE: { raw: 11.8 }, forwardPE: {} } }] } });
+        }
+        if (u.includes('quoteSummary/PEQ')) return res({ quoteSummary: { result: [{ financialData: { recommendationKey: 'none', profitMargins: { raw: -0.31 } }, summaryDetail: { forwardPE: { raw: -12.5 }, trailingPE: { raw: 40 } } }] } });
         return res({ quoteSummary: { result: null, error: { description: 'Not Found' } } }, 404);
     });
+    const fu = await call('/consensus?symbols=ALV.DE,PEQ');
+    assert.deepEqual(fu.body.items[0], { symbol: 'ALV.DE', key: 'buy', mean: 2.1, n: 20, target: null, low: null, high: null, price: null, currency: null, votes: null, f: { pe: 11.8, cr: 0.043, mg: 0.092 } }, 'os fundamentos ao lado do consenso');
+    assert.deepEqual(fu.body.items[1], { symbol: 'PEQ', none: true, f: { pe: -12.5, cr: null, mg: -0.31 } }, 'sem analistas, ficam só os fundamentos (o P/E esperado primeiro)');
     const r = await call('/consensus?symbols=NVDA,VWCE.DE,BAD');
     assert.equal(r.status, 200);
     assert.deepEqual(r.body.items[0], { symbol: 'NVDA', key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, low: 150, high: 300, price: 196, currency: 'USD', votes: [20, 30, 6, 1, 1] });

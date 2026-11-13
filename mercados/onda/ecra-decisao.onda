@@ -13,8 +13,9 @@
 : dv_rot iii>i f o parte ? > f 0 ? o "Reforçar" "Comprar" ? == f 0 ? o "Manter" "Aguardar"
   ? o `Vender{ Se parte " parte" }` "Evitar"
 : dv_tom i>i f ? > f 0 "up" ? < f 0 "down" "flat"
-: dv_nome i>i q ? == q 0 "Claude" ? == q 1 "Analistas" ? == q 2 "Técnica" "Notícias"
-: dv_art i>i q ? == q 0 "o Claude" ? == q 1 "os analistas" ? == q 2 "a técnica" "as notícias"
+: dv_nome i>i q ? == q 0 "Claude" ? == q 1 "Analistas" ? == q 2 "Técnica" ? == q 3 "Notícias" ? == q 4 "Fundamentos" "Sentimento"
+: dv_art i>i q ? == q 0 "o Claude" ? == q 1 "os analistas" ? == q 2 "a técnica" ? == q 3 "as notícias"
+  ? == q 4 "os fundamentos" "o sentimento"
 # a recomendação dos analistas (o CONS_LBL do JS)
 : dv_cons i>i k ? eh k $"strong_buy" "Compra forte" ? eh k $"buy" "Comprar" ? eh k $"hold" "Manter"
   ? eh k $"underperform" "Abaixo do mercado" ? eh k $"sell" "Vender" "Venda forte"
@@ -25,6 +26,18 @@
   Se ln_fin x.mid { Se k " · " `M{ _nu_ps _nu_round num x.mid }` = k 1 }
   Se ln_fin x.long { Se k " · " `L{ _nu_ps _nu_round num x.long }` }
   0 }
+# uma percentagem inteira: −5%, 0%, 60% (com mais, +60%)
+: dv_pc fi>i x mais { = r _nu_round x Se && mais > r 0. P '+ Se < r 0. { P 226 P 136 P 146 } `{ _nu_ps Ab r }%` }
+# os números dos fundamentos, dos que há: "P/E 28 · vendas +60% · margem 55%"
+: dv_fun i>i c {
+  = k 0
+  Se && ln_fin c.pe > num c.pe 0. { `P/E { ate num c.pe 1 }` = k 1 }
+  Se ln_fin c.cr { Se k " · " `vendas { dv_pc num c.cr 1 }` = k 1 }
+  Se ln_fin c.mg { Se k " · " `margem { dv_pc num c.mg 0 }` }
+  0 }
+# o sentimento por extenso: o Fear & Greed da cripto (0 medo … 100 ganância) ou o VIX
+: dv_sent i>i c ? ln_fin c.fg { = v num c.fg ? <= v 25. "medo extremo" ? <= v 45. "medo" ? < v 55. "neutro" ? < v 75. "ganância" "ganância extrema" }
+  { = v num c.vix ? >= v 28. "medo" ? >= v 20. "nervoso" "calmo" }
 # as fontes do resultado r que estão na posição p, por extenso: "os analistas, a técnica e as notícias"
 : dv_quem ii>i r p {
   = tot 0 = k 0
@@ -48,6 +61,8 @@
   = d es.d = o ha es.own
   `<li class="d{ ? > lado 0 "1" ? < lado 0 "2" "0" }"><div class="dec-r"><b>{ dv_nome q }</b><span class="dec-l { dv_tom f }-t">`
   ? == q 0 an_sht d.cl.key o ? == q 1 dv_cons d.an.key ? == q 2 an_sht d.tec.key o
+    ? == q 4 ? > f 0 "fortes" ? < f 0 "fracos" "razoáveis"
+    ? == q 5 dv_sent d.sent
     ? > f 0 "positivas" ? < f 0 "negativas" "neutras"
   `</span><em>{ ? && == q 0 @ + r 4 "decide" ? > lado 0 "a favor" ? < lado 0 "contra" "ao lado" }</em></div>`
   `<div class="dec-s">{ an_barv @f + b 4 }<small>`
@@ -61,6 +76,11 @@
       Se && < f 0 > a 0. " · o alvo está acima do preço" } }
   Se == q 2 dv_pz d.tec
   Se && == q 3 ln_fin es.nn { plural I num es.nn $"título" $"títulos" " recentes" }
+  Se == q 4 dv_fun d.fun
+  Se == q 5 {
+    = c d.sent
+    ? ln_fin c.fg `Fear &amp; Greed { _nu_ps _nu_round num c.fg } de 100{ Se > f 0 " · com medo compra-se melhor" }{ Se < f 0 " · com ganância compra-se pior" }`
+      `VIX { _nu_ps _nu_round num c.vix }` }
   `</small></div></li>` }
 
 : ecra_decisao i>i s {

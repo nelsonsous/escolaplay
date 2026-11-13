@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.21.1';
+    const VERSION = '4.22.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1355,7 +1355,7 @@
     async function loadCryptoGlobal() {
         if (!cfg.proxy || now() - cgAt < 10 * 60 * 1000) return;
         cgAt = now();
-        try { CG = await px('/cryptoglobal', 20000); scheduleRender(); } catch { /* sem dados */ }
+        try { CG = await px('/cryptoglobal', 20000); scheduleRender(); if (sheetKey && REG[sheetKey] && REG[sheetKey].kind === 'crypto') renderSheet(); } catch { /* sem dados */ }
     }
     // Os Destaques são desenhados pela Onda (mercados/onda/ecra-destaques.onda, no módulo da análise): desde a 4.8.0 é ela
     // a referência desta vista. Os eventos continuam aqui; o aviso do conector é o do Painel. Até o módulo estar pronto
@@ -1464,11 +1464,15 @@
     function decIn(k) {
         const cl = claudeFor(k), c = CONS[k], r = AN[k], n = NEWS[k], h = (r && r.horizons) || {};
         const sc = (x) => (x ? x.score : null);
+        // os fundamentos vêm com o consenso (frações do Yahoo → %); o sentimento é o Fear & Greed na cripto e o VIX no resto
+        const f = c && !c.error ? c.f : null, vix = Q['^VIX'] && Q['^VIX'].price, fg = CG && CG.fng ? CG.fng.v : null;
         return {
             cl: cl ? { key: cl.key, short: cl.short, mid: cl.mid, long: cl.long, old: !!cl.old } : null,
             an: c && !c.none && !c.error ? { key: c.key, mean: c.mean, n: c.n, target: c.target, price: c.price } : null,
+            fun: f ? { pe: f.pe, cr: fin(f.cr) ? Math.round(f.cr * 1000) / 10 : null, mg: fin(f.mg) ? Math.round(f.mg * 1000) / 10 : null } : null,
             tec: r && r.advice ? { key: r.advice.key, short: sc(h.short), mid: sc(h.mid), long: sc(h.long) } : null,
             news: n ? tomNoticias(n) : null,
+            sent: REG[k] && REG[k].kind === 'crypto' ? (fin(fg) ? { fg } : null) : fin(vix) ? { vix } : null,
         };
     }
     const decOf = (k) => (buyable(k) ? A.decisao(decIn(k)) : null);
@@ -1762,6 +1766,7 @@
         // abre no mesmo período escolhido no Painel (1D, 1S, 1M, 1A)
         sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y' }[cfg.per] || '1d'; sheetPts = null;
         loadConsensus(k);
+        if (REG[k] && REG[k].kind === 'crypto') loadCryptoGlobal(); // o Fear & Greed, para o sentimento da decisão
         const sh = $('#mk-sheet');
         const cardEl = $('#mk-sheet-card');
         cardEl.style.transition = ''; cardEl.style.transform = ''; $('.mk-sheet-bg').style.opacity = '';
@@ -2032,6 +2037,7 @@
     function renderSheet() {
         const k = sheetKey; if (!k) return;
         const a = REG[k], q = qv(k), r = AN[k], n = NEWS[k], cl = claudeFor(k), dec = decOf(k);
+        const fu = CONS[k] && !CONS[k].error ? CONS[k].f : null; // os fundamentos da empresa (vêm com o consenso)
         const following = cfg.watch.includes(k) || cfg.funds.includes(k);
         const stat = (l, v) => `<div><small>${l}</small><b class="num">${v}</b></div>`;
         const box = $('#mk-sheet-card');
@@ -2052,6 +2058,7 @@
                 ${a.kind === 'crypto' ? stat('Variação 24 h', fmtPct(q.changePct)) : stat('Volume', fmtBig(q.volume))}
                 ${fin(q.high52) ? stat('Máx. 52 sem.', fmtPx(q.high52, a, q.currency)) + stat('Mín. 52 sem.', fmtPx(q.low52, a, q.currency)) : ''}
                 ${r ? stat('RSI (14)', fin(r.metrics.rsi) ? Math.round(r.metrics.rsi) : '—') + stat('Volatilidade', fin(r.metrics.vol) ? Math.round(r.metrics.vol * 100) + '%/ano' : '—') : ''}
+                ${fu && fin(fu.pe) && fu.pe > 0 ? stat('P/E esperado', NF({ maximumFractionDigits: 1 }).format(fu.pe)) : ''}${fu && fin(fu.cr) ? stat('Vendas num ano', fmtPct1(fu.cr * 100)) : ''}${fu && fin(fu.mg) ? stat('Margem de lucro', fmtPct1(fu.mg * 100).replace('+', '')) : ''}
             </div>
             ${cl || dec ? '' : techBox(k)}
             ${a.kind === 'energy' || k === 'GC=F' ? '<p class="note" style="margin:-4px 2px 14px">Contrato de futuros (referência). Na Trade Republic não se compra diretamente; existem ETC, com custos de rolagem a prazo.</p>' : ''}
@@ -2271,6 +2278,7 @@
     // ---------- ações do utilizador ----------
     function refreshAll() {
         st.lastRefresh = now();
+        if (holdingKeys().some((k) => REG[k] && REG[k].kind === 'crypto')) loadCryptoGlobal(); // o Fear & Greed, para a decisão da cripto que tenho
         return Promise.all([pollYahoo(), loadCryptoSeries(), ws ? null : cryptoREST(), cfg.tab === 'destaques' ? loadMovers() : null, loadClaude()])
             .finally(() => scheduleRender());
     }

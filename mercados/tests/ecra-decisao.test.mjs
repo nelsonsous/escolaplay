@@ -15,14 +15,16 @@ const CASOS = +process.env.CASOS || 4000;
 // ---------- o que o cartão promete, em JS ----------
 const FAM = { buy: 1, scale: 1, hold: 0, wait: 0, neutral: 0, turn: 0, reduce: -1, sell: -1, avoid: -1 };
 const CONS = { strong_buy: 'Compra forte', buy: 'Comprar', hold: 'Manter', underperform: 'Abaixo do mercado', sell: 'Vender', strong_sell: 'Venda forte' };
-const NOME = { claude: 'Claude', analistas: 'Analistas', tecnica: 'Técnica', noticias: 'Notícias' };
-const ART = { claude: 'o Claude', analistas: 'os analistas', tecnica: 'a técnica', noticias: 'as notícias' };
+const NOME = { claude: 'Claude', analistas: 'Analistas', tecnica: 'Técnica', noticias: 'Notícias', fundamentos: 'Fundamentos', sentimento: 'Sentimento' };
+const ART = { claude: 'o Claude', analistas: 'os analistas', tecnica: 'a técnica', noticias: 'as notícias', fundamentos: 'os fundamentos', sentimento: 'o sentimento' };
 const e = Number.isFinite;
 const rot = (f, own, parte) => (f > 0 ? (own ? 'Reforçar' : 'Comprar') : f === 0 ? (own ? 'Manter' : 'Aguardar') : own ? (parte ? 'Vender parte' : 'Vender') : 'Evitar');
 const tom = (f) => (f > 0 ? 'up' : f < 0 ? 'down' : 'flat');
 const tomP = (p) => (p >= 58 ? 'up' : p <= 42 ? 'down' : 'flat');
 const lista = (xs) => (xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' e ' + xs[xs.length - 1]);
 const pt2 = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pt1 = new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 1 });
+const pc = (x, mais) => { const r = Math.round(x); return (r > 0 && mais ? '+' : r < 0 ? '−' : '') + Math.abs(r) + '%'; };
 const pct = (x) => (x >= 0.005 ? '+' : x <= -0.005 ? '−' : '') + pt2.format(Math.abs(x)) + '%';
 const prazos = (x) => [['short', 'C'], ['mid', 'M'], ['long', 'L']].filter(([h]) => e(x[h])).map(([h, l]) => l + String(Math.round(x[h]) || 0)).join(' · ');
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -37,7 +39,10 @@ function voz(d) {
 const barra = (p) => `<div class="score"><div class="bar"><i class="${tomP(p)}" style="width:${p}%"></i></div><span class="val num ${tomP(p)}-t">${p}</span></div>`;
 function fonte(s, d, x, i) {
     const own = !!s.own, f = s.d;
+    const fg = x.f === 'sentimento' && e(f.sent.fg), sv = x.f === 'sentimento' ? (fg ? f.sent.fg : f.sent.vix) : 0;
     const diz = x.f === 'claude' ? rot(FAM[f.cl.key], own, f.cl.key === 'reduce') : x.f === 'analistas' ? CONS[f.an.key] : x.f === 'tecnica' ? rot(FAM[f.tec.key], own, f.tec.key === 'reduce')
+        : x.f === 'fundamentos' ? (x.fam > 0 ? 'fortes' : x.fam < 0 ? 'fracos' : 'razoáveis')
+        : x.f === 'sentimento' ? (fg ? (sv <= 25 ? 'medo extremo' : sv <= 45 ? 'medo' : sv < 55 ? 'neutro' : sv < 75 ? 'ganância' : 'ganância extrema') : sv >= 28 ? 'medo' : sv >= 20 ? 'nervoso' : 'calmo')
         : x.fam > 0 ? 'positivas' : x.fam < 0 ? 'negativas' : 'neutras';
     const lado = i === 0 && d.manda === 'claude' ? 'decide' : x.d > 0 ? 'a favor' : x.d < 0 ? 'contra' : 'ao lado';
     let por = '';
@@ -49,6 +54,8 @@ function fonte(s, d, x, i) {
         if (e(s.anD)) por += ` · alvo ${pct(s.anD)}` + (x.fam > 0 && s.anD < 0 ? ' · o preço já passou o alvo' : x.fam < 0 && s.anD > 0 ? ' · o alvo está acima do preço' : '');
     }
     if (x.f === 'noticias' && e(s.nn)) por = `${Math.trunc(s.nn)} ${Math.trunc(s.nn) === 1 ? 'título' : 'títulos'} recentes`;
+    if (x.f === 'fundamentos') por = [e(f.fun.pe) && f.fun.pe > 0 ? `P/E ${pt1.format(f.fun.pe)}` : '', e(f.fun.cr) ? `vendas ${pc(f.fun.cr, true)}` : '', e(f.fun.mg) ? `margem ${pc(f.fun.mg, false)}` : ''].filter(Boolean).join(' · ');
+    if (x.f === 'sentimento') por = fg ? `Fear &amp; Greed ${Math.round(sv) || 0} de 100${x.fam > 0 ? ' · com medo compra-se melhor' : x.fam < 0 ? ' · com ganância compra-se pior' : ''}` : `VIX ${Math.round(sv)}`;
     return `<li class="d${x.d > 0 ? 1 : x.d < 0 ? 2 : 0}"><div class="dec-r"><b>${NOME[x.f]}</b><span class="dec-l ${tom(x.fam)}-t">${diz}</span><em>${lado}</em></div><div class="dec-s">${barra(x.p)}<small>${por}</small></div></li>`;
 }
 const arr = (x) => (Array.isArray(x) ? x : []), ob = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : {});
@@ -95,6 +102,8 @@ function caso(r) {
     if (r() < 0.5) d.an = { key: r() < 0.93 ? um(AKEYS) : um(['none', null]), n: r() < 0.06 ? um([0, null, NaN]) : um([1, 2, 5, 9, 10, 25, 58, 2.5]), ...(r() < 0.8 ? { mean: 1 + r() * 4 } : {}), ...(r() < 0.7 ? { target: 50 + r() * 100, price: 100 } : {}) };
     if (r() < 0.8) d.tec = pz({ key: r() < 0.93 ? um(KEYS.slice(0, 6).concat('avoid')) : um(['x', null]) });
     if (r() < 0.6) d.news = r() < 0.08 ? um([NaN, null, 'x']) : r() * 2 - 1;
+    if (r() < 0.4) d.fun = { ...(r() < 0.85 ? { pe: r() < 0.1 ? um([0, -4, null, NaN]) : um([8, 12.5, 15, 22, 28, 28.44, 61]) } : {}), ...(r() < 0.85 ? { cr: r() < 0.08 ? null : Math.round((r() * 70 - 20) * 10) / 10 } : {}), ...(r() < 0.85 ? { mg: r() < 0.08 ? 'x' : Math.round((r() * 60 - 12) * 10) / 10 } : {}) };
+    if (r() < 0.45) d.sent = r() < 0.5 ? { fg: r() < 0.08 ? null : Math.round(r() * 100) } : { vix: r() < 0.08 ? um([0, null]) : Math.round((9 + r() * 35) * 10) / 10 };
     return {
         d: r() < 0.02 ? um([null, undefined, 4]) : d, own: um([true, false, false, 1, 0, null, undefined, 'sim']),
         src: um(TXT), act: um(TXT), why: um(TXT), plan: um(TXT), algWhy: r() < 0.3 ? um(TXT) : '', hoje: r() < 0.3 ? um(TXT) : '', desce: um([true, false, null]),
@@ -116,7 +125,7 @@ function fechado(h) {
 }
 
 test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
-    const r = rng(421), conta = { vazio: 0, claude: 0, voto: 0, niveis: 0, agenda: 0, contra: 0, lado: 0, acordo: 0, uma: 0 };
+    const r = rng(421), conta = { vazio: 0, claude: 0, voto: 0, niveis: 0, agenda: 0, contra: 0, lado: 0, acordo: 0, uma: 0, fundamentos: 0, medo: 0, vix: 0 };
     for (let i = 0; i < CASOS; i++) {
         const s = caso(r), h = O.ecra.decisao(s), quer = cartao(s);
         assert.equal(h, quer, `caso ${i}: ${JSON.stringify(s)}`);
@@ -124,25 +133,32 @@ test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
         assert.ok(fechado(h), `caso ${i}: etiquetas por fechar`);
         assert.ok(!/<img|<u>|<i>1/.test(h), `caso ${i}: HTML de fora por escapar`);
         const d = O.decisao(s.d);
-        conta[d.manda]++; conta.niveis += /cl-lv/.test(h); conta.agenda += /adv-ev/.test(h); conta.contra += d.contra > 0; conta.lado += d.favor + d.contra < d.n; conta.acordo += d.n > 1 && d.favor === d.n; conta.uma += d.n === 1;
+        conta[d.manda]++; conta.niveis += /cl-lv/.test(h); conta.agenda += /adv-ev/.test(h); conta.contra += d.contra > 0; conta.lado += d.favor + d.contra < d.n; conta.acordo += d.n > 1 && d.favor === d.n; conta.uma += d.n === 1; conta.fundamentos += />Fundamentos</.test(h); conta.medo += /Fear &amp; Greed/.test(h); conta.vix += /<small>VIX /.test(h);
     }
     for (const [nome, v] of Object.entries(conta)) assert.ok(v >= CASOS / 100, `poucos casos de ${nome}: ${v}`);
 });
 
-test('um caso lido à mão', () => {
+test('casos lidos à mão', () => {
+    // uma ação com as seis fontes: o Claude, os analistas e os fundamentos a favor; as outras ao lado
     const h = O.ecra.decisao({
-        d: { cl: { key: 'scale', short: 48, mid: 88, long: 81 }, an: { key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, price: 196 }, tec: { key: 'turn', short: 52, mid: 68, long: 36 }, news: 0 },
+        d: { cl: { key: 'scale', short: 48, mid: 88, long: 81 }, an: { key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, price: 196 }, fun: { pe: 28, cr: 60, mg: 55 },
+            tec: { key: 'turn', short: 52, mid: 68, long: 36 }, news: 0, sent: { vix: 17 } },
         own: false, src: 'Análise do Claude · feita às 07:16', act: 'Comprar aos poucos', why: 'Desconto de 22%.', plan: 'Metade agora.', anD: 17.6, nn: 6,
         lv: [{ f: 'entry', l: 'Entrada', px: '164,93 €', d: '−3,06%' }], ev: [{ t: 'earnings', q: 'daqui a 5 dias', d: '18/11' }],
     });
     const txt = h.replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
-    assert.equal(txt, '|Decisão|Análise do Claude · feita às 07:16|Comprar |forte|confiança média|Comprar aos poucos|Média das fontes|72|2 de 4 a favor · ao lado: a técnica e as notícias'
-        + '|Claude|Comprar|decide|75|C48 · M88 · L81|Analistas|Compra forte|a favor|90|58 analistas · alvo +17,60%|Técnica|Aguardar|ao lado|51|C52 · M68 · L36|Notícias|neutras|ao lado|50|6 títulos recentes'
+    assert.equal(txt, '|Decisão|Análise do Claude · feita às 07:16|Comprar|confiança alta|Comprar aos poucos|Média das fontes|69|3 de 6 a favor · ao lado: a técnica, as notícias e o sentimento'
+        + '|Claude|Comprar|decide|75|C48 · M88 · L81|Analistas|Compra forte|a favor|90|58 analistas · alvo +17,60%|Fundamentos|fortes|a favor|65|P/E 28 · vendas +60% · margem 55%'
+        + '|Técnica|Aguardar|ao lado|51|C52 · M68 · L36|Notícias|neutras|ao lado|50|6 títulos recentes|Sentimento|calmo|ao lado|48|VIX 17'
         + '|Entrada|164,93 €|−3,06%|Desconto de 22%.|Plano:| Metade agora.|Resultados daqui a 5 dias (18/11).| Nesses dias a ação costuma mexer ±5–10%.|');
     // tenho o ativo e o Claude diz reduzir contra todos: a decisão é a dele, com os contra à vista
     const g = O.ecra.decisao({ d: { cl: { key: 'reduce', short: 30, mid: 30, long: 35 }, an: { key: 'buy', mean: 2, n: 30 }, tec: { key: 'buy', short: 70, mid: 70, long: 70 }, news: 0.5 }, own: true });
     assert.match(g, /<div class="adv-act down-t">Vender parte<\/div><span class="dec-conf c0">confiança baixa<\/span>/);
     assert.match(g, /<div class="dec-voz">1 de 4 a favor · contra: os analistas, a técnica e as notícias<\/div>/);
+    // cripto que tenho: o Claude diz esperar; o medo extremo do mercado fica ao lado, a puxar para comprar
+    const c = O.ecra.decisao({ d: { cl: { key: 'wait', short: 40, mid: 50, long: 60 }, tec: { key: 'neutral', short: 50, mid: 50, long: 50 }, sent: { fg: 12 } }, own: true });
+    assert.match(c, /<div class="adv-act flat-t">Manter<\/div><span class="dec-conf c2">confiança alta<\/span>/);
+    assert.match(c, /<b>Sentimento<\/b><span class="dec-l up-t">medo extremo<\/span><em>ao lado<\/em>.*<small>Fear &amp; Greed 12 de 100 · com medo compra-se melhor<\/small>/);
     assert.equal(O.ecra.decisao({ d: {} }), '');
     assert.equal(O.ecra.decisao({}), '');
 });
