@@ -123,15 +123,24 @@ export function regionalPhrases(a, { place } = {}) {
     return out;
 }
 
-// Valida e normaliza. strict=true devolve erros quando passa dos limites; senão corta o texto.
+// Ao publicar (strict), um texto até 10% acima do limite passa como está: os limites são para o texto caber bem no ecrã,
+// quem escreve não conta caracteres ao certo (os rascunhos saíam 0,2% a 6% acima) e cada recusa custava mais uma volta à
+// tarefa agendada. As notificações não têm folga: o telemóvel corta-as.
+export const LIMIT_SLACK = 0.1;
+
+// Valida e normaliza. strict=true devolve erros quando passa dos limites (com a folga acima); senão corta o texto.
 export function validateAnalysis(a, { strict = false } = {}) {
     const errors = [];
     if (!a || typeof a !== 'object') return { ok: false, errors: ['a análise tem de ser um objeto JSON'], value: null };
-    const str = (v, max, name, req = false) => {
+    const str = (v, max, name, req = false, slack = LIMIT_SLACK) => {
         if (v == null || v === '') { if (req) errors.push(`falta ${name}`); return ''; }
         if (typeof v !== 'string') { errors.push(`${name} tem de ser texto`); return ''; }
         const t = v.trim();
-        if (t.length > max) { if (strict) errors.push(`${name} com ${t.length} caracteres (máx. ${max})`); return t.slice(0, max - 1) + '…'; }
+        if (t.length > max) {
+            if (strict && t.length <= Math.floor(max * (1 + slack))) return t;
+            if (strict) errors.push(`${name} com ${t.length} caracteres (máx. ${max})`);
+            return t.slice(0, max - 1) + '…';
+        }
         return t;
     };
     const arr = (v, name) => (Array.isArray(v) ? v : (v == null ? [] : (errors.push(`${name} tem de ser uma lista`), [])));
@@ -165,8 +174,8 @@ export function validateAnalysis(a, { strict = false } = {}) {
         vestir: str(a.vestir, L.vestir, 'vestir', true),
         semana: str(a.semana, L.semana, 'semana', true),
         notificacao: {
-            amanha: str(a.notificacao?.amanha, L.notificacao, 'notificacao.amanha', true),
-            semana: str(a.notificacao?.semana, L.notificacao, 'notificacao.semana', true),
+            amanha: str(a.notificacao?.amanha, L.notificacao, 'notificacao.amanha', true, 0),
+            semana: str(a.notificacao?.semana, L.notificacao, 'notificacao.semana', true, 0),
         },
     };
     // números do Claude: hoje, amanhã e depois (obrigatórios ao publicar; as análises antigas não os têm)

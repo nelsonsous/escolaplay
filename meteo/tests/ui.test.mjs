@@ -581,7 +581,23 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.locator('.far-pt').count(), 0, 'análise deste ponto: sem aviso');
     assert.ok(await page.locator('.today .an-sec').count() >= 8, 'secções da análise');
     // os números do Claude (sábado e domingo) entram a meias com a média dos modelos: a tabela, ✦ nos dias e a folha do dia
-    assert.match(await page.locator('#an-num').textContent(), /Os números do Claude.*Amanhã.*17° \/ 11°, 2,0 mm, rajada 35 km\/h.*Dom 8.*15° \/ 12°, 18 mm, rajada 55 km\/h.*Entram a meias \(50%\) com a média ponderada dos modelos\./s);
+    assert.match(await page.locator('#an-num').textContent(), /Os números do Claude.*Amanhã.*17° \/ 11°2,0 mm35 km\/h.*Dom 8.*15° \/ 12°18 mm55 km\/h.*Máxima \/ mínima, chuva e rajada\. A branco, o que o Claude muda\..*Entram a meias \(50%\) com a média ponderada dos modelos\./s);
+    // a tabela cabe no telemóvel sem deslizar para o lado (até à 1.22.0 as colunas «Claude» e «Na app» ficavam fora do
+    // ecrã) e o que o Claude muda fica destacado, nele e no que a app mostra
+    await page.click('#d-an > summary');
+    await page.waitForSelector('#d-an[open] #an-num');
+    const fit = await page.evaluate(() => {
+        const el = document.querySelector('#an-num .cmp-scroll'), box = document.querySelector('#an-num table').getBoundingClientRect();
+        const row = [...document.querySelectorAll('#an-num tbody tr')].find((r) => /Dom 8/.test(r.textContent));
+        return { scroll: el.scrollWidth, client: el.clientWidth, right: Math.round(box.right), vw: innerWidth, cols: row.querySelectorAll('td').length,
+            dif: [...row.querySelectorAll('td')].map((td) => td.querySelectorAll('.dif').length) };
+    });
+    assert.ok(fit.scroll <= fit.client + 1 && fit.right <= fit.vw, `a tabela dos números cabe: ${JSON.stringify(fit)}`);
+    assert.equal(fit.cols, 3);
+    assert.ok(fit.dif[0] === 0 && fit.dif[1] > 0 && fit.dif[2] > 0, `modelos sem destaque; Claude e app com o que muda: ${fit.dif}`);
+    if (SHOTS) await page.locator('#an-num').screenshot({ path: path.join(SHOTS, '06c-numeros-claude.png') });
+    await page.click('#d-an > summary');
+    await page.waitForFunction(() => !document.querySelector('#d-an').open);
     await tab('dias');
     assert.match(await page.locator('.row.day[data-day="2"] .d-x').textContent(), /^✦ com o Claude/);
     assert.equal(await page.locator('.row.day[data-day="3"] .d-x', { hasText: 'com o Claude' }).count(), 0, 'segunda: sem números do Claude');
