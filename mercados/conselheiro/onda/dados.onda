@@ -255,9 +255,11 @@
   = a ? @ g_err { cs_aviso _js_str k 2 } @ g_res
   Se && _js_v a _js_v _js_get a $"date" _js_push @ g_advs a
   ! g_i + @ g_i 1 ! g_ph 15 1 }
-# lastVerdicts: o último veredicto de cada ativo
+# lastVerdicts: o último veredicto de cada ativo, desde quando mantém essa família (since) e o que dizia antes (was).
+# Se o veredicto gravado já traz a série (since, was — o publicar grava-a), continua-se a partir dela; senão conta-se
+# para trás, de análise em análise, enquanto a família for a mesma
 : da_last i>i advs {
-  = out _js_obj 64
+  = out _js_obj 64 = fim _js_obj 64
   = l _js_fatia advs 0 _js_len advs
   cs_ordena l 2
   = hzlv cs_c $"HZLV" = i 0
@@ -266,16 +268,30 @@
     = acts da_itx _js_get a $"actions"
     = j 0 W < j _js_len acts {
       = x _js_it acts j
-      ? || || ~ _js_v x ~ _js_v _js_get x $"s" _js_v _js_oget out _js_str _js_get x $"s" 0 {
-        = o _js_obj 8
-        _js_oset o $"date" _js_get a $"date"
-        = xk _js_get x $"key"
-        _js_oset o $"key" xk
-        = ac _js_get x $"action"
-        = ac ? _js_v ac ac { = l2 cs_alabel _js_str xk ? _js_v l2 l2 xk }
-        _js_oset o $"action" ac
-        L h 6 { = hk _js_it hzlv h = v _js_get x hk Se _js_fin v _js_oset o hk v }
-        _js_oset out _js_str _js_get x $"s" o 0 }
+      ? || ~ _js_v x ~ _js_v _js_get x $"s" 0 {
+        = sk _js_str _js_get x $"s" = o0 _js_oget out sk
+        ? ~ _js_v o0 {
+            = o _js_obj 12
+            _js_oset o $"date" _js_get a $"date"
+            = xk _js_get x $"key"
+            _js_oset o $"key" xk
+            = ac _js_get x $"action"
+            = ac ? _js_v ac ac { = l2 cs_alabel _js_str xk ? _js_v l2 l2 xk }
+            _js_oset o $"action" ac
+            _js_oset o $"since" _js_get a $"date"
+            L h 6 { = hk _js_it hzlv h = v _js_get x hk Se _js_fin v _js_oset o hk v }
+            = xs _js_get x $"since" = ad _js_get a $"date"
+            Se && && cs_ehdata xs cs_ehdata ad <= _tx_cmp xs ad 0 {
+                _js_oset o $"since" xs
+                = xw _js_get x $"was" Se && _js_ehtxt xw > _tx_len xw 0 _js_oset o $"was" xw
+                _js_oset fim sk 4 }
+            _js_oset out sk o 0 } {
+          # para trás, de análise em análise: enquanto a família for a mesma, a série começa mais cedo
+          Se && ~ _js_v _js_oget fim sk ~ _js_eq _js_get a $"date" _js_oget o0 $"since" {
+              = xk _js_get x $"key"
+              ? cs_mfam xk _js_oget o0 $"key" { _js_oset o0 $"since" _js_get a $"date" 0 }
+                { _js_oset fim sk 4 Se _js_ehtxt xk _js_oset o0 $"was" xk 0 } }
+          0 } }
       = j + j 1 }
     = i + i 1 }
   out }
@@ -586,6 +602,8 @@
     = v _js_get p $"action" _js_oset o $"action" ? _js_v v v _tx_novo 0
     L h 6 { = hk _js_it hzlv h = v _js_get p hk _js_oset o hk ? _js_fin v v 2 }
     _js_oset o $"why" _tx_novo 0 _js_oset o $"plan" _tx_novo 0 _js_oset o $"algWhy" _tx_novo 0
+    # nos ativos que se compram: o tom das notícias (0–100), o catalisador e o que faria a decisão estar errada
+    Se ~ _js_eht _js_get r $"kind" $"ref" { _js_oset o $"news" 2 _js_oset o $"cat" _tx_novo 0 _js_oset o $"risk" _tx_novo 0 }
     _js_push ac o = j + j 1 }
   _js_oset m $"actions" ac
   = rk _js_obj 3 _js_oset rk $"short" _js_lst 0 _js_oset rk $"mid" _js_lst 0 _js_oset rk $"long" _js_lst 0 _js_oset m $"rank" rk
@@ -661,7 +679,9 @@
       " | antes " = a _js_get pv $"action" _js_pu ? _js_v a a _js_get pv $"key"
       = hz cs_c $"HZ"
       Se && && _js_fin _js_get pv _js_it hz 0 _js_fin _js_get pv _js_it hz 1 _js_fin _js_get pv _js_it hz 2 {
-          P 32 _js_pu _js_get pv $"short" P '/ _js_pu _js_get pv $"mid" P '/ _js_pu _js_get pv $"long" } }
+          P 32 _js_pu _js_get pv $"short" P '/ _js_pu _js_get pv $"mid" P '/ _js_pu _js_get pv $"long" }
+      = si _js_get pv $"since" Se _js_v si ` desde { _js_pu si }`
+      = wa _js_get pv $"was" Se && _js_ehtxt wa > _tx_len wa 0 { = l2 cs_alabel wa ` (era { _js_pu ? _js_v l2 l2 wa })` } }
   = ev _js_get r $"events" Se && _js_v ev _js_len ev ` | AGENDA { da_pjoin ev 2 }`
   da_ftxt r
   0 }
@@ -686,7 +706,7 @@
   = rows @ g_rows
   `{ da_nl }# Dados de { crut @ g_today } ({ _tx_pu @ g_quando } em Lisboa)`
   `{ da_nl }Cobre em "actions" TODOS os { N _js_len rows } ativos abaixo (a app mostra o teu veredicto em cada um). Ponto de partida: modelo.json.`
-  `{ da_nl }Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L | FONTES = o que as outras fontes da decisão dizem: analistas (recomendação, nota de 1 a 5, quantos, alvo, revisões das estimativas em 30 dias ↑↓, resultados acima do esperado), fundamentos (P/E esperado, vendas num ano, margem, ROE, dívida/capital), o fundo por dentro, o F&G da cripto, e a média delas de 0 a 100 na escala da app, sem o teu voto`
+  `{ da_nl }Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L, desde que dia manténs essa família (entrar, ficar ou sair) e o que dizias antes | FONTES = o que as outras fontes da decisão dizem: analistas (recomendação, nota de 1 a 5, quantos, alvo, revisões das estimativas em 30 dias ↑↓, resultados acima do esperado), fundamentos (P/E esperado, vendas num ano, margem, ROE, dívida/capital), o fundo por dentro, o F&G da cripto, e a média delas de 0 a 100 na escala da app, sem o teu voto`
   `{ da_nl }## Mercado`
   da_nl = mk cs_c $"MK" = c 0 = j 0
   W < j _js_len mk {

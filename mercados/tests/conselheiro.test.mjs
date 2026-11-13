@@ -16,7 +16,8 @@ const DADOS = { rows: [
 const BASE = { headline: 'Leitura do dia', market: 'Mercado.', plan: [{ s: 'VWCE.DE', amount: '810 €' }, { s: 'c:BTC', amount: '90 €' }], tldr: ['Mercado: x', 'Plano: y', 'Atenção: z'] };
 const V = {
     'VWCE.DE': { key: 'hold', action: 'Manter e reforçar', short: 40, mid: 62, long: 85, why: 'Núcleo; tendência longa a favor (L82).' },
-    NVDA: { key: 'scale', short: 48, mid: 70, long: 75, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% (RSI 31); resultados a 17/11.', plan: 'Metade agora.' },
+    NVDA: { key: 'scale', short: 48, mid: 70, long: 75, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% (RSI 31); resultados a 17/11.', plan: 'Metade agora.',
+        news: 62.4, cat: 'Resultados a 17/11', risk: 'Fecho abaixo de 172 $ ou corte do guidance' },
     'c:BTC': { key: 'wait', short: 40, mid: 45, long: 62, why: 'Abaixo da MM20; suporte 66 700 €.' },
     'BZ=F': { key: 'up', short: 60, mid: 55, long: 45, why: 'Acima da MM200.' },
 };
@@ -32,6 +33,8 @@ test('publicar: a análise nova (todos os ativos, convicção por prazo, níveis
     assert.deepEqual([nv.short, nv.mid, nv.long, nv.entry, nv.target, nv.stop], [48, 70, 75, 190, 230, 172]);
     assert.equal(nv.action, 'Comprar aos poucos', 'sem action, fica o rótulo da key');
     assert.equal(nv.plan, 'Metade agora.');
+    assert.deepEqual([nv.news, nv.cat, nv.risk], [62, 'Resultados a 17/11', 'Fecho abaixo de 172 $ ou corte do guidance'], 'o tom das notícias (arredondado), o catalisador e o risco');
+    assert.ok(out.actions.every((x) => x.since === out.date && !('was' in x)), 'sem veredicto anterior: desde hoje');
     // classificação por prazo derivada da convicção, só com o que se compra (sem a referência)
     assert.deepEqual(out.rank.mid, ['NVDA', 'VWCE.DE', 'c:BTC']);
     assert.deepEqual(out.rank.long, ['VWCE.DE', 'NVDA', 'c:BTC']);
@@ -75,6 +78,68 @@ test('publicar: veredictos, convicção e níveis validados', () => {
     assert.ok(bad('NVDA', { why: 'x'.repeat(281) }).some((e) => /why com mais de 280/.test(e)));
 });
 
+test('publicar: o tom das notícias, o catalisador e o risco (obrigatório quando manda entrar ou sair)', () => {
+    const bad = (s, patch) => { const a = analise(); Object.assign(a.actions.find((x) => x.s === s), patch); return errsOf(a); };
+    assert.deepEqual(bad('NVDA', { news: null, cat: '', risk: 'x' }), [], 'o tom e o catalisador são opcionais');
+    assert.deepEqual(bad('NVDA', { news: '70' }), [], 'um número em texto serve, como nas convicções');
+    for (const v of [101, -1, 'boas', true, {}]) assert.ok(bad('NVDA', { news: v }).some((e) => /NVDA\.news: o tom das notícias é de 0 a 100 \(veio /.test(e)), JSON.stringify(v));
+    assert.ok(bad('NVDA', { cat: 'x'.repeat(91) }).some((e) => /NVDA\.cat com mais de 90/.test(e)));
+    assert.ok(bad('NVDA', { risk: 'x'.repeat(141) }).some((e) => /NVDA\.risk com mais de 140/.test(e)));
+    assert.ok(bad('NVDA', { cat: 5 }).some((e) => /NVDA\.cat tem de ser texto/.test(e)));
+    // sem risco: recusa quando manda entrar ou sair; ficar e as referências passam sem ele
+    assert.deepEqual(bad('NVDA', { risk: '  ' }), ['actions[1] NVDA: mandas entrar (Comprar aos poucos): diz em risk o que faria esta decisão estar errada (até 140 caracteres)']);
+    assert.deepEqual(bad('c:BTC', { key: 'avoid', short: 30, mid: 30, long: 40 }), ['actions[2] c:BTC: mandas sair (Evitar): diz em risk o que faria esta decisão estar errada (até 140 caracteres)']);
+    assert.deepEqual(bad('NVDA', { key: 'wait', risk: '' }), [], 'ficar não pede risco');
+    assert.deepEqual(bad('BZ=F', { key: 'down' }), [], 'a referência também não');
+    const { out } = buildAdvice(analise(), DADOS);
+    assert.ok(!('news' in out.actions[0]) && !('cat' in out.actions[0]) && !('risk' in out.actions[0]), 'o que não vem não se grava');
+});
+
+test('publicar: o que mudou — desde quando mantém a família do veredicto e o que dizia antes', () => {
+    const com = (prev, patch = {}) => {
+        const dados = { rows: DADOS.rows.map((r) => (r.s === 'NVDA' ? { ...r, prev } : r)) };
+        const a = analise(); Object.assign(a.actions.find((x) => x.s === 'NVDA'), patch);
+        const { out, errs } = buildAdvice(a, dados);
+        assert.deepEqual(errs, []);
+        const n = out.actions.find((x) => x.s === 'NVDA');
+        return [n.was, n.since === out.date ? 'hoje' : n.since];
+    };
+    assert.deepEqual(com({ date: '2026-11-12', key: 'buy', since: '2026-11-03' }), [undefined, '2026-11-03'], 'a mesma família (comprar → comprar aos poucos): a série continua');
+    assert.deepEqual(com({ date: '2026-11-12', key: 'buy', since: '2026-11-03', was: 'wait' }), ['wait', '2026-11-03'], 'e o que dizia antes da série fica');
+    assert.deepEqual(com({ date: '2026-11-12', key: 'wait', since: '2026-11-03', was: 'sell' }), ['wait', 'hoje'], 'mudou de família: desde hoje, e antes dizia esperar');
+    assert.deepEqual(com({ date: '2026-11-12', key: 'buy' }), [undefined, '2026-11-12'], 'sem since (dados antigos): a data do último veredicto');
+    assert.deepEqual(com({ date: '2026-11-12', key: 'hold', since: '2026-11-01' }, { key: 'neutral', risk: '' }), [undefined, '2026-11-01'], 'manter → manter sem reforçar: a mesma família');
+    for (const prev of [null, 'buy', ['buy'], { key: 7 }, {}]) assert.deepEqual(com(prev), [undefined, 'hoje'], JSON.stringify(prev));
+    // nas referências conta a direção
+    const dados = { rows: DADOS.rows.map((r) => (r.s === 'BZ=F' ? { ...r, prev: { date: '2026-11-12', key: 'up', since: '2026-11-10' } } : r)) };
+    const ref = (key) => { const a = analise(); a.actions.find((x) => x.s === 'BZ=F').key = key; const o = buildAdvice(a, dados).out.actions.find((x) => x.s === 'BZ=F'); return [o.was, o.since === '2026-11-10']; };
+    assert.deepEqual([ref('up'), ref('down')], [[undefined, true], ['up', false]]);
+});
+
+test('publicar: ir contra a média das outras fontes pede algWhy', () => {
+    const com = (fontes, patch = {}, rule) => {
+        const dados = { rows: DADOS.rows.map((r) => (r.s === 'NVDA' ? { ...r, fontes, ...(rule ? { rule } : {}) } : r)) };
+        const a = analise(); Object.assign(a.actions.find((x) => x.s === 'NVDA'), patch);
+        return buildAdvice(a, dados);
+    };
+    const contra = 'actions[1] NVDA: o teu veredicto (Comprar aos poucos) é o contrário da média das outras fontes (sair): explica porquê em algWhy (até 300 caracteres)';
+    assert.deepEqual(com({ p: 30, fam: -1, f: [] }).errs, [contra]);
+    const ok = com({ p: 30, fam: -1, f: [] }, { algWhy: 'Veem a queda; não veem os resultados; concordo abaixo de 172.' });
+    assert.deepEqual(ok.errs, []);
+    assert.equal(ok.out.actions[1].algWhy, 'Veem a queda; não veem os resultados; concordo abaixo de 172.');
+    assert.ok(!('alg' in ok.out.actions[1]), 'sem regra automática não há alg');
+    assert.deepEqual(com({ p: 70, fam: 1, f: [] }).errs, [], 'a favor: nada a explicar');
+    assert.deepEqual(com({ p: 50, fam: 0, f: [] }).errs, [], 'a média neutra não é o contrário');
+    assert.deepEqual(com({ p: 30, fam: -1, f: [] }, { key: 'wait', risk: '' }).errs, [], 'ficar não é o contrário de sair');
+    assert.deepEqual(com({ p: 70, fam: 1 }, { key: 'sell', short: 30, mid: 30, long: 30, entry: null, target: null, stop: null }).errs.map((e) => e.replace(/^.*é o contrário/, 'é o contrário')), ['é o contrário da média das outras fontes (entrar): explica porquê em algWhy (até 300 caracteres)']);
+    for (const f of [null, 'x', [1], { fam: '1' }, { fam: 2 }]) assert.deepEqual(com(f).errs, [], JSON.stringify(f));
+    // com a regra automática: discordar da regra continua a ser o primeiro erro, e só um
+    const e = com({ p: 30, fam: -1 }, {}, 'avoid').errs;
+    assert.deepEqual(e.length, 1);
+    assert.match(e[0], /discorda do sinal automático \(Evitar\)/);
+    assert.deepEqual(com({ p: 30, fam: -1 }, {}, 'buy').errs, [contra], 'de acordo com a regra, mas contra a média');
+});
+
 test('publicar: classificação do Claude por prazo e ativos da lista toda da TR', () => {
     const ok = buildAdvice(analise({ rank: { mid: ['NVDA', 'VWCE.DE'] } }), DADOS);
     assert.deepEqual(ok.errs, []);
@@ -87,7 +152,7 @@ test('publicar: classificação do Claude por prazo e ativos da lista toda da TR
     assert.ok(e.some((x) => /rank\.long tem de ser uma lista/.test(x)));
     // até MAX_EXTRA ativos de "Toda a Trade Republic" (universo.json)
     const uni = Array.from({ length: MAX_EXTRA + 1 }, (_, i) => ({ s: `X${i}.DE` }));
-    const extra = (n) => analise({ actions: analise().actions.concat(uni.slice(0, n).map((u) => ({ s: u.s, key: 'buy', short: 60, mid: 65, long: 70, why: 'tendência forte' }))) });
+    const extra = (n) => analise({ actions: analise().actions.concat(uni.slice(0, n).map((u) => ({ s: u.s, key: 'buy', short: 60, mid: 65, long: 70, why: 'tendência forte', risk: 'perde a MM200' }))) });
     assert.deepEqual(errsOf(extra(MAX_EXTRA), uni), []);
     assert.ok(errsOf(extra(MAX_EXTRA + 1), uni).some((x) => /no máximo 8 ativos de fora/.test(x)));
     assert.ok(errsOf(extra(1), []).some((x) => /X0\.DE: ativo desconhecido/.test(x)), 'sem o universo.json não se conhece');
@@ -141,6 +206,9 @@ test('dados: uma linha compacta por ativo, com o veredicto anterior', () => {
     assert.match(ref, /^- BZ=F Petróleo Brent \[ref\] 196 USD \| dia/);
     assert.ok(!/regra|antes|AGENDA|≈/.test(ref), ref);
     assert.ok(l.length < 330, 'curta: ' + l.length);
+    assert.match(lineOf({ ...r, prev: { action: 'Comprar', short: 60, mid: 70, long: 80, since: '2026-11-03', was: 'wait' } }), / \| antes Comprar 60\/70\/80 desde 2026-11-03 \(era Esperar\) \| AGENDA /);
+    assert.match(lineOf({ ...r, prev: { key: 'buy', since: '2026-11-03', was: 'outra' } }), / \| antes buy desde 2026-11-03 \(era outra\) \| AGENDA /);
+    assert.match(lineOf({ ...r, prev: { action: 'Comprar', since: '2026-11-03', was: 7 } }), / \| antes Comprar desde 2026-11-03 \| AGENDA /);
 });
 
 test('dados: avaliação dos veredictos anteriores (formato antigo e novo), face ao VWCE', () => {
@@ -163,17 +231,30 @@ test('dados: avaliação dos veredictos anteriores (formato antigo e novo), face
     assert.deepEqual(pastLines(evalPast([], now)), ['- Por veredicto: (ainda nenhum)']);
     // o último veredicto de cada ativo, para dar continuidade (o da manhã conta à tarde)
     const last = lastVerdicts(advices);
-    assert.deepEqual(last.NVDA, { date: '2026-11-06', key: 'scale', action: 'Comprar aos poucos', short: 50, mid: 75, long: 80, entry: 95 });
-    assert.deepEqual(last.TSLA, { date: '2026-11-05', key: 'avoid', action: 'Evitar' });
+    assert.deepEqual(last.NVDA, { date: '2026-11-06', key: 'scale', action: 'Comprar aos poucos', since: '2026-11-05', short: 50, mid: 75, long: 80, entry: 95 }, 'comprar → comprar aos poucos: a mesma família desde dia 5');
+    assert.deepEqual(last.TSLA, { date: '2026-11-05', key: 'avoid', action: 'Evitar', since: '2026-11-05' });
+    // desde quando: a série da mesma família para trás, saltando as análises que não falam do ativo; e o que dizia antes
+    const serie = (...ks) => lastVerdicts(ks.map((k, i) => ({ date: `2026-11-${String(10 - i).padStart(2, '0')}`, actions: k == null ? [] : [{ s: 'A', key: k }] }))).A;
+    assert.deepEqual(serie('buy', 'scale', null, 'buy', 'wait', 'buy'), { date: '2026-11-10', key: 'buy', action: 'Comprar', since: '2026-11-07', was: 'wait' });
+    assert.deepEqual(serie('hold', 'sell'), { date: '2026-11-10', key: 'hold', action: 'Manter', since: '2026-11-10', was: 'sell' });
+    assert.deepEqual(serie('up', 'up', 'flat', 'up'), { date: '2026-11-10', key: 'up', action: 'Em alta', since: '2026-11-09', was: 'flat' }, 'nas referências, a direção');
+    assert.deepEqual(serie('sell', 'avoid', 'reduce'), { date: '2026-11-10', key: 'sell', action: 'Vender', since: '2026-11-08' }, 'sem mudança: não há "was"');
+    assert.deepEqual(serie('buy', 7, 'buy'), { date: '2026-11-10', key: 'buy', action: 'Comprar', since: '2026-11-10' }, 'um veredicto estranho fecha a série, sem "was"');
+    // a série gravada pelo publicar em cada veredicto continua, por longa que seja (não anda com a janela das 45 análises)
+    const grav = (x) => lastVerdicts([{ date: '2026-11-10', actions: [{ s: 'A', key: 'buy', ...x }] }, { date: '2026-11-09', actions: [{ s: 'A', key: 'sell' }] }]).A;
+    assert.deepEqual(grav({ since: '2026-08-05', was: 'wait' }), { date: '2026-11-10', key: 'buy', action: 'Comprar', since: '2026-08-05', was: 'wait' });
+    assert.deepEqual(grav({ since: '2026-11-10' }), { date: '2026-11-10', key: 'buy', action: 'Comprar', since: '2026-11-10' }, 'mudou nessa análise e o "era" não ficou gravado: não se inventa');
+    for (const since of ['2026-11-11', '2026-8-05', 20260805, null, '2026-08-05 ']) assert.deepEqual(grav({ since, was: 'wait' }), { date: '2026-11-10', key: 'buy', action: 'Comprar', since: '2026-11-10', was: 'sell' }, 'série torta: conta-se para trás — ' + since);
+    assert.deepEqual(lastVerdicts([{ date: '2026-11-10', actions: [{ s: 'A', key: 'buy' }, { s: 'A', key: 'sell' }] }]).A, { date: '2026-11-10', key: 'buy', action: 'Comprar', since: '2026-11-10' }, 'repetido na mesma análise: conta o primeiro');
 });
 
 test('dados: modelo.json com todos os ativos e o último veredicto, porquê sempre por escrever', () => {
-    const rows = [{ s: 'VWCE.DE' }, { s: 'NVDA' }, { s: 'BZ=F' }];
+    const rows = [{ s: 'VWCE.DE', kind: 'fund' }, { s: 'NVDA', kind: 'stock' }, { s: 'BZ=F', kind: 'ref' }];
     const prev = { NVDA: { key: 'scale', action: 'Comprar aos poucos', short: 50, mid: 75, long: 80, entry: 95 } };
     const m = modelOf(rows, prev, { last: { plan: [{ s: 'VWCE.DE', amount: '810 €', name: '' }], planNote: '900 € em 2 execuções' }, lessons: ['l1'], movers: [{ s: 'NVDA' }] });
     assert.deepEqual(m.actions.map((x) => x.s), ['VWCE.DE', 'NVDA', 'BZ=F']);
-    assert.deepEqual(m.actions[1], { s: 'NVDA', key: 'scale', action: 'Comprar aos poucos', short: 50, mid: 75, long: 80, entry: 95, target: null, stop: null, why: '', plan: '', algWhy: '' });
-    assert.deepEqual(m.actions[2], { s: 'BZ=F', key: '', action: '', short: null, mid: null, long: null, entry: null, target: null, stop: null, why: '', plan: '', algWhy: '' });
+    assert.deepEqual(m.actions[1], { s: 'NVDA', key: 'scale', action: 'Comprar aos poucos', short: 50, mid: 75, long: 80, entry: 95, target: null, stop: null, why: '', plan: '', algWhy: '', news: null, cat: '', risk: '' });
+    assert.deepEqual(m.actions[2], { s: 'BZ=F', key: '', action: '', short: null, mid: null, long: null, entry: null, target: null, stop: null, why: '', plan: '', algWhy: '' }, 'a referência não tem notícias, catalisador nem risco');
     assert.deepEqual(m.plan, [{ s: 'VWCE.DE', amount: '810 €', why: '' }]);
     assert.deepEqual([m.planNote, m.lessons, m.movers], ['900 € em 2 execuções', ['l1'], [{ s: 'NVDA', why: '' }]]);
     // por preencher, o publicar recusa (nunca se publica um porquê antigo por engano)

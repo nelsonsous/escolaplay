@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.23.0';
+    const VERSION = '4.24.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1460,6 +1460,8 @@
     // ativo, numa só. Aqui só se junta o que cada fonte já deu; as regras e os pesos estão na Onda ----
     // o tom das notícias de um ativo, calculado uma vez por cada lista que chega
     const tomNoticias = (n) => { if (!('tom' in n) && aoOk) n.tom = AO.newsTone(n.items); return 'tom' in n ? n.tom : null; };
+    // o Claude leu as notícias deste ativo? (só conta a análise de agora: um tom antigo já não diz nada)
+    const clNews = (c) => !!c && !c.old && fin(c.news);
     function decIn(k) {
         const cl = claudeFor(k), c = CONS[k], r = AN[k], n = NEWS[k], h = (r && r.horizons) || {};
         const sc = (x) => (x ? x.score : null);
@@ -1470,7 +1472,8 @@
             an: c && !c.none && !c.error ? { key: c.key, mean: c.mean, n: c.n, target: c.target, price: c.price, ...(c.rev ? { up: c.rev.up, down: c.rev.down } : {}) } : null,
             fun: f ? { pe: f.pe, cr: fin(f.cr) ? Math.round(f.cr * 1000) / 10 : null, mg: fin(f.mg) ? Math.round(f.mg * 1000) / 10 : null } : null,
             tec: r && r.advice ? { key: r.advice.key, short: sc(h.short), mid: sc(h.mid), long: sc(h.long) } : null,
-            news: n ? tomNoticias(n) : null,
+            // as notícias: o tom que o Claude leu na análise de agora (news, 0–100); sem ele, o dos títulos
+            news: clNews(cl) ? (cl.news - 50) / 50 : n ? tomNoticias(n) : null,
             sent: REG[k] && REG[k].kind === 'crypto' ? (fin(fg) ? { fg } : null) : fin(vix) ? { vix } : null,
         };
     }
@@ -1481,8 +1484,14 @@
         const c = claudeFor(k), cons = CONS[k], n = NEWS[k], alg = AN[k] && AN[k].advice, manda = dec.manda === 'claude', lbl = rotulo(dec.key, owns(k));
         const de = c && c.date ? dmy(c.date).slice(0, 5) : '';
         const dist = (v) => { const p = clPx(k, q, v); return fin(p) && fin(q.price) && q.price ? fmtPct((p / q.price - 1) * 100) : ''; };
+        // desde quando o Claude mantém esta decisão (since, do publicar) e o que dizia antes (was)
+        const iso = manda && /^\d{4}-\d{2}-\d{2}$/.test(c.since || '') ? c.since : '', hj = todayLocal();
+        const dias = iso ? Math.max(0, Math.round((Date.parse(hj) - Date.parse(iso)) / DAY)) : null;
         return {
             d: decIn(k), own: owns(k),
+            desde: iso ? (dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `${iso.slice(8, 10)}/${iso.slice(5, 7)}${iso.slice(0, 4) !== hj.slice(0, 4) ? '/' + iso.slice(0, 4) : ''}`) : '',
+            dias, era: iso && typeof c.was === 'string' && Object.prototype.hasOwnProperty.call(FAMS, c.was) ? c.was : '',
+            cat: manda ? c.cat : '', risk: manda ? c.risk : '', nc: clNews(c),
             src: manda ? (c.old ? `Análise do Claude de ${de} · último comentário a este ativo` : `Análise do Claude · ${clWhen()}`) : `Média das fontes · ${clDoc() ? 'o Claude não analisou este ativo' : claudeOn() ? 'ainda sem análise do Claude' : 'a análise do Claude liga-se em Ajustes'}`,
             act: manda && c.action && c.action.trim().toLowerCase() !== lbl.toLowerCase() ? c.action : '',
             // o porquê: o do Claude; sem ele, o da regra automática quando é ela que aponta para o mesmo lado
@@ -2706,6 +2715,6 @@
         highlightsSnap, highlightsHtml, fmtBig, get movers() { return MOVERS; }, set movers(v) { MOVERS = v; }, get cg() { return CG; }, set cg(v) { CG = v; },
         // o Painel (só em Onda): o instantâneo, o desenho e o que ele lê já feito (a variação no período, o conselho do Claude
         // de cada ativo, o imposto da cripto), e o estado dos combustíveis
-        panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; } };
+        panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, decSnapOf: (k) => { const d = decOf(k); return d ? decSnap(k, qv(k), d) : null; }, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; } };
     boot();
 })();

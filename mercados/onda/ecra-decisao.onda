@@ -6,7 +6,9 @@
 # O INSTANTÂNEO: { d: as fontes (a entrada do dc_calc), own: tenho o ativo, src: de quando é a análise,
 #   act: a frase do Claude (se diz mais do que o rótulo), why, plan, algWhy (porque discorda das outras fontes),
 #   lv: [{ f, l, px, d }] (os níveis, já na moeda do ecrã), anD (o alvo dos analistas face a hoje, em %),
-#   nn (os títulos que contam para o tom), hoje (porque mexe hoje), desce, ev: [{ t, q, d }] (a agenda) }
+#   nn (os títulos que contam para o tom), nc (o tom das notícias é o que o Claude leu), hoje (porque mexe hoje), desce,
+#   desde ("hoje", "ontem" ou o dia), dias (há quantos) e era (o veredicto de antes): desde quando o Claude mantém a
+#   decisão; cat (o catalisador), risk (o que faria a decisão estar errada), ev: [{ t, q, d }] (a agenda) }
 # Precisa do decisao.onda, do ecra.onda (es, ln_fin, ln_rot, ln_sht, fm_pct) e do ecra-analise.onda (an_barv).
 
 : dv_nome i>i q ? == q 0 "Claude" ? == q 1 "Analistas" ? == q 2 "Técnica" ? == q 3 "Notícias" ? == q 4 "Fundamentos" "Sentimento"
@@ -79,13 +81,23 @@
       = u num d.an.up = w num d.an.down
       Se > + u w 0. ` · revisões { _nu_ps _nu_round u }↑ { _nu_ps _nu_round w }↓` } }
   Se == q 2 dv_pz d.tec
-  Se && == q 3 ln_fin es.nn { plural I num es.nn $"título" $"títulos" " recentes" }
+  Se == q 3 { ? ha es.nc "lidas pelo Claude" Se ln_fin es.nn { plural I num es.nn $"título" $"títulos" " recentes" } }
   Se == q 4 dv_fun d.fun
   Se == q 5 {
     = c d.sent
     ? ln_fin c.fg `Fear &amp; Greed { _nu_ps _nu_round num c.fg } de 100{ Se > f 0 " · com medo compra-se melhor" }{ Se < f 0 " · com ganância compra-se pior" }`
       `VIX { _nu_ps _nu_round num c.vix }` }
   `</small></div></li>` }
+
+# desde quando o Claude mantém esta decisão e o que dizia antes; em destaque se mudou há dois dias ou menos
+: dv_desde >i {
+  Se ha es.desde {
+    = n ? ln_fin es.dias I num es.dias 0 = mud ha es.era
+    `<div class="dec-desde{ Se && mud <= n 2 " novo" }">`
+    ? && mud <= n 1 `Mudou { esc es.desde }` { `Desde { esc es.desde }` Se >= n 2 ` (há {N n} dias)` }
+    Se mud ` · antes: { ln_sht es.era ha es.own }`
+    `</div>` }
+  0 }
 
 : ecra_decisao i>i s {
   ! 53 s
@@ -98,6 +110,7 @@
     `{ Se @ + r 2 ` <small class="adv-forte">forte</small>` }</div>`
     `<span class="dec-conf c{N c}">confiança { ? == c 2 "alta" ? == c 1 "média" "baixa" }</span></div>`
     Se ha es.act `<div class="adv-nu">{ esc es.act }</div>`
+    dv_desde
     `<div class="dec-p"><small>Média das fontes</small>{ an_barv @f + r 8 }</div>`
     `<div class="dec-voz">{ dv_voz r }</div>`
     `<ul class="dec-f">` L i @ r dv_fonte r i `</ul>`
@@ -109,6 +122,8 @@
     Se ha es.hoje `<div class="adv-why"><b>Porquê { ? ha es.desce "desce" "sobe" } hoje:</b> { esc es.hoje }</div>`
     Se ha es.why `<div class="adv-txt">{ esc es.why }</div>`
     Se ha es.plan `<div class="adv-txt"><b>Plano:</b> { esc es.plan }</div>`
+    Se ha es.cat `<div class="adv-txt"><b>Catalisador:</b> { esc es.cat }</div>`
+    Se ha es.risk `<div class="adv-txt"><b>Risco:</b> { esc es.risk }</div>`
     # porque o Claude discorda: das fontes que estão contra; sem elas, da técnica, se ficou ao lado
     Se && && ha es.algWhy @ + r 4 || @ + r 7 == dv_lado r 2 0
       `<div class="adv-alg diff"><b>Porque discorda { ? @ + r 7 dv_quem r -1 1 "da técnica" }:</b> { esc es.algWhy }</div>`

@@ -2895,3 +2895,36 @@ pedidos de consenso, com um a falhar e o outro a responder). Nos novos o teste c
 13/11 (48 ativos, 827 KB de respostas gravadas): `dados.json`, `dados.md`, `modelo.json`, a saída e os pedidos iguais
 nos dois. O conector em produção ainda é o 1.7.0: as revisões, as surpresas e o interior dos fundos aparecem quando o
 1.8.0 for publicado. 1 988 linhas de Onda, módulo de 386 KB.
+
+## Iteração 153: o que se pede ao Claude — notícias lidas por ele, catalisador, risco e o que mudou (Mercados 4.24.0)
+
+**O problema.** A análise dizia o que fazer e porquê, mas não dizia o que a faria estar errada, nem se o veredicto era
+de hoje ou de há um mês. E a fonte "Notícias" da decisão contava palavras nos títulos.
+
+**Campos novos por ativo** (`CONSELHEIRO.md`, `modelo.json`, validados no `publicar`):
+
+| Campo | O que é | Regra |
+|---|---|---|
+| `news` | o que as notícias dizem do ativo, lidas pelo Claude (0–100) | opcional; passa a ser a fonte "Notícias" da decisão |
+| `cat` | o catalisador: o que pode mexer o preço, com a data | opcional, até 90 caracteres |
+| `risk` | o que faria a decisão estar errada | até 140; obrigatório quando manda entrar ou sair |
+| `since`, `was` | desde quando mantém a família do veredicto e o que dizia antes | calculados pelo `publicar`, não escritos |
+
+O `dados` dá a série de cada ativo no `prev` e na linha ("antes Comprar 60/70/80 desde 2026-11-03 (era Esperar)"). A
+série gravada em cada veredicto continua de análise em análise, por longa que seja; nas análises anteriores a esta
+versão conta-se para trás enquanto a família for a mesma. Sem isso a data andava com a janela das 45 análises.
+
+**Mais uma recusa.** O `publicar` já exigia `algWhy` a quem discorda da regra automática. Passa a exigi-lo também a
+quem manda o contrário da média das outras fontes (entrar contra sair), que vem no `dados.json` desde a it.152.
+
+**Na app** (`ecra-decisao.onda`). Por baixo do veredicto: «Mudou hoje · antes: Aguardar» (em destaque até dois dias
+depois da mudança) ou «Desde 05/11 (há 8 dias)». Por baixo do plano: «Catalisador» e «Risco». Na linha das notícias,
+«lidas pelo Claude» quando o tom é o dele. A análise guardada antes desta versão não traz nada disto e o cartão fica
+como estava.
+
+**Verificado.** Conselheiro: 69 cenários iguais em JS e Onda (dez novos: tipos e tamanhos dos campos, o risco em
+falta, as séries certas e tortas, a média das fontes contra). Com os dados reais de 13/11: o `dados` igual nos dois, e a
+última análise verdadeira recusada só pelos 12 riscos que ainda não tinha; com eles, o que se gravaria é igual ao
+byte. Cartão: a referência em JS acompanha (4 000 instantâneos). Interface: a ficha da Nvidia com as linhas novas, na
+pasta de trabalho e no site construído. 100 testes.
+

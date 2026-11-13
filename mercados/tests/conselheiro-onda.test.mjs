@@ -80,6 +80,13 @@ export function cenarios() {
     d('fontes: dois pedidos de consenso; o primeiro responde e o segundo falha', { semente: 37,
         kv: { ...dono('f-0001'), ...diario('f-0001', { days: {}, my: MUITAS }) }, simbolos: { ZZP: { cons: { symbol: 'ZZP', ...RICO } }, 'ZZC.DE': { cons: { symbol: 'ZZC.DE', ...RICO } } },
         falhas: [{ url: 'consensus\\?symbols=EUNL', tipo: 'rede' }] });
+    // desde quando mantém o veredicto: a série gravada (since, was) continua; sem ela, ou com ela torta, conta-se para trás
+    const AC = (k, x = {}) => Object.entries(k).map(([s2, key]) => ({ s: s2, key, mid: 50, why: 'w', ...(x[s2] || {}) }));
+    d('desde quando: a série gravada em cada veredicto, as análises antigas sem ela e as séries tortas', { semente: 38, kv: {
+        ...conselho('2026-11-03', { actions: AC({ NVDA: 'buy', 'c:BTC': 'wait', 'VWCE.DE': 'hold', TSLA: 'sell', 'BZ=F': 'up', MSFT: 'avoid' }) }),
+        ...conselho('2026-11-04', { actions: AC({ NVDA: 'scale', 'c:BTC': 'buy', 'VWCE.DE': 'neutral', TSLA: 7, 'BZ=F': 'flat', MSFT: 'avoid' }) }),
+        ...conselho('2026-11-05', { actions: AC({ NVDA: 'buy', 'c:BTC': 'scale', 'VWCE.DE': 'hold', TSLA: 'sell', 'BZ=F': 'up', AAPL: 'buy', MSFT: 'reduce', META: 'talvez' },
+            { NVDA: { since: '2026-10-01', was: 'wait' }, 'c:BTC': { since: '2026-11-09', was: 'sell' }, 'VWCE.DE': { since: 20261001 }, 'BZ=F': { since: '2026-11-05', was: '' }, AAPL: { since: '2026-1-05' }, MSFT: { since: '2026-11-05\n' }, META: { since: '2026-11-01', was: 3 } }) }) } });
     d('títulos com emoji no corte e um nome cortado a meio de um par (URIError nas notícias)', {
         semente: 15, titulosEstranhos: true,
         kv: { ...dono('e-0001'), ...diario('e-0001', { days: { '2026-11-06': [{ s: 'EMOJ.DE', p: 1, a: 'buy' }] }, my: ['EMOJ.DE'] }) },
@@ -132,15 +139,16 @@ export function cenarios() {
     const BASE = { headline: 'Leitura do dia', market: 'Mercado.', plan: [{ s: 'VWCE.DE', amount: '810 €' }, { s: 'c:BTC', amount: '90 €' }], tldr: ['Mercado: x', 'Plano: y', 'Atenção: z'], review: 'ok', lessons: ['l1', 'l2'], risks: ['r'], movers: [{ s: 'NVDA', why: 'subiu' }] };
     const V = () => ({
         'VWCE.DE': { key: 'hold', action: 'Manter e reforçar', short: 40, mid: 62, long: 85, why: 'Núcleo; tendência longa a favor (L82).' },
-        NVDA: { key: 'scale', short: 48, mid: 70, long: 75, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% (RSI 31); resultados a 17/11.', plan: 'Metade agora.', algWhy: 'A regra vê a queda; os resultados pesam mais.' },
+        NVDA: { key: 'scale', short: 48, mid: 70, long: 75, entry: 190, target: 230, stop: 172, why: 'Desconto de 22% (RSI 31); resultados a 17/11.', plan: 'Metade agora.', algWhy: 'A regra vê a queda; os resultados pesam mais.',
+            news: 62.4, cat: 'Resultados a 17/11', risk: 'Fecho abaixo de 172 $ ou corte do guidance' },
         'c:BTC': { key: 'wait', short: 40, mid: 45, long: 62, why: 'Abaixo da MM20; suporte 66 700 €.', algWhy: 'Esperar pelo suporte.' },
         'BZ=F': { key: 'up', short: 60, mid: 55, long: 45, why: 'Acima da MM200.' },
         1234: { key: 'hold', short: 50, mid: 50, long: 50, why: 'neutro' } });
     const analise = (mod = (x) => x, over = {}) => { const v = V(); mod(v); return { ...BASE, actions: Object.entries(v).map(([s, x]) => ({ s, ...x })), ...over }; };
     const UNI = { rows: Array.from({ length: 10 }, (_, i) => ({ s: `X${i}.DE` })) };
-    const p = (nome, a, c = {}) => C.push({ nome: 'publicar: ' + nome, script: 'publicar', args: ['{pasta}/analise.json', '{pasta}/dados.json'], agora: '2026-11-07T07:40:00Z', ficheiros: { 'analise.json': a, 'dados.json': DADOS, ...(c.uni ? { 'universo.json': c.uni } : {}) }, ...c });
+    const p = (nome, a, c = {}) => C.push({ nome: 'publicar: ' + nome, script: 'publicar', args: ['{pasta}/analise.json', '{pasta}/dados.json'], agora: '2026-11-07T07:40:00Z', ficheiros: { 'analise.json': a, 'dados.json': c.dados || DADOS, ...(c.uni ? { 'universo.json': c.uni } : {}) }, ...c });
     p('válida (formato 2): grava advice:<data>, advice:latest e advice:lessons', analise());
-    p('classificação do Claude e ativos da lista toda da TR', analise((v) => Object.assign(v, Object.fromEntries(UNI.rows.slice(0, 8).map((u) => [u.s, { key: 'buy', short: 60, mid: 65, long: 70, why: 'tendência forte' }]))), { rank: { mid: ['NVDA', 'X0.DE', 'VWCE.DE'], long: [] } }), { uni: UNI });
+    p('classificação do Claude e ativos da lista toda da TR', analise((v) => Object.assign(v, Object.fromEntries(UNI.rows.slice(0, 8).map((u) => [u.s, { key: 'buy', short: 60, mid: 65, long: 70, why: 'tendência forte', risk: 'perde a MM200' }]))), { rank: { mid: ['NVDA', 'X0.DE', 'VWCE.DE'], long: [] } }), { uni: UNI });
     p('o universo.json não é JSON válido', analise(), { uni: '{"rows": [' });
     p('faltam ativos, repetidos, desconhecidos e mais de 8 de fora', { ...analise((v) => { delete v['c:BTC']; delete v['BZ=F']; }), actions: [...analise((v) => { delete v['c:BTC']; delete v['BZ=F']; }).actions, { s: 'VWCE.DE', key: 'hold', why: 'x' }, { s: 'ZZZ', key: 'buy', short: 60, mid: 60, long: 60, why: 'x' }, ...UNI.rows.map((u) => ({ s: u.s, key: 'buy', why: 'x' }))] }, { uni: UNI });
     p('formato antigo (sem convicção)', { ...BASE, actions: ['VWCE.DE', 'NVDA', 'c:BTC', 'BZ=F', '1234'].map((s) => ({ s, key: s === 'BZ=F' ? 'up' : 'hold', action: 'Manter', why: 'porquê' })) });
@@ -153,6 +161,31 @@ export function cenarios() {
         v['c:BTC'] = { ...v['c:BTC'], short: false, mid: 0, long: 100, entry: 0, why: 12 }; v['BZ=F'] = { ...v['BZ=F'], key: 'flat', action: '', short: 1e2, mid: -0, long: 0.5 };
     }, { headline: 'x'.repeat(161), market: 7, planNote: ['n'], plan: [{ s: 'VWCE.DE', amount: 810 }, { s: '', amount: '' }, 5], risks: [null, 'r'.repeat(241), '😀'], tldr: ['a', '', 'c', 'd'], movers: [{ s: 3, why: 'w' }], lessons: 'não é lista', review: { a: 1 } }));
     p('discordar do sinal automático exige o porquê (algWhy)', analise((v) => { delete v.NVDA.algWhy; v['c:BTC'].algWhy = '    \n'; v[1234] = { ...v[1234], key: 'sell', short: 40, mid: 40, long: 40, algWhy: 'x'.repeat(201) }; }));
+    // o tom das notícias, o catalisador e o risco (obrigatório quando manda entrar ou sair)
+    p('notícias, catalisador e risco: tipos e tamanhos', analise((v) => {
+        v['VWCE.DE'] = { ...v['VWCE.DE'], news: '70', cat: 'x'.repeat(91), risk: ['r'] }; v.NVDA = { ...v.NVDA, news: [55], cat: 7, risk: '   ' };
+        v['c:BTC'] = { ...v['c:BTC'], key: 'avoid', short: 30, mid: 30, long: 40, news: true, cat: '', risk: null }; v['BZ=F'] = { ...v['BZ=F'], news: -1, cat: 'Reunião da OPEP a 30/11', risk: 'r'.repeat(141) };
+        v[1234] = { ...v[1234], news: {}, cat: '😀'.repeat(46), risk: 'ok' }; v['X0.DE'] = { key: 'sell', short: 30, mid: 30, long: 30, why: 'de fora, sem risco' };
+    }), { uni: UNI });
+    p('notícias: números em texto, limites e arredondamento (publica)', analise((v) => { v['VWCE.DE'].news = 0; v.NVDA.news = 100; v['c:BTC'].news = ' 61.5 '; v['BZ=F'].news = 49.5; v[1234].news = 1e2; v[1234].cat = ' \t'; v[1234].risk = '\n'; }));
+    p('notícias fora da escala e que não são números', analise((v) => { v['VWCE.DE'].news = 100.5; v.NVDA.news = 'boas'; v['c:BTC'].news = false; v['BZ=F'].news = null; v[1234].news = ''; }));
+    // o que mudou: desde quando mantém a família do veredicto e o que dizia antes (o prev do dados.json)
+    const comPrev = (P) => ({ ...DADOS, rows: DADOS.rows.map((r) => ({ ...r, prev: P[r.s] })) });
+    p('o que mudou: a mesma família, outra família, sem since e a referência', analise(), { dados: comPrev({
+        'VWCE.DE': { date: '2026-11-06', key: 'neutral', action: 'Manter', since: '2026-10-20', was: 'buy' }, NVDA: { date: '2026-11-06', key: 'wait', since: '2026-11-01', was: 'avoid' },
+        'c:BTC': { date: '2026-11-06', key: 'turn' }, 'BZ=F': { date: '2026-11-06', key: 'up', since: '', was: '' }, 1234: 'hold' }) });
+    p('o que mudou: prev com tipos estranhos e a direção da referência', analise(), { dados: comPrev({
+        'VWCE.DE': { key: 'hold', since: 20261020, date: null }, NVDA: { key: 7, since: '2026-11-01' }, 'c:BTC': ['wait'],
+        'BZ=F': { date: '2026-11-06', key: 'down', since: '2026-11-02', was: 'up' }, 1234: { date: '2026-11-06', key: 'hold', since: '2026-11-03', was: 9 } }) });
+    p('o que mudou: uma chave que não é veredicto, igual e diferente', analise((v) => { v[1234].key = 'talvez'; v['BZ=F'].key = 'talvez'; }), { dados: comPrev({
+        'VWCE.DE': { date: '2026-11-06', key: 'talvez', since: '2026-11-02' }, 'BZ=F': { date: '2026-11-06', key: 'talvez', since: '2026-11-02', was: 'up' }, 1234: { date: '2026-11-06', key: 'talvez', since: '2026-11-04' } }) });
+    // ir contra a média das outras fontes (fontes.fam) pede algWhy, com e sem regra automática
+    const comFontes = (F) => ({ ...DADOS, rows: [...DADOS.rows.map((r) => ({ ...r, fontes: F[r.s] })), { s: 'SEMR.DE', kind: 'stock', price: 10, priceEur: 10, fontes: F['SEMR.DE'] }] });
+    const SEMR = { key: 'buy', short: 60, mid: 65, long: 70, why: 'sem regra automática', risk: 'perde os 9 €' };
+    const FT = { 'VWCE.DE': { p: 30, fam: -1, f: [] }, NVDA: { p: 30, fam: -1 }, 'c:BTC': { p: 25, fam: -1 }, 'BZ=F': { p: 70, fam: 1 }, 1234: { p: 75, fam: 1 }, 'SEMR.DE': { p: 20, fam: -1 } };
+    p('contra a média das fontes: sem o porquê (com a regra a favor e sem regra)', analise((v) => { v['c:BTC'] = { ...v['c:BTC'], key: 'buy', short: 60, mid: 60, long: 70, risk: 'perde os 60 000 €', algWhy: ' ' }; v['SEMR.DE'] = { ...SEMR }; v[1234] = { ...v[1234], key: 'reduce', short: 40, mid: 40, long: 40, risk: 'r', algWhy: 'x'.repeat(301) }; }), { dados: comFontes(FT) });
+    p('contra a média das fontes: com o porquê (publica, sem alg onde não há regra)', analise((v) => { v['c:BTC'] = { ...v['c:BTC'], key: 'buy', short: 60, mid: 60, long: 70, risk: 'perde os 60 000 €', algWhy: 'As fontes veem a queda; eu vejo o suporte.' }; v['SEMR.DE'] = { ...SEMR, algWhy: 'Veem a dívida; não veem a venda da filial; concordo abaixo de 9 €.' }; }), { dados: comFontes(FT) });
+    p('contra a média das fontes: fontes com tipos estranhos não pedem nada', analise((v) => { v['SEMR.DE'] = { ...SEMR, algWhy: 'fica de fora: não há com quem discordar' }; }), { dados: comFontes({ 'VWCE.DE': 'x', NVDA: [1], 'c:BTC': { fam: '1' }, 'BZ=F': { fam: 2 }, 1234: null, 'SEMR.DE': { fam: 0 } }) });
     p('classificação com erros', analise((v) => v, { rank: { mid: ['VWCE.DE', 'NVDA', 'NVDA', 'BZ=F', 'ZZZ', 7], long: 'x', short: [] } }));
     p('plano, resumo e título em falta', analise((v) => v, { plan: [], tldr: [], headline: '', market: '' }));
     p('a análise não é um objeto', null);
@@ -228,6 +261,20 @@ test('conselheiro em Onda: o mesmo que o JS em todos os cenários (ficheiros, pe
     const velho = res.find((r) => /o conector antigo/.test(r.cena.nome)), mdV = String(velho.b.ficheiros['dados.md']);
     assert.doesNotMatch(mdV, /analistas [a-z_]+ \d|F&G \d|Fear & Greed|Juros EUA/, 'sem as rotas novas não há fontes novas');
     assert.match(mdV, /\n- analistas e fundamentos: [^\n]+\n- sentimento da cripto: /, 'e fica nos avisos');
+    // desde quando: o que fica no dados.md e no dados.json
+    const dq = res.find((r) => /desde quando: a série gravada/.test(r.cena.nome)), mdQ = String(dq.b.ficheiros['dados.md']);
+    const antes = (s2) => (/ \| antes ([^|]*?)(?= \| |$)/.exec(linha(mdQ, s2)) || [])[1];
+    assert.deepEqual([antes('NVDA'), antes('c:BTC'), antes('VWCE.DE'), antes('TSLA'), antes('BZ=F'), antes('AAPL'), antes('MSFT'), antes('META')], [
+        'Comprar desde 2026-10-01 (era Esperar)',      // a série gravada continua, com o que dizia antes
+        'Comprar aos poucos desde 2026-11-04 (era Esperar)', // since depois da data: conta-se para trás (comprar a 4, esperar a 3)
+        'Manter desde 2026-11-03',                     // since que não é texto: para trás, sempre na mesma família
+        'Vender desde 2026-11-05',                     // um veredicto estranho a 4 fecha a série, sem "era"
+        'Em alta desde 2026-11-05',                    // since igual à data, was vazio
+        'Comprar desde 2026-11-05',                    // since mal escrito: a data da própria análise
+        'Reduzir desde 2026-11-03',                    // since com uma linha a mais: para trás (evitar é da mesma família)
+        'talvez desde 2026-11-01']);                   // a série gravada vale mesmo com uma chave desconhecida
+    const pq = JSON.parse(dq.b.ficheiros['dados.json']).rows.find((x) => x.s === 'NVDA').prev;
+    assert.deepEqual([Object.keys(pq).join(), pq.since, pq.was], ['date,key,action,since,mid,was', '2026-10-01', 'wait']);
     const mal = res.filter((r) => r.d.length);
     for (const r of mal) console.log(`✗ ${r.cena.nome}\n  ${r.d.join('\n  ')}`);
     assert.equal(mal.length, 0, `${mal.length} de ${C.length} cenários diferem`);

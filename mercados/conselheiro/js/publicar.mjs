@@ -7,7 +7,7 @@
 // por prazo, níveis e o porquê, mais a classificação do Claude por prazo. A app continua a ler o formato antigo.
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { kvPut, todayLisbon, isMain, normVerdict, textCheck, HZ, REF_KEYS, FAM, ACTION_LABEL } from './comum.mjs';
+import { kvPut, todayLisbon, isMain, normVerdict, textCheck, sameFam, HZ, REF_KEYS, FAM, ACTION_LABEL } from './comum.mjs';
 
 export const MAX_EXTRA = 8; // ativos de fora das listas da app (toda a Trade Republic, universo.json)
 const RANK_MAX = 15, RANK_AUTO = 10;
@@ -50,14 +50,41 @@ export function buildAdvice(a, dados, uniRows = []) {
         if (!r && !uni.has(s)) { errs.push(`${p}: ativo desconhecido (não está no dados.json nem na lista da TR)`); return; }
         if (seen.has(s)) { errs.push(`${p}: repetido`); return; }
         seen.add(s);
-        const o = normVerdict(x, errs, { p, ref: !!r && r.kind === 'ref', price: r ? r.price : null });
+        const ref = !!r && r.kind === 'ref';
+        const o = normVerdict(x, errs, { p, ref, price: r ? r.price : null });
+        // o que as notícias dizem do ativo, lidas pelo Claude (0–100, 50 neutro: é a fonte "Notícias" da decisão), o
+        // catalisador (o que pode mexer o preço, com data) e o risco (o que faria esta decisão estar errada)
+        if (x.news != null && x.news !== '') {
+            const n = Number(x.news);
+            if (typeof x.news === 'boolean' || !Number.isFinite(n) || n < 0 || n > 100) errs.push(`${p}.news: o tom das notícias é de 0 a 100 (veio ${JSON.stringify(x.news)})`);
+            else o.news = Math.round(n);
+        }
+        const cat = str(x.cat, 90, `${p}.cat`), risk = str(x.risk, 140, `${p}.risk`);
+        if (cat.trim()) o.cat = cat;
+        if (risk.trim()) o.risk = risk;
+        const fk = typeof o.key === 'string' && Object.hasOwn(FAM, o.key) ? FAM[o.key] : 0;
+        if (!ref && fk && !risk.trim()) errs.push(`${p}: mandas ${fk > 0 ? 'entrar' : 'sair'} (${o.action}): diz em risk o que faria esta decisão estar errada (até 140 caracteres)`);
         // segunda opinião: o sinal automático (regra) do mesmo ativo; se o veredicto for de outra família
-        // (entrar / ficar / sair), o Claude explica porquê discorda
-        if (r && r.rule && FAM[r.rule] != null && FAM[o.key] != null) {
-            o.alg = r.rule;
+        // (entrar / ficar / sair), o Claude explica porquê discorda. O mesmo se for o contrário da média das outras
+        // fontes (fontes.fam do dados.json: os analistas, os fundamentos, a técnica e o sentimento, sem o voto dele)
+        const comRegra = !!(r && r.rule && FAM[r.rule] != null && FAM[o.key] != null);
+        const fo = r && r.fontes && typeof r.fontes === 'object' && (r.fontes.fam === 1 || r.fontes.fam === -1) ? r.fontes.fam : 0;
+        if (comRegra || (fo && fk)) {
+            if (comRegra) o.alg = r.rule;
             const w = str(x.algWhy, 300, `${p}.algWhy`);
-            if (FAM[o.key] !== FAM[r.rule] && !w.trim()) errs.push(`${p}: o teu veredicto (${o.action}) discorda do sinal automático (${r.ruleAction || ACTION_LABEL[r.rule]}): explica porquê em algWhy (até 300 caracteres)`);
+            if (comRegra && FAM[o.key] !== FAM[r.rule] && !w.trim()) errs.push(`${p}: o teu veredicto (${o.action}) discorda do sinal automático (${r.ruleAction || ACTION_LABEL[r.rule]}): explica porquê em algWhy (até 300 caracteres)`);
+            else if (fo && fk === -fo && !w.trim()) errs.push(`${p}: o teu veredicto (${o.action}) é o contrário da média das outras fontes (${fo > 0 ? 'entrar' : 'sair'}): explica porquê em algWhy (até 300 caracteres)`);
             if (w.trim()) o.algWhy = w;
+        }
+        // o que mudou: desde quando mantém esta família de veredicto e o que dizia antes (do prev do dados.json)
+        const pv = r && r.prev && typeof r.prev === 'object' && !Array.isArray(r.prev) && typeof r.prev.key === 'string' ? r.prev : null;
+        if (pv && sameFam(pv.key, o.key)) {
+            const d = typeof pv.since === 'string' && pv.since ? pv.since : typeof pv.date === 'string' && pv.date ? pv.date : out.date;
+            if (typeof pv.was === 'string' && pv.was) o.was = pv.was;
+            o.since = d;
+        } else {
+            if (pv) o.was = pv.key;
+            o.since = out.date;
         }
         out.actions.push(o);
     });

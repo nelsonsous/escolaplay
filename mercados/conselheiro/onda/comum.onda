@@ -74,6 +74,13 @@
 : cs_crypto >i cs_c $"CRYPTO"
 : cs_market >i cs_c $"MARKET"
 : cs_alabel i>i k _js_oget cs_c $"ACTION_LABEL" k
+# isoDate(v): uma data AAAA-MM-DD em texto
+: cs_dig ii>i t j { = b _tx_b t j && >= b '0 <= b '9 }
+: cs_ehdata i>i v && && && && && && && && && && && _js_ehtxt v == _tx_len v 10 cs_dig v 0 cs_dig v 1 cs_dig v 2 cs_dig v 3 == _tx_b v 4 '- cs_dig v 5 cs_dig v 6 == _tx_b v 7 '- cs_dig v 8 cs_dig v 9
+# sameFam(a, b): dois veredictos da mesma família (entrar / ficar / sair); nas referências, a mesma direção
+: cs_mfam ii>i a b ? && _js_ehtxt a _js_ehtxt b {
+    = fa _js_oget cs_c $"FAM" a = fb _js_oget cs_c $"FAM" b
+    ? || != fa 1 != fb 1 { ? && != fa 1 != fb 1 == _js_f fa _js_f fb 0 } _js_eq a b } 0
 # yahooOf: a chave da app → símbolo do Yahoo (c:ADA → ADA-EUR)
 : cs_cpref i>i k && >= _tx_len k 2 && == _tx_b k 0 'c == _tx_b k 1 ':
 : cs_yahoo i>i k { = c _js_oget cs_crypto k ? != c 1 _js_it c 0 ? cs_cpref k { = r _tx_sub k 2 _tx_len k `{ _an_abre 0 }{ crut r }-EUR` _an_fecha } k }
