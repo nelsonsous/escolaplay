@@ -90,7 +90,7 @@ de cima, com o estado dentro da Onda.
 | `onda/rt/`, `onda/wasm/` | os anfitriões | 194 + 143 + 114 linhas de JS |
 | `onda/molde/` | o ponto de partida de uma app nova | 140 linhas de Onda, módulo de 49 KB |
 | `mercados/onda/` | a análise, a decisão consolidada, os separadores e o cartão «Decisão» da Mercados | 3 204 linhas, módulo de 399 KB |
-| `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 1 844 linhas, módulo de 354 KB |
+| `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 1 988 linhas, módulo de 386 KB |
 | `mercados/proto/` | gráficos vivos e o mapa do mercado (o guia: `docs/CAMPOS.md`) | 265 linhas, módulo de 27 KB |
 | `musica/onda/` | o motor e o curador da Música (de outra sessão; usa ainda o `lib/app.onda`) | 231 linhas |
 | `meteo/onda/` | os campos da Meteo: o gráfico da chuva das próximas 2 horas (WebAssembly) e o céu do cartão «Agora» (GLSL) | 91 + 169 linhas, 11 KB de WASM e 32 KB de GLSL |

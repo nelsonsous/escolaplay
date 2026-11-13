@@ -2866,3 +2866,32 @@ meses, as revisões, as surpresas, e num fundo o que ele tem por dentro.
 **Verificado.** Conector: 21 testes com pedidos simulados (os dados novos, o pedido maior recusado, um fundo, a
 segunda tentativa). Motor e cartão: as referências em JS acompanham (20 000 e 4 000 casos). Interface: a ficha da
 Nvidia e a de um fundo. Os nomes dos campos do Yahoo ficam por confirmar em produção, depois da publicação.
+
+## Iteração 152: as fontes todas no que o Claude lê (conselheiro)
+
+**O problema.** A app mostra seis fontes ao lado do veredicto do Claude, mas ele só via duas no `dados.md` (a técnica
+e as notícias). As outras tinha de as pedir à mão, ação a ação, e nada o obrigava a fazê-lo.
+
+**O que mudou no `dados`.** Dois pedidos novos ao conector, depois da agenda: o `/consensus` das ações e dos fundos
+(de 40 em 40) e o `/cryptoglobal`. Com as cotações de hoje vêm também os juros dos EUA a 10 anos e o índice do dólar.
+Cada linha de ativo acaba agora com as fontes dele:
+
+```
+| FONTES analistas buy 1.6 (53) alvo +74.9% · P/E 10.3 vendas +105.9% margem +63.7% · média 63 entrar [analistas 85, fundamentos 80, técnica 31, sentimento 49]
+```
+
+A média é o que a app decidia sem o voto do Claude: sai do mesmo motor (`mercados/onda/decisao.onda`), que o módulo
+do conselheiro já trazia compilado. A Onda monta a entrada do motor com o modelo de valores do JS (`_js_*`), escreve-a
+em JSON e lê-a para a árvore que o `dc_calc` espera. Em "Mercado" há uma linha de contexto: juros, dólar, Fear & Greed
+da cripto (hoje e antes) e domínio do Bitcoin. O `dados.json` leva o consenso inteiro por ativo (`cons`), o `fg` e a
+média (`fontes`). Se um pedido falhar, sai um aviso e o resto segue como antes.
+
+**As regras (`CONSELHEIRO.md`).** O passo 3 deixa de mandar fazer pedidos: explica como se lê o `FONTES` e pede
+`algWhy` quando a família do Claude não é a da média.
+
+**Verificado.** Paridade JS e Onda byte a byte em 59 cenários, oito novos (consenso com entradas estranhas, corpos que
+não são o esperado, `null`, Fear & Greed nos extremos, o conector antigo sem as rotas novas, e mais de 40 ações: dois
+pedidos de consenso, com um a falhar e o outro a responder). Nos novos o teste confere também o texto. Com os dados reais de
+13/11 (48 ativos, 827 KB de respostas gravadas): `dados.json`, `dados.md`, `modelo.json`, a saída e os pedidos iguais
+nos dois. O conector em produção ainda é o 1.7.0: as revisões, as surpresas e o interior dos fundos aparecem quando o
+1.8.0 for publicado. 1 988 linhas de Onda, módulo de 386 KB.
