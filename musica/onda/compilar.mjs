@@ -1,13 +1,15 @@
 // Compila o motor de curadoria, a app e os scripts do Maestro com o compilador Onda do repositório (onda/seed/ondac.wasm) e grava:
 //   curador.wasm — motor.onda + curador.onda: o programa de linha de comando (tarefa agendada, testes)
 //   curador.c    — o mesmo em C, para o juiz (testes) compilar em nativo e comparar ao bit
-//   ../app/musica.wasm — onda/lib/app.onda + motor.onda + ../app/musica.onda: a app, uma «app em Onda»
+//   ../app/musica.wasm — a biblioteca da Onda (onda/lib) + motor.onda + ../app/musica.onda: a app, uma «app em Onda»
+//   ../curador/maestro.wasm — onda/lib/app.onda + motor.onda + os scripts do Maestro (../curador/onda)
 //
 //   node musica/onda/compilar.mjs [--verificar]        (ONDAC=/caminho/ondac.wasm para usar outro compilador)
 // --verificar: não grava; falha se algum compilado não corresponder às fontes.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { palavras, conteudo } from '../../onda/tools/fluir.mjs';
 
 const AQUI = new URL('.', import.meta.url).pathname;
 
@@ -49,15 +51,30 @@ export async function ondac(compilador, fonte, flags) {
     return all;
 }
 
-// As fontes de cada compilado (a Onda junta-se por concatenação, como a biblioteca de apps)
+// A biblioteca da Onda que a app junta, por esta ordem (cada módulo só usa os de cima; no -w só entra o que a app usa)
+export const MODULOS = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao', 'fala'];
+
+// As entradas da app: o main e as funções que o anfitrião chama pelo nome (cliques, campos, respostas da rede,
+// relógios). Na fonte são textos constantes com o nome de uma função da app — $"clique", $"lido_estado"… —, por isso
+// tiram-se de lá: quem junta um evento novo não tem lista nenhuma para manter.
+export function entradas(fonteApp) {
+    const funcoes = new Set([...fonteApp.matchAll(/^: ([a-z_][a-zA-Z0-9_]*) /gm)].map((m) => m[1]));
+    const ditas = new Set(palavras(fonteApp).filter((p) => p.k === 'tc').map((p) => conteudo(p.x)));
+    return ['main', ...[...funcoes].filter((f) => f !== 'main' && !f.startsWith('_') && ditas.has(f)).sort()];
+}
+
+// As fontes de cada compilado (a Onda junta-se por concatenação)
 export function fontes() {
     const ler = (f) => readFileSync(join(AQUI, f), 'utf8');
     const motor = ler('motor.onda');
-    const lib = join(AQUI, '..', '..', 'onda', 'lib', 'app.onda');
+    const dirLib = join(AQUI, '..', '..', 'onda', 'lib');
+    const lib = join(dirLib, 'app.onda');
     const app = join(AQUI, '..', 'app', 'musica.onda');
+    const temApp = existsSync(app) && MODULOS.every((m) => existsSync(join(dirLib, m + '.onda')));
     return {
         curador: motor + '\n' + ler('curador.onda'),
-        app: existsSync(app) && existsSync(lib) ? readFileSync(lib, 'utf8') + '\n' + motor + '\n' + readFileSync(app, 'utf8') : null,
+        app: temApp ? [...MODULOS.map((m) => readFileSync(join(dirLib, m + '.onda'), 'utf8')), motor, readFileSync(app, 'utf8')].join('\n') : null,
+        entradasApp: temApp ? entradas(readFileSync(app, 'utf8')) : [],
         // os scripts do Maestro (a tarefa agendada), com a biblioteca de apps (textos e JSON), para o anfitrião Node
         // (dados, publicar com o motor, e o main que escolhe pelo 1.º argumento)
         maestro: existsSync(lib) ? [readFileSync(lib, 'utf8'), motor, ...['dados', 'publicar', 'maestro'].map((s) => readFileSync(join(AQUI, '..', 'curador', 'onda', s + '.onda'), 'utf8'))].join('\n') : null,
@@ -68,7 +85,7 @@ export async function compilarTudo(compilador) {
     return {
         'curador.wasm': await ondac(compilador, f.curador, ['-w']),
         'curador.c': await ondac(compilador, f.curador, []),
-        ...(f.app ? { '../app/musica.wasm': await ondac(compilador, f.app, ['-w']) } : {}),
+        ...(f.app ? { '../app/musica.wasm': await ondac(compilador, f.app, ['-w', ...f.entradasApp]) } : {}),
         ...(f.maestro ? { '../curador/maestro.wasm': await ondac(compilador, f.maestro, ['-w']) } : {}),
     };
 }

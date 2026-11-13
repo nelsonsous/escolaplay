@@ -58,7 +58,7 @@ começam nomes por `_` (são do runtime e das bibliotecas), por isso nunca colid
 | `data.onda` | `_dt_` | dia civil ⇄ dias, `toISOString`, dia da semana, Lisboa (`Europe/Lisbon`) |
 | `ordenar.onda` | `_or_` | o `sort` do V8: o PowerSort do Chromium (`_or_power`) e o TimSort do Node 22 (`_or_tim`) |
 | `html.onda` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
-| `anfitriao.onda` | `_an_` | as portas dos anfitriões: apps (`rt/anfitriao.js`, `Y 100–110`) e scripts (`rt/anfitriao-node.js`, `Y 200–214`) |
+| `anfitriao.onda` | `_an_` | as portas dos anfitriões: apps (`rt/anfitriao.js`, `Y 100–117`) e scripts (`rt/anfitriao-node.js`, `Y 200–214`) |
 
 Cada ficheiro começa com a lista das suas funções, o que fazem e a que função do JS são iguais.
 

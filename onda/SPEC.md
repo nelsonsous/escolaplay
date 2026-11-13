@@ -161,7 +161,7 @@ cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala
 | `data` | `_dt_` | dia civil ⇄ dias, `toISOString`, dia da semana, Lisboa (as regras da UE) |
 | `ordenar` | `_or_` | o `sort` do V8, comparação a comparação: o PowerSort do Chromium e o TimSort do Node 22, com o comparador num código |
 | `html` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
-| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–110` e `Y 200–214`) com nomes |
+| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–117` e `Y 200–214`) com nomes |
 | `fala` | (sem `_`) | a fala das apps, opcional: nomes curtos para ler um nó (`ha`, `eh`, `num`, `int`, `txt`, `pri`, `seg`…), escrever (`esc`, `cru`, `plural`), números pt-PT (`casas`, `ate`, `inteiro`, `moeda`) e ações dos botões (`acao`, `arg`, `eacao`). Com os moldes e o ponto: `` `<b>{ esc c.nome }</b>` `` |
 
 - **Nomes:** `_` + o prefixo do módulo + `_` + o nome. As apps não começam nomes por `_` e o runtime não usa um segundo `_`: não
