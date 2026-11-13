@@ -2842,3 +2842,8 @@ publicado está na 1.6.0: a 1.7.0 (os fundamentos no consenso) espera a publica�
 decisão por ativo a partir de seis fontes, com a confiança e quem discorda à vista; a ficha com um cartão em vez de
 três caixas; o Painel sem o plano repetido; as regras do conselheiro alinhadas com isso. No código: os ecrãs e os
 scripts do conselheiro na Onda fluida, uma só tabela de veredictos, e o que não se usava fora.
+
+**Depois do fecho: o conector 1.7.0 publicado (Mercados 4.22.3).** Com o «publica» do dono, o conector passou à 1.7.0
+e o consenso traz os fundamentos em produção (conferido com a Nvidia, a Allianz, a Microsoft e a Tesla). A Cloudflare
+guarda cada resposta do consenso 6 horas por endereço, e as que já lá estavam vinham sem fundamentos: a app passa a
+pedir com `&f=1`, um endereço novo, para os receber logo.

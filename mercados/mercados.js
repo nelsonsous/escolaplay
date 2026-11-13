@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.22.2';
+    const VERSION = '4.22.3';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1448,7 +1448,8 @@
         if (!REG[k] || REG[k].kind !== 'stock' || !cfg.proxy || now() - (consAt[k] || 0) < 6 * 3600 * 1000) return;
         consAt[k] = now();
         try {
-            const r = await px(`/consensus?symbols=${encodeURIComponent(k)}`, 15000);
+            // &f=1: um endereço novo desde o conector 1.7.0, para não vir da cache uma resposta antiga, sem os fundamentos
+            const r = await px(`/consensus?symbols=${encodeURIComponent(k)}&f=1`, 15000);
             CONS[k] = (r.items || []).find((x) => x.symbol === k) || null;
         } catch { CONS[k] = null; }
         if (sheetKey === k) renderSheet(true);
