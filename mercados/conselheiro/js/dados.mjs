@@ -8,6 +8,7 @@ import path from 'node:path';
 import { AO, px, kvKeys, kvGet, todayLisbon, isMain, STOCKS, FUNDS, CRYPTO, MARKET, MINE, ACTION_LABEL, HZ, LEVELS, yahooOf, kindOf, nameOf } from './comum.mjs';
 
 const SYM = /^(c:[A-Z0-9]{2,10}|[A-Z0-9^][A-Z0-9.=^-]{0,19})$/;
+const CTX = ['^TNX', 'DX-Y.NYB'];
 const pc = (x) => (x == null || !Number.isFinite(x) ? '—' : (x > 0 ? '+' : '') + (x * 100).toFixed(1) + '%');
 const r2 = (x) => (x == null || !Number.isFinite(x) ? null : Number(x.toPrecision(6)));
 const n0 = (x) => (Number.isFinite(x) ? Math.round(x) : '—');
@@ -43,7 +44,60 @@ export function lineOf(r) {
         + ` | alg C${n0(r.short)} M${n0(r.mid)} L${n0(r.long)} · RSI ${n0(r.rsi)} · vol ${r.vol == null ? '—' : Math.round(r.vol * 100) + '%'}`
         + ` | máx ${pc(r.dd)}${r.ma200 != null ? ` · MM200 ${pc(r.ma200)}${r.longUp === true ? '↑' : r.longUp === false ? '↓' : ''}` : ''}`
         + ` | S ${r.sup.length ? r.sup.join(' · ') : '—'} | R ${r.res.length ? r.res.join(' · ') : '—'}`
-        + `${r.ruleAction ? ' | regra ' + r.ruleAction : ''}${prev}${r.events && r.events.length ? ' | AGENDA ' + r.events.join(', ') : ''}`;
+        + `${r.ruleAction ? ' | regra ' + r.ruleAction : ''}${prev}${r.events && r.events.length ? ' | AGENDA ' + r.events.join(', ') : ''}${fontesTxt(r)}`;
+}
+
+// ---------- 2b) as outras fontes da decisão (o /consensus e o /cryptoglobal do conector) ----------
+const fin = Number.isFinite;
+const obj = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : null);
+const FAM_PT = { 1: 'entrar', 0: 'ficar', '-1': 'sair' };
+const FONTE_PT = { analistas: 'analistas', fundamentos: 'fundamentos', tecnica: 'técnica', sentimento: 'sentimento' };
+// a entrada do motor da decisão (mercados/onda/decisao.onda) com as fontes que não são o Claude: os analistas (com as
+// revisões das estimativas), os fundamentos (as percentagens com uma casa, como na app), a técnica e o sentimento
+export function fontesDe(c, tec, sent) {
+    const o = obj(c), an = o && !o.none && typeof o.key === 'string' ? o : null, rv = an ? obj(o.rev) : null, fu = o ? obj(o.f) : null;
+    const n = (x) => (fin(x) ? x : null), p1 = (x) => (fin(x) ? Math.round(x * 1000) / 10 : null);
+    return {
+        an: an ? { key: an.key, mean: n(an.mean), n: n(an.n), target: n(an.target), price: n(an.price), up: rv ? n(rv.up) : null, down: rv ? n(rv.down) : null } : null,
+        fun: fu ? { pe: n(fu.pe), cr: p1(fu.cr), mg: p1(fu.mg) } : null,
+        tec, sent,
+    };
+}
+// o que as outras fontes dizem de um ativo, no fim da linha dele: os analistas, os fundamentos, o fundo por dentro, o
+// medo da cripto e a média delas na escala da app
+export function fontesTxt(r) {
+    const c = obj(r.cons), P = [];
+    if (c && !c.none && typeof c.key === 'string') {
+        let t = `analistas ${c.key}`;
+        if (fin(c.mean)) t += ' ' + c.mean.toFixed(1);
+        if (fin(c.n)) t += ` (${c.n})`;
+        if (fin(c.target) && fin(c.price) && c.price > 0) t += ` alvo ${pc(c.target / c.price - 1)}`;
+        const rv = obj(c.rev), su = obj(c.sur);
+        if (rv && fin(rv.up) && fin(rv.down)) t += ` rev ${rv.up}↑${rv.down}↓`;
+        if (su && fin(su.beats) && fin(su.n)) t += ` surp ${su.beats}/${su.n}`;
+        P.push(t);
+    }
+    const f = c ? obj(c.f) : null;
+    if (f) {
+        const x = [];
+        if (fin(f.pe)) x.push(`P/E ${f.pe.toFixed(1)}`);
+        if (fin(f.cr)) x.push(`vendas ${pc(f.cr)}`);
+        if (fin(f.mg)) x.push(`margem ${pc(f.mg)}`);
+        if (fin(f.roe)) x.push(`ROE ${pc(f.roe)}`);
+        if (fin(f.de)) x.push(`dívida ${Math.round(f.de)}%`);
+        if (x.length) P.push(x.join(' '));
+    }
+    const fd = c ? obj(c.fund) : null;
+    if (fd) {
+        const x = [];
+        if (fin(fd.pe)) x.push(`fundo P/E ${fd.pe.toFixed(1)}`);
+        if (fin(fd.ter)) x.push(`custo ${(fd.ter * 100).toFixed(2)}%`);
+        if (x.length) P.push(x.join(' '));
+    }
+    if (fin(r.fg)) P.push(`F&G ${r.fg}`);
+    const v = r.fontes;
+    if (v) P.push(`média ${v.p} ${FAM_PT[v.fam]} [${v.f.map(([nome, q]) => `${nome} ${q}`).join(', ')}]`);
+    return P.length ? ' | FONTES ' + P.join(' · ') : '';
 }
 
 // ---------- 3) os veredictos anteriores: por veredicto e por convicção, face ao VWCE no mesmo período ----------
@@ -139,7 +193,8 @@ async function main() {
     const { keys, extra, groups } = pickAssets(journals);
 
     // preços de hoje, 1 ano de fechos e câmbios para euros
-    const q1d = await tryOr(() => quotes(keys, '1d'), {}, 'cotações de hoje');
+    // com as cotações de hoje vem o contexto que não é um ativo da app: os juros a 10 anos dos EUA e o dólar
+    const q1d = await tryOr(() => quotes(keys.concat(CTX.filter((k) => !keys.includes(k))), '1d'), {}, 'cotações de hoje');
     const q1y = await tryOr(() => quotes(keys, '1y'), {}, 'histórico 1 ano');
     const fx = { EUR: 1 };
     if (q1d['EURUSD=X'] && q1d['EURUSD=X'].price) fx.USD = 1 / q1d['EURUSD=X'].price;
@@ -167,6 +222,19 @@ async function main() {
         return out;
     };
 
+    // as outras fontes da decisão (a app mostra-as ao lado do veredicto): os analistas, as revisões, as surpresas e os
+    // fundamentos das ações, o que os fundos têm por dentro, e o medo da cripto (o Fear & Greed)
+    const cons = new Map();
+    const consKeys = stockKeys.concat(keys.filter((k) => kinds[k] === 'fund'));
+    for (let i = 0; i < consKeys.length; i += 40) {
+        const r = await tryOr(() => px(`/consensus?symbols=${encodeURIComponent(consKeys.slice(i, i + 40).join(','))}&f=2`, 60000), null, 'analistas e fundamentos');
+        const items = obj(r) && Array.isArray(r.items) ? r.items : [];
+        for (const it of items) if (obj(it) && typeof it.symbol === 'string' && !it.error) cons.set(it.symbol, it);
+    }
+    const cg = obj(await tryOr(() => px('/cryptoglobal'), null, 'sentimento da cripto'));
+    const fng = cg ? obj(cg.fng) : null, fg = fng && fin(fng.v) ? fng.v : null;
+    const vixQ = obj(q1d['^VIX']), vix = vixQ && fin(vixQ.price) ? vixQ.price : null;
+
     // conselhos anteriores (KV): para a continuidade (antes) e a avaliação (sem os de hoje)
     const advKeys = (await tryOr(() => kvKeys('advice:2'), [], 'conselhos anteriores')).sort().slice(-45);
     const advices = [];
@@ -185,6 +253,12 @@ async function main() {
         if (!r) { warn.push(`sem análise: ${k}`); continue; }
         const cur = (t && t.currency) || d.currency;
         const price = closes[closes.length - 1];
+        // as outras fontes deste ativo e a média delas (o mesmo motor da app, sem o voto do Claude)
+        const c = ref ? null : cons.get(k) || null;
+        let consRow = null;
+        if (c) { consRow = {}; for (const [kk, v] of Object.entries(c)) if (kk !== 'symbol') consRow[kk] = v; }
+        const voto = ref ? null : AO.decisao(fontesDe(c, { key: r.advice.key, short: r.horizons.short.score, mid: r.horizons.mid.score, long: r.horizons.long ? r.horizons.long.score : null },
+            kind === 'crypto' ? (fg != null ? { fg } : null) : vix != null ? { vix } : null));
         rows.push({
             s: k, name: nameOf(k) !== k ? nameOf(k) : cut((t && (t.longName || t.name)) || d.name || k, 40), kind, group: groups[k], cur,
             price: r2(price), priceEur: ref ? null : r2(toEur(price, cur)), day: r2(t && t.changePct),
@@ -194,6 +268,8 @@ async function main() {
             rule: ref ? null : r.advice.key, ruleAction: ref ? null : r.advice.action,
             sup: r.levels.supports.slice(0, 2).map(lvTxt), res: r.levels.resistances.slice(0, 2).map(lvTxt),
             events: upcoming(k), prev: prev[k] || null,
+            cons: consRow, fg: !ref && kind === 'crypto' ? fg : null,
+            fontes: voto ? { p: voto.p, fam: voto.fam, f: voto.f.map((x) => [FONTE_PT[x.f] || x.f, x.p]) } : null,
         });
     }
 
@@ -254,9 +330,16 @@ async function main() {
     const when = new Intl.DateTimeFormat('pt-PT', { timeZone: 'Europe/Lisbon', weekday: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date());
     L.push(`# Dados de ${today} (${when} em Lisboa)`);
     L.push(`Cobre em "actions" TODOS os ${rows.length} ativos abaixo (a app mostra o teu veredicto em cada um). Ponto de partida: modelo.json.`);
-    L.push('Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L');
+    L.push('Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L | FONTES = o que as outras fontes da decisão dizem: analistas (recomendação, nota de 1 a 5, quantos, alvo, revisões das estimativas em 30 dias ↑↓, resultados acima do esperado), fundamentos (P/E esperado, vendas num ano, margem, ROE, dívida/capital), o fundo por dentro, o F&G da cripto, e a média delas de 0 a 100 na escala da app, sem o teu voto');
     const mk = ['^GSPC', '^IXIC', '^STOXX50E', 'PSI20.LS', '^VIX', 'EURUSD=X', 'BZ=F', 'GC=F'].map((k) => rows.find((r) => r.s === k)).filter(Boolean);
     L.push('## Mercado', mk.map((r) => `${MARKET[r.s]} ${r.price} (${r.day == null ? '—' : (r.day > 0 ? '+' : '') + r.day.toFixed(2) + '%'})`).join(' · '));
+    // o contexto: os juros a 10 anos dos EUA, o dólar e o medo da cripto
+    const ctx = [], tnx = obj(q1d['^TNX']), dxy = obj(q1d['DX-Y.NYB']);
+    if (tnx && fin(tnx.price)) ctx.push(`Juros EUA 10 anos ${tnx.price.toFixed(2)}%${fin(tnx.change) ? ` (${tnx.change > 0 ? '+' : ''}${tnx.change.toFixed(2)})` : ''}`);
+    if (dxy && fin(dxy.price)) ctx.push(`Dólar (índice) ${dxy.price.toFixed(1)}${fin(dxy.changePct) ? ` (${dxy.changePct > 0 ? '+' : ''}${dxy.changePct.toFixed(2)}%)` : ''}`);
+    if (fg != null) ctx.push(`Fear & Greed da cripto ${fg}${typeof fng.label === 'string' && fng.label ? ` (${fng.label})` : ''}${fin(fng.prev) ? `, antes ${fng.prev}` : ''}`);
+    if (cg && fin(cg.btcDom)) ctx.push(`domínio do Bitcoin ${cg.btcDom.toFixed(1)}%`);
+    if (ctx.length) L.push(ctx.join(' · '));
     const SECTIONS = [['mine', 'O que tens'], ['fund', 'ETF'], ['crypto', 'Cripto'], ['stock', 'Ações da lista da app'], ['extra', 'Juntadas por ti na app'], ['ref', 'Referência: índices, câmbio e futuros (key up/flat/down)']];
     for (const [g, title] of SECTIONS) { const rs = rows.filter((r) => r.group === g); if (rs.length) L.push(`## ${title} (${rs.length})`, ...rs.map(lineOf)); }
     L.push('## Movimentos fortes de hoje (explica o motivo em "movers")', ...(movers.length ? movers.map((m) => `- ${m.s} ${m.name}: ${m.day > 0 ? '+' : ''}${m.day.toFixed(1)}%`) : ['- (nenhum)']));

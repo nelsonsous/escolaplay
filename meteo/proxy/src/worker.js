@@ -13,7 +13,7 @@ import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.8.2';
+const VERSION = '1.8.3';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -58,7 +58,8 @@ async function route(req, env, ctx, url) {
         if (!OM[api]) return bad('fonte desconhecida');
         const s = url.search.slice(1);
         if (s.length > 4000 || (api !== 'geocoding' && !(q.has('latitude') && q.has('longitude')))) return bad('pedido inválido');
-        return passthrough(ctx, `${OM[api]}?${s}`, { ttl: OM_TTL[api], type: 'application/json' });
+        // modelos e ensembles: até 17 s (a app desiste aos 20 s e tenta diretamente); reserva de 6 h se a fonte falhar
+        return passthrough(ctx, `${OM[api]}?${s}`, { ttl: OM_TTL[api], type: 'application/json', timeoutMs: api === 'forecast' || api === 'ensemble' ? 17000 : 12000, staleTtl: 6 * 3600 });
     }
     if (m === 'GET' && p === '/api/raw/metar') {
         const c = coords(q);
@@ -158,21 +159,43 @@ function trusted(req, env, url) {
     return !!o && [url.origin, ...String(env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean)].includes(o);
 }
 
-async function passthrough(ctx, upstream, { ttl, type, headers = {}, ua = UA }) {
+// A fonte, com cache: até `timeoutMs` à espera; se falhar ou demorar, serve a cópia de reserva (até `staleTtl` s, guardada
+// a cada resposta boa) — ex. (13/11/2026): o Open-Meteo levou 20 a 40 s a responder ao conector durante uns minutos.
+async function passthrough(ctx, upstream, { ttl, type, headers = {}, ua = UA, timeoutMs = 15000, staleTtl = 0 }) {
     const cache = typeof caches !== 'undefined' ? caches.default : null;
     const key = new Request(upstream, { method: 'GET' });
     const hit = cache && (await cache.match(key).catch(() => null));
     if (hit) { const r = new Response(hit.body, hit); r.headers.set('x-cache', 'HIT'); return r; }
+    const staleKey = cache && staleTtl ? new Request(upstream + (upstream.includes('?') ? '&' : '?') + '__reserva=1', { method: 'GET' }) : null;
+    const stale = async (why) => {
+        const s = staleKey && (await cache.match(staleKey).catch(() => null));
+        if (!s) return null;
+        const r = new Response(s.body, s);
+        r.headers.set('x-cache', 'STALE');
+        r.headers.set('x-stale-reason', why);
+        return r;
+    };
     let up;
     try {
-        up = await fetch(upstream, { headers: { 'user-agent': ua, accept: '*/*' }, cf: { cacheTtl: ttl, cacheEverything: true } });
-    } catch {
-        return json({ error: 'fonte', message: 'Fonte de dados indisponível.' }, 502);
+        up = await fetch(upstream, { headers: { 'user-agent': ua, accept: '*/*' }, cf: { cacheTtl: ttl, cacheEverything: true }, signal: AbortSignal.timeout(timeoutMs) });
+    } catch (e) {
+        return (await stale(e?.name === 'TimeoutError' ? 'demora' : 'falha')) || json({ error: 'fonte', message: 'Fonte de dados indisponível.' }, 502);
     }
-    if (!up.ok) return json({ error: 'fonte', status: up.status, message: up.status === 429 ? 'A fonte está a limitar pedidos; tenta daqui a pouco.' : 'Fonte de dados indisponível.' }, up.status === 429 ? 429 : 502);
+    if (!up.ok) {
+        const s = await stale(String(up.status));
+        if (s) return s;
+        return json({ error: 'fonte', status: up.status, message: up.status === 429 ? 'A fonte está a limitar pedidos; tenta daqui a pouco.' : 'Fonte de dados indisponível.' }, up.status === 429 ? 429 : 502);
+    }
     const out = new Response(up.body, { status: 200, headers: { 'content-type': type || up.headers.get('content-type') || 'application/octet-stream',
         'cache-control': `public, max-age=${ttl}`, 'x-cache': 'MISS', ...headers } });
-    if (cache) ctx.waitUntil(cache.put(key, out.clone()).catch(() => {}));
+    if (cache) {
+        ctx.waitUntil(cache.put(key, out.clone()).catch(() => {}));
+        if (staleKey) {
+            const c = out.clone(), h = new Headers(c.headers);
+            h.set('cache-control', `public, max-age=${staleTtl}`);
+            ctx.waitUntil(cache.put(staleKey, new Response(c.body, { status: 200, headers: h })).catch(() => {}));
+        }
+    }
     return out;
 }
 

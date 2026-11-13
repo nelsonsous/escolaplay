@@ -454,6 +454,56 @@ function combineVer(parts) {
     return Object.keys(res).length ? res : null;
 }
 /**
+ * Pluviómetros avariados: cada estação, dia a dia, contra as vizinhas nas mesmas horas (a mediana delas, ≥ 2 com ≥ 80%
+ * dessas horas; o dia conta com ≥ 12 horas medidas). Num dia de chuva nas vizinhas (≥ 4 mm), menos de 25% e ≥ 3 mm a menos
+ * falha; com ≥ 3 vizinhas, mais de 3× e ≥ 15 mm a mais também. A chuva da estação fica de fora (a temperatura não) com ≥ 2
+ * dias falhados em pelo menos metade dos dias de chuva em que mediu — ou com 1 só se for flagrante (≥ 15 mm nas vizinhas,
+ * ≤ 15% disso, ≥ 3 vizinhas). Ex. (11/2026): Guimarães deu 2,6 mm com 30 mm nas vizinhas — sem isto, puxava para baixo a
+ * chuva «observada» que corrige os números da análise.
+ * stations: [{ id?, name?, series: [{ ms, precip1h? }] }] → [{ i, id, name, days: [{ date, mm, ref, n }] }]
+ */
+export const RAIN_QC = { wetRef: 4, low: 0.25, lowGap: 3, high: 3, highGap: 15, minBad: 2, minShare: 0.5, minHours: 12, cover: 0.8, flagrant: { ref: 15, frac: 0.15, n: 3 } };
+export function rainQC(stations, { off = 0, nowMs = Date.now() } = {}) {
+    const Q = RAIN_QC, list = stations || [];
+    const med = (a) => { const v = a.slice().sort((x, y) => x - y), k = v.length >> 1; return v.length % 2 ? v[k] : (v[k - 1] + v[k]) / 2; };
+    // por estação: hora (ms/36e5) → mm, e as horas de cada dia local
+    const H = list.map((st) => {
+        const m = new Map();
+        for (const o of st?.series || []) {
+            if (!o || !isNum(o.ms) || o.ms > nowMs || !isNum(o.precip1h) || o.precip1h < 0) continue;
+            const h = Math.round(o.ms / 36e5);
+            if (Math.abs(o.ms - h * 36e5) <= 5 * 6e4) m.set(h, o.precip1h);
+        }
+        return m;
+    });
+    const out = [];
+    H.forEach((mine, i) => {
+        const byDay = new Map();
+        for (const h of mine.keys()) { const date = msToLocal(h * 36e5, off).slice(0, 10); if (!byDay.has(date)) byDay.set(date, []); byDay.get(date).push(h); }
+        let wet = 0;
+        const bad = [];
+        for (const [date, hrs] of byDay) {
+            if (hrs.length < Q.minHours) continue;
+            const mm = hrs.reduce((a, h) => a + mine.get(h), 0);
+            const others = [];
+            H.forEach((o, j) => {
+                if (j === i) return;
+                const got = hrs.filter((h) => o.has(h));
+                if (got.length >= hrs.length * Q.cover) others.push((got.reduce((a, h) => a + o.get(h), 0) * hrs.length) / got.length);
+            });
+            if (others.length < 2) continue;
+            const ref = med(others);
+            const low = ref >= Q.wetRef && mm < ref * Q.low && ref - mm >= Q.lowGap;
+            const high = others.length >= 3 && mm > ref * Q.high && mm - ref >= Q.highGap;
+            if (ref >= Q.wetRef || high) wet++;
+            if (low || high) bad.push({ date, mm: r1(mm), ref: r1(ref), n: others.length, flagrant: low && ref >= Q.flagrant.ref && mm <= ref * Q.flagrant.frac && others.length >= Q.flagrant.n });
+        }
+        const ok = (bad.length >= Q.minBad && bad.length >= wet * Q.minShare) || (bad.some((b) => b.flagrant) && bad.length >= wet * Q.minShare);
+        if (ok) out.push({ i, id: list[i].id ?? null, name: list[i].name ?? null, days: bad.sort((a, b) => a.date.localeCompare(b.date)).map(({ flagrant, ...d }) => d) });
+    });
+    return out;
+}
+/**
  * O que se observou em cada dia (data local) nas estações perto, levado à altitude do ponto: máxima e mínima (dias com
  * ≥ 20 horas de termómetro) e chuva do dia (≥ 20 horas de pluviómetro; lo/hi = a estação com menos e com mais).
  * Com 3 ou mais estações fica a mediana ponderada (uma estação avariada não estraga); senão a média ponderada.
@@ -817,12 +867,14 @@ export function buildForecast(raw, opts = {}) {
     const mhDz = mhS && isNum(mhS.elev) && isNum(targetElev) ? Math.abs(mhS.elev - targetElev) : null;
     let vset = null;
     const lst = []; // estações para a aprendizagem (as mesmas da verificação)
+    // quantos dias passados trazem as corridas anteriores (7 na app, 14 na tarefa da análise)
+    const prevPast = (() => { const T = prevV?.hourly?.time || [], now = msToLocal(nowMs, off).slice(0, 10); return new Set(T.filter((t) => t.slice(0, 10) < now).map((t) => t.slice(0, 10))).size || 7; })();
     const lapseAdj = (elev) => (isNum(elev) && isNum(targetElev) ? (elev - targetElev) * LAPSE : 0);
     if (mhS && mhS.distanceKm <= 12 && (mhDz == null || mhDz <= 150)) {
         const ver = verify(prevV, mh, { stationElev: mhS.elev, targetElev, nowMs, offset: off });
         if (ver) {
-            vset = { ver, source: 'METAR', label: mhS.name, names: [mhS.name], distanceKm: mhS.distanceKm, days: 7, stations: 1, biasOk: mhDz == null || mhDz <= 150 };
-            lst.push({ w: 1, series: mh, adjT: lapseAdj(mhS.elev), centerT: false });
+            vset = { ver, source: 'METAR', label: mhS.name, names: [mhS.name], distanceKm: mhS.distanceKm, days: Math.min(prevPast, 7), stations: 1, biasOk: mhDz == null || mhDz <= 150 };
+            lst.push({ w: 1, series: mh, adjT: lapseAdj(mhS.elev), centerT: false, id: mhS.id, name: mhS.name });
         }
     }
     if (!vset) {
@@ -841,7 +893,7 @@ export function buildForecast(raw, opts = {}) {
                 : mergeSeries(raw.obsHistories?.[s.id], st && s.id === st.id ? raw.obsHistory : null, s.series);
             const ver = verify(prevV, series, { stationElev: s.elev, targetElev, nowMs, offset: off });
             if (ver) parts.push({ s, w: s.geo, ver, days: spanDays(series) });
-            if (series.length) lst.push({ w: s.geo, series, adjT: lapseAdj(s.elev), centerT: !(s.distanceKm <= 15 && s.dz != null && Math.abs(s.dz) <= 150) });
+            if (series.length) lst.push({ w: s.geo, series, adjT: lapseAdj(s.elev), centerT: !(s.distanceKm <= 15 && s.dz != null && Math.abs(s.dz) <= 150), id: s.id, name: s.name });
         }
         const ver = parts.length ? combineVer(parts) : null;
         if (ver) {
@@ -849,8 +901,8 @@ export function buildForecast(raw, opts = {}) {
             const dEff = parts.reduce((a, p) => a + p.w * p.s.distanceKm, 0) / W, zEff = parts.reduce((a, p) => a + p.w * Math.abs(p.s.dz ?? 100), 0) / W;
             const srcs = ['IPMA', 'METAR'].filter((x) => parts.some((p) => p.s.source === x));
             const top = parts.slice().sort((a, b) => b.w - a.w).map((p) => p.s.name);
-            // as corridas anteriores só cobrem os últimos 7 dias
-            vset = { ver, source: srcs.join('+'), label: stationLabel(parts.map((p) => p.s)), names: top, distanceKm: dEff, days: Math.min(7, Math.max(...parts.map((p) => p.days))),
+            // as corridas anteriores cobrem os últimos 7 dias (14 na tarefa da análise)
+            vset = { ver, source: srcs.join('+'), label: stationLabel(parts.map((p) => p.s)), names: top, distanceKm: dEff, days: Math.min(prevPast, Math.max(...parts.map((p) => p.days))),
                 stations: parts.length, biasOk: dEff <= 15 && zEff <= 150 };
         }
     }
@@ -867,9 +919,17 @@ export function buildForecast(raw, opts = {}) {
             }
         }
     }
+    // pluviómetros avariados: comparados com todas as estações IPMA até 40 km (histórico guardado + últimas 24 h); a chuva
+    // deles não conta na aprendizagem, no observado nem no «agora»
+    const qcPool = ipmaByPosition(raw.ipma?.stations, lat, lon, { radiusKm: 40, max: 20 })
+        .map((x) => ({ id: x.id, name: x.name, series: mergeSeries(raw.obsHistories?.[x.id], st && x.id === st.id ? raw.obsHistory : null, ipmaSeries(raw.ipma?.obs, x.id)) }))
+        .filter((x) => x.series.length);
+    const qc = rainQC(qcPool, { off, nowMs });
+    const qcIds = new Set(qc.map((q) => q.id).filter(Boolean));
+    const lstQ = qcIds.size ? lst.map((x) => (qcIds.has(x.id) ? { ...x, series: x.series.map((o) => (isNum(o?.precip1h) ? { ...o, precip1h: null } : o)) } : x)) : lst;
     // 1b) Aprendizagem: cada modelo verificado dia a dia (temperatura, chuva, vento × hoje, amanhã, 3+ dias) nos ~7 dias
     // destas corridas e na memória guardada (até 90 dias; os recentes pesam mais) → peso por variável e prazo
-    const win = prevV && (lst.length || raw.reports?.length) ? learnWindow(prevV, { stations: lst, reports: raw.reports, nowMs, src: vset?.source || null }) : null;
+    const win = prevV && (lst.length || raw.reports?.length) ? learnWindow(prevV, { stations: lstQ, reports: raw.reports, nowMs, src: vset?.source || null }) : null;
     const mems = [].concat(opts.memory ?? raw.memory ?? []).filter(Boolean);
     const memory = mergeMemory(mems[0] || null, [...mems.slice(1), ...(win ? [win] : [])], { lat, lon, today: todayDate, now: nowMs });
     const skill = skillOf(memory, { today: todayDate });
@@ -878,7 +938,7 @@ export function buildForecast(raw, opts = {}) {
     // 1c) Os dias já passados: o que se observou (estações, à altitude do ponto) e o que o consenso dava na véspera —
     // para a análise do Claude ver o erro recente e afinar os seus números
     const hind = hindcastDays(prevV, P.models, { off, nowMs });
-    const obsDays = observedDays(lst, { off, nowMs }).filter((d) => d.date < todayDate).slice(-7).map((d) => ({ ...d, model: hind.get(d.date) || null }));
+    const obsDays = observedDays(lstQ, { off, nowMs }).filter((d) => d.date < todayDate).slice(-7).map((d) => ({ ...d, model: hind.get(d.date) || null }));
 
     // 2) Consenso hora a hora
     const ensP = parseEns(raw.ens);
@@ -967,7 +1027,7 @@ export function buildForecast(raw, opts = {}) {
             distanceKm: r1(blend.dEff), nearestKm: r1(Math.min(...U.map((r) => r.distanceKm))), time: msToLocal(blend.ms, off), ageMin: r0((nowMs - blend.ms) / 6e4),
             temp: r1(tObs), rh: r0(isNum(tObs) && isNum(dObs) ? relHum(tObs, Math.min(dObs, tObs)) : wmean(U.map((r) => r.last.rh), uw)),
             wind: r0(wmedian(U.map((r) => r.last.wind), uw)), gust: r0(wmedian(U.map((r) => r.last.gust), uw)), dir: r0(vecDir(U.map((r) => r.last.dir), U.map((r) => r.last.wind), uw)),
-            pressure: r1(wmean(U.map((r) => r.last.pressure), uw)), precip1h: r1(wmean(U.map((r) => r.last.precip1h), uw)),
+            pressure: r1(wmean(U.map((r) => r.last.pressure), uw)), precip1h: r1(wmean(U.map((r) => (qcIds.has(r.id) ? null : r.last.precip1h)), uw)),
             elevation: r0(targetElev), repr: Math.round(reprW * 100) / 100, spread: r1(blend.sd),
             stations: blend.rows.slice().sort((a, b) => b.share - a.share || a.distanceKm - b.distanceKm).slice(0, 12).map((r) => ({
                 id: r.id, name: r.name, source: r.source, distanceKm: r1(r.distanceKm), elev: r0(r.elev), time: msToLocal(r.last.ms, off), ageMin: r0(r.ageMin),
@@ -1175,6 +1235,7 @@ export function buildForecast(raw, opts = {}) {
         now, nowcast, radar, hourly, daily: daily.map(stripInternal), indicators, warnings: warnings.map((w) => ({ ...w, here: warnHere(w, hourly) })),
         warnMissing: area ? missingWarnings(hourly, warnings, { elevation: targetElev }) : [],
         observed: obsDays.length ? { days: obsDays } : null,
+        qc: qc.length ? { rain: qc.map(({ id, name, days }) => ({ id, name, days })) } : null,
         fire, verification, learning, official, compare,
         local: localSummary(terrain, tAdj, H.slice(nowIdx, nowIdx + 72), H[nowIdx], shifts),
         analysis: raw.analysisMeta || null,
@@ -1853,6 +1914,7 @@ export function buildSummary(fc, extra = {}) {
         L.push(`Observação combinada no ponto (${o.n ?? 1} estação(ões) ${(o.sources || [o.source]).join('+')}, a ${o.distanceKm} km em média${isNum(o.nearestKm) ? `, a mais próxima a ${o.nearestKm} km` : ''}, ajustada à altitude de ${o.elevation ?? loc.elevation} m, há ${o.ageMin} min): ${f1(o.temp)}°C, HR ${f0(o.rh)}%, vento ${f0(o.wind)} km/h de ${compass(o.dir) || '—'}, pressão ${f1(o.pressure)}.${isNum(o.repr) ? ` Confiança na observação ${o.repr} (0–1; dispersão entre estações ${f1(o.spread)}°C).` : ''}${n.correction ? ` Correção aplicada: ${n.correction.temp}°C (decai em ~5 h).` : ''}`);
         if (o.stations?.length) L.push(`Estações: ${o.stations.map((s) => `${s.name} (${s.source}, ${s.distanceKm} km, ${isNum(s.elev) ? s.elev + ' m' : 'alt. ?'}, ${String(s.time).slice(11)}): ${f1(s.temp)}→${f1(s.tempAdj)}°C, desvio ${f1(s.anomaly)}, peso ${s.weight}%${s.used ? '' : ' [rejeitada]'}`).join('; ')}.`);
     }
+    if (fc.qc?.rain?.length) L.push(`Pluviómetros ignorados (avaria provável: a chuva deles não conta no observado, na aprendizagem nem no «agora»): ${fc.qc.rain.map((q) => `${q.name || q.id} — ${q.days.map((d) => `${f1(d.mm)} mm com ${f1(d.ref)} nas vizinhas a ${d.date.slice(8)}/${d.date.slice(5, 7)}`).join(', ')}`).join('; ')}.`);
     if (fc.report) L.push(`Aviso do utilizador no ponto: ${fc.report.label} às ${hh(fc.report.local)} (há ${fc.report.ageMin} min) — o que se vê no sítio; manda no "agora" durante 45 min.`);
     if (fc.nowcast?.text) L.push(`Próximas 2 h${fc.nowcast.source ? ` (${fc.nowcast.source})` : ''}: ${fc.nowcast.text} (${fc.nowcast.steps.map((s) => `${s.time.slice(11)} ${f1(s.precip)}mm/${s.prob}%${isNum(s.radar) ? ` radar ${Math.round(s.radar * 100)}%` : ''}`).join(', ')})${fc.nowcast.modelText ? `. Só os modelos diziam: ${fc.nowcast.modelText}` : ''}`);
     const R = fc.radar;

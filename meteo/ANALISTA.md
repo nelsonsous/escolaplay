@@ -70,7 +70,7 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
       prazo fala em probabilidades; respeita os avisos do IPMA.
    3. **Escreve sobre o ponto** (regras abaixo) em `/tmp/meteo/analise-<id>.json` com os campos de `meteo/docs/API.md` →
       "Análise" (titulo, resumo, agora, hoje, amanha, dias, tendencia, alertas, incendios, satelite, conselhos,
-      fiabilidade, tecnica, verificacao, licoes, **vestir**, **semana**, **notificacao** { amanha, semana }, **numeros**). `dias` começa
+      fiabilidade, tecnica, verificacao, licoes, **vestir**, **semana**, **notificacao** { amanha, semana }, **numeros**, **dados**). `dias` começa
       depois de amanhã. `vestir`: o que vestir **amanhã** no ponto, de manhã, à tarde e à noite (temperatura e sensação nessas
       horas, chuva a que horas, vento, UV). `semana`: os próximos 7 dias em poucas palavras por dia. `notificacao.amanha` e
       `notificacao.semana` (até 180 caracteres cada, sem o nome do sítio, que já vai no título) são o texto das notificações:
@@ -154,6 +154,10 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
   (`learn:<id>`, até 90 dias; os recentes pesam mais). O peso de cada modelo no consenso cresce com os dias em que acerta
   mais do que os outros e desce quando falha — por variável e por prazo. A app do telemóvel dono do local lê a mesma
   memória (`GET /api/learning`) e mostra-a em **Análise → Aprendizagem**. Não escrevas na memória à mão.
-- Se uma fonte falhar, o resumo diz qual (`Fontes: …`); analisa com o que houver e diz-o em `fiabilidade`. Quando o IPMA
+- Se uma fonte falhar, o resumo diz qual (`Fontes: …`); analisa com o que houver e diz-o em **`dados`** (até 4 notas
+  técnicas: o que faltou, chegou atrasado ou parece errado, e o efeito — ex.: «Guimarães: pluviómetro com 0 mm sob chuva
+  nas vizinhas → não contei com ele»; vazio se estava tudo bem; se a «Análise anterior» trouxer notas, diz se continuam),
+  não em `fiabilidade`, que é para a pessoa. Os pluviómetros que o resumo dá como ignorados (avaria provável) já não
+  contam no observado nem na aprendizagem. Quando o IPMA
   publica as horas sem valores (`obs=em atraso: última observação …`), as estações IPMA ficam de fora do «agora», mas o
   histórico guardado continua a servir para a verificação.

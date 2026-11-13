@@ -116,7 +116,7 @@ export function detModelsFor(lat, lon) {
 }
 
 // Pedidos Open-Meteo (query strings; o anfitrião vem de OM[api])
-export function omQueries(lat, lon, { models } = {}) {
+export function omQueries(lat, lon, { models, prevDays = 7 } = {}) {
     const base = { latitude: r4(lat), longitude: r4(lon), timezone: 'auto' };
     const det = (models || detModelsFor(lat, lon)).map((m) => m.id || m);
     return {
@@ -124,7 +124,7 @@ export function omQueries(lat, lon, { models } = {}) {
             minutely_15: 'precipitation', past_hours: 6, forecast_hours: 73, past_minutely_15: 1, forecast_minutely_15: 9, forecast_days: 16 }),
         ensemble: qs({ ...base, models: ENS_MODELS.map((m) => m.id).join(','), daily: ENS_DAILY.join(','), hourly: 'precipitation',
             forecast_hours: 73, forecast_days: 16 }),
-        previous: qs({ ...base, models: PREV_MODELS.join(','), hourly: PREV_HOURLY.join(','), past_days: 7, forecast_days: 7 }),
+        previous: qs({ ...base, models: PREV_MODELS.join(','), hourly: PREV_HOURLY.join(','), past_days: Math.max(1, Math.min(31, Math.round(prevDays) || 7)), forecast_days: 7 }),
         marine: qs({ ...base, hourly: MARINE_HOURLY.join(','), daily: MARINE_DAILY.join(','), forecast_days: 7, cell_selection: 'sea' }),
     };
 }

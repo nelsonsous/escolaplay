@@ -305,4 +305,4 @@ WebAssembly e o browser: qualquer linguagem que corra no browser (Rust, Go, C#) 
 - **A fase D fica assim**: os cinco separadores e o cartão da decisão em Onda; o resto da ficha (os pormenores de cada
   fonte, os níveis, as notícias), os gráficos, os dados ao vivo e o estado continuam em JavaScript. A ordem do que
   falta está em `ARQUITETURA.md`.
-- **Tamanhos**: `mercados/onda` 3 204 linhas (módulo de 399 KB); `mercados/conselheiro/onda` 1 844 linhas (354 KB).
+- **Tamanhos**: `mercados/onda` 3 204 linhas (módulo de 399 KB); `mercados/conselheiro/onda` 1 988 linhas (386 KB).

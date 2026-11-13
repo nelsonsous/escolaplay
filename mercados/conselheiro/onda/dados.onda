@@ -24,7 +24,7 @@
   ? == p 1 da_p1 ? == p 2 da_p2 ? == p 3 da_p3 ? == p 4 da_p4 ? == p 5 da_p5 ? == p 6 da_p6 ? == p 7 da_p7 ? == p 8 da_p8
   ? == p 9 da_p9 ? == p 10 da_p10 ? == p 11 da_p11 ? == p 12 da_p12 ? == p 13 da_p13 ? == p 14 da_p14 ? == p 15 da_p15
   ? == p 16 da_p16 ? == p 17 da_p17 ? == p 18 da_p18 ? == p 19 da_p19 ? == p 20 da_p20 ? == p 21 da_p21 ? == p 22 da_p22
-  ? == p 23 da_p23 0 }
+  ? == p 23 da_p23 ? == p 24 da_p24 ? == p 25 da_p25 ? == p 26 da_p26 0 }
 
 # owner = await tryOr(() => kvGet('cfg:owner'), null, 'dono'); jKeys = owner ? ['j:' + owner] : kvKeys('j:')
 : da_p1 >i {
@@ -79,11 +79,17 @@
     _js_oset gr k ? _js_inc mine k $"mine" ? _js_otem cs_market k $"ref" ? _js_inc ex k $"extra" ? _js_otem cs_crypto k $"crypto" ? _js_otem cs_funds k $"fund" $"stock"
     = m + m 1 }
   ! g_keys keys ! g_extra ex ! g_groups gr 0 }
-: da_p5 >i { da_pick ! g_qr 1 da_qini 1 }
+: da_p5 >i {
+  da_pick
+  # com as cotações de hoje vem o contexto que não é um ativo da app: os juros a 10 anos dos EUA e o dólar
+  = k1 _js_fatia @ g_keys 0 _js_len @ g_keys
+  Se ~ _js_inc @ g_keys $"^TNX" _js_push k1 $"^TNX"
+  Se ~ _js_inc @ g_keys $"DX-Y.NYB" _js_push k1 $"DX-Y.NYB"
+  ! g_keys1 k1 ! g_qr 1 da_qini 1 }
 # quotes(keys, range): de 40 em 40; o primeiro erro deita tudo fora (o tryOr dá {})
 : da_qini >i { ! g_qout _js_obj 64 ! g_i 0 ! g_ph 6 0 }
 : da_p6 >i {
-  = i @ g_i = keys @ g_keys = n _js_len keys
+  = i @ g_i = keys ? == @ g_qr 1 @ g_keys1 @ g_keys = n _js_len keys
   ? < i n {
       = part _js_fatia keys i Mn n + i 40
       = ys _js_lst 40 = j 0 W < j _js_len part { _js_push ys cs_yahoo _js_it part j = j + j 1 }
@@ -157,13 +163,82 @@
       _an_abre 0 = j i W < j Mn n + i 40 { Se > j i P ', crut _js_it stk j = j + j 1 } = sy _an_fecha
       ! g_ph 12
       ? _tx_urimal sy { cs_falha $"URI malformed" 1 } { `{ cs_wini }/calendar?symbols={ _tx_uri sy }` ~ cs_wfim 60000 } }
-    { ! g_ph 13 1 } }
+    da_cini }
 : da_p12 >i {
   cs_rget
   = r ? @ g_err { cs_aviso $"agenda" da_fbi } @ g_res
   = it da_itx cs_getx r $"items"
   = j 0 W < j _js_len it { = x _js_it it j Se ~ _js_v cs_getx x $"error" _js_oset @ g_cal _js_str _js_get x $"symbol" x = j + j 1 }
   ! g_i + @ g_i 40 ! g_ph 11 1 }
+# as outras fontes da decisão (a app mostra-as ao lado do veredicto): os analistas, as revisões, as surpresas e os
+# fundamentos das ações, o que os fundos têm por dentro (o /consensus, de 40 em 40), e o medo da cripto (/cryptoglobal)
+: da_cini >i {
+  = ck _js_fatia @ g_stk 0 _js_len @ g_stk = keys @ g_keys
+  L j _js_len keys { = k _js_it keys j Se _js_eht _js_oget @ g_kinds k $"fund" _js_push ck k }
+  ! g_ck ck ! g_cons _js_obj 64 ! g_i 0 ! g_ph 24 1 }
+: da_p24 >i {
+  = i @ g_i = ck @ g_ck = n _js_len ck
+  ? < i n {
+      _an_abre 0 = j i W < j Mn n + i 40 { Se > j i P ', crut _js_it ck j = j + j 1 } = sy _an_fecha
+      ! g_ph 25
+      ? _tx_urimal sy { cs_falha $"URI malformed" 1 } { `{ cs_wini }/consensus?symbols={ _tx_uri sy }&f=2` ~ cs_wfim 60000 } }
+    { ! g_ph 26 `{ cs_wini }/cryptoglobal` ~ cs_wfim 30000 } }
+: da_p25 >i {
+  cs_rget
+  = r ? @ g_err { cs_aviso $"analistas e fundamentos" 2 } @ g_res
+  = it ? _js_ehobj r _js_oget r $"items" 1
+  Se _js_ehlst it {
+    L j _js_len it {
+      = x _js_it it j
+      Se && && _js_ehobj x _js_ehtxt _js_oget x $"symbol" ~ _js_v _js_oget x $"error" _js_oset @ g_cons _js_oget x $"symbol" x } }
+  ! g_i + @ g_i 40 ! g_ph 24 1 }
+: da_p26 >i {
+  cs_rget
+  = cg ? @ g_err { cs_aviso $"sentimento da cripto" 2 } @ g_res
+  = cg ? _js_ehobj cg cg 2
+  = fng ? _js_ehobj cg _js_oget cg $"fng" 2 = fng ? _js_ehobj fng fng 2
+  ! g_cg cg ! g_fng fng
+  = fv ? _js_ehobj fng _js_oget fng $"v" 2 ! g_fg ? _js_fin fv fv 2
+  = vq _js_oget @ g_q1d $"^VIX" = vp ? _js_ehobj vq _js_oget vq $"price" 2 ! g_vix ? _js_fin vp vp 2
+  ! g_ph 13 1 }
+# n(x): o número finito, ou null;  p1(x): a percentagem com uma casa (Math.round(x * 1000) / 10), ou null
+: da_nn i>i v ? _js_fin v v 2
+: da_pc1 i>i v ? _js_fin v _js_num / _nu_round * _js_f v 1000. 10. 2
+# o voto das fontes que não são o Claude — o fontesDe do JS e o motor da decisão (mercados/onda/decisao.onda, o mesmo da
+# app): { p, fam, f: [[nome, p]] }, ou null se nenhuma fala. c é o consenso do ativo (ou null) e r a análise técnica
+: da_voto iii>i c r kind {
+  = o _js_obj 4
+  = an ? && && _js_ehobj c ~ _js_v _js_oget c $"none" _js_ehtxt _js_oget c $"key" c 2
+  ? _js_ehobj an {
+      = rv _js_oget an $"rev" = rv ? _js_ehobj rv rv 2
+      = a _js_obj 7
+      _js_oset a $"key" _js_oget an $"key" _js_oset a $"mean" da_nn _js_oget an $"mean" _js_oset a $"n" da_nn _js_oget an $"n"
+      _js_oset a $"target" da_nn _js_oget an $"target" _js_oset a $"price" da_nn _js_oget an $"price"
+      _js_oset a $"up" ? _js_ehobj rv da_nn _js_oget rv $"up" 2 _js_oset a $"down" ? _js_ehobj rv da_nn _js_oget rv $"down" 2
+      _js_oset o $"an" a } _js_oset o $"an" 2
+  = fu ? _js_ehobj c _js_oget c $"f" 2
+  ? _js_ehobj fu {
+      = b _js_obj 3 _js_oset b $"pe" da_nn _js_oget fu $"pe" _js_oset b $"cr" da_pc1 _js_oget fu $"cr" _js_oset b $"mg" da_pc1 _js_oget fu $"mg"
+      _js_oset o $"fun" b } _js_oset o $"fun" 2
+  = hz _js_get r $"horizons" = ad _js_get r $"advice" = lo _js_get hz $"long"
+  = t _js_obj 4 _js_oset t $"key" _js_get ad $"key" _js_oset t $"short" _js_get _js_get hz $"short" $"score"
+  _js_oset t $"mid" _js_get _js_get hz $"mid" $"score" _js_oset t $"long" ? _js_v lo _js_get lo $"score" 2
+  _js_oset o $"tec" t
+  = se 2
+  ? _js_eht kind $"crypto" { Se _js_ehnum @ g_fg { = se _js_obj 1 _js_oset se $"fg" @ g_fg } 0 }
+    { Se _js_ehnum @ g_vix { = se _js_obj 1 _js_oset se $"vix" @ g_vix } 0 }
+  _js_oset o $"sent" se
+  # a entrada vai em JSON para a árvore que o motor lê
+  _an_abre 0 _js_pj o 0 0 = tx _an_fecha
+  = d dc_calc _ar_json tx
+  ? d {
+      = v _js_obj 3 _js_oset v $"p" _js_num @f + d 8 _js_oset v $"fam" _js_num F @ + d 1
+      = fl _js_lst 6
+      L i @ d {
+        = b2 + + d 10 * 6 i = q @ b2 = par _js_lst 2
+        _js_push par ? == q 1 $"analistas" ? == q 4 $"fundamentos" ? == q 2 $"técnica" ? == q 5 $"sentimento" ? == q 0 $"claude" $"noticias"
+        _js_push par _js_num @f + b2 4 _js_push fl par }
+      _js_oset v $"f" fl v } 2 }
 # conselhos anteriores (KV), os últimos 45
 : da_p13 >i { !f g_nows / _an_agoraf 1000. ! g_ph 14 cs_lista $"advice:2" 14 0 }
 : da_p14 >i {
@@ -246,7 +321,7 @@
       ? ~ _js_v r { `{ _an_abre 0 }sem análise: { crut k }{ _js_push @ g_warn _an_fecha }` 0 } {
         = cur _js_get t $"currency" = cur ? && _js_v t _js_v cur cur _js_get d $"currency"
         = price _js_it cl - n 1
-        = o _js_obj 26
+        = o _js_obj 30
         _js_oset o $"s" k
         = nm cs_nome k
         = nm ? ~ mesmo nm k nm {
@@ -272,6 +347,13 @@
         _js_oset o $"sup" da_lvs _js_get lv $"supports" _js_oset o $"res" da_lvs _js_get lv $"resistances"
         _js_oset o $"events" da_eventos k
         = pv _js_oget @ g_prev k _js_oset o $"prev" ? _js_v pv pv 2
+        # as outras fontes deste ativo e a média delas (o mesmo motor da app, sem o voto do Claude)
+        = c ? ref 2 { = x _js_oget @ g_cons k ? _js_v x x 2 }
+        = cr 2
+        Se _js_ehobj c { = ks _js_chaves c = cr _js_obj + _js_len ks 1 L j _js_len ks { = kk _js_it ks j Se ~ mesmo kk $"symbol" _js_oset cr kk _js_oget c kk } }
+        _js_oset o $"cons" cr
+        _js_oset o $"fg" ? && ~ ref _js_eht kind $"crypto" @ g_fg 2
+        _js_oset o $"fontes" ? ref 2 da_voto c r kind
         _js_push rows o 0 } }
     = i + i 1 }
   ! g_rows rows 0 }
@@ -515,6 +597,46 @@
   m }
 # ---------- o dados.md ----------
 : da_nl >i { Se @ g_ln P 10 ! g_ln 1 0 }
+# fontesTxt(r): o que as outras fontes dizem de um ativo, no fim da linha dele — os analistas, os fundamentos, o fundo
+# por dentro, o medo da cripto e a média delas. g_fn: já saiu alguma parte (a primeira leva " | FONTES ", as outras " · ")
+: da_fsep >i { ? @ g_fn " · " " | FONTES " ! g_fn 1 0 }
+: da_ftxt i>i r {
+  ! g_fn 0
+  = c _js_get r $"cons" = c ? _js_ehobj c c 2
+  Se && && _js_ehobj c ~ _js_v _js_oget c $"none" _js_ehtxt _js_oget c $"key" {
+      da_fsep `analistas { _js_pu _js_oget c $"key" }`
+      = m _js_oget c $"mean" Se _js_fin m { P 32 _nu_fixo _js_f m 1 }
+      = n _js_oget c $"n" Se _js_fin n ` ({ _nu_ps _js_f n })`
+      = tg _js_oget c $"target" = pr _js_oget c $"price"
+      Se && && _js_fin tg _js_fin pr > _js_f pr 0. ` alvo { cs_pcr - / _js_f tg _js_f pr 1. }`
+      = rv _js_oget c $"rev" = su _js_oget c $"sur"
+      Se && && _js_ehobj rv _js_fin _js_oget rv $"up" _js_fin _js_oget rv $"down" ` rev { _nu_ps _js_f _js_oget rv $"up" }↑{ _nu_ps _js_f _js_oget rv $"down" }↓`
+      Se && && _js_ehobj su _js_fin _js_oget su $"beats" _js_fin _js_oget su $"n" ` surp { _nu_ps _js_f _js_oget su $"beats" }/{ _nu_ps _js_f _js_oget su $"n" }` }
+  = f ? _js_ehobj c _js_oget c $"f" 2
+  Se _js_ehobj f {
+      = pe _js_oget f $"pe" = cr _js_oget f $"cr" = mg _js_oget f $"mg" = roe _js_oget f $"roe" = de _js_oget f $"de"
+      Se || || || || _js_fin pe _js_fin cr _js_fin mg _js_fin roe _js_fin de {
+          da_fsep = k 0
+          Se _js_fin pe { `P/E { _nu_fixo _js_f pe 1 }` = k 1 }
+          Se _js_fin cr { Se k P 32 `vendas { cs_pcr _js_f cr }` = k 1 }
+          Se _js_fin mg { Se k P 32 `margem { cs_pcr _js_f mg }` = k 1 }
+          Se _js_fin roe { Se k P 32 `ROE { cs_pcr _js_f roe }` = k 1 }
+          Se _js_fin de { Se k P 32 `dívida { _nu_ps _nu_round _js_f de }%` } } }
+  = fd ? _js_ehobj c _js_oget c $"fund" 2
+  Se _js_ehobj fd {
+      = pe _js_oget fd $"pe" = te _js_oget fd $"ter"
+      Se || _js_fin pe _js_fin te {
+          da_fsep
+          Se _js_fin pe `fundo P/E { _nu_fixo _js_f pe 1 }`
+          Se _js_fin te { Se _js_fin pe P 32 `custo { _nu_fixo * _js_f te 100. 2 }%` } } }
+  = fg _js_get r $"fg" Se _js_fin fg { da_fsep `F&G { _nu_ps _js_f fg }` }
+  = v _js_get r $"fontes"
+  Se _js_ehobj v {
+      da_fsep = fa _js_f _js_oget v $"fam"
+      `média { _nu_ps _js_f _js_oget v $"p" } { ? > fa 0. "entrar" ? < fa 0. "sair" "ficar" } [`
+      = fl _js_oget v $"f" L j _js_len fl { = par _js_it fl j Se j ", " `{ _tx_pu _js_it par 0 } { _nu_ps _js_f _js_it par 1 }` }
+      P '] }
+  0 }
 # lineOf(r): uma linha compacta por ativo
 : da_pdia1 i>i dy ? _js_nulo dy "—" { = x _js_f dy Se > x 0. P '+ _nu_fixo x 1 P '% }
 : da_pjoin ii>i l sep { = j 0 W < j _js_len l { Se j ? == sep 1 " · " ", " _js_pu _js_it l j = j + j 1 } }
@@ -541,6 +663,7 @@
       Se && && _js_fin _js_get pv _js_it hz 0 _js_fin _js_get pv _js_it hz 1 _js_fin _js_get pv _js_it hz 2 {
           P 32 _js_pu _js_get pv $"short" P '/ _js_pu _js_get pv $"mid" P '/ _js_pu _js_get pv $"long" } }
   = ev _js_get r $"events" Se && _js_v ev _js_len ev ` | AGENDA { da_pjoin ev 2 }`
+  da_ftxt r
   0 }
 # pastLines(ev)
 : da_pE i>i e {
@@ -563,7 +686,7 @@
   = rows @ g_rows
   `{ da_nl }# Dados de { crut @ g_today } ({ _tx_pu @ g_quando } em Lisboa)`
   `{ da_nl }Cobre em "actions" TODOS os { N _js_len rows } ativos abaixo (a app mostra o teu veredicto em cada um). Ponto de partida: modelo.json.`
-  `{ da_nl }Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L`
+  `{ da_nl }Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L | FONTES = o que as outras fontes da decisão dizem: analistas (recomendação, nota de 1 a 5, quantos, alvo, revisões das estimativas em 30 dias ↑↓, resultados acima do esperado), fundamentos (P/E esperado, vendas num ano, margem, ROE, dívida/capital), o fundo por dentro, o F&G da cripto, e a média delas de 0 a 100 na escala da app, sem o teu voto`
   `{ da_nl }## Mercado`
   da_nl = mk cs_c $"MK" = c 0 = j 0
   W < j _js_len mk {
@@ -573,6 +696,27 @@
         `{ _js_pu _js_oget cs_market k }{ P 32 }{ _js_pu _js_get r $"price" } (`
         = dy _js_get r $"day" ? _js_nulo dy "—" { = x _js_tonum dy Se > x 0. P '+ _nu_fixo x 2 P '% } P ') }
     = j + j 1 }
+  # o contexto: os juros a 10 anos dos EUA, o dólar e o medo da cripto
+  = tn _js_oget @ g_q1d $"^TNX" = dx _js_oget @ g_q1d $"DX-Y.NYB" = c2 0
+  = tp ? _js_ehobj tn _js_oget tn $"price" 1 = dp ? _js_ehobj dx _js_oget dx $"price" 1
+  = fng @ g_fng = cg @ g_cg
+  = bd ? _js_ehobj cg _js_oget cg $"btcDom" 1
+  Se || || || _js_fin tp _js_fin dp _js_ehnum @ g_fg _js_fin bd {
+      da_nl
+      Se _js_fin tp {
+          `Juros EUA 10 anos { _nu_fixo _js_f tp 2 }%` = ch _js_oget tn $"change"
+          Se _js_fin ch { " (" Se > _js_f ch 0. P '+ _nu_fixo _js_f ch 2 P ') }
+          = c2 1 }
+      Se _js_fin dp {
+          Se c2 " · " `Dólar (índice) { _nu_fixo _js_f dp 1 }` = ch _js_oget dx $"changePct"
+          Se _js_fin ch { " (" Se > _js_f ch 0. P '+ _nu_fixo _js_f ch 2 "%)" }
+          = c2 1 }
+      Se _js_ehnum @ g_fg {
+          Se c2 " · " `Fear & Greed da cripto { _nu_ps _js_f @ g_fg }`
+          = lb _js_oget fng $"label" Se && _js_ehtxt lb > _tx_len lb 0 ` ({ _js_pu lb })`
+          = pv _js_oget fng $"prev" Se _js_fin pv `, antes { _nu_ps _js_f pv }`
+          = c2 1 }
+      Se _js_fin bd { Se c2 " · " `domínio do Bitcoin { _nu_fixo _js_f bd 1 }%` } }
   = se cs_c $"SECTIONS" L j 6 {
     = g _js_it _js_it se j 0 = n 0 = m 0 W < m _js_len rows { Se _js_eht _js_get _js_it rows m $"group" g = n + n 1 = m + m 1 }
     Se n {

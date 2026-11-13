@@ -1,5 +1,5 @@
 // A Onda fluida (it.141): moldes de texto com crase e interpolacao, o ponto (a.b), Se, L e parenteses conferidos;
-// e o molde com nome (it.152): f`...`, o texto de um molde como argumento.
+// e o molde com nome: f`...`, o texto de um molde como argumento.
 // Tudo desce a representacao intermedia que ja havia, por isso tem de dar o mesmo em C, WebAssembly, x86 e arm64
 // (-a, no qemu, quando ha); os erros dizem a linha e a coluna; o significado le a mesma sintaxe.
 const { test } = require('node:test');
@@ -127,7 +127,7 @@ test('a.b: o leitor troca por _mb a $"b"; a.b.c encadeia; textos constantes igua
   }
 });
 
-test('molde com nome (it.152): f`...` da o texto do molde como 1.o argumento de f; igual em todas as formas', () => {
+test('molde com nome: f`...` da o texto do molde como 1.o argumento de f; igual em todas as formas', () => {
   // com um _ta e um _tf do proprio programa (um texto de cada vez, guardado em M[0]): o compilador so os chama
   const src = `
 : _ta >i { = t A 200 ! 0 t ! t + t 1 O t 0 }

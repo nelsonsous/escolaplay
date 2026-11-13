@@ -22,6 +22,9 @@ const DIAS = {
     '2026-11-04': [{ s: 'VWCE.DE', p: 160, a: 'buy' }, { s: 'NVDA', p: 150, a: 'avoid' }, { s: 'AAPL', p: 0.01, a: 'hold' }],
     '2026-11-06': [{ s: 'VWCE.DE', p: 161, a: 'hold' }, { s: 'BCP.LS', p: 0.5, a: 'buy' }, { s: 'IWDA.AS', p: 90, a: 'buy' }],
 };
+// 18 ações juntadas pelo dono (com as da app passam de 40: dois pedidos de consenso) e um consenso com tudo o que o conector dá
+const MUITAS = ['ZZA.DE', 'ZZB.DE', 'ZZC.DE', 'ZZD.PA', 'ZZE.PA', 'ZZF.L', 'ZZG.L', 'ZZH.AS', 'ZZI.AS', 'ZZJ', 'ZZK', 'ZZL', 'ZZM', 'ZZN', 'ZZO', 'ZZP', 'ZZQ.MI', 'ZZR.MI'];
+const RICO = { key: 'sell', mean: 4.4, n: 14, target: 80, price: 100, rev: { up: 1, down: 9, chg: -0.12 }, sur: { n: 4, beats: 1, avg: -0.06 }, votes3: [0, 1, 5, 6, 2], f: { pe: 44.44, cr: -0.081, mg: -0.02, roe: -0.11, de: 212.6, peg: 3 } };
 const LOTES = { 'c:BTC': { plan: '2025-01-02', buys: [{ d: '2025-03-01', e: 100 }, { d: '2026-10-01', e: 50.5 }] }, 'c:ETH': { plan: '', buys: [{ d: '2026-02-30', e: 20 }] } };
 const conselho = (date, extra = {}) => ({ ['advice:' + date]: { valor: {
     v: 2, date, generatedAt: date + 'T07:16:00.000Z', headline: 'Leitura de ' + date, market: 'Mercado.', planNote: '900 € em 2 execuções',
@@ -60,6 +63,23 @@ export function cenarios() {
         semente: 12, kv: { ...dono('c-0001'), ...diario('c-0001', { days: {}, lots: { 'c:BTC': { plan: '2024-11-02', buys: [{ d: '2025-11-01', e: 'abc' }] }, 'c:ETH': { plan: '2026-06-16', buys: [] }, 'c:SOL': { buys: [{ d: '2026-11-06', e: 1 }, { d: '2025-01-01', e: 2.345 }] }, 'c:XRP': { plan: '2026-11-07', buys: [] } }, saveDays: [23, 9] }) } });
     d('horário de verão em Lisboa e a passagem da meia-noite', { agora: '2026-10-24T23:30:00Z', semente: 13, kv: { ...dono('h-0001'), ...diario('h-0001', { days: DIAS }) } });
     d('fim de semana de inverno, sem nada no KV e sem notícias', { agora: '2026-01-10T08:00:00Z', semente: 14, semNoticias: true });
+    // as outras fontes da decisão (conector 1.8.0): o consenso e o medo da cripto, certos, estranhos e em falta
+    d('fontes: consenso com entradas estranhas (null, texto, sem símbolo, com erro, chaves fora de ordem) e um ativo sem nada', { semente: 31,
+        simbolos: { AAPL: { cons: null }, MSFT: { cons: 'texto' }, NVDA: { cons: { key: 'buy', n: 5 } }, AMZN: { consErro: true }, GOOGL: { cons: { symbol: 'GOOGL', 2: 'dois', key: 'buy', mean: '2', n: 12, target: 'x', price: -3, rev: [1, 2], sur: { beats: 'a', n: 4 }, f: { pe: '9', cr: null, mg: 0.2, de: 12.5 }, 1: 'um' } },
+            META: { cons: { symbol: 'META', key: 7, n: 30, f: [] } }, TSLA: { cons: { symbol: 'TSLA', none: true, key: 'sell', f: { pe: 181.1, cr: -0.002, mg: 0.031, roe: 0.07, de: 0.4 }, fund: { pe: 20, ter: 0.002 } } },
+            'VWCE.DE': { cons: { symbol: 'VWCE.DE', none: true, fund: { pe: 21.456, pb: 3, ter: 0.0022, top: 'x' } } }, 'EUNL.DE': { cons: { symbol: 'EUNL.DE', none: true, fund: 'nada' } } } });
+    d('fontes: o corpo do consenso não é o esperado e o medo da cripto vem torto', { semente: 32, consCorpo: { items: 'não é uma lista' }, cg: { fng: { v: '20', label: 7, prev: 'x' }, btcDom: 'muito' } });
+    d('fontes: o consenso é uma lista e o medo da cripto um número; depois null e um Fear & Greed sem rótulo', { semente: 33, consCorpo: [1, 2], cg: 5 });
+    d('fontes: null nos dois', { semente: 34, consCorpo: null, cg: null });
+    d('fontes: Fear & Greed nos extremos e sem rótulo, domínio do Bitcoin', { semente: 35, cg: { fng: { v: 4, prev: 96, label: '' }, btcDom: 61.25 } });
+    d('fontes: o conector antigo (404 nas duas rotas novas) e os juros em falta', { semente: 36, simbolos: { '^TNX': { erro: 'Not Found' }, 'DX-Y.NYB': { semPreco: true } },
+        falhas: [{ url: '/consensus', estado: 404, corpo: { error: 'não encontrado' } }, { url: '/cryptoglobal', tipo: 'tempo' }] });
+    d('fontes: mais de 40 ações e fundos (dois pedidos de consenso); o primeiro falha e o segundo responde', { semente: 37,
+        kv: { ...dono('f-0001'), ...diario('f-0001', { days: {}, my: MUITAS }) }, simbolos: { ZZP: { cons: { symbol: 'ZZP', ...RICO } }, 'ZZC.DE': { cons: { symbol: 'ZZC.DE', ...RICO } } },
+        falhas: [{ url: '/consensus', estado: 500, corpo: { error: 'Yahoo recusou' }, vezes: 1 }] });
+    d('fontes: dois pedidos de consenso; o primeiro responde e o segundo falha', { semente: 37,
+        kv: { ...dono('f-0001'), ...diario('f-0001', { days: {}, my: MUITAS }) }, simbolos: { ZZP: { cons: { symbol: 'ZZP', ...RICO } }, 'ZZC.DE': { cons: { symbol: 'ZZC.DE', ...RICO } } },
+        falhas: [{ url: 'consensus\\?symbols=EUNL', tipo: 'rede' }] });
     d('títulos com emoji no corte e um nome cortado a meio de um par (URIError nas notícias)', {
         semente: 15, titulosEstranhos: true,
         kv: { ...dono('e-0001'), ...diario('e-0001', { days: { '2026-11-06': [{ s: 'EMOJ.DE', p: 1, a: 'buy' }] }, my: ['EMOJ.DE'] }) },
@@ -190,6 +210,24 @@ test('conselheiro em Onda: o mesmo que o JS em todos os cenários (ficheiros, pe
         const sec = md.slice(md.indexOf('## O que tens: quant'), md.indexOf('## Lições guardadas'));
         assert.doesNotMatch(sec, /c:ETH|c:SOL/, 'sem investido ou sem quantidade: fica de fora');
     }
+    // as fontes: o texto de um consenso com tudo, a média sem o voto do Claude, os dois pedidos e o aviso de quando um falha
+    const RICO_TXT = /\| FONTES analistas sell 4\.4 \(14\) alvo -20\.0% rev 1↑9↓ surp 1\/4 · P\/E 44\.4 vendas -8\.1% margem -2\.0% ROE -11\.0% dívida 213% · média \d+ sair \[analistas 7, fundamentos 28, técnica \d+, sentimento \d+\]$/;
+    const linha = (md, s) => md.split('\n').find((l) => l.startsWith(`- ${s} `)) || '';
+    for (const [re, com, sem, aviso] of [[/o primeiro falha e o segundo responde/, 'ZZC.DE', 'ZZP', 'Yahoo recusou'], [/o primeiro responde e o segundo falha/, 'ZZP', 'ZZC.DE', 'fetch failed']]) {
+        const r = res.find((x) => re.test(x.cena.nome)), md = String(r.b.ficheiros['dados.md']);
+        assert.equal(r.b.registo.pedidos.filter((x) => x.url.includes('/consensus?')).length, 2, 'dois pedidos de consenso');
+        assert.match(linha(md, com), RICO_TXT, linha(md, com));
+        assert.match(linha(md, sem), /\| FONTES média \d+ (entrar|ficar|sair) \[técnica \d+, sentimento \d+\]$/, linha(md, sem));
+        assert.ok(md.includes(`\n- analistas e fundamentos: ${aviso}`), 'o pedido que falha fica nos avisos');
+        const row = JSON.parse(r.b.ficheiros['dados.json']).rows.find((x) => x.s === com);
+        assert.deepEqual([row.cons.symbol, row.cons.rev.chg, row.cons.votes3.length, row.fontes.fam, row.fontes.f[0]], [undefined, -0.12, 5, -1, ['analistas', 7]]);
+    }
+    const fg = res.find((r) => /Fear & Greed nos extremos/.test(r.cena.nome)), mdF = String(fg.b.ficheiros['dados.md']);
+    assert.match(mdF, /\n(Juros EUA 10 anos [\d.]+% \([+-]?[\d.]+\) · )?(Dólar \(índice\) [\d.]+ \([+-]?[\d.]+%\) · )?Fear & Greed da cripto 4, antes 96 · domínio do Bitcoin 61\.3%\n/);
+    assert.match(linha(mdF, 'c:BTC'), /\| FONTES F&G 4 · média \d+ (entrar|ficar|sair) \[técnica \d+, sentimento 78\]$/, linha(mdF, 'c:BTC'));
+    const velho = res.find((r) => /o conector antigo/.test(r.cena.nome)), mdV = String(velho.b.ficheiros['dados.md']);
+    assert.doesNotMatch(mdV, /analistas [a-z_]+ \d|F&G \d|Fear & Greed|Juros EUA/, 'sem as rotas novas não há fontes novas');
+    assert.match(mdV, /\n- analistas e fundamentos: [^\n]+\n- sentimento da cripto: /, 'e fica nos avisos');
     const mal = res.filter((r) => r.d.length);
     for (const r of mal) console.log(`✗ ${r.cena.nome}\n  ${r.d.join('\n  ')}`);
     assert.equal(mal.length, 0, `${mal.length} de ${C.length} cenários diferem`);

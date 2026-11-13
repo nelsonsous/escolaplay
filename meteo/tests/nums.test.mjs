@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { verifyNumbers, numbersSkill, claudeWeights, numbersReport, NUMS } from '../lib/nums.js';
-import { observedDays } from '../lib/engine.js';
+import { observedDays, rainQC } from '../lib/engine.js';
 
 const num = (data, tmax, tmin, chuva, rajada = 30) => ({ data, tmax, tmin, chuva, rajada });
 const issue = (generatedAt, numeros, consenso) => ({ generatedAt, numeros, consenso });
@@ -86,4 +86,26 @@ test('observado em cada dia: máxima, mínima (à altitude do ponto) e chuva das
     const m = observedDays([{ w: 1, series: metar, adjT: 0, centerT: false }], { nowMs: day0 + 48 * H, off: 3600 });
     assert.deepEqual(m.map((x) => [x.date, x.tmax, x.rain, x.nR]), [['2026-11-12', 15, null, 0], ['2026-11-13', 15, null, 0]]);
     assert.deepEqual(observedDays([], {}), []);
+});
+
+test('pluviómetros avariados: comparados hora a hora com as vizinhas; um caso flagrante ou dois dias falhados tiram a chuva da estação', () => {
+    const H = 36e5, day0 = Date.parse('2026-11-08T00:00:00Z');
+    // 4 dias por hora; dia 2 (9/11) muita chuva, dia 3 (10/11) pouca; mmh(dia, hora) por estação
+    const st = (id, mmh, { from = 0, to = 96 } = {}) => ({ id, name: id, series: Array.from({ length: to - from }, (_, k) => { const i = from + k; return { ms: day0 + i * H, temp: 14, precip1h: mmh(Math.floor(i / 24), i % 24) }; }) });
+    const wetDay = (d) => (d === 1 ? 1.25 : d === 2 ? 0.25 : 0); // 30 mm e 6 mm
+    const good = ['A', 'B', 'C'].map((id, k) => st(id, (d) => wetDay(d) * (1 + 0.1 * k)));
+    // a avariada: 2,6 mm no dia de 30 mm, 0 no de 6 mm
+    const broken = st('Guimarães', (d, h) => (d === 1 && h < 2 ? 1.3 : 0));
+    const nowMs = day0 + 96 * H;
+    const qc = rainQC([...good, broken], { nowMs });
+    assert.deepEqual(qc.map((q) => q.name), ['Guimarães']);
+    assert.deepEqual(qc[0].days.map((d) => [d.date, d.mm, d.ref]), [['2026-11-09', 2.6, 33], ['2026-11-10', 0, 6.6]]);
+    // só com o dia flagrante (30 mm nas vizinhas, ≤ 15%, 3 vizinhas) também sai; um dia meio seco (aguaceiro que não passou) não
+    assert.equal(rainQC([...good, st('X', (d, h) => (d === 1 ? (h < 2 ? 1.3 : 0) : wetDay(d)))], { nowMs }).length, 1);
+    assert.equal(rainQC([...good, st('Y', (d) => (d === 2 ? 0 : wetDay(d)))], { nowMs }).length, 0, '1 dia falhado (6 mm nas vizinhas): fica');
+    // dias incompletos: compara só nas horas em que a estação mediu (aqui 14 h do dia de chuva)
+    assert.equal(rainQC([...good, st('Z', () => 0, { from: 24, to: 38 })], { nowMs })[0]?.name, 'Z');
+    // com uma só vizinha não se sabe qual está mal: nada sai; e as boas nunca saem
+    assert.equal(rainQC([good[0], broken], { nowMs }).length, 0);
+    assert.equal(rainQC(good, { nowMs }).length, 0);
 });

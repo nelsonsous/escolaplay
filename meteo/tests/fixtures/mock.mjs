@@ -220,6 +220,8 @@ export const MOCK_ANALYSIS = {
   place: { id: 'lisboa', name: 'Lisboa', lat: 38.7223, lon: -9.1393 },
   // o prognóstico do Claude em números (sábado e domingo): a app junta-o a meias com a média dos modelos
   numeros: [{ data: '2026-11-07', tmax: 17, tmin: 11, chuva: 2, rajada: 35 }, { data: '2026-11-08', tmax: 15, tmin: 12, chuva: 18, rajada: 55 }],
+  // notas técnicas sobre os dados desta corrida (só o dono as vê)
+  dados: ['Proteção Civil: sem dados nesta corrida', 'Guimarães: pluviómetro com 0 mm sob chuva nas vizinhas → não contei com ele'],
   titulo: 'Tarde amena; frente fria traz chuva forte e vento no domingo de manhã',
   resumo: 'Sexta-feira termina com céu pouco nublado e vento fraco de leste. No sábado o vento roda para sul e as nuvens aumentam com a aproximação de uma superfície frontal fria, que atravessa Lisboa no domingo entre as 6h e as 12h com chuva por vezes forte (até 6 mm/h) e rajadas de 50 a 55 km/h. Segunda-feira fica mais fresca, com aguaceiros e possibilidade de trovoada isolada à tarde. A partir de terça volta o tempo seco.',
   agora: 'Até às 21h: céu pouco nublado, 18 °C a descer para 14 °C ao anoitecer. Vento fraco de leste (10 km/h). Sem chuva.',
