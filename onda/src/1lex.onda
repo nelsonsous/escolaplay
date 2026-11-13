@@ -101,28 +101,98 @@
   ? || && >= c 'a <= c 'z == c '_ 0
   5 }
 : addtok iii>i k s l { = p tk @ 4 ! p k ! + p 1 s ! + p 2 l ! 4 + @ 4 1 }
-: lex >i {
-  = i 0
+# --- o leitor ---
+# Um token acaba no espaco e nas chavetas e parenteses, que sao sempre tokens sozinhos: {a} e (+ a b) leem-se como
+# { a } e ( + a b ). Num 'c, o caracter a seguir a plica faz sempre parte ('{ e ') sao caracteres).
+: lxfim i>i c || || isws c == c '{ || || == c '} == c '( == c ')
+# um erro do leitor na posicao p da fonte: poe ali um token, para o eend dizer a linha e a coluna certas
+: lxerr i>i p { addtok 5 + @ 1 p 1 ! 7 - @ 4 1 ebeg }
+# um texto entre dois delimitadores iguais ao do inicio (aspas ou crase), do tipo k; devolve o indice a seguir
+: lxs ii>i s k {
   = n @ 2
   = b @ 1
-  W < i n {
+  = q @ + b s
+  = i + s 1
+  W && < i n != @ + b i q { ? == @ + b i 92 = i + i 1 0 = i + i 1 }
+  ? >= i n { lxerr s "texto sem fim" eend } 0
+  addtok k + b s - + i 1 s
+  + i 1 }
+# o texto de um molde a partir de i: avanca ate a { de uma interpolacao ou a crase que fecha (salta os escapes)
+: lxseg i>i i { = n @ 2 = b @ 1 W && < i n && != @ + b i 96 != @ + b i '{ { ? == @ + b i 92 = i + i 1 0 = i + i 1 } i }
+# um pedaco de texto do molde, do delimitador em a ao delimitador em z (os dois ficam de fora): um texto impresso
+: lxped ii>i a z addtok 3 + @ 1 a + - z a 1
+# molde `texto{ codigo }texto`: imprime o texto e corre o codigo de cada { } pelo meio (o que ele imprimir sai ali).
+# Sem { } e um texto impresso so; com elas, um bloco { pedaco codigo pedaco ... } que vale 0 (o ultimo pedaco entra
+# sempre, mesmo vazio). Os tokens { e } do bloco apontam para a primeira { e a ultima } do molde. No texto, as aspas
+# nao se escapam; uma chaveta ou uma crase a serio escrevem-se \{ \} \`
+: lxt i>i s {
+  = n @ 2
+  = b @ 1
+  = i lxseg + s 1
+  ? >= i n { lxerr s "molde sem fim" eend } 0
+  ? == @ + b i 96 { lxped s i + i 1 }
+  { addtok 5 + b i 1
+    ? > - i s 1 lxped s i 0
+    = u 0
+    = go 1
+    W go {
+      = j lxc + i 1 1
+      = u j
+      = i lxseg + j 1
+      ? >= i n { lxerr s "molde sem fim" eend } 0
+      ? == @ + b i 96 { lxped j i = go 0 0 } { ? > - i j 1 lxped j i 0 0 } }
+    addtok 5 + b u 1
+    + i 1 } }
+# a.b.c troca-se por  . . a $b $c : cada ponto chama a funcao _mb (o membro de nome k do no a; a de lib/arvore.onda)
+# e cada nome a seguir a um ponto e um texto constante (tipo 6) cujos delimitadores sao esse ponto e o caracter que
+# vem depois do nome
+: lxdot ii>i s e {
+  = b @ 1
+  = j s
+  W < j e { ? == @ + b j '. addtok 5 + b j 1 0 = j + j 1 }
+  = j s
+  W != @ + b j '. = j + j 1
+  addtok 0 + b s - j s
+  W < j e {
+    = q + j 1
+    W && < q e != @ + b q '. = q + q 1
+    ? == q + j 1 { lxerr j "ponto sem nome a seguir" eend } 0
+    addtok 6 + b j + - q j 1
+    = j q }
+  0 }
+# um token comum, de s ate ao espaco ou a uma chaveta/parentese; um nome com pontos (a.b.c) desdobra-se (lxdot)
+: lxw i>i s {
+  = n @ 2
+  = b @ 1
+  = i + s 1
+  ? && == @ + b s 39 < i n = i + i 1 0
+  W && < i n ~ lxfim @ + b i = i + i 1
+  = k kindof + b s - i s
+  ? && == k 0 hasdot + b s - i s lxdot s i addtok k + b s - i s
+  i }
+# o codigo a partir de i, ate ao fim da fonte (@2). d = 1: uma interpolacao de um molde, ate a } que a fecha (as { }
+# de dentro contam-se); devolve o indice dessa }
+: lxc ii>i i d {
+  = n @ 2
+  = b @ 1
+  = pf 0
+  = go 1
+  = i0 i
+  W && go < i n {
     = c @ + b i
     ? isws c = i + i 1
     ? == c '# { W && < i n != @ + b i 10 = i + i 1 i }
-    # "..." imprime (tipo 3); $"..." e um texto constante (tipo 6), com o token a comecar nas aspas, como o de um "..."
-    ? || == c '" && == c '$ && < + i 1 n == @ + b + i 1 '" {
-        = k ? == c '$ 6 3
-        = i ? == k 6 + i 1 i
-        = s i
-        = i + i 1
-        W && < i n != @ + b i '" { ? == @ + b i 92 = i + i 1 0 = i + i 1 }
-        ? >= i n { ebeg "texto sem fim" eend } 0
-        = i + i 1
-        addtok k + b s - i s }
-    { = s i
-      W && < i n ~ isws @ + b i = i + i 1
-      addtok kindof + b s - i s + b s - i s } }
-  0 }
+    # "..." imprime (tipo 3); `...` e um molde; $"..." e $`...` sao textos constantes (tipo 6; o token comeca no
+    # delimitador, como o de um "...")
+    ? == c '" = i lxs i 3
+    ? == c 96 = i lxt i
+    ? && == c '$ && < + i 1 n || == @ + b + i 1 '" == @ + b + i 1 96 = i lxs + i 1 6
+    ? && && d == c '} == pf 0 = go 0
+    ? || == c '{ == c '} { = pf + pf ? == c '{ 1 -1 addtok 5 + b i 1 = i + i 1 }
+    ? || == c '( == c ') { addtok 5 + b i 1 = i + i 1 }
+    = i lxw i }
+  ? && d go { lxerr - i0 1 "falta a } que fecha a interpolacao do molde" eend } 0
+  i }
 : fe ii>i k j + + @ 5 * k 14 j
 # fim dos tokens do corpo da funcao k (as funcoes sinteticas -- campo 12 -- vem no fim e nao tem tokens)
 : fend i>i k ? && < + k 1 @ 6 == @ fe + k 1 12 0 - @ fe + k 1 0 1 @ 4

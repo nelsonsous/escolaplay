@@ -17,7 +17,12 @@
   = s tks i
   = l tkl i
   = j 1
-  W < j - l 1 { = c @ + s j ? == c 10 "\\n" ? == c 9 "\\t" ? == c 13 "\\r" P c = j + j 1 }
+  W < j - l 1 {
+    = c @ + s j
+    ? == c 92 { = j + j 1 = e @ + s j ? || || == e '{ == e '} == e 96 P e { P 92 P e } }
+    ? == c 34 { P 92 P 34 }
+    ? == c 10 "\\n" ? == c 9 "\\t" ? == c 13 "\\r" P c
+    = j + j 1 }
   0 }
 # --- mapa de campo vetorizavel em C: emitir a expressao do elemento EM LINHA, com _s[i] no lugar de x.
 # a indirecao ldf/stf (memcpy) e o M partilhado matam a autovetorizacao; com restrict + expr direta,

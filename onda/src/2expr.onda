@@ -101,7 +101,7 @@
   = e fend k
   = r 1
   = j s
-  W && r < j - e 1 { ? && == tcode j '= && == tkl j 1 teq + j 1 n = r 0 0 = j + j 1 }
+  W && r < j - e 1 { ? && || && == tcode j '= == tkl j 1 == tcode j 'L teq + j 1 n = r 0 0 = j + j 1 }
   r }
 : inlf >i {
   = k 0
@@ -473,6 +473,53 @@
   = r nt 0
   ir 4 r 0 0 0 0 0
   r }
+# Se c b: se c, faz b (de qualquer tipo; o valor nao conta); vale 0. E o `? c { b 0 } 0` sem o ramo vazio
+: cse >i {
+  = c cx
+  ckc c
+  = r nt 0
+  ir 18 0 c 0 0 0 0
+  cx
+  ir 19 r lit1 0 0 0 0 0
+  ir 20 r lit1 0 0 0 0 0
+  r }
+# L i n b: para i de 0 a n-1 faz b (n calcula-se uma vez); vale 0. E o `= i 0 W < i n { b = i + i 1 }`
+: clp >i {
+  = n @ 7
+  ? || >= n @ 4 tkk n { ebeg "L precisa de nome" ? < n @ 4 emai n 0 eend } 0
+  ! 7 + n 1
+  = e cx
+  ckint e
+  = j floc n
+  ? < j 0 { addl n 0 = j - @ 9 1 } ? != lty j 0 { ! 7 n ebeg "a variavel do L tem de ser inteira: " etx n eend } 0
+  ir 6 0 n zer 0 j 0 0
+  ir 21 0 0 0 0 0 0
+  ? isa xqs 6 + xq 6 1 0
+  = g nt 0
+  ir 5 g n j 0 0 0
+  = c cmpx '< g e
+  ir 22 0 c 0 0 0 0
+  cx
+  = g nt 0
+  ir 5 g n j 0 0 0
+  ir 6 0 n binx '+ 0 g lit1 1 j 0 0
+  ? isa xqs 6 - xq 6 1 0
+  ir 23 0 0 0 0 0 0
+  = r nt 0
+  ir 4 r 0 0 0 0 0
+  r }
+# ( e ): vale e. O parentese confere que la dentro esta uma expressao inteira, nem mais nem menos
+: cpar >i {
+  = r cx
+  ? || >= @ 7 @ 4 != tcode @ 7 ') { ebeg "falta ): o parentese leva uma so expressao" eend } 0
+  ! 7 + @ 7 1
+  r }
+# a.b (o leitor da . a $b): a funcao _mb ("membro") da biblioteca que o programa juntou (lib/arvore.onda: o membro
+# b do no a)
+: cdot >i {
+  = k fby k3 '_ 'm 'b
+  ? < k 0 { ! 7 - @ 7 1 ebeg "o ponto (a.b) precisa da funcao _mb: junta a lib/arvore.onda" eend } 0
+  ccall k }
 : cblk >i {
   = r -1
   W { ? >= @ 7 @ 4 { ebeg "falta }" eend } 0 != tcode @ 7 '} } = r cx

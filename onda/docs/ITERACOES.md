@@ -2619,3 +2619,43 @@ falham, 17 só no Mac. As apps recompiladas dão módulos iguais ao byte aos de 
 
 **O que fica.** A redução de argumento de Payne–Hanek para o seno e o coseno de argumentos enormes; manter na pilha os
 temporários de um só uso no WebAssembly (o próximo ganho de tamanho).
+
+## Iteração 141: a Onda fluida — moldes, o ponto, Se, L e parênteses conferidos
+
+**O pedido.** O dono quer que a Onda seja a forma mais fácil de eu programar, comunicar e criar as apps. Quem escreve
+os ecrãs da Mercados (2 800 linhas de Onda) tropeça sempre nas mesmas quatro coisas: o HTML cheio de `\"`, o
+`_ar_ps _ar_get c $"nome" 1` para ler um campo, o `? c { … 0 } 0` com o ramo vazio e o zero para acertar o tipo, e o
+contador à mão dos ciclos. E, numa linguagem prefixa sem parênteses, um argumento a mais ou a menos só dá erro muito
+depois. A regra desta iteração: tudo o que entra desce à representação intermédia que já havia, para existir em todos
+os alvos sem tocar em nenhum emissor.
+
+**1. Moldes: `` `texto { código } texto` ``.** Imprime, como o `"..."`, mas as aspas não se escapam e cada `{ }` corre
+código no sítio: `` `<li class="{ cls j }">{N j}</li>` ``. O leitor parte o molde em tokens que já existiam: cada
+pedaço de texto é um texto impresso (os delimitadores passam a ser a crase e as chavetas — os emissores já saltavam
+o primeiro e o último carácter do token sem olhar para eles) e, com interpolações, vai tudo num bloco `{ … }` que
+vale 0. `` $`…` `` é um texto constante cru (JSON e seletores com aspas).
+
+**2. O ponto: `a.b`.** O leitor troca `a.b.c` por `. . a $b $c`: cada chave é um texto constante cujo token vai do
+ponto ao carácter a seguir ao nome, e o `.` chama a função `_mb` do programa (a da `lib/arvore.onda` é o `_ar_get`).
+Os textos constantes passam a comparar-se pelo conteúdo, para `$"x"`, `` $`x` `` e `.x` darem o mesmo endereço.
+
+**3. `Se c b`.** O `? c { b 0 } 0` sem o ramo vazio: b pode ser de qualquer tipo e o `Se` vale 0. Gera a mesma RI.
+
+**4. `L i n b`.** Para i de 0 a n−1 (n uma vez). Gera a RI do `W` com o contador.
+
+**5. `( e )`.** Vale e, e o compilador confere que lá dentro está uma só expressão: "falta ): o parentese leva uma so
+expressao", com a linha e a coluna. As chavetas e os parênteses passam a ser tokens sozinhos (`{a}`, `(+ a b)`).
+
+**No compilador.** O leitor (`1lex.onda`) passou a ser recursivo (código → molde → código). A matemática e o armazém
+do x86 deixaram de se decidir a varrer o texto da fonte (que não sabia de moldes): decide-se pelos tokens já lidos, e
+a fonte da biblioteca só se lê se for precisa. No C e no JavaScript, o emissor de textos escapa as aspas cruas.
+
+**Verificado.**
+- Pontos fixos: WebAssembly (518 612 bytes), x86-64 (366 488) e a ponte C. A semente arm64 (Mach-O) não se refez aqui,
+  como na it.138: o `./build.sh` no Mac refá-la a partir da semente WebAssembly.
+- Os programas de antes dão os mesmos binários: o módulo da Mercados (383 020 bytes), o conselheiro, o gráfico, o
+  molde e os gestos saem iguais ao byte; os 56 programas de `ex/` e `test/` dão o mesmo em `-x`, `-w` e C com o
+  compilador de antes e o de agora (168 comparações).
+- `test/fluida.test.js` (6 testes): o mesmo resultado em C, WebAssembly e x86 (e arm64 no qemu, quando há); os erros
+  com a linha e a coluna; a GPU e o JavaScript; o significado (`web/significado.js`) lê a mesma sintaxe.
+- `node --test test/*.test.js`: 151 passam, 0 falham, 17 saltados (os do Mac e do arm64).
