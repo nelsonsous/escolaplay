@@ -69,13 +69,13 @@
 # MACD (12, 26, 9) em fluxo, com as EMA do emaSeries do JS: M[17] = há (n >= 35), M[18..21] = linha, sinal, hist, anterior
 : macd ii>i v n {
   ! 17 0
-  ? >= n 35 {
+  Se >= n 35 {
     = k1 / 2. 13. = c1 - 1. k1
     = k2 / 2. 27. = c2 - 1. k2
     = k3 / 2. 10. = c3 - 1. k3
-    = a 0. = i 0 W < i 12 { = a + a @f + v i = i + i 1 } = a / a 12.
+    = a 0. L i 12 = a + a @f + v i = a / a 12.
     = i 12 W < i 26 { = a + * @f + v i k1 * a c1 = i + i 1 }
-    = b 0. = i 0 W < i 26 { = b + b @f + v i = i + i 1 } = b / b 26.
+    = b 0. L i 26 = b + b @f + v i = b / b 26.
     # a e b são as EMA 12 e 26 depois de v[25]: a linha começa aí; o sinal é a EMA 9 da linha
     = ln - a b
     = sg + 0. ln
@@ -89,7 +89,7 @@
       = ln - a b
       = sg + * ln k3 * sg c3
       = i + i 1 }
-    ! 17 1 !f 18 ln !f 19 sg !f 20 - ln sg !f 21 - lp sp 0 } 0 }
+    ! 17 1 !f 18 ln !f 19 sg !f 20 - ln sg !f 21 - lp sp } }
 # volatilidade anualizada dos últimos 60 retornos (logaritmos); M[27] = há
 : vol iii>f v n dias {
   = r wr
@@ -97,10 +97,10 @@
   ! 27 0
   ? < - n a 10 0. {
     = m 0 = i + a 1
-    W < i n { ? > @f + v - i 1 0. { !f + r m Lg / @f + v i @f + v - i 1 = m + m 1 0 } 0 = i + i 1 }
-    = s 0. = j 0 W < j m { = s + s @f + r j = j + j 1 }
+    W < i n { Se > @f + v - i 1 0. { !f + r m Lg / @f + v i @f + v - i 1 = m + m 1 } = i + i 1 }
+    = s 0. L j m = s + s @f + r j
     = mu / s F m
-    = q 0. = j 0 W < j m { = d - @f + r j mu = q + q * d d = j + j 1 }
+    = q 0. L j m { = d - @f + r j mu = q + q * d d }
     ! 27 1
     * Sq / q F ? > - m 1 1 - m 1 1 Sq F dias } }
 # ret(v, k) do JS: há se n > k e v[n-1-k] > 0
@@ -126,8 +126,7 @@
       = j - j 1 }
     = s + + l 1 * + j 1 4
     ! s t0 ! + s 1 t1 ! + s 2 t2 ! + s 3 t3
-    = i + i 1 }
-  0 }
+    = i + i 1 } }
 
 # ---------- a análise (v = M[1], n = M[2] >= 30) ----------
 : metricas >i metr 0
@@ -156,20 +155,20 @@
   = li lM lini li !f 0 50.
   = p @f 10 = s20 @f 11 = s50 @f 12 = r @f 16 = dd @f 28
   ? > p s20 ladd li 8. 1 0. 0 ladd li -8. 2 0. 0
-  ? @ 13 {
+  Se @ 13 {
     ? > p s50 ladd li 10. 3 0. 0 ladd li -10. 4 0. 0
-    ? > s20 s50 ladd li 7. 5 0. 0 ladd li -7. 6 0. 0 } 0
-  ? && @ 13 @ 15 { = sl - / s50 @f 14 1. ? > sl 0. ladd li 5. 7 0. 0 ladd li -5. 8 0. 0 } 0
-  ? @ 23 { = x @f 22 ladd li _nu_clamp * * x 100. 0.6 -10. 10. 9 x 0 } 0
-  ? @ 25 { = x @f 24 ladd li _nu_clamp * * x 100. 0.25 -8. 8. 10 x 0 } 0
+    ? > s20 s50 ladd li 7. 5 0. 0 ladd li -7. 6 0. 0 }
+  Se && @ 13 @ 15 { = sl - / s50 @f 14 1. ? > sl 0. ladd li 5. 7 0. 0 ladd li -5. 8 0. 0 }
+  Se @ 23 { = x @f 22 ladd li _nu_clamp * * x 100. 0.6 -10. 10. 9 x 0 }
+  Se @ 25 { = x @f 24 ladd li _nu_clamp * * x 100. 0.25 -8. 8. 10 x 0 }
   = rr _nu_round r
   ? >= r 80. ladd li -12. 11 rr 0 ? >= r 70. ladd li -7. 12 rr 0 ? >= r 50. ladd li 4. 13 rr 0
     ? >= r 30. ladd li -2. 14 rr 0 ladd li 7. 15 rr 0
-  ? @ 17 {
+  Se @ 17 {
     = h @f 20 = hp @f 21
-    ? && > h 0. > h hp ladd li 6. 16 0. 0 ? > h 0. ladd li 3. 17 0. 0 ? < h hp ladd li -6. 18 0. 0 ladd li -3. 19 0. 0 } 0
-  ? && && < dd -0.3 @ 13 < p s50 ladd li -5. 20 dd 0 ? > dd -0.03 lpush li 0. 21 0. 0 0
-  ? && @ 5 >= Ab @f 6 0.2 { = w @f 6 ladd li _nu_clamp * w 8. -6. 6. ? > w 0. 22 23 0. 0 } 0
+    ? && > h 0. > h hp ladd li 6. 16 0. 0 ? > h 0. ladd li 3. 17 0. 0 ? < h hp ladd li -6. 18 0. 0 ladd li -3. 19 0. 0 }
+  ? && && < dd -0.3 @ 13 < p s50 ladd li -5. 20 dd 0 Se > dd -0.03 lpush li 0. 21 0. 0
+  Se && @ 5 >= Ab @f 6 0.2 { = w @f 6 ladd li _nu_clamp * w 8. -6. 6. ? > w 0. 22 23 0. 0 }
   ! 31 I _nu_round _nu_clamp @f 0 0. 100.
   lsort li }
 
@@ -180,12 +179,12 @@
   = rr _nu_round r
   ? < r 30. ladd li 10. 30 rr 0 ? < r 45. ladd li -2. 31 rr 0 ? <= r 65. ladd li 4. 13 rr 0
     ? <= r 75. ladd li -4. 32 rr 0 ladd li -10. 33 rr 0
-  ? @ 17 {
+  Se @ 17 {
     = h @f 20 = hp @f 21
-    ? && > h 0. > h hp ladd li 8. 16 0. 0 ? > h 0. ladd li 3. 34 0. 0 ? < h hp ladd li -8. 18 0. 0 ladd li 2. 35 0. 0 } 0
+    ? && > h 0. > h hp ladd li 8. 16 0. 0 ? > h 0. ladd li 3. 34 0. 0 ? < h hp ladd li -8. 18 0. 0 ladd li 2. 35 0. 0 }
   = g - / p @f 11 1.
   ? < g -0.08 ladd li 4. 36 g 0 ? > g 0.1 ladd li -4. 37 g 0 ? > g 0. ladd li 6. 38 0. 0 ladd li -6. 39 0. 0
-  ? hret @ 1 @ 2 5 { = x ret @ 1 @ 2 5 ladd li _nu_clamp * * x 100. 0.8 -8. 8. 40 x 0 } 0
+  Se hret @ 1 @ 2 5 { = x ret @ 1 @ 2 5 ladd li _nu_clamp * * x 100. 0.8 -8. 8. 40 x 0 }
   ! 32 I _nu_round _nu_clamp @f 0 0. 100.
   lsort li }
 
@@ -202,16 +201,16 @@
     ? > p sl ladd li 12. 50 0. m ladd li -12. 51 0. m
     ? up ladd li 8. 52 0. m ladd li -8. 53 0. m
     = k ? < 252 - n 1 252 - n 1
-    ? hret v n k { = x ret v n k ladd li _nu_clamp * * x 100. 0.15 -10. 10. 54 x 0 } 0
+    Se hret v n k { = x ret v n k ladd li _nu_clamp * * x 100. 0.15 -10. 10. 54 x 0 }
     = d - / p @f 53 1.
     !f 35 d
     ? && <= d -0.1 up ladd li 8. 55 d 0 ? && <= d -0.25 ~ up ladd li -6. 56 d 0
       ? > d -0.03 lpush li 0. 57 0. 0 lpush li 0. 58 d 0
-    ? @ 27 {
+    Se @ 27 {
       = vo @f 26 = vp _nu_round * vo 100.
-      ? < vo 0.2 ladd li 6. 59 vp 0 ? > vo 0.7 ladd li -14. 60 vp 0 ? > vo 0.4 ladd li -8. 61 vp 0 0 } 0
+      ? < vo 0.2 ladd li 6. 59 vp 0 ? > vo 0.7 ladd li -14. 60 vp 0 Se > vo 0.4 ladd li -8. 61 vp 0 }
     = t @ 4
-    ? == t 1 ladd li 4. 62 0. 0 ? == t 2 ladd li -4. 63 0. 0 ? == t 3 ladd li -4. 64 0. 0 0
+    ? == t 1 ladd li 4. 62 0. 0 ? == t 2 ladd li -4. 63 0. 0 Se == t 3 ladd li -4. 64 0. 0
     ! 33 I _nu_round _nu_clamp @f 0 0. 100.
     lsort li } 0 }
 
@@ -232,16 +231,16 @@
   ! 40 lv
   = no lN lini no
   lpush no 0. 70 dd 0
-  ? hs { ? < p sl lpush no 0. 71 - / p sl 1. m lpush no 0. 72 0. m } 0
+  Se hs ? < p sl lpush no 0. 71 - / p sl 1. m lpush no 0. 72 0. m
   = rr _nu_round r
   ? < r 30. lpush no 0. 73 rr 0 ? < r 40. lpush no 0. 74 rr 0 ? > r 70. lpush no 0. 12 rr 0 lpush no 0. 75 rr 0
-  ? >= lu 0 lpush no 0. ? lu 76 77 0. 0 0
+  Se >= lu 0 lpush no 0. ? lu 76 77 0. 0
   ! 44 0
   ? == lv 0 { ! 41 0 ! 42 1 ! 43 0 0 }
   ? && == lu 0 <= dd -0.15 { ! 41 1 ! 42 2 ! 43 1 0 }
   ? && != lu 0 || <= dd -0.08 < r 35. {
       ! 44 1 ! 42 0 ! 43 2 ! 41 ? < r 30. 2 3
-      ? < @ 31 25 { ! 43 3 ! 42 1 ! 41 4 lpush no 0. 78 0. 0 } 0 }
+      Se < @ 31 25 { ! 43 3 ! 42 1 ! 41 4 lpush no 0. 78 0. 0 } }
     { ! 41 ? == lu 1 5 6 ! 42 1 ! 43 + 10 lv 0 }
   # 0–100: desconto + sobrevenda, com a tendência longa a favor
   = sa _nu_clamp * * -1. dd 200. 0. 60.
@@ -253,7 +252,7 @@
 
 # níveis-chave (levels): candidatos [preço, nome, peso]; nomes 1..7 como em pnome
 : nadd ifii>i cr x c w {
-  ? && _nu_fin x > x 0. { = q + + cr 1 * @ cr 3 !f q x ! + q 1 c ! + q 2 w ! cr + @ cr 1 0 } 0 }
+  Se && fin x > x 0. { = q + + cr 1 * @ cr 3 !f q x ! + q 1 c ! + q 2 w ! cr + @ cr 1 } }
 # ordena os candidatos por preço a subir, estável
 : nsort i>i cr {
   = n @ cr = i 1
@@ -263,14 +262,13 @@
     W && >= j 0 > @f + + cr 1 * j 3 kk {
       = s + + cr 1 * j 3 ! + s 3 @ s ! + s 4 @ + s 1 ! + s 5 @ + s 2 = j - j 1 }
     = s + + cr 1 * + j 1 3 ! s t0 ! + s 1 t1 ! + s 2 t2
-    = i + i 1 }
-  0 }
+    = i + i 1 } }
 # dos níveis juntos, os abaixo de lim (dir 1, do mais alto para baixo) ou acima (dir 0, a subir); os 3 primeiros
 : escolhe iiif>i jt u dir lim {
   = tt lT ! tt 0
   = j 0 W < j @ jt {
     = m + + jt 1 * j 4 = x @f m
-    ? ? dir < x lim > x lim { ! + + tt 1 @ tt m ! tt + @ tt 1 0 } 0
+    Se ? dir < x lim > x lim { ! + + tt 1 @ tt m ! tt + @ tt 1 }
     = j + j 1 }
   = i 1 W < i @ tt {
     = t @ + + tt 1 i = kx @f t
@@ -279,22 +277,21 @@
     ! + + tt 2 j t
     = i + i 1 }
   ! u ? > @ tt 3 3 @ tt
-  = j 0 W < j @ u { ! + + u 1 j @ + + tt 1 j = j + j 1 }
-  0 }
+  = j 0 W < j @ u { ! + + u 1 j @ + + tt 1 j = j + j 1 } }
 : niveis >i {
   = v @ 1 = n @ 2 = p @f 10
   = cr lR lini cr
-  ? >= n 20 nadd cr sma v n 20 1 1 0
-  ? >= n 50 nadd cr sma v n 50 2 2 0
-  ? >= n 200 nadd cr sma v n 200 3 3 0
+  Se >= n 20 nadd cr sma v n 20 1 1
+  Se >= n 50 nadd cr sma v n 50 2 2
+  Se >= n 200 nadd cr sma v n 200 3 3
   nadd cr @f 53 4 3
   nadd cr @f 54 5 3
   # topos e fundos recentes: extremos locais (±5 sessões) nos últimos ~6 meses
   = i ? > 5 - n 130 5 - n 130
   W < i - n 5 {
     = x @f + v i
-    ? extremo v i 1 nadd cr x 6 1 0
-    ? extremo v i 0 nadd cr x 7 1 0
+    Se extremo v i 1 nadd cr x 6 1
+    Se extremo v i 0 nadd cr x 7 1
     = i + i 1 }
   nsort cr
   # juntar níveis a menos de 1,5% uns dos outros (fica o de maior peso; os pesos somam-se)
@@ -304,7 +301,7 @@
     = q + + cr 1 * j 3 = x @f q = c @ + q 1 = w @ + q 2
     = m + + jt 1 * - @ jt 1 4
     ? && > @ jt 0 < Ab - / x @f m 1. 0.015 {
-        ? > w @ + m 3 { !f m x ! + m 1 c ! + m 3 w 0 } 0
+        Se > w @ + m 3 { !f m x ! + m 1 c ! + m 3 w }
         ! + m 2 + @ + m 2 w 0 }
       { = m + + jt 1 * @ jt 4 !f m x ! + m 1 c ! + m 2 w ! + m 3 w ! jt + @ jt 1 0 }
     = j + j 1 }
@@ -326,39 +323,38 @@
   = pl lP ! pl 0
   ! 51 0
   ? && >= lh 58 >= md 58 {
-      ? > r 72. { ! 47 0 ! 48 0 ! 49 1 ! 50 0 ? s1 plano pl 1 @f s1 0 }
-        { ! 47 1 ! 48 1 ! 49 0 ! 50 1 plano pl 2 p ? s1 plano pl 3 @f s1 0 }
+      ? > r 72. { ! 47 0 ! 48 0 ! 49 1 ! 50 0 Se s1 plano pl 1 @f s1 }
+        { ! 47 1 ! 48 1 ! 49 0 ! 50 1 plano pl 2 p Se s1 plano pl 3 @f s1 }
       ! 51 ? s2 s2 s1 0 }
   ? && && >= lh 58 @ 44 >= md 25 {
       ! 47 2 ! 48 2 ! 49 0 ! 50 2
       plano pl 4 p
-      ? s1 plano pl 5 @f s1 0
-      ? s2 plano pl 5 @f s2 ? r1 plano pl 6 @f r1 0
+      Se s1 plano pl 5 @f s1
+      ? s2 plano pl 5 @f s2 Se r1 plano pl 6 @f r1
       ! 51 ? s3 s3 ? s2 s2 s1 0 }
   ? >= lh 58 {
       ! 47 3 ! 48 ? < md 25 3 4 ! 49 1 ! 50 ? < md 25 3 4
-      ? s1 plano pl ? < md 25 7 8 @f s1 0
-      ? > @f 11 p plano pl 9 @f 11 0
+      Se s1 plano pl ? < md 25 7 8 @f s1
+      Se > @f 11 p plano pl 9 @f 11
       ! 51 ? s2 s2 s1 0 }
   ? >= lh 42 {
       ! 47 4 ! 48 5 ! 49 1 ! 50 5
-      ? s1 plano pl 10 @f s1 0
-      ? r1 plano pl 11 @f r1 0 0 }
+      Se s1 plano pl 10 @f s1
+      Se r1 plano pl 11 @f r1 }
   ? >= md 42 {
       ! 47 5 ! 48 6 ! 49 1 ! 50 6
-      ? && @ 30 > @f 29 p plano pl 12 @f 29 ? r1 plano pl 12 @f r1 0 0 }
+      ? && @ 30 > @f 29 p plano pl 12 @f 29 Se r1 plano pl 12 @f r1 0 }
     { ! 47 6 ! 48 7 ! 49 2 ! 50 7
-      ? && @ 13 > @f 12 p plano pl 13 @f 12 ? r1 plano pl 13 @f r1 0
-      ? s1 plano pl 14 @f s1 0 0 }
-  0 }
+      ? && @ 13 > @f 12 p plano pl 13 @f 12 Se r1 plano pl 13 @f r1
+      Se s1 plano pl 14 @f s1 } }
 
 # ---------- números ----------
 # um real no JSON, como o JSON.stringify (NaN e ±Infinity saem null), mas o -0 sai "-0"
-: pnum f>i x ? ~ _nu_fin x "null" { ? < Bh x 0 P '- 0 ? == x 0. P '0 _nu_pnz Ab x 46 }
+: pnum f>i x ? ~ fin x "null" { Se < Bh x 0 P '- ? == x 0. P '0 _nu_pnz Ab x 46 }
 : pnul if>i h x ? h pnum x "null"
 # pct do JS: (x >= 0 ? '+' : '') + (x * 100).toFixed(1).replace('.', ',') + '%' (o toFixed arredonda o valor exato de x*100;
 # -0.04 dá "-0.0" e -0 dá "0.0")
-: pct f>i x { ? >= x 0. P '+ 0 _nu_fixos * x 100. 1 44 P '% }
+: pct f>i x { Se >= x 0. P '+ _nu_fixos * x 100. 1 44 P '% }
 # a classe do riskOf para uma volatilidade (não nula): 1 low, 2 mid, 3 high, 4 xhigh
 : rclass f>i vo ? < vo 0.2 1 ? < vo 0.4 2 ? < vo 0.7 3 4
 
@@ -376,55 +372,55 @@
   ? == c 8 "Média de 50 dias a inclinar para baixo"
   ? == c 9 { "Último mês: " pct x }
   ? == c 10 { "Últimos 3 meses: " pct x }
-  ? == c 11 { "RSI " _nu_ps x ": muito esticado, risco de correção" }
-  ? == c 12 { "RSI " _nu_ps x ": sobrecomprado" }
-  ? == c 13 { "RSI " _nu_ps x ": momento saudável" }
-  ? == c 14 { "RSI " _nu_ps x ": momento fraco" }
-  ? == c 15 { "RSI " _nu_ps x ": sobrevendido, pode ressaltar" }
+  ? == c 11 { `RSI { _nu_ps x }: muito esticado, risco de correção` }
+  ? == c 12 { `RSI { _nu_ps x }: sobrecomprado` }
+  ? == c 13 { `RSI { _nu_ps x }: momento saudável` }
+  ? == c 14 { `RSI { _nu_ps x }: momento fraco` }
+  ? == c 15 { `RSI { _nu_ps x }: sobrevendido, pode ressaltar` }
   ? == c 16 "MACD positivo e a acelerar"
   ? == c 17 "MACD positivo"
   ? == c 18 "MACD negativo e a piorar"
   ? == c 19 "MACD negativo mas a melhorar"
-  ? == c 20 { pct x " abaixo do máximo de 6 meses" }
+  ? == c 20 { `{ pct x } abaixo do máximo de 6 meses` }
   ? == c 21 "Perto do máximo de 6 meses"
   ? == c 22 "Notícias recentes com tom positivo"
   "Notícias recentes com tom negativo"
 : txb ifi>i c x k
-  ? == c 30 { "RSI " _nu_ps x ": sobrevendido, ressalto provável" }
-  ? == c 31 { "RSI " _nu_ps x ": sem força" }
-  ? == c 32 { "RSI " _nu_ps x ": a ficar esticado" }
-  ? == c 33 { "RSI " _nu_ps x ": sobrecomprado, correção provável" }
+  ? == c 30 { `RSI { _nu_ps x }: sobrevendido, ressalto provável` }
+  ? == c 31 { `RSI { _nu_ps x }: sem força` }
+  ? == c 32 { `RSI { _nu_ps x }: a ficar esticado` }
+  ? == c 33 { `RSI { _nu_ps x }: sobrecomprado, correção provável` }
   ? == c 34 "MACD positivo mas a abrandar"
   ? == c 35 "MACD negativo mas a melhorar (pode virar)"
-  ? == c 36 { pct x " abaixo da média de 20 dias: muito esticado para baixo" }
-  ? == c 37 { pct x " acima da média de 20 dias: muito esticado para cima" }
+  ? == c 36 { `{ pct x } abaixo da média de 20 dias: muito esticado para baixo` }
+  ? == c 37 { `{ pct x } acima da média de 20 dias: muito esticado para cima` }
   ? == c 38 "Acima da média de 20 dias"
   ? == c 39 "Abaixo da média de 20 dias"
   { "Últimos 5 dias: " pct x }
 # (no longo, `média de ${n} dias` também cobre o 'média de 200 dias' do JS: n vale 200 nesse caso)
 : txc ifi>i c x k
-  ? == c 50 { "Acima da média de " N k " dias: tendência longa positiva" }
-  ? == c 51 { "Abaixo da média de " N k " dias: tendência longa negativa" }
-  ? == c 52 { "A média de " N k " dias continua a subir" }
-  ? == c 53 { "A média de " N k " dias está a descer" }
+  ? == c 50 { `Acima da média de { N k } dias: tendência longa positiva` }
+  ? == c 51 { `Abaixo da média de { N k } dias: tendência longa negativa` }
+  ? == c 52 { `A média de { N k } dias continua a subir` }
+  ? == c 53 { `A média de { N k } dias está a descer` }
   ? == c 54 { "Último ano: " pct x }
-  ? == c 55 { pct x " abaixo do máximo do ano com a tendência longa a subir: desconto para ir comprando aos poucos" }
-  ? == c 56 { pct x " abaixo do máximo do ano e ainda em queda prolongada" }
+  ? == c 55 { `{ pct x } abaixo do máximo do ano com a tendência longa a subir: desconto para ir comprando aos poucos` }
+  ? == c 56 { `{ pct x } abaixo do máximo do ano e ainda em queda prolongada` }
   ? == c 57 "Perto do máximo do ano (sem desconto)"
-  ? == c 58 { pct x " abaixo do máximo do ano" }
-  ? == c 59 { "Pouco volátil (" _nu_ps x "%/ano): fácil de manter anos" }
-  ? == c 60 { "Muito volátil (" _nu_ps x "%/ano): difícil de aguentar a prazo" }
-  ? == c 61 { "Volátil (" _nu_ps x "%/ano): exige estômago a prazo" }
+  ? == c 58 { `{ pct x } abaixo do máximo do ano` }
+  ? == c 59 { `Pouco volátil ({ _nu_ps x }%/ano): fácil de manter anos` }
+  ? == c 60 { `Muito volátil ({ _nu_ps x }%/ano): difícil de aguentar a prazo` }
+  ? == c 61 { `Volátil ({ _nu_ps x }%/ano): exige estômago a prazo` }
   ? == c 62 "Diversificado (ETF): sem risco de uma só empresa"
   ? == c 63 "Uma só empresa: risco específico a prazo"
   "Especulativo: sem lucros nem dividendos por trás"
 : txd ifi>i c x k
-  ? == c 70 { pct x " face ao máximo do último ano" }
-  ? == c 71 { pct x " abaixo da média de " N k " dias" }
-  ? == c 72 { "Acima da média de " N k " dias" }
-  ? == c 73 { "RSI " _nu_ps x ": sobrevendido (vendeu-se demais)" }
-  ? == c 74 { "RSI " _nu_ps x ": perto de sobrevendido" }
-  ? == c 75 { "RSI " _nu_ps x ": normal" }
+  ? == c 70 { `{ pct x } face ao máximo do último ano` }
+  ? == c 71 { `{ pct x } abaixo da média de { N k } dias` }
+  ? == c 72 { `Acima da média de { N k } dias` }
+  ? == c 73 { `RSI { _nu_ps x }: sobrevendido (vendeu-se demais)` }
+  ? == c 74 { `RSI { _nu_ps x }: perto de sobrevendido` }
+  ? == c 75 { `RSI { _nu_ps x }: normal` }
   ? == c 76 "Tendência longa ainda a subir"
   ? == c 77 "Tendência longa a descer"
   "Médio prazo ainda muito fraco"
@@ -434,20 +430,20 @@
 : plab ii>i s hz plabc ? >= s 70 0 ? >= s 58 1 ? > s 42 2 ? > s 30 3 4 hz
 # o mesmo para a classe c (0 strong, 1 pos, 2 neutral, 3 neg, 4 weak)
 : plabc ii>i c hz {
-  "\"key\":\"" ? == c 0 "strong" ? == c 1 "pos" ? == c 2 "neutral" ? == c 3 "neg" "weak"
-  "\",\"tone\":\"" ptom ? < c 2 0 ? == c 2 1 2
-  "\",\"label\":\""
+  `"key":"{ ? == c 0 "strong" ? == c 1 "pos" ? == c 2 "neutral" ? == c 3 "neg" "weak" }`
+  `","tone":"{ ptom ? < c 2 0 ? == c 2 1 2 }`
+  `","label":"`
   ? == c 1 "Positivo" ? == c 2 "Neutro" ? && == c 3 < hz 2 "Negativo"
     ? == hz 0 { ? == c 0 "Sinal forte de subida" "Fraco — evitar por agora" }
     ? == hz 1 { ? == c 0 "Bom momento no curto prazo" "Pressão de venda" }
     ? == c 0 "Favorável para investir a prazo" ? == c 3 "Cautela" "Desfavorável a prazo"
-  "\"" }
+  `"` }
 : prisco >i prisk @ 52
 # o riskOf da classe k (0 na, 1 low, 2 mid, 3 high, 4 xhigh)
 : prisk i>i k {
-  "\"key\":\"" ? == k 0 "na" ? == k 1 "low" ? == k 2 "mid" ? == k 3 "high" "xhigh"
-  "\",\"label\":\"" ? == k 0 "—" ? == k 1 "Risco baixo" ? == k 2 "Risco médio" ? == k 3 "Risco alto" "Risco muito alto"
-  "\"" }
+  `"key":"{ ? == k 0 "na" ? == k 1 "low" ? == k 2 "mid" ? == k 3 "high" "xhigh" }`
+  `","label":"{ ? == k 0 "—" ? == k 1 "Risco baixo" ? == k 2 "Risco médio" ? == k 3 "Risco alto" "Risco muito alto" }`
+  `"` }
 : pnivel i>i lv ? == lv 0 "Sem desconto" ? == lv 1 "Desconto pequeno" ? == lv 2 "Bom desconto" "Desconto grande"
 : petiq i>i t ? == t 0 "Sem desconto" ? == t 1 "Barato, mas a cair" ? == t 2 "Oportunidade" ? == t 3 "Oportunidade (com cautela)" pnivel - t 10
 : pveredicto i>i c
@@ -466,9 +462,9 @@
   ? == a 0 "Manter — não perseguir" ? == a 1 "Comprar" ? == a 2 "Comprar aos poucos" ? == a 3 "Esperar que estabilize"
   ? == a 4 "Manter, reforçar nos suportes" ? == a 5 "Manter, sem reforçar" ? == a 6 "Esperar confirmação" "Evitar"
 : ptexto i>i t
-  ? == t 0 { "Tendência forte, mas esticado (RSI " _nu_ps _nu_round @f 16 "). Melhor comprar num recuo." }
+  ? == t 0 { `Tendência forte, mas esticado (RSI { _nu_ps _nu_round @f 16 }). Melhor comprar num recuo.` }
   ? == t 1 "Tendência a favor no médio e no longo prazo."
-  ? == t 2 { "Desconto de " pct @f 36 " face ao máximo com a tendência longa a subir." }
+  ? == t 2 { `Desconto de { pct @f 36 } face ao máximo com a tendência longa a subir.` }
   ? == t 3 "A tendência longa sobe, mas a queda atual ainda é forte."
   ? == t 4 "Tendência longa positiva, médio prazo indeciso."
   ? == t 5 "Sem tendência clara a longo prazo."
@@ -485,89 +481,85 @@
   P '[
   = i 0 W < i @ li {
     = q + + li 1 * i 4
-    ? i P ', 0
-    "{\"pts\":" pnum @f q ",\"txt\":\"" ptxt @ + q 1 @f + q 2 @ + q 3 "\"}"
+    Se i P ',
+    `\{"pts":{ pnum @f q },"txt":"{ ptxt @ + q 1 @f + q 2 @ + q 3 }"\}`
     = i + i 1 }
   P '] }
 : pniveis i>i u {
   = p @f 10
   P '[
   = i 0 W < i @ u {
-    ? i P ', 0
+    Se i P ',
     = m @ + + u 1 i = x @f m = c @ + m 1
-    "{\"price\":" pnum x ",\"label\":\"" pnome ? && == c 7 > x p 8 ? && == c 6 < x p 9 c
-    "\",\"strong\":" pbool >= @ + m 2 4 ",\"dist\":" pnum - / x p 1. "}"
+    `\{"price":{ pnum x },"label":"{ pnome ? && == c 7 > x p 8 ? && == c 6 < x p 9 c }`
+    `","strong":{ pbool >= @ + m 2 4 },"dist":{ pnum - / x p 1. }\}`
     = i + i 1 }
   P '] }
 : pdesconto >i {
-  "\"dd\":" pnum @f 36 ",\"pos\":" pnum @f 37 ",\"hi\":" pnum @f 38 ",\"lo\":" pnum @f 39
+  `"dd":{ pnum @f 36 },"pos":{ pnum @f 37 },"hi":{ pnum @f 38 },"lo":{ pnum @f 39 }`
   = lv @ 40
-  ",\"level\":\"" ? == lv 0 "none" ? == lv 1 "small" ? == lv 2 "good" "deep"
-  "\",\"levelLabel\":\"" pnivel lv
-  "\",\"verdict\":\"" pveredicto @ 41
-  "\",\"tone\":\"" ptom @ 42
-  "\",\"tag\":\"" petiq @ 43
-  "\",\"opp\":" pbool @ 44
-  ",\"score\":" pnum @f 45
-  ",\"notes\":["
+  `,"level":"{ ? == lv 0 "none" ? == lv 1 "small" ? == lv 2 "good" "deep" }`
+  `","levelLabel":"{ pnivel lv }`
+  `","verdict":"{ pveredicto @ 41 }`
+  `","tone":"{ ptom @ 42 }`
+  `","tag":"{ petiq @ 43 }`
+  `","opp":{ pbool @ 44 }`
+  `,"score":{ pnum @f 45 }`
+  `,"notes":[`
   = no lN = i 0
-  W < i @ no { = q + + no 1 * i 4 ? i P ', 0 P 34 ptxt @ + q 1 @f + q 2 @ + q 3 P 34 = i + i 1 }
-  "],\"longUp\":" ? == @ 46 1 "true" ? == @ 46 0 "false" "null" }
+  W < i @ no { = q + + no 1 * i 4 Se i P ', P 34 ptxt @ + q 1 @f + q 2 @ + q 3 P 34 = i + i 1 }
+  `],"longUp":` ? == @ 46 1 "true" ? == @ 46 0 "false" "null" }
 : pconselho >i {
   = k @ 47
-  "\"key\":\"" ? == k 0 "hold" ? == k 1 "buy" ? == k 2 "scale" ? == k 3 "wait" ? == k 4 "neutral" ? == k 5 "turn" "avoid"
-  "\",\"action\":\"" pacao @ 48
-  "\",\"tone\":\"" ptom @ 49
-  "\",\"text\":\"" ptexto @ 50
-  ? && == @ 4 1 >= ? @ 34 @ 33 @ 31 50 " Bom para plano de poupança mensal na TR." 0
-  "\",\"plan\":["
+  `"key":"{ ? == k 0 "hold" ? == k 1 "buy" ? == k 2 "scale" ? == k 3 "wait" ? == k 4 "neutral" ? == k 5 "turn" "avoid" }`
+  `","action":"{ pacao @ 48 }`
+  `","tone":"{ ptom @ 49 }`
+  `","text":"{ ptexto @ 50 }`
+  Se && == @ 4 1 >= ? @ 34 @ 33 @ 31 50 " Bom para plano de poupança mensal na TR."
+  `","plan":[`
   = pl lP = i 0
-  W < i @ pl { = q + + pl 1 * i 2 ? i P ', 0 "{\"t\":\"" pplano @ q "\",\"price\":" pnum @f + q 1 "}" = i + i 1 }
-  "],\"invalid\":" ? @ 51 pnum @f @ 51 "null"
+  W < i @ pl { = q + + pl 1 * i 2 `{ Se i P ', }\{"t":"{ pplano @ q }","price":{ pnum @f + q 1 }\}` = i + i 1 }
+  `],"invalid":{ ? @ 51 pnum @f @ 51 "null" }`
   = rk @ 52
-  ",\"size\":\"" ? == rk 1 "Pode ser o núcleo da carteira" ? == rk 2 "Até ~10% da carteira" ? == rk 3 "Até ~5% da carteira"
-    ? == rk 4 "Até ~2–3% da carteira" 0
-  "\"" }
+  `,"size":"` ? == rk 1 "Pode ser o núcleo da carteira" ? == rk 2 "Até ~10% da carteira" ? == rk 3 "Até ~5% da carteira"
+    Se == rk 4 "Até ~2–3% da carteira"
+  `"` }
 : pres >i {
   = sc @ 31
-  "{\"score\":" N sc "," plab sc 0 ",\"risk\":{" prisco "},\"reasons\":" prazoes lM
-  ",\"metrics\":{\"price\":" pnum @f 10 ",\"sma20\":" pnum @f 11 ",\"sma50\":" pnul @ 13 @f 12
-  ",\"sma200\":" pnul @ 30 @f 29 ",\"rsi\":" pnum @f 16 ",\"macd\":"
-  ? @ 17 { "{\"line\":" pnum @f 18 ",\"signal\":" pnum @f 19 ",\"hist\":" pnum @f 20 ",\"histPrev\":" pnum @f 21 "}" } "null"
-  ",\"ret1m\":" pnul @ 23 @f 22 ",\"ret3m\":" pnul @ 25 @f 24 ",\"vol\":" pnul @ 27 @f 26 ",\"drawdown\":" pnum @f 28
-  "},\"horizons\":{\"short\":{\"score\":" N @ 32 "," plab @ 32 1 ",\"reasons\":" prazoes lS
-  "},\"mid\":{\"score\":" N sc "," plab sc 0 ",\"reasons\":" prazoes lM
-  "},\"long\":" ? @ 34 { "{\"score\":" N @ 33 "," plab @ 33 2 ",\"reasons\":" prazoes lL ",\"discount\":" pnum @f 35 "}" } "null"
-  "},\"discount\":{" pdesconto "},\"levels\":{\"supports\":" pniveis lU ",\"resistances\":" pniveis lZ
-  "},\"advice\":{" pconselho "}}" }
+  `\{"score":{ N sc },{ plab sc 0 },"risk":\{{ prisco }\},"reasons":{ prazoes lM }`
+  `,"metrics":\{"price":{ pnum @f 10 },"sma20":{ pnum @f 11 },"sma50":{ pnul @ 13 @f 12 }`
+  `,"sma200":{ pnul @ 30 @f 29 },"rsi":{ pnum @f 16 },"macd":`
+  ? @ 17 { `\{"line":{ pnum @f 18 },"signal":{ pnum @f 19 },"hist":{ pnum @f 20 },"histPrev":{ pnum @f 21 }\}` } "null"
+  `,"ret1m":{ pnul @ 23 @f 22 },"ret3m":{ pnul @ 25 @f 24 },"vol":{ pnul @ 27 @f 26 },"drawdown":{ pnum @f 28 }`
+  `\},"horizons":\{"short":\{"score":{ N @ 32 },{ plab @ 32 1 },"reasons":{ prazoes lS }`
+  `\},"mid":\{"score":{ N sc },{ plab sc 0 },"reasons":{ prazoes lM }`
+  `\},"long":{ ? @ 34 { `\{"score":{ N @ 33 },{ plab @ 33 2 },"reasons":{ prazoes lL },"discount":{ pnum @f 35 }\}` } "null" }`
+  `\},"discount":\{{ pdesconto }\},"levels":\{"supports":{ pniveis lU },"resistances":{ pniveis lZ }`
+  `\},"advice":\{{ pconselho }\}\}` }
 
 # ---------- o lote ----------
 # uma série: filtra os fechos (closes.filter(x => Number.isFinite(x) && x > 0)) e analisa-a
 : serie ii>i c len {
-  = v @ 8 = n 0 = i 0
-  W < i len {
+  = v @ 8 = n 0 L i len {
     = w @ + c i
-    ? && != & >> w 52 2047 2047 > @f + c i 0. { ! + v n w = n + n 1 } 0
-    = i + i 1 }
+    Se && != & >> w 52 2047 2047 > @f + c i 0. { ! + v n w = n + n 1 } }
   ! 1 v ! 2 n
   ? < n 30 "null" { metricas medio curto longo desconto niveis conselho pres } }
 : lote i>i b {
   = ns @ + b 1
-  = mx 1 = q + b 2 = s 0
-  W < s ns { = len @ q = mx ? > len mx len mx = q + + q 5 len = s + s 1 }
+  = mx 1 = q + b 2 L s ns { = len @ q = mx ? > len mx len mx = q + + q 5 len }
   ! 8 A mx
   P '[
-  = q + b 2 = s 0
-  W < s ns {
+  = q + b 2 L s ns {
     = len @ q
     ! 4 @ + q 1 ! 3 @ + q 2 ! 5 @ + q 3 ! 6 @ + q 4
-    ? s P ', 0
+    Se s P ',
     serie + q 5 len
-    = q + + q 5 len = s + s 1 }
+    = q + + q 5 len }
   P ']
   0 }
 # uma palavra de 64 bits do stdin (little-endian)
-: rw >i { = v 0 = j 0 W < j 8 { = v | v << & R 255 * 8 j = j + j 1 } v }
+: rw >i { = v 0 L j 8 = v | v << & R 255 * 8 j v }
 # prepara as tabelas da fase C (noticias.onda); sem entrada não faz mais nada (o anfitrião chama então as funções
 # com os dados já na memória: o `lote` e as da fase C)
 : main >i {

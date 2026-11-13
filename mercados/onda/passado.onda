@@ -3,7 +3,7 @@
 # dos fechos válidos (a filtragem é a mesma para todos os prefixos), sem cópias nem JSON, e só até à chave do
 # conselho (é tudo o que o teste usa). As somas de acc e per fazem-se pela mesma ordem que no JS, ao bit.
 
-: nova >i "{\"n21\":0,\"s21\":0,\"h21\":0,\"x21\":0,\"nx21\":0,\"n63\":0,\"s63\":0,\"h63\":0,\"x63\":0,\"nx63\":0}"
+: nova >i `\{"n21":0,"s21":0,"h21":0,"x21":0,"nx21":0,"n63":0,"s63":0,"h63":0,"x63":0,"nx63":0\}`
 
 # ---------- benchFn: o índice data → fecho da referência ----------
 # O JS faz um Map (cada data na posição da 1.ª vez, com o fecho da última) e o near(d): a data exata, ou o fecho da
@@ -13,20 +13,19 @@
 # Índice em M[62]: [ng, grupos, nu, corridos]; grupos = ng × [data, fecho] por data; corridos = nu × [máximo, fecho]
 : bix i>i b {
   = nb @ b
-  = e A + nb 1 = q + b 1 = j 0
-  W < j nb { ! + e j q = q + + q 3 @ + q 2 = j + j 1 }
+  = e A + nb 1 = q + b 1 L j nb { ! + e j q = q + + q 3 @ + q 2 }
   # as entradas com texto, ordenadas por data (estável)
   = o A + nb 1 = no 0
-  = j 0 W < j nb { ? @ @ + e j { ! + o no j = no + no 1 } 0 = j + j 1 }
+  L j nb Se @ @ + e j { ! + o no j = no + no 1 }
   # inserção binária, estável (as datas iguais ficam pela ordem em que vêm); já por ordem, 1 comparação por data
   = i 1
   W < i no {
     = x @ + o i = kx + @ + e x 2
-    ? > _tx_cmp16 + @ + e @ + o - i 1 2 kx 0 {
+    Se > _tx_cmp16 + @ + e @ + o - i 1 2 kx 0 {
         = lo 0 = hi - i 1
         W < lo hi { = md >> + lo hi 1 ? > _tx_cmp16 + @ + e @ + o md 2 kx 0 = hi md = lo + md 1 }
         = j i W > j lo { ! + o j @ + o - j 1 = j - j 1 }
-        ! + o lo x } 0
+        ! + o lo x }
     = i + i 1 }
   # grupos de datas iguais: a 1.ª posição e o fecho da última
   = g A + * 2 no 2 = pr A + nb 1 = ng 0
@@ -43,12 +42,12 @@
   W && go < j nb {
     = en @ + e j
     ? @ en {
-        ? @ + pr j {
+        Se @ + pr j {
             = kx + en 2
             = mx ? ? mx > _tx_cmp16 kx mx 0 1 kx mx
             # o fecho é o da última vez desta data: procura-o nos grupos
             = uq + u * 2 nu ! uq mx !f + uq 1 bgrupo g ng kx
-            = nu + nu 1 } 0 }
+            = nu + nu 1 } }
       = go 0
     = j + j 1 }
   = ix A 4 ! ix ng ! + ix 1 g ! + ix 2 nu ! + ix 3 u
@@ -90,11 +89,11 @@
 : rsii ii>f s n {
   = v @ 1
   # um prefixo mais curto do que o anterior (com um warm negativo, o slice do JS conta do fim): recomeça
-  ? > @ s n ! s 0 0
-  ? == @ s 0 {
+  Se > @ s n ! s 0
+  Se == @ s 0 {
     = g 0. = l 0.
     = i 1 W <= i 14 { = d - @f + v i @f + v - i 1 ? >= d 0. { = g + g d 0 } { = l - l d 0 } = i + i 1 }
-    !f + s 1 / g 14. !f + s 2 / l 14. ! s 15 } 0
+    !f + s 1 / g 14. !f + s 2 / l 14. ! s 15 }
   = g @f + s 1 = l @f + s 2 = i @ s
   W < i n {
     = d - @f + v i @f + v - i 1
@@ -105,21 +104,21 @@
   ? == l 0. ? == g 0. 50. 100. - 100. / 100. + 1. / g l }
 : macdi ii>i s n {
   ! 17 0
-  ? > @ + s 3 n ! + s 3 0 0
-  ? >= n 35 {
+  Se > @ + s 3 n ! + s 3 0
+  Se >= n 35 {
     = v @ 1
     = k1 / 2. 13. = c1 - 1. k1
     = k2 / 2. 27. = c2 - 1. k2
     = k3 / 2. 10. = c3 - 1. k3
-    ? == @ + s 3 0 {
-      = a 0. = i 0 W < i 12 { = a + a @f + v i = i + i 1 } = a / a 12.
+    Se == @ + s 3 0 {
+      = a 0. L i 12 = a + a @f + v i = a / a 12.
       = i 12 W < i 26 { = a + * @f + v i k1 * a c1 = i + i 1 }
-      = b 0. = i 0 W < i 26 { = b + b @f + v i = i + i 1 } = b / b 26.
+      = b 0. L i 26 = b + b @f + v i = b / b 26.
       = ln - a b
       = sg + 0. ln
       = i 26 W < i 34 { = a + * @f + v i k1 * a c1 = b + * @f + v i k2 * b c2 = ln - a b = sg + sg ln = i + i 1 }
       = sg / sg 9.
-      !f + s 4 a !f + s 5 b !f + s 6 ln !f + s 7 sg !f + s 8 ln !f + s 9 sg ! + s 3 34 } 0
+      !f + s 4 a !f + s 5 b !f + s 6 ln !f + s 7 sg !f + s 8 ln !f + s 9 sg ! + s 3 34 }
     = a @f + s 4 = b @f + s 5 = ln @f + s 6 = sg @f + s 7 = lp @f + s 8 = sp @f + s 9 = i @ + s 3
     W < i n {
       = lp ln = sp sg
@@ -129,7 +128,7 @@
       = sg + * ln k3 * sg c3
       = i + i 1 }
     !f + s 4 a !f + s 5 b !f + s 6 ln !f + s 7 sg !f + s 8 lp !f + s 9 sp ! + s 3 i
-    ! 17 1 !f 18 ln !f 19 sg !f 20 - ln sg !f 21 - lp sp 0 } 0 }
+    ! 17 1 !f 18 ln !f 19 sg !f 20 - ln sg !f 21 - lp sp } }
 : voli ii>f s n {
   = v @ 1 = lg @ + s 10
   = j @ + s 11 W < j n { ? j !f + lg j Lg / @f + v j @f + v - j 1 0. = j + j 1 } ! + s 11 j
@@ -165,8 +164,7 @@
   = ca @ + b 7
   # os fechos válidos (o filtro do analyse) e quantos há em cada prefixo
   = vb A + n 1 = pc A + n 2 = m 0
-  = j 0
-  W < j n { ! + pc j m = w @ + ca j ? && != & >> w 52 2047 2047 > @f + ca j 0. { ! + vb m w = m + m 1 } 0 = j + j 1 }
+  L j n { ! + pc j m = w @ + ca j Se && != & >> w 52 2047 2047 > @f + ca j 0. { ! + vb m w = m + m 1 } }
   ! + pc n m
   ! 1 vb ! 3 @ + b 2 ! 4 @ + b 1 ! 5 0 !f 6 0.
   = wv @f + b 3 = wm ? || == wv 0. != wv wv 200. wv
@@ -174,23 +172,23 @@
   # quantos dias (um passo que não faz avançar o i deixava o JS num ciclo sem fim: aqui é o erro 2)
   = i wm = fim - F n 21. = nd 0
   ! 61 0
-  W && < i fim == @ 61 0 { = nd + nd 1 = i2 + i sp ? <= i2 i ! 61 2 0 = i i2 }
+  W && < i fim == @ 61 0 { = nd + nd 1 = i2 + i sp Se <= i2 i ! 61 2 = i i2 }
   = li A + 1 * 2 nd ! li 0
   = es A 12 ! + es 10 A + m 1
   = i wm
   W && < i fim == @ 61 0 {
     = k achave es @ + pc _nu_relidx + i 1. n
-    ? >= k 0 { = q + + li 1 * 2 @ li !f q i ! + q 1 k ! li + @ li 1 } 0
+    Se >= k 0 { = q + + li 1 * 2 @ li !f q i ! + q 1 k ! li + @ li 1 }
     = i + i sp }
   ! + b 99 li
   # os pares que pedem a referência ao anfitrião (modo 2), pela ordem em que o JS a chama
   = pa A + 1 * 4 @ li ! pa 0
-  ? == @ + b 6 2 {
+  Se == @ + b 6 2 {
     = j 0
     W < j @ li {
       = x @f + + li 1 * 2 j
-      = h 21 W <= h 63 { ? < + x F h F n { = q + + pa 1 * 2 @ pa !f q x ! + q 1 h ! pa + @ pa 1 } 0 = h + h 42 }
-      = j + j 1 } } 0
+      = h 21 W <= h 63 { Se < + x F h F n { = q + + pa 1 * 2 @ pa !f q x ! + q 1 h ! pa + @ pa 1 } = h + h 42 }
+      = j + j 1 } }
   ! + b 100 pa
   = pv A + 1 * 4 @ pa ! + b 101 pv
   @ 61 }
@@ -207,33 +205,30 @@
     = x @f + + li 1 * 2 j = k @ + + + li 1 * 2 j 1
     = ac + + b 10 * k 11
     # acc[k] || (acc[k] = newAcc()); 2 = mexida (o anfitrião copia-a de volta)
-    ? ~ @ ac { = z 1 W <= z 10 { !f + ac z 0. = z + z 1 } ! + + b 92 @ + b 91 k ! + b 91 + @ + b 91 1 } 0
+    Se ~ @ ac { = z 1 W <= z 10 { !f + ac z 0. = z + z 1 } ! + + b 92 @ + b 91 k ! + b 91 + @ + b 91 1 }
     ! ac 2
     = bu || == k 1 == k 2
     = h 21 = o 1
     W <= h 63 {
-      ? < + x F h F n {
+      Se < + x F h F n {
           = f - - / _nu_at cf n + x F h _nu_at cf n x 1. cost
           !f + ac o + @f + ac o 1.
           !f + ac + o 1 + @f + ac + o 1 f
-          ? || && bu > f 0. && == k 6 < f 0. { !f + ac + o 2 + @f + ac + o 2 1. 0 } 0
+          Se || && bu > f 0. && == k 6 < f 0. !f + ac + o 2 + @f + ac + o 2 1.
           = tb ? == md 1 bval bdia dt x bdia dt + x F h ? == md 2 { = r @ + pv * 2 pi !f 59 @f + + pv * 2 pi 1 = pi + pi 1 r } 0
-          ? tb { = bb @f 59 !f + ac + o 3 + @f + ac + o 3 - f bb !f + ac + o 4 + @f + ac + o 4 1. 0 } 0
-          ? == h 63 {
-              ? bu { !f + b 87 + @f + b 87 1. !f + b 88 + @f + b 88 f 0 } 0
-              ? == k 6 { !f + b 89 + @f + b 89 1. !f + b 90 + @f + b 90 f 0 } 0 } 0 } 0
+          Se tb { = bb @f 59 !f + ac + o 3 + @f + ac + o 3 - f bb !f + ac + o 4 + @f + ac + o 4 1. }
+          Se == h 63 {
+              Se bu { !f + b 87 + @f + b 87 1. !f + b 88 + @f + b 88 f }
+              Se == k 6 { !f + b 89 + @f + b 89 1. !f + b 90 + @f + b 90 f } } }
       = h + h 42 = o + o 5 }
-    = j + j 1 }
-  0 }
+    = j + j 1 } }
 # summarize: b = [ne] e ne × [n21 s21 h21 x21 nx21 n63 s63 h63 x63 nx63]; JSON [{n, avg21, ...}, ...] pela mesma ordem
 : pdiv ff>i a n ? || == n 0. != n n "null" pj / a n
 : resumo i>i b {
   = ne @ b P '[
-  = j 0
-  W < j ne {
+  L j ne {
     = q + + b 1 * j 10
-    ? j P ', 0
-    "{\"n\":" pj @f q ",\"avg21\":" pdiv @f + q 1 @f q ",\"hit21\":" pdiv @f + q 2 @f q ",\"ex21\":" pdiv @f + q 3 @f + q 4
-    ",\"n63\":" pj @f + q 5 ",\"avg63\":" pdiv @f + q 6 @f + q 5 ",\"hit63\":" pdiv @f + q 7 @f + q 5 ",\"ex63\":" pdiv @f + q 8 @f + q 9 "}"
-    = j + j 1 }
+    Se j P ',
+    `\{"n":{ pj @f q },"avg21":{ pdiv @f + q 1 @f q },"hit21":{ pdiv @f + q 2 @f q },"ex21":{ pdiv @f + q 3 @f + q 4 }`
+    `,"n63":{ pj @f + q 5 },"avg63":{ pdiv @f + q 6 @f + q 5 },"hit63":{ pdiv @f + q 7 @f + q 5 },"ex63":{ pdiv @f + q 8 @f + q 9 }\}` }
   P '] 0 }
