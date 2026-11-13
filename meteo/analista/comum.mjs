@@ -35,4 +35,12 @@ export async function kvPut(key, value, { ttl } = {}) {
     if (!r.ok || !b || !b.success) throw new Error(`Cloudflare: HTTP ${r.status} a gravar ${key} ${JSON.stringify(b && b.errors)}`);
 }
 
+/** Os nomes das chaves com este início (até 1000). */
+export async function kvList(prefix) {
+    const r = await fetch(`${KV()}/keys?limit=1000&prefix=${encodeURIComponent(prefix)}`, { headers: CF_AUTH });
+    const b = await r.json().catch(() => null);
+    if (!r.ok || !b || !b.success) throw new Error(`Cloudflare: HTTP ${r.status} a listar ${prefix}`);
+    return (b.result || []).map((k) => k.name);
+}
+
 export const arg = (name, def = null) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : def; };

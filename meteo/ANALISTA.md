@@ -83,10 +83,16 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
       **`numeros`** (obrigatório): o teu prognóstico em números para o ponto, um objeto por dia — hoje (se ainda faltar boa
       parte do dia), amanhã e depois — com `data`, `tmax` e `tmin` (°C), `chuva` (mm no dia) e `rajada` (km/h, a máxima).
       Ex.: `[{ "data": "2026-11-14", "tmax": 15.5, "tmin": 7, "chuva": 9, "rajada": 45 }, …]`. Parte do consenso (tabela de
-      16 dias) e muda-o só com razões concretas que ele não tem: o observado agora (estações, radar, avisos do utilizador),
-      o relevo do ponto, o erro conhecido dos modelos aqui (verificação e lições), o satélite. Sem razão, repete o consenso.
-      **A app junta estes números a meias com a média ponderada dos modelos** (máxima, mínima, chuva e rajadas de cada dia,
-      espalhadas pelas horas): não exageres para dar ênfase nem arredondes.
+      16 dias) e **corrige-o com o que ele não sabe**: o erro recente (secção «Previsto na véspera vs observado»: o que o
+      consenso dava e o que as estações mediram, dia a dia — se erra há dias para o mesmo lado, corrige nesse sentido), o
+      observado agora (estações, radar, avisos do utilizador), o relevo do ponto, as tuas lições e o satélite. Repetir o
+      consenso quando a verificação mostra um erro que se repete é errar com ele. Sem razão para um dia, repete o consenso.
+      Diz em `tecnica`, numa frase, onde te afastas do consenso e porquê.
+      **A app junta estes números à média ponderada dos modelos** (máxima, mínima, chuva e rajadas de cada dia, espalhadas
+      pelas horas) com um peso por variável que começa em 50% e **se afina sozinho**: o `dados.mjs` verifica os teus
+      números anteriores contra as estações e contra o consenso da mesma altura (secção «Os teus números anteriores») e o
+      peso sobe quando erras menos do que os modelos, desce quando erras mais (20% a 80%; `lib/nums.js`). Não exageres
+      para dar ênfase nem arredondes.
    4. **Publica**:
 
       ```bash

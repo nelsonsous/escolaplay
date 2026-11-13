@@ -1,13 +1,18 @@
 // Analista do tempo — valida a análise escrita pelo Claude e grava-a na base de dados (KV).
-//   NODE_USE_ENV_PROXY=1 node meteo/analista/publicar.mjs /tmp/meteo/analise-<id>.json [--model <id do modelo>] [--regiao-ok]
+//   NODE_USE_ENV_PROXY=1 node meteo/analista/publicar.mjs /tmp/meteo/analise-<id>.json [--model <id do modelo>] [--regiao-ok] [--sem-gravar]
+// (--sem-gravar: valida e mostra o que publicaria, sem gravar nada — para experimentar)
 // Recusa frases genéricas sobre a região (a análise é para o ponto exato), salvo --regiao-ok.
 // Grava analysis:<id> (a app lê-a em /api/analysis, só o telemóvel do local e o dono), o arquivo
 // analysis:<id>:<data-hora> (30 dias), lessons:<id> e conta a análise no dia (stats:<data de Lisboa>, painel "Utilização").
+// Junta à análise o consenso dos modelos desta corrida e o peso atual dos números do Claude (nums:<id>, do dados.mjs).
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { validateAnalysis, regionalPhrases } from '../lib/analysis.js';
 import { isOwnerPlace, placeKind, bumpStats, lisbon, STATS_TTL, KIND_PT } from '../lib/places.js';
-import { kvGet, kvPut, arg } from './comum.mjs';
+import { kvGet, kvPut as kvPutReal, arg } from './comum.mjs';
+
+const DRY = process.argv.includes('--sem-gravar');
+const kvPut = DRY ? async () => {} : kvPutReal;
 
 const file = process.argv[2];
 if (!file || file.startsWith('--')) { console.error('uso: publicar.mjs /tmp/meteo/analise-<id>.json'); process.exit(2); }
@@ -34,8 +39,12 @@ if (regional.length && !process.argv.includes('--regiao-ok')) {
     process.exit(1);
 }
 
+// o consenso dos modelos da mesma altura (para verificar depois os números do Claude contra ele) e o peso de cada variável
+const nm = await kvGet('nums:' + id).catch(() => null);
+const sameRun = nm?.consenso?.at && Math.abs(Date.now() - Date.parse(nm.consenso.at)) <= 3 * 36e5 && Array.isArray(nm.consenso.dias);
 const doc = { ...value, generatedAt: new Date().toISOString(), by: 'claude-agendado', model: arg('--model', 'claude'),
-    place: { id: place.id, name: place.name, lat: place.lat, lon: place.lon } };
+    place: { id: place.id, name: place.name, lat: place.lat, lon: place.lon },
+    ...(sameRun ? { consenso: nm.consenso.dias } : {}), ...(nm?.pesos ? { pesos: nm.pesos } : {}) };
 await kvPut('analysis:' + id, doc);
 await kvPut(`analysis:${id}:${doc.generatedAt.slice(0, 13)}`, doc, { ttl: 30 * 86400 });
 if (value.licoes.length) await kvPut('lessons:' + id, value.licoes);
@@ -43,4 +52,5 @@ if (value.licoes.length) await kvPut('lessons:' + id, value.licoes);
 const day = 'stats:' + lisbon().date;
 try { await kvPut(day, bumpStats(await kvGet(day), { kind: 'scheduled', guest: !isOwnerPlace(place) }), { ttl: STATS_TTL }); }
 catch (e) { console.error(`(contador do dia não gravado: ${e.message})`); }
-console.log(`Publicado: ${place.name} (${KIND_PT[placeKind(place)]}) — "${doc.titulo}" (${value.alertas.length} alertas, ${value.licoes.length} lições).`);
+console.log(`${DRY ? 'Válida (nada gravado)' : 'Publicado'}: ${place.name} (${KIND_PT[placeKind(place)]}) — "${doc.titulo}" (${value.alertas.length} alertas, ${value.licoes.length} lições; ` +
+    `números de ${value.numeros.length} dias${doc.pesos ? `, peso do Claude máx. ${Math.round(doc.pesos.tmax * 100)}% · mín. ${Math.round(doc.pesos.tmin * 100)}% · chuva ${Math.round(doc.pesos.chuva * 100)}%` : ''}${sameRun ? '' : '; sem o consenso desta corrida'}).`);

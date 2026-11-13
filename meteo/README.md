@@ -72,6 +72,20 @@ de tempo dos modelos vai para a verificação e as lições), verifica a anális
 agora, hoje, amanhã, próximos dias, tendência, alertas, satélite, incêndios, conselhos, fiabilidade, análise técnica) e
 guarda lições sobre o local para as seguintes.
 
+**Os números do Claude (1.21, 1.22).** A análise traz também o prognóstico em números para hoje, amanhã e depois
+(máxima, mínima, chuva do dia, rajada máxima). A app junta-os à média ponderada dos modelos, como mais um modelo — a
+meias no início; depois, com o peso que cada número ganha na verificação: a tarefa compara os números anteriores do
+Claude e o consenso da mesma altura com o que as estações mediram, e quem erra menos pesa mais (20% a 80%,
+[`lib/nums.js`](lib/nums.js)). Para o Claude não repetir os modelos, o resumo mostra-lhe o **previsto na véspera vs
+observado** dos últimos dias (ex.: máxima 0,8 °C abaixo, chuva observada a 59% da prevista). Nas próximas horas manda
+a observação: o ajuste entra aos poucos (5 h) e a máxima ou a mínima que já passaram não se mexem.
+
+**Probabilidade de chuva calibrada (1.22).** Medido contra 5 estações do IPMA e os aeroportos do Porto, Lisboa e Faro
+(11/2026): com a regra «um modelo dá ≥ 0,1 mm, logo chove», os modelos tinham chuva em 1,6 a 3,3 vezes mais horas do que
+as observadas, e quando a app dizia 96% chovia em 59% das horas. Agora cada modelo vota pela quantidade que dá
+(0,1 mm/h → 25%, 0,3 → 40%, 1 → 65%, 3 ou mais → 90%): quando a app diz 65%, chove em 65% das horas. O ícone de chuva
+de uma hora aparece a partir de 45%; entre 35% e 45% fica «possível» (chuvisco ou aguaceiros fracos).
+
 A análise é **sobre o ponto exato**: o resumo que o Claude recebe começa por `## O ponto` (coordenadas, altitude, relevo,
 o ponto do IPMA e as estações com distância, rumo e altitude) e pela tabela hora a hora das próximas 12 h ali; as regras
 pedem o que acontece no ponto, em mm, km/h e °C, com os sistemas regionais só como causa («a banda de chuva a 80 km a

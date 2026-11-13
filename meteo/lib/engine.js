@@ -4,7 +4,7 @@ import { DET_MODELS, ENS_MODELS, inPortugal, FIRMS, IPMA_MODEL, IPMA_MAX_KM, OBS
 import { analyzeRadar, RADAR, rainLabel, fmtMmh, fmtKm, dirName, radarAt, approachText } from './radar.js';
 import { learnWindow, mergeMemory, skillOf, factorsOf, factorAt, memoryInfo, metarWet, LEARN, LVARS, LEADS } from './learn.js';
 import {
-    isNum, clamp, r1, r0, wmean, wstd, wquantile, wmedian, robustMean, robustKeep, wfrac, haversine, bearing, compass,
+    isNum, clamp, r1, r0, wmean, wstd, wquantile, wmedian, robustMean, robustKeep, wfrac, wvote, rainVote, haversine, bearing, compass,
     WIND_FROM, vecDir, dewPoint, relHum,
 } from './stats.js';
 
@@ -453,6 +453,71 @@ function combineVer(parts) {
     }
     return Object.keys(res).length ? res : null;
 }
+/**
+ * O que se observou em cada dia (data local) nas estações perto, levado à altitude do ponto: máxima e mínima (dias com
+ * ≥ 20 horas de termómetro) e chuva do dia (≥ 20 horas de pluviómetro; lo/hi = a estação com menos e com mais).
+ * Com 3 ou mais estações fica a mediana ponderada (uma estação avariada não estraga); senão a média ponderada.
+ * A temperatura de uma só estação só conta se ela for representativa do ponto (perto e à mesma altitude: centerT false).
+ * stations: [{ w, series: [{ ms, temp?, precip1h? }], adjT?, centerT? }] → [{ date, tmax, tmin, nT, rain, rainLo, rainHi, nR }]
+ */
+export function observedDays(stations, { off = 0, nowMs = Date.now(), minHours = 20 } = {}) {
+    const per = new Map();
+    for (const s of stations || []) {
+        if (!(s?.w > 0) || !Array.isArray(s.series)) continue;
+        const days = new Map();
+        for (const o of s.series) {
+            if (!o || !isNum(o.ms) || o.ms > nowMs) continue;
+            const date = msToLocal(o.ms, off).slice(0, 10), h = Math.round(o.ms / 36e5);
+            let d = days.get(date);
+            if (!d) days.set(date, (d = { t: new Map(), r: new Map() }));
+            if (isNum(o.temp)) { const v = o.temp + (s.adjT || 0), c = d.t.get(h); d.t.set(h, c ? [Math.max(c[0], v), Math.min(c[1], v)] : [v, v]); }
+            if (isNum(o.precip1h) && o.precip1h >= 0 && Math.abs(o.ms - h * 36e5) <= 5 * 6e4) d.r.set(h, o.precip1h);
+        }
+        for (const [date, d] of days) {
+            const rec = { w: s.w, rep: s.centerT === false };
+            if (d.t.size >= minHours) { const v = [...d.t.values()]; rec.tmax = Math.max(...v.map((x) => x[0])); rec.tmin = Math.min(...v.map((x) => x[1])); }
+            if (d.r.size >= minHours) rec.rain = [...d.r.values()].reduce((a, b) => a + b, 0);
+            if (!isNum(rec.tmax) && !isNum(rec.rain)) continue;
+            if (!per.has(date)) per.set(date, []);
+            per.get(date).push(rec);
+        }
+    }
+    const mid = (arr, k) => (arr.length >= 3 ? wmedian(arr.map((r) => r[k]), arr.map((r) => r.w)) : wmean(arr.map((r) => r[k]), arr.map((r) => r.w)));
+    return [...per].sort(([a], [b]) => a.localeCompare(b)).map(([date, recs]) => {
+        const R = recs.filter((r) => isNum(r.rain));
+        let T = recs.filter((r) => isNum(r.tmax));
+        if (T.length < 2 && !T.some((r) => r.rep)) T = [];
+        return { date, tmax: T.length ? r1(mid(T, 'tmax')) : null, tmin: T.length ? r1(mid(T, 'tmin')) : null, nT: T.length,
+            rain: R.length ? r1(mid(R, 'rain')) : null, rainLo: R.length ? r1(Math.min(...R.map((r) => r.rain))) : null,
+            rainHi: R.length ? r1(Math.max(...R.map((r) => r.rain))) : null, nR: R.length };
+    });
+}
+// O que o consenso dos modelos dava na véspera (corridas de 1 dia antes) para cada dia já passado: máxima, mínima e chuva
+function hindcastDays(prev, models, { off = 0, nowMs }) {
+    const out = new Map(), H = prev?.hourly;
+    if (!H?.time?.length) return out;
+    const byDate = new Map();
+    H.time.forEach((t, i) => {
+        if (localToMs(t, off) > nowMs) return;
+        const date = t.slice(0, 10);
+        if (!byDate.has(date)) byDate.set(date, []);
+        byDate.get(date).push(i);
+    });
+    for (const [date, idx] of byDate) {
+        if (idx.length < 24) continue;
+        const tx = [], tn = [], wT = [], pr = [], wP = [];
+        for (const m of models) {
+            const T = H[`temperature_2m_previous_day1_${m.id}`], R = H[`precipitation_previous_day1_${m.id}`];
+            const tv = Array.isArray(T) ? idx.map((i) => T[i]).filter(isNum) : [], pv = Array.isArray(R) ? idx.map((i) => R[i]).filter(isNum) : [];
+            if (tv.length >= 20) { tx.push(Math.max(...tv)); tn.push(Math.min(...tv)); wT.push(m.meta.w * (m.fx?.t?.[1] ?? 1)); }
+            if (pv.length >= 20) { pr.push(pv.reduce((a, b) => a + b, 0)); wP.push(m.meta.w * (m.fx?.r?.[1] ?? 1) * (m.meta.wPrecip || 1)); }
+        }
+        if (tx.length < 2 && pr.length < 2) continue;
+        out.set(date, { tmax: tx.length >= 2 ? r1(wmean(tx, wT)) : null, tmin: tn.length >= 2 ? r1(wmean(tn, wT)) : null, rain: pr.length >= 2 ? r1(wmean(pr, wP)) : null });
+    }
+    return out;
+}
+
 function mergeSeries(...lists) {
     const map = new Map();
     for (const l of lists) for (const o of Array.isArray(l) ? l : []) if (o && isNum(o.ms) && isNum(o.temp)) map.set(o.ms, o);
@@ -469,15 +534,27 @@ const dayFrac = (h) => (h <= 5 ? 0 : h < 11 ? (h - 5) / 6 : h <= 17 ? 1 : h < 23
 const corrAt = (m, h) => m.corrDay * dayFrac(h) + m.corrNight * (1 - dayFrac(h));
 
 // ---------- códigos de tempo ----------
+// Uma hora leva ícone de chuva quando o consenso dá ≥ 0,1 mm e a probabilidade (calibrada: stats.js rainVote) chega a
+// 45%: assim as horas com chuva ficam 1,2× as observadas (com a regra antiga eram 1,9×) e acerta-se em mais horas.
+// Entre 35% e 45% (chove em cerca de 1 hora em cada 3) fica «possível»: chuvisco com céu encoberto, aguaceiros fracos
+// com abertas — nem chuva certa, nem só nuvens.
+export const RAIN_HOUR_P = 0.45, RAIN_MAYBE_P = 0.35;
+// o código de uma hora se chover: trovoada, neve, aguaceiros, chuvisco ou chuva, pela quantidade
+function wetCode(x) {
+    const snow = (x.snow ?? 0) > 0.05 || x.temp <= 1;
+    if (x.thunderVote >= 0.3 || (x.cape >= 800 && x.pop >= 0.5 && x.precip >= 0.5)) return 95;
+    if (snow) return x.showerVote >= 0.5 ? (x.precip >= 1 ? 86 : 85) : x.precip >= 2 ? 75 : x.precip >= 0.7 ? 73 : 71;
+    if (x.showerVote >= 0.5 || x.cape >= 400) return x.precip >= 4 ? 82 : x.precip >= 1 ? 81 : 80;
+    if (x.precip < 0.3 && (x.cloudLow ?? 0) >= 70) return 51;
+    return x.precip >= 4 ? 65 : x.precip >= 1 ? 63 : 61;
+}
+const rainMaybe = (x) => x.precip >= 0.1 && (x.pop ?? 0) >= RAIN_MAYBE_P && (x.pop ?? 0) < RAIN_HOUR_P;
 function hourCode(x) {
-    const wet = x.precip >= 0.1 && (x.pop ?? 0) >= 0.35;
-    if (wet) {
-        const snow = (x.snow ?? 0) > 0.05 || x.temp <= 1;
-        if (x.thunderVote >= 0.3 || (x.cape >= 800 && x.pop >= 0.5 && x.precip >= 0.5)) return 95;
-        if (snow) return x.showerVote >= 0.5 ? (x.precip >= 1 ? 86 : 85) : x.precip >= 2 ? 75 : x.precip >= 0.7 ? 73 : 71;
-        if (x.showerVote >= 0.5 || x.cape >= 400) return x.precip >= 4 ? 82 : x.precip >= 1 ? 81 : 80;
-        if (x.precip < 0.3 && (x.cloudLow ?? 0) >= 70) return 51;
-        return x.precip >= 4 ? 65 : x.precip >= 1 ? 63 : 61;
+    if (x.precip >= 0.1 && (x.pop ?? 0) >= RAIN_MAYBE_P) {
+        const c = wetCode(x);
+        // trovoada e neve mostram-se mesmo só «possíveis»; a chuva possível fica em aguaceiros fracos ou chuvisco
+        if (!rainMaybe(x) || c >= 95 || (c >= 71 && c <= 77) || c === 85 || c === 86) return c;
+        return (c >= 80 && c <= 82) || (x.cloud ?? 100) < 75 ? 80 : 51;
     }
     if (x.fog >= 0.6) return 45;
     const c = x.cloud ?? 50;
@@ -798,6 +875,10 @@ export function buildForecast(raw, opts = {}) {
     const skill = skillOf(memory, { today: todayDate });
     const { fx, ref: skillRef } = factorsOf(skill, P.models.map((m) => m.id), { official: P.models.filter((m) => m.meta.official).map((m) => m.id) });
     for (const m of P.models) { m.fx = fx[m.id]; m.factor = m.fx.t[1]; }
+    // 1c) Os dias já passados: o que se observou (estações, à altitude do ponto) e o que o consenso dava na véspera —
+    // para a análise do Claude ver o erro recente e afinar os seus números
+    const hind = hindcastDays(prevV, P.models, { off, nowMs });
+    const obsDays = observedDays(lst, { off, nowMs }).filter((d) => d.date < todayDate).slice(-7).map((d) => ({ ...d, model: hind.get(d.date) || null }));
 
     // 2) Consenso hora a hora
     const ensP = parseEns(raw.ens);
@@ -817,18 +898,18 @@ export function buildForecast(raw, opts = {}) {
         const cw = okW(codes, wR), cwSum = cw.reduce((a, b) => a + b, 0) || 1;
         const vote = (f) => codes.reduce((s, c, k) => s + (isNum(c) && f(c) ? cw[k] : 0), 0) / cwSum;
         const wetW = codes.reduce((s, c, k) => s + (isNum(c) && c >= 50 ? cw[k] : 0), 0);
-        // chuva ≥ 0,1 mm: voto de cada modelo; o IPMA vota com a sua probabilidade
+        // probabilidade de chuva: cada modelo vota pela quantidade que dá (rainVote); o IPMA vota com a sua probabilidade
         let pHit = 0, pW = 0;
         ms.forEach((m, k) => {
             if (!(wP[k] > 0)) return;
-            if (isNum(precs[k])) { pW += wP[k]; if (precs[k] >= 0.1) pHit += wP[k]; } else if (isNum(m.hp?.[i])) { pW += wP[k]; pHit += wP[k] * m.hp[i]; }
+            if (isNum(precs[k])) { pW += wP[k]; pHit += wP[k] * rainVote(precs[k]); } else if (isNum(m.hp?.[i])) { pW += wP[k]; pHit += wP[k] * m.hp[i]; }
         });
         const popDet = pW > 0 ? pHit / pW : null;
         let pop = popDet;
         const ei = ensHourIdx.get(time);
         if (ensP && ei != null) {
             const vals = ensP.members.map((m) => m.hp?.[ei]);
-            const pe = wfrac(vals, ensP.members.map((m) => m.w), 0.1);
+            const pe = wvote(vals, ensP.members.map((m) => m.w), rainVote);
             if (pe != null) pop = popDet == null ? pe : 0.6 * pe + 0.4 * popDet;
         }
         const x = {
@@ -911,6 +992,7 @@ export function buildForecast(raw, opts = {}) {
         if (isNum(x.vis) && x.vis < 1000) fog = Math.max(fog, 0.8);
         x.fog = Math.max(fog, x.fogVote >= 0.4 ? 0.7 : x.fogVote >= 0.2 ? 0.45 : 0);
         x.code = hourCode(x);
+        if (rainMaybe(x)) x.codeWet = wetCode(x); // se o radar ou um aviso disserem que chove mesmo: o código pela quantidade
     }
 
     // 4) Saída horária (72 h a partir da hora atual)
@@ -926,7 +1008,7 @@ export function buildForecast(raw, opts = {}) {
     const m15 = P.m15.map((time, j) => ({ time, ms: localToMs(time, off), j })).filter((s) => s.ms > nowMs - 15 * 6e4).slice(0, 8);
     const steps = m15.map(({ time, j }) => {
         const v = P.models.map((m) => m.m15[j]), w = P.models.map((m) => m.meta.w * m.fx.r[0] * (m.meta.wPrecip || 1));
-        return { time, precip: r1(wmean(v, w)) ?? 0, prob: r0((wfrac(v, w, 0.05) ?? 0) * 100) };
+        return { time, precip: r1(wmean(v, w)) ?? 0, prob: r0((wvote(v, w, (x) => rainVote(x * 4)) ?? 0) * 100) }; // mm em 15 min → mm/h
     });
     // 5b) Radar no ponto (RainViewer): imagens das últimas 2 h centradas no ponto (raw.radar de lib/data.js)
     const radar = raw.radar?.frames?.length && raw.radar.geo ? analyzeRadar({ ...raw.radar, nowMs, off }) : null;
@@ -1047,7 +1129,7 @@ export function buildForecast(raw, opts = {}) {
         time: msToLocal(nowMs, off), temp: r1(at('temp')), feels: r1(at('feels')), dew: r1(at('dew')), rh: r0(at('rh')), wind: r0(at('wind')), gust: r0(at('gust')), dir: r0(n.dir),
         pressure: r1(n.pressure), pressureTrend3h: nowIdx >= 3 && isNum(n.pressure) && isNum(H[nowIdx - 3].pressure) ? r1(n.pressure - H[nowIdx - 3].pressure) : null,
         cloud: r0(n.cloud), precip: r1(n.precip), code: n.code, isDay: !!n.isDay, uv: r1(n.uv), visibility: r0(n.vis),
-        obs: obsOut, correction,
+        obs: obsOut, correction, ...(isNum(n.codeWet) ? { codeWet: n.codeWet } : {}),
     };
     // o radar manda no "agora" e nos primeiros passos das próximas 2 h quando a imagem tem ≤ 20 min; depois volta aos modelos
     let nowcast = { steps, text: nowcastText(steps) };
@@ -1092,6 +1174,7 @@ export function buildForecast(raw, opts = {}) {
         models, ensemble: ensP ? { members: ensP.members.length, models: ensP.systems } : { members: 0, models: [] },
         now, nowcast, radar, hourly, daily: daily.map(stripInternal), indicators, warnings: warnings.map((w) => ({ ...w, here: warnHere(w, hourly) })),
         warnMissing: area ? missingWarnings(hourly, warnings, { elevation: targetElev }) : [],
+        observed: obsDays.length ? { days: obsDays } : null,
         fire, verification, learning, official, compare,
         local: localSummary(terrain, tAdj, H.slice(nowIdx, nowIdx + 72), H[nowIdx], shifts),
         analysis: raw.analysisMeta || null,
@@ -1226,15 +1309,15 @@ function buildCompare({ P, daily, ensDays, ensP, ipmaM, todayDate }) {
 const cap1 = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '');
 const stripInternal = (d) => { const { models, members, ...rest } = d; return { ...rest, models, members }; };
 
-// Frase para as próximas 2 h (passos de 15 min: chuva em mm/15 min e % de modelos com chuva)
+// Frase para as próximas 2 h (passos de 15 min: chuva em mm/15 min e probabilidade de chuva, calibrada)
 export function nowcastText(steps) {
     if (!steps.length) return '';
     const t = (s) => s.time.slice(11, 16);
-    const kind = steps.map((s) => (s.prob >= 50 && s.precip >= 0.05 ? 'sim' : s.prob >= 25 || s.precip >= 0.1 ? 'talvez' : 'nao'));
+    const kind = steps.map((s) => (s.prob >= STEP_P && s.precip >= 0.05 ? 'sim' : s.prob >= STEP_MAYBE || s.precip >= 0.1 ? 'talvez' : 'nao'));
     const inten = (list) => { const m = Math.max(...list.map((s) => s.precip)) * 4; return m >= 4 ? 'forte' : m >= 1 ? 'moderada' : 'fraca'; };
     const maxProb = Math.max(...steps.map((s) => s.prob));
     if (kind.every((k) => k === 'nao')) return 'Sem chuva prevista nas próximas 2 horas.';
-    if (!kind.includes('sim')) return `Possibilidade de chuva ${inten(steps)} nas próximas 2 horas (até ${maxProb}% dos modelos).`;
+    if (!kind.includes('sim')) return `Possibilidade de chuva ${inten(steps)} nas próximas 2 horas (probabilidade até ${maxProb}%).`;
     if (kind[0] === 'sim') {
         const i = kind.findIndex((k) => k !== 'sim');
         if (i < 0) return `Chuva ${inten(steps)} durante as próximas 2 horas.`;
@@ -1245,8 +1328,9 @@ export function nowcastText(steps) {
 }
 
 // ---------- radar no ponto e avisos do utilizador: o "agora" e as próximas 2 h ----------
-// Passo de 15 min combinado: chove (≥ 0,1 mm/h, prob ≥ 50%), talvez, ou não
-const stepKind = (s) => (s.prob >= 50 && s.precip >= 0.025 ? 'sim' : s.prob >= 25 || s.precip >= 0.1 ? 'talvez' : 'nao');
+// Passo de 15 min combinado: chove (≥ 0,1 mm/h, prob ≥ 45%), talvez, ou não
+const STEP_P = RAIN_HOUR_P * 100, STEP_MAYBE = 20;
+const stepKind = (s) => (s.prob >= STEP_P && s.precip >= 0.025 ? 'sim' : s.prob >= STEP_MAYBE || s.precip >= 0.1 ? 'talvez' : 'nao');
 const hh = (iso) => String(iso || '').slice(11, 16);
 
 // mm/h do radar no ponto num instante: o observado nas imagens até à última, depois a persistência (radar.ahead)
@@ -1292,9 +1376,9 @@ function radarVsModels(R, steps, hourly, off) {
         while (i > 0 && R.last2h[i - 1].mmh >= RADAR.wetMmh) i--;
         since = i === 0; rStart = R.last2h[i].time;
     } else if (R.approach) rStart = R.approach.time;
-    const wetStep = (x) => x.prob >= 50 && x.precip >= 0.05;
+    const wetStep = (x) => x.prob >= STEP_P && x.precip >= 0.05;
     const mNow = !!steps[0] && wetStep(steps[0]);
-    const mStart = steps.find(wetStep)?.time || (hourly || []).slice(1, 13).find((h) => (h.pop ?? 0) >= 50 && (h.precip ?? 0) >= 0.2)?.time || null;
+    const mStart = steps.find(wetStep)?.time || (hourly || []).slice(1, 13).find((h) => (h.pop ?? 0) >= STEP_P && (h.precip ?? 0) >= 0.2)?.time || null;
     const dur = (m) => (Math.abs(m) >= 90 ? `~${String(Math.round(Math.abs(m) / 30) / 2).replace('.', ',')} h` : `~${Math.round(Math.abs(m) / 5) * 5} min`);
     const rTxt = A.raining ? `o radar tem chuva no ponto ${since ? 'há mais de 2 h' : `desde as ${hh(rStart)}`}` : `o radar prevê a chegada às ${hh(rStart)}`;
     let lag = null, text;
@@ -1358,7 +1442,7 @@ const isWetCode = (c) => isNum(c) && c >= 50;
 // "agora" com o radar: chove → intensidade e código do radar; não chove → sem chuva (os modelos podiam dar)
 function radarNow(now, n, R) {
     const A = R.atPoint;
-    if (A.raining) { now.precip = Math.max(0.1, r1(A.mmh)); now.code = radarCode(A.mmh, now.code, now.temp); }
+    if (A.raining) { now.precip = Math.max(0.1, r1(A.mmh)); now.code = radarCode(A.mmh, now.codeWet ?? now.code, now.temp); }
     else if (isWetCode(now.code) || (now.precip ?? 0) >= 0.1) { now.precip = 0; now.code = dryCode(n, now.cloud); }
     now.rainSource = 'radar';
 }
@@ -1385,7 +1469,7 @@ export function withReport(fc, report, nowMs = Date.now()) {
     else if (k === 'nevoeiro') { now.code = 45; if (!(now.visibility < 1000)) now.visibility = 800; }
     else {
         now.precip = r1(mmh);
-        now.code = k === 'trovoada' ? 95 : k === 'granizo' ? 89 : k === 'chuva-forte' ? (fc.now.code >= 80 && fc.now.code <= 82 ? 82 : 65) : radarCode(mmh, fc.now.code >= 95 ? 61 : fc.now.code, fc.now.temp);
+        now.code = k === 'trovoada' ? 95 : k === 'granizo' ? 89 : k === 'chuva-forte' ? (fc.now.code >= 80 && fc.now.code <= 82 ? 82 : 65) : radarCode(mmh, fc.now.code >= 95 ? 61 : fc.now.codeWet ?? fc.now.code, fc.now.temp);
     }
     let last = -1;
     const steps = (fc.nowcast?.steps || []).map((s, i) => {
@@ -1496,50 +1580,69 @@ function ipmaArea(ipma, lat, lon) {
 
 // ---------- os números do Claude ----------
 // A análise do Claude traz o seu prognóstico para o ponto (máxima, mínima, chuva do dia, rajada máxima; hoje, amanhã e
-// depois). Entra a meias com a média ponderada dos modelos, como se fossem dois modelos: o Claude e a média dos outros.
-// Um número muito longe da média (engano) não entra; o ajuste espalha-se pelas horas do dia mantendo a forma da curva.
+// depois). Entra na previsão como mais um modelo ao lado da média ponderada dos outros: a meias, ou com o peso que cada
+// variável ganhou na verificação (lib/nums.js: claudeWeights, 20% a 80%). Um número muito longe da média (engano) não
+// entra; o ajuste espalha-se pelas horas do dia mantendo a forma da curva. Nas próximas horas manda a observação (a
+// correção das estações já está no consenso e decai em ~5 h): o ajuste do Claude entra aos poucos, e a máxima ou a mínima
+// de hoje que já passaram não se mexem.
 export const CLAUDE_W = 0.5;
 export const CLAUDE_MAX_AGE_H = 16; // 2× por dia (07:34 e 17:34): a análise seguinte chega em ≤ 14 h
-const CLAUDE_TMAX_DIFF = 8, CLAUDE_RAIN_F = [0.25, 4], CLAUDE_GUST_F = [0.6, 1.6];
+export const CLAUDE_RAMP_H = 5;
+const CLAUDE_TMAX_DIFF = 8, CLAUDE_RAIN_F = [0.25, 4], CLAUDE_GUST_F = [0.6, 1.6], CLAUDE_PAST = 0.7;
 const shiftT = (x, d) => (isNum(x) ? r1(x + d) : x);
 const scaleV = (x, f, nd = 1) => (isNum(x) ? Math.round(x * f * 10 ** nd) / 10 ** nd : x);
-/** A previsão com os números do Claude a meias (fc.claude: o que mudou em cada dia). Sem números, devolve a mesma. */
+/**
+ * A previsão com os números do Claude (fc.claude: os pesos e o que mudou em cada dia). Sem números, devolve a mesma.
+ * w: um peso para tudo (0..1) ou { tmax, tmin, chuva, rajada }.
+ */
 export function withClaude(fc, nums, { w = CLAUDE_W } = {}) {
     if (!fc?.daily || !Array.isArray(nums) || !nums.length) return fc;
+    const W = Object.fromEntries(['tmax', 'tmin', 'chuva', 'rajada'].map((k) => { const v = w && typeof w === 'object' ? w[k] : w; return [k, clamp(isNum(v) ? v : CLAUDE_W, 0, 1)]; }));
+    const H = fc.hourly || [], t0 = H[0]?.time || null;
+    const ramp = (time) => (t0 ? clamp((Date.parse(time + ':00Z') - Date.parse(t0 + ':00Z')) / 36e5 / CLAUDE_RAMP_H, 0, 1) : 1);
     const by = new Map(nums.filter((n) => n?.data).map((n) => [n.data, n]));
     const adj = new Map();
     const daily = fc.daily.map((d) => {
         const n = by.get(d.date);
         if (!n) return d;
+        // a hora da máxima e da mínima nas horas que faltam: quanto do ajuste ainda cabe (0 se hoje já passaram)
+        const hs = H.filter((h) => h.time.slice(0, 10) === d.date && isNum(h.temp)), today = !!t0 && d.date === t0.slice(0, 10);
+        const hi = hs.length ? hs.reduce((x, h) => (h.temp > x.temp ? h : x)) : null, lo = hs.length ? hs.reduce((x, h) => (h.temp < x.temp ? h : x)) : null;
+        const kMax = !hi ? 1 : today && isNum(d.tmax) && d.tmax - hi.temp > CLAUDE_PAST ? 0 : ramp(hi.time);
+        const kMin = !lo ? 1 : today && isNum(d.tmin) && lo.temp - d.tmin > CLAUDE_PAST ? 0 : ramp(lo.time);
         const a = { date: d.date, model: { tmax: d.tmax, tmin: d.tmin, precip: d.precip, gust: d.gustMax }, claude: { tmax: n.tmax, tmin: n.tmin, precip: n.chuva, gust: n.rajada },
-            dMax: 0, dMin: 0, rainF: 1, gustF: 1 };
-        if (isNum(n.tmax) && isNum(d.tmax) && Math.abs(n.tmax - d.tmax) <= CLAUDE_TMAX_DIFF) a.dMax = w * (n.tmax - d.tmax);
-        if (isNum(n.tmin) && isNum(d.tmin) && Math.abs(n.tmin - d.tmin) <= CLAUDE_TMAX_DIFF) a.dMin = w * (n.tmin - d.tmin);
+            eMax: 0, eMin: 0, rainF: 1, gustF: 1 };
+        if (kMax > 0 && isNum(n.tmax) && isNum(d.tmax) && Math.abs(n.tmax - d.tmax) <= CLAUDE_TMAX_DIFF) a.eMax = W.tmax * (n.tmax - d.tmax);
+        if (kMin > 0 && isNum(n.tmin) && isNum(d.tmin) && Math.abs(n.tmin - d.tmin) <= CLAUDE_TMAX_DIFF) a.eMin = W.tmin * (n.tmin - d.tmin);
+        const dMax = a.eMax * kMax, dMin = a.eMin * kMin;
         let precip = d.precip;
         // chuva muito acima até do cenário chuvoso dos modelos (P90): engano, não entra
         if (isNum(n.chuva) && isNum(d.precip) && n.chuva <= 3 * Math.max(d.precipP90 || 0, d.precip, 2)) {
-            const want = (1 - w) * d.precip + w * n.chuva;
+            const want = (1 - W.chuva) * d.precip + W.chuva * n.chuva;
             if (d.precip >= 0.2) { a.rainF = clamp(want / d.precip, ...CLAUDE_RAIN_F); precip = d.precip * a.rainF; } else precip = Math.min(want, 2); // seco nos modelos: só um pouco
         }
-        if (isNum(n.rajada) && isNum(d.gustMax) && d.gustMax > 0) a.gustF = clamp(((1 - w) * d.gustMax + w * n.rajada) / d.gustMax, ...CLAUDE_GUST_F);
-        if (!a.dMax && !a.dMin && a.rainF === 1 && a.gustF === 1 && precip === d.precip) return d;
-        a.final = { tmax: shiftT(d.tmax, a.dMax), tmin: shiftT(d.tmin, a.dMin), precip: r1(precip), gust: isNum(d.gustMax) ? Math.round(d.gustMax * a.gustF) : d.gustMax };
+        if (isNum(n.rajada) && isNum(d.gustMax) && d.gustMax > 0) a.gustF = clamp(((1 - W.rajada) * d.gustMax + W.rajada * n.rajada) / d.gustMax, ...CLAUDE_GUST_F);
+        a.final = { tmax: shiftT(d.tmax, dMax), tmin: shiftT(d.tmin, dMin), precip: r1(precip), gust: isNum(d.gustMax) ? Math.round(d.gustMax * a.gustF) : d.gustMax };
+        if (a.final.tmax === d.tmax && a.final.tmin === d.tmin && a.final.precip === d.precip && a.final.gust === d.gustMax && !a.eMax && !a.eMin) return d;
+        // mudou à vista (≥ 0,3 °C, ≥ 10% da chuva e 0,5 mm, ≥ 3 km/h nas rajadas)? Só esses dias levam a marca do Claude
+        a.changed = (isNum(d.tmax) && Math.abs(a.final.tmax - d.tmax) >= 0.3) || (isNum(d.tmin) && Math.abs(a.final.tmin - d.tmin) >= 0.3)
+            || (isNum(d.precip) && Math.abs(a.final.precip - d.precip) >= Math.max(0.5, 0.1 * d.precip)) || (isNum(d.gustMax) && Math.abs(a.final.gust - d.gustMax) >= 3);
         adj.set(d.date, { ...a, lo: d.tmin, hi: d.tmax });
-        return { ...d, tmax: a.final.tmax, tmin: a.final.tmin, tmaxP10: shiftT(d.tmaxP10, a.dMax), tmaxP90: shiftT(d.tmaxP90, a.dMax),
-            tminP10: shiftT(d.tminP10, a.dMin), tminP90: shiftT(d.tminP90, a.dMin), precip: a.final.precip, precipP90: scaleV(d.precipP90, a.rainF),
-            gustMax: a.final.gust, claude: true };
+        return { ...d, tmax: a.final.tmax, tmin: a.final.tmin, tmaxP10: shiftT(d.tmaxP10, dMax), tmaxP90: shiftT(d.tmaxP90, dMax),
+            tminP10: shiftT(d.tminP10, dMin), tminP90: shiftT(d.tminP90, dMin), precip: a.final.precip, precipP90: scaleV(d.precipP90, a.rainF),
+            gustMax: a.final.gust, ...(a.changed ? { claude: true } : {}) };
     });
     if (!adj.size) return fc;
-    const hourly = (fc.hourly || []).map((h) => {
+    const hourly = H.map((h) => {
         const a = adj.get(String(h.time).slice(0, 10));
         if (!a) return h;
         // a temperatura: o ajuste da mínima nas horas frias e o da máxima nas quentes (a forma da curva fica)
         const k = isNum(h.temp) && isNum(a.lo) && isNum(a.hi) && a.hi - a.lo > 0.5 ? clamp((h.temp - a.lo) / (a.hi - a.lo), 0, 1) : 0.5;
-        const dT = a.dMin + k * (a.dMax - a.dMin);
+        const dT = ramp(h.time) * (a.eMin + k * (a.eMax - a.eMin));
         return { ...h, temp: shiftT(h.temp, dT), tempLo: shiftT(h.tempLo, dT), tempHi: shiftT(h.tempHi, dT), feels: shiftT(h.feels, dT),
             precip: scaleV(h.precip, a.rainF), precipHi: scaleV(h.precipHi, a.rainF), gust: scaleV(h.gust, a.gustF, 0), gustHi: scaleV(h.gustHi, a.gustF, 0) };
     });
-    return { ...fc, daily, hourly, claude: { w, days: [...adj.values()].map(({ date, model, claude, final }) => ({ date, model, claude, final })) } };
+    return { ...fc, daily, hourly, claude: { w: W, days: [...adj.values()].map(({ date, model, claude, final, changed }) => ({ date, model, claude, final, changed })) } };
 }
 
 // Critérios gerais do IPMA para os avisos de chuva: a partir de quantos mm numa hora ou em 6 h começa cada nível. Podem
@@ -1795,6 +1898,30 @@ export function buildSummary(fc, extra = {}) {
     L.push(`pressão: ${I.pressure.trend} (3 h ${f1(I.pressure.delta3h)}, próximas 24 h ${f1(I.pressure.delta24h)} hPa). Previsibilidade: ${I.predictability.text}. Concordância 48 h: ${I.agreement}.`);
     L.push('\n## Avisos oficiais IPMA');
     L.push(fc.warnings.length ? fc.warnings.map((w) => `${w.level} ${w.type} ${w.start}→${w.end}: ${w.text}${w.here ? ` — ${warnHereText(w)}` : ''}`).join('\n') : 'Nenhum.');
+    const OB = (fc.observed?.days || []).filter((d) => d.model && ((isNum(d.tmax) && isNum(d.model.tmax)) || (isNum(d.rain) && isNum(d.model.rain))));
+    if (OB.length) {
+        const sg = (x) => `${x >= 0 ? '+' : '−'}${f1(Math.abs(x))}`;
+        L.push('\n## Previsto na véspera vs observado (consenso dos modelos 1 dia antes → estações perto, à altitude do ponto)');
+        L.push('dia | máxima: previsto → observado (erro) | mínima: previsto → observado (erro) | chuva: previsto → observado [estação com menos–com mais] mm');
+        const eT = [], eN = [];
+        let rf = 0, ro = 0, nr = 0;
+        for (const d of OB) {
+            const t = isNum(d.tmax) && isNum(d.model.tmax), r = isNum(d.rain) && isNum(d.model.rain) && d.nR >= 2;
+            if (!t && !r) continue;
+            if (t) { eT.push(d.model.tmax - d.tmax); eN.push(d.model.tmin - d.tmin); }
+            if (r) { rf += d.model.rain; ro += d.rain; nr++; }
+            L.push(`${d.date} | ${t ? `${f1(d.model.tmax)} → ${f1(d.tmax)} (${sg(d.model.tmax - d.tmax)})` : '—'} | ${t ? `${f1(d.model.tmin)} → ${f1(d.tmin)} (${sg(d.model.tmin - d.tmin)})` : '—'} | ` +
+                `${r ? `${f1(d.model.rain)} → ${f1(d.rain)} [${f1(d.rainLo)}–${f1(d.rainHi)}]` : '—'}`);
+        }
+        // o erro típico é a mediana dos dias (uma noite de geada numa estação num vale não manda)
+        const med = (a) => { const b = a.slice().sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
+        const dd = (n) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
+        const parts = [];
+        if (eT.length) parts.push(`máxima ${sg(med(eT))} °C, mínima ${sg(med(eN))} °C (previsto − observado, mediana de ${dd(eT.length)})`);
+        if (nr && ro > 0) parts.push(`chuva prevista ${f0(rf)} mm contra ${f0(ro)} mm observados em ${dd(nr)} (observado = ${Math.round((ro / rf) * 100)}% do previsto)`);
+        else if (nr) parts.push(`chuva prevista ${f0(rf)} mm e nenhuma observada em ${dd(nr)}`);
+        if (parts.length) L.push(`Erro típico: ${parts.join('; ')}. Usa isto nos teus "numeros": quando o consenso erra há dias para o mesmo lado, corrige nesse sentido.`);
+    }
     if (fc.warnMissing?.length) {
         L.push('\n## Avisos em falta (o consenso dos modelos no ponto chega ao nível de um aviso e o IPMA não o tem)');
         L.push(fc.warnMissing.map((m) => `${m.level} ${m.type} ${m.start}→${m.end}: ${missingText(m)}`).join('\n'));

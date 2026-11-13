@@ -126,7 +126,10 @@ Formato:
              "compare": { "radar": "2026-11-06T20:10", "models": "2026-11-06T22:15", "modelsNow": false, "lagMin": 125,
                           "text": "O radar tem chuva no ponto desde as 20:10; os modelos só a dão às 22:15 (~2 h de atraso)." },
              "text": "A chover agora (fraca, 0,6 mm/h)." }, // frase só do radar
-  "hourly": [ // 72 entradas a partir da hora atual (consenso ponderado dos modelos)
+  "hourly": [ // 72 entradas a partir da hora atual (consenso ponderado dos modelos). "pop" = probabilidade de chuva
+    // mensurável nessa hora, calibrada (1.22): cada modelo vota pela quantidade que dá (lib/stats.js rainVote: 0,1 mm/h →
+    // 25%, 0,3 → 40%, 1 → 65%, ≥ 3 → 90%), não por «≥ 0,1 mm = chove». "code" de chuva a partir de 45%; 35–45% = possível
+    // (51 chuvisco com céu encoberto, 80 aguaceiros fracos com abertas)
     { "time": "2026-11-06T15:00", "temp": 14.6, "tempLo": 13.9, "tempHi": 15.3, "feels": 13.2, "dew": 10.9, "rh": 78,
       "precip": 0.0, "precipHi": 0.2, "pop": 10, "wind": 11, "gust": 22, "dir": 80, "cloud": 25, "cloudLow": 10,
       "pressure": 1019.2, "visibility": 24000, "cape": 50, "uv": 1.2, "code": 2, "isDay": true,
@@ -168,6 +171,10 @@ Formato:
     "predictability": { "days": 7, "text": "Fiável até sexta-feira (13 nov)" },
     "agreement": 0.82 // 0..1 concordância geral entre modelos nas próximas 48 h
   },
+  "observed": { "days": [ // dias já passados (até 7): o que as estações perto mediram, à altitude do ponto, e o que o
+    // consenso dava na véspera (corridas de 1 dia antes); null sem histórico das estações. Vai no resumo para o Claude
+    { "date": "2026-11-12", "tmax": 17.6, "tmin": 15.0, "nT": 5, "rain": 15.2, "rainLo": 9.4, "rainHi": 17.7, "nR": 3,
+      "model": { "tmax": 16.9, "tmin": 14.4, "rain": 30.4 } } ] },
   "warnings": [ // avisos oficiais IPMA (só Portugal; vazio se nenhum)
     { "source": "IPMA", "type": "Agitação Marítima", "level": "yellow", "start": "2026-11-07T06:00", "end": "2026-11-07T18:00", "text": "Ondas de noroeste com 4 a 5 metros." }
   ],
@@ -324,8 +331,12 @@ selecionado, avisa e oferece «Mudar a análise diária para este ponto» (`PATC
   "vestir": "…",         // o que vestir amanhã no ponto (manhã, tarde, noite), ≤ 400
   "semana": "…",         // a semana que vem no ponto, ≤ 700
   "notificacao": { "amanha": "…", "semana": "…" }, // textos das notificações (amanhã + o que vestir; a de domingo), ≤ 180
-  "numeros": [{ "data": "2026-11-14", "tmax": 15.5, "tmin": 7, "chuva": 9, "rajada": 45 }] } // hoje, amanhã e depois (1.21):
-  // a app junta-os a meias com a média ponderada dos modelos (máx., mín., chuva do dia, rajada máx.); obrigatório ao publicar
+  "numeros": [{ "data": "2026-11-14", "tmax": 15.5, "tmin": 7, "chuva": 9, "rajada": 45 }], // hoje, amanhã e depois (1.21):
+  // a app junta-os à média ponderada dos modelos (máx., mín., chuva do dia, rajada máx.); obrigatório ao publicar
+  "consenso": [{ "data": "2026-11-14", "tmax": 16.8, "tmin": 13.7, "chuva": 9, "rajada": 28 }], // o que os modelos davam
+  // na mesma corrida (junto pelo publicar.mjs): a verificação compara os dois com o observado
+  "pesos": { "tmax": 0.58, "tmin": 0.5, "chuva": 0.44, "rajada": 0.5, "n": 6 } } // peso do Claude em cada número (1.22):
+  // afinado em nums:<id> pelos dias verificados (0,2 a 0,8; sem ele, 0,5 = a meias)
 ```
 
 ## POST /api/analysis/refresh?lat=..&lon=..
@@ -428,7 +439,9 @@ dia de Lisboa, 40 dias: `{ scheduled, instant, guest }` — a tarefa agendada co
 no conector), `analysis:<id>` e `lessons:<id>` (por local), `analysis:<id>:<data-hora>` (arquivo, 30 dias),
 `analysis:dev:<id>` (análise imediata fora dos locais, 24 h), `reports:<id>` e `reports:dev:<id>` (avisos), `rl:<ponto>`
 (30 min), `obs:<estação>`, `ipma:runs:<concelho>`, `fogos:latest`, `push:vapid` e `push:index` (notificações), `learn:<id>` (memória da aprendizagem de cada local,
-até 90 dias, ~1 KB por dia; a tarefa agendada junta-lhe os dias verificados em cada corrida).
+até 90 dias, ~1 KB por dia; a tarefa agendada junta-lhe os dias verificados em cada corrida), `nums:<id>` (os números
+do Claude verificados: por dia e prazo, o que o Claude e o consenso davam e o que se observou; `pesos` = o peso atual de
+cada variável; `consenso` = o dos modelos na última corrida, que o `publicar.mjs` junta à análise).
 
 ## Fontes em bruto (passagem com cache)
 

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildForecast, warnHere, warnHereText, missingWarnings, missingText, withClaude, buildSummary, perModelTable, parseEns, nowcastText, pickStation, nearStations, stationBlend, nearestIpmaLocal, ipmaModel, parseDet, ipmaRunRecord, ipmaPrevFromRuns,
     buildTerrain, terrainPoints, LOCAL_RULES } from '../lib/engine.js';
-import { wquantile, robustMean, vecDir, haversine, bearing, compass, dewPoint, relHum, wfrac } from '../lib/stats.js';
+import { wquantile, robustMean, vecDir, haversine, bearing, compass, dewPoint, relHum, wfrac, rainVote, wvote, RAIN_VOTE } from '../lib/stats.js';
 
 const r1 = (x) => Math.round(x * 10) / 10;
 const fx = (f) => JSON.parse(readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8'));
@@ -116,7 +116,11 @@ test('frase das próximas 2 horas', () => {
     const s = (p, prob) => ({ time: '2026-11-06T16:00', precip: p, prob });
     assert.equal(nowcastText(Array(8).fill(s(0, 0))), 'Sem chuva prevista nas próximas 2 horas.');
     assert.match(nowcastText([s(0, 0), s(0, 0), s(0.5, 80), s(0.5, 80), s(0.5, 80), s(0.5, 80), s(0.5, 80), s(0.5, 80)]), /^Chuva moderada a partir das/);
-    assert.match(nowcastText(Array(8).fill(s(0.05, 30))), /^Possibilidade de chuva fraca/);
+    assert.equal(nowcastText(Array(8).fill(s(0.05, 30))), 'Possibilidade de chuva fraca nas próximas 2 horas (probabilidade até 30%).');
+    // a probabilidade é a calibrada: «chove» a partir de 45% (com ≥ 0,05 mm em 15 min); abaixo de 20% e sem chuva, nada
+    assert.match(nowcastText(Array(8).fill(s(0.2, 45))), /^Chuva fraca durante as próximas 2 horas\.$/);
+    assert.match(nowcastText(Array(8).fill(s(0.2, 44))), /^Possibilidade de chuva fraca/);
+    assert.equal(nowcastText(Array(8).fill(s(0.02, 19))), 'Sem chuva prevista nas próximas 2 horas.');
 });
 
 test('resumo para o Claude inclui o essencial', () => {
@@ -490,36 +494,123 @@ test('avisos em falta: os modelos no ponto ao nível de um aviso que o IPMA não
 });
 
 test('números do Claude: entram a meias com a média dos modelos (dois «modelos»); a curva do dia mantém a forma', () => {
-    const day = (date, i) => ({ date, tmax: 16, tmin: 8, tmaxP10: 15, tmaxP90: 17, tminP10: 7, tminP90: 9, precip: 12, precipP90: 20, gustMax: 40 });
-    const hours = Array.from({ length: 48 }, (_, i) => {
-        const date = i < 24 ? '2026-11-13' : '2026-11-14', hr = i % 24, temp = 8 + 8 * Math.max(0, Math.sin(((hr - 8) / 12) * Math.PI));
-        return { time: `${date}T${String(hr).padStart(2, '0')}:00`, temp, tempLo: temp - 1, tempHi: temp + 1, feels: temp - 2, precip: 0.5, precipHi: 1, gust: 30, gustHi: 40 };
+    const day = (date) => ({ date, tmax: 16, tmin: 8, tmaxP10: 15, tmaxP90: 17, tminP10: 7, tminP90: 9, precip: 12, precipP90: 20, gustMax: 40 });
+    // horas de 12/11 às 18:00 até 14/11: a curva do dia vai de 8° (noite) a 16° (14h)
+    const curve = (from) => Array.from({ length: 60 }, (_, i) => {
+        const t = new Date(Date.parse(from + ':00Z') + i * 36e5).toISOString().slice(0, 16), hr = Number(t.slice(11, 13)), temp = 8 + 8 * Math.max(0, Math.sin(((hr - 8) / 12) * Math.PI));
+        return { time: t, temp, tempLo: temp - 1, tempHi: temp + 1, feels: temp - 2, precip: 0.5, precipHi: 1, gust: 30, gustHi: 40 };
     });
-    const fc = { daily: [day('2026-11-13'), day('2026-11-14'), day('2026-11-15')], hourly: hours, now: { temp: 12 } };
+    const mk = (from) => ({ daily: [day('2026-11-12'), day('2026-11-13'), day('2026-11-14'), day('2026-11-15')].filter((d) => d.date >= from.slice(0, 10)), hourly: curve(from), now: { temp: 12 } });
+    const fc = mk('2026-11-12T18:00');
     const nums = [{ data: '2026-11-13', tmax: 14, tmin: 4, chuva: 6, rajada: 60 }, { data: '2026-11-14', tmax: 16, tmin: 8, chuva: 12, rajada: 40 }];
     const c = withClaude(fc, nums);
-    const d0 = c.daily[0];
+    const d1 = c.daily[1];
     // a meias: máx. (16+14)/2 = 15, mín. (8+4)/2 = 6, chuva (12+6)/2 = 9, rajada (40+60)/2 = 50
-    assert.deepEqual([d0.tmax, d0.tmin, d0.precip, d0.gustMax, d0.claude], [15, 6, 9, 50, true]);
-    assert.deepEqual([d0.tmaxP10, d0.tmaxP90, d0.tminP10, d0.tminP90, d0.precipP90], [14, 16, 5, 7, 15]);
-    assert.equal(c.daily[1], fc.daily[1], 'o Claude igual aos modelos: o dia fica igual');
-    assert.equal(c.daily[2], fc.daily[2], 'sem números do Claude para esse dia');
+    assert.deepEqual([d1.tmax, d1.tmin, d1.precip, d1.gustMax, d1.claude], [15, 6, 9, 50, true]);
+    assert.deepEqual([d1.tmaxP10, d1.tmaxP90, d1.tminP10, d1.tminP90, d1.precipP90], [14, 16, 5, 7, 15]);
+    assert.equal(c.daily[0], fc.daily[0], 'hoje: sem números do Claude');
+    assert.equal(c.daily[2], fc.daily[2], 'o Claude igual aos modelos: o dia fica igual');
+    assert.equal(c.daily[3], fc.daily[3], 'sem números do Claude para esse dia');
     // as horas: as frias descem 2 °C (a mínima), as quentes 1 °C (a máxima); a chuva ×0,75 e as rajadas ×1,25 nesse dia
-    const h = (t) => c.hourly.find((x) => x.time === t), o = (t) => fc.hourly.find((x) => x.time === t);
+    const h = (t, x = c) => x.hourly.find((y) => y.time === t), o = (t, x = fc) => x.hourly.find((y) => y.time === t);
     assert.equal(h('2026-11-13T03:00').temp, r1(o('2026-11-13T03:00').temp - 2));
     assert.equal(h('2026-11-13T14:00').temp, r1(o('2026-11-13T14:00').temp - 1));
     assert.deepEqual([h('2026-11-13T10:00').precip, h('2026-11-13T10:00').gust], [0.4, 38]);
     assert.equal(h('2026-11-14T03:00'), o('2026-11-14T03:00'), 'o outro dia não mexe');
+    assert.equal(h('2026-11-12T20:00'), o('2026-11-12T20:00'));
     assert.equal(c.now, fc.now, 'o agora (observado) não mexe');
-    assert.deepEqual(c.claude.days.map((x) => [x.date, x.model.tmax, x.claude.tmax, x.final.tmax]), [['2026-11-13', 16, 14, 15]]);
+    assert.deepEqual(c.claude.days.map((x) => [x.date, x.model.tmax, x.claude.tmax, x.final.tmax, x.changed]), [['2026-11-13', 16, 14, 15, true]]);
+    // quase igual aos modelos (0,2 °C, 1 mm em 12): o dia ajusta-se mas não leva a marca do Claude
+    const near = withClaude(fc, [{ data: '2026-11-13', tmax: 16.4, tmin: 8.2, chuva: 11, rajada: 42 }]);
+    assert.deepEqual([near.daily[1].tmax, near.daily[1].precip, near.daily[1].claude, near.claude.days[0].changed], [16.2, 11.5, undefined, false]);
+    assert.deepEqual(c.claude.w, { tmax: 0.5, tmin: 0.5, chuva: 0.5, rajada: 0.5 });
+    // o peso de cada variável (aprendido na verificação: lib/nums.js): 80% na máxima, 20% na mínima
+    const cw = withClaude(fc, nums, { w: { tmax: 0.8, tmin: 0.2, chuva: 0.25 } }).daily[1];
+    assert.deepEqual([cw.tmax, cw.tmin, cw.precip, cw.gustMax], [14.4, 7.2, 10.5, 50]);
     // enganos (muito longe da média) não entram; números a meio do caminho têm limites
-    const e = withClaude(fc, [{ data: '2026-11-13', tmax: 30, tmin: -5, chuva: 400, rajada: 200 }]).daily[0];
+    const e = withClaude(fc, [{ data: '2026-11-13', tmax: 30, tmin: -5, chuva: 400, rajada: 200 }]).daily[1];
     assert.deepEqual([e.tmax, e.tmin, e.precip, e.gustMax], [16, 8, 12, 64]);
-    assert.equal(withClaude(fc, [{ data: '2026-11-13', tmax: 16, tmin: 8, chuva: 50, rajada: 40 }]).daily[0].precip, 31, 'muita chuva, mas dentro do plausível (≤ 3× o P90): entra a meias');
+    assert.equal(withClaude(fc, [{ data: '2026-11-13', tmax: 16, tmin: 8, chuva: 50, rajada: 40 }]).daily[1].precip, 31, 'muita chuva, mas dentro do plausível (≤ 3× o P90): entra a meias');
     // modelos secos e o Claude com chuva: só um pouco (no máximo 2 mm no dia)
-    const seco = { ...fc, daily: [{ ...day('2026-11-13'), precip: 0 }] };
-    assert.equal(withClaude(seco, [{ data: '2026-11-13', tmax: 16, tmin: 8, chuva: 10, rajada: 40 }]).daily[0].precip, 2);
+    const seco = { ...fc, daily: fc.daily.map((d) => ({ ...d, precip: 0 })) };
+    assert.equal(withClaude(seco, [{ data: '2026-11-13', tmax: 16, tmin: 8, chuva: 10, rajada: 40 }]).daily[1].precip, 2);
     // sem números (análises antigas): a mesma previsão
     assert.equal(withClaude(fc, []), fc);
     assert.equal(withClaude(fc, undefined), fc);
+});
+
+test('números do Claude: nas próximas horas manda a observação — o ajuste entra aos poucos e o que já passou não se mexe', () => {
+    const day = (date) => ({ date, tmax: 16, tmin: 8, precip: 12, precipP90: 20, gustMax: 40 });
+    const mk = (from) => ({ daily: [day('2026-11-13'), day('2026-11-14')], hourly: Array.from({ length: 30 }, (_, i) => {
+        const t = new Date(Date.parse(from + ':00Z') + i * 36e5).toISOString().slice(0, 16), hr = Number(t.slice(11, 13)), temp = 8 + 8 * Math.max(0, Math.sin(((hr - 8) / 12) * Math.PI));
+        return { time: t, temp, feels: temp, precip: 0.5, gust: 30 };
+    }) });
+    const nums = [{ data: '2026-11-13', tmax: 14, tmin: 8, chuva: 12, rajada: 40 }];
+    const at = (x, t) => x.hourly.find((y) => y.time === t).temp;
+    // às 10h: a máxima (14h) vem daqui a 4 h → entra 80% do ajuste (−1 °C × 0,8); a hora atual não mexe; às 15h já é inteiro
+    const a = mk('2026-11-13T10:00'), ca = withClaude(a, nums);
+    assert.equal(ca.daily[0].tmax, 15.2);
+    assert.equal(at(ca, '2026-11-13T10:00'), r1(at(a, '2026-11-13T10:00')));
+    assert.equal(at(ca, '2026-11-13T12:00'), r1(at(a, '2026-11-13T12:00') - 0.4 * (at(a, '2026-11-13T12:00') - 8) / 8));
+    assert.equal(at(ca, '2026-11-13T14:00'), r1(16 - 0.8));
+    assert.equal(at(ca, '2026-11-13T16:00'), r1(at(a, '2026-11-13T16:00') - (at(a, '2026-11-13T16:00') - 8) / 8));
+    // às 17h a máxima de hoje já passou (faltam 13,7° no máximo): não se mexe, nem as horas que faltam
+    const b = mk('2026-11-13T17:00'), cb = withClaude(b, nums);
+    assert.equal(cb, b, 'nada a ajustar: a previsão fica a mesma');
+    // a mínima de hoje que já passou também não; a de amanhã (daqui a muitas horas) entra inteira
+    const cc = withClaude(mk('2026-11-13T12:00'), [{ data: '2026-11-13', tmax: 16, tmin: 4, chuva: 12, rajada: 40 }, { data: '2026-11-14', tmax: 16, tmin: 4, chuva: 12, rajada: 40 }]);
+    assert.deepEqual([cc.daily[0].tmin, cc.daily[1].tmin], [6, 6], 'a curva de teste volta aos 8° à noite: a mínima de hoje ainda está para vir');
+    const dawn = mk('2026-11-13T12:00');
+    dawn.daily[0].tmin = 5; // a mínima do dia foi de madrugada (5°); à noite só desce a 8°
+    assert.equal(withClaude(dawn, [{ data: '2026-11-13', tmax: 16, tmin: 3, chuva: 12, rajada: 40 }]).daily[0].tmin, 5);
+});
+
+test('chuva hora a hora: a probabilidade vem da quantidade que cada modelo dá (calibrada), não de «≥ 0,1 mm = chove»', () => {
+    // a curva: 0 abaixo de 0,05 mm/h; 25% a 0,1; 40% a 0,3; 65% a 1; 90% de 3 mm/h para cima; sempre a crescer
+    assert.deepEqual([0, 0.04, 0.05, 0.1, 0.3, 1, 3, 20].map((x) => Math.round(rainVote(x) * 100)), [0, 0, 10, 25, 40, 65, 90, 90]);
+    assert.ok(rainVote(0.2) > 0.25 && rainVote(0.2) < 0.4 && rainVote(0.5) > 0.4 && rainVote(0.5) < 0.65);
+    for (let x = 0.05; x < 4; x += 0.05) assert.ok(rainVote(x + 0.05) >= rainVote(x), `cresce em ${x}`);
+    assert.equal(rainVote(NaN), 0);
+    assert.equal(RAIN_VOTE.length, 5);
+    assert.ok(Math.abs(wvote([0.1, 1, null, 3], [1, 1, 5, 2], rainVote) - (0.25 + 0.65 + 2 * 0.9) / 4) < 1e-9);
+    assert.equal(wvote([null], [1], rainVote), null);
+    // todos os modelos e cenários com a mesma chuva numas horas: a probabilidade e o ícone dessas horas
+    const rain = (mm, cloud = 100) => {
+        const r = structuredClone(raw), wet = (t) => t >= '2026-11-07T06:00' && t <= '2026-11-07T12:00';
+        for (const src of [r.det.hourly, r.ens.hourly]) for (const k of Object.keys(src)) {
+            if (k.startsWith('precipitation_')) src[k] = src[k].map((v, i) => (wet(src.time[i]) ? mm : v));
+            if (k.startsWith('weather_code_')) src[k] = src[k].map((v, i) => (wet(src.time[i]) ? (mm >= 0.1 ? 61 : 3) : v));
+            if (k.startsWith('cloud_cover_') && !k.startsWith('cloud_cover_low')) src[k] = src[k].map((v, i) => (wet(src.time[i]) ? cloud : v));
+            if (k.startsWith('cape_')) src[k] = src[k].map((v, i) => (wet(src.time[i]) ? 0 : v));
+        }
+        delete r.ipma; // sem o voto do IPMA (probabilidade de 3 em 3 h)
+        return buildForecast(r, { lat: LAT, lon: LON, now: NOW }).hourly.find((h) => h.time === '2026-11-07T09:00');
+    };
+    const h01 = rain(0.1), h03 = rain(0.3), h03s = rain(0.3, 50), h1 = rain(1), h5 = rain(5);
+    assert.deepEqual([h01.pop, h03.pop, h1.pop, h5.pop], [25, 40, 65, 90]);
+    assert.ok(h01.code < 50, `0,1 mm/h (25%): só nuvens (${h01.code})`);
+    assert.equal(h03.code, 51, '0,3 mm/h (40%) com céu encoberto: possível → chuvisco');
+    assert.equal(h03s.code, 80, '0,3 mm/h (40%) com abertas: possível → aguaceiros fracos');
+    assert.equal(h1.code, 63, '1 mm/h (65%): chuva');
+    assert.equal(h5.code, 65, '5 mm/h (90%): chuva forte');
+});
+
+test('resumo para o Claude: previsto na véspera vs observado, com o erro típico (mediana) — para afinar os números', () => {
+    const days = [
+        { date: '2026-11-03', tmax: 14, tmin: -0.1, nT: 1, rain: 0, rainLo: 0, rainHi: 0, nR: 1, model: { tmax: 14.5, tmin: 3.8, rain: 0 } }, // geada numa estação: a mediana não se deixa levar
+        { date: '2026-11-04', tmax: 19.9, tmin: 16.4, nT: 5, rain: 22.3, rainLo: 2.6, rainHi: 32.3, nR: 4, model: { tmax: 19, tmin: 16.5, rain: 28.9 } },
+        { date: '2026-11-05', tmax: 19.4, tmin: 15.6, nT: 5, rain: 2.3, rainLo: 2.2, rainHi: 6.4, nR: 3, model: { tmax: 18.4, tmin: 15.3, rain: 18.2 } },
+        { date: '2026-11-06', tmax: null, tmin: null, nT: 0, rain: 5, rainLo: 5, rainHi: 5, nR: 1, model: { tmax: 17, tmin: 12, rain: 9 } }, // 1 pluviómetro só: não entra
+    ];
+    const txt = buildSummary({ ...fc, observed: { days } });
+    const sec = txt.slice(txt.indexOf('## Previsto na véspera vs observado'), txt.indexOf('## Incêndios'));
+    assert.match(sec, /^## Previsto na véspera vs observado \(consenso dos modelos 1 dia antes → estações perto, à altitude do ponto\)\ndia \| máxima/);
+    assert.match(sec, /\n2026-11-04 \| 19\.0 → 19\.9 \(−0\.9\) \| 16\.5 → 16\.4 \(\+0\.1\) \| 28\.9 → 22\.3 \[2\.6–32\.3\]\n/);
+    assert.match(sec, /\n2026-11-03 \| 14\.5 → 14\.0 \(\+0\.5\) \| 3\.8 → -0\.1 \(\+3\.9\) \| —\n/, 'chuva de 1 só pluviómetro: sem comparação');
+    assert.doesNotMatch(sec, /2026-11-06/, 'dia sem nada para comparar: não aparece');
+    assert.match(sec, /Erro típico: máxima −0\.9 °C, mínima \+0\.1 °C \(previsto − observado, mediana de 3 dias\); chuva prevista 47 mm contra 25 mm observados em 2 dias \(observado = 52% do previsto\)\. Usa isto nos teus "numeros"/);
+    // sem dias observados: a secção não aparece
+    assert.doesNotMatch(buildSummary({ ...fc, observed: null }), /Previsto na véspera vs observado/);
+    // a previsão traz os dias observados quando há histórico das estações (o fixture de Lisboa: METAR do aeroporto)
+    assert.ok(fc.observed === null || fc.observed.days.every((d) => d.date < '2026-11-06' && 'model' in d));
 });
