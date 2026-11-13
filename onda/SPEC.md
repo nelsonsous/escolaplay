@@ -124,6 +124,10 @@ Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.j
 | 107 | t | `console.log` |
 | 108 / 109 | – / n | milissegundos desde 1970 / inteiro aleatório em [0, n) |
 | 110 | t | título do documento |
+| 111 / 112 / 116 | url / fn / – | som (um leitor só): toca o url, e com o que já está a tocar pára-o (1 se começou) / chama `fn(0)` quando o som acaba, pára ou falha / o url que está a tocar (ou 0) |
+| 113 / 114 / 115 | chave t / chave ms / – | memória da sessão: guarda t / o texto guardado há menos de ms (ou 0) / esquece tudo |
+| 117 | "url⇥ms" fn | o `fetch` da 102 com memória: uma resposta 200 desse url guardada há menos de ms é dada logo a `fn` (vale 1); senão vai à rede e guarda a que chegar |
+| 118 | sel | rola a página até ao elemento `sel` (vale 1 se existe); com 0, até ao topo (uma vista nova abre no topo) |
 
 - **Scripts (Node):** `rt/anfitriao-node.js` corre um módulo como um programa de linha de comando, com as portas do runtime, as 103/104/108/109 de cima e estas (as mesmas regras: o `main` corre uma vez e cada resposta chama uma função da Onda):
 
@@ -162,7 +166,7 @@ cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala
 | `data` | `_dt_` | dia civil ⇄ dias, `toISOString`, dia da semana, Lisboa (as regras da UE) |
 | `ordenar` | `_or_` | o `sort` do V8, comparação a comparação: o PowerSort do Chromium e o TimSort do Node 22, com o comparador num código |
 | `html` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
-| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–117` e `Y 200–214`) com nomes |
+| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–118` e `Y 200–214`) com nomes |
 | `fala` | (sem `_`) | a fala das apps, opcional: nomes curtos para ler um nó (`ha`, `eh`, `num`, `int`, `txt`, `pri`, `seg`…), escrever (`esc`, `cru`, `plural`), o texto de um molde (`` texto`…` ``), números pt-PT (`casas`, `ate`, `inteiro`, `moeda`) e ações dos botões (`acao`, `arg`, `eacao`). Com os moldes e o ponto: `` `<b>{ esc c.nome }</b>` `` |
 
 - **Nomes:** `_` + o prefixo do módulo + `_` + o nome. As apps não começam nomes por `_` e o runtime não usa um segundo `_`: não

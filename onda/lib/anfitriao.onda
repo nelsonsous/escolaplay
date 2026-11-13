@@ -1,4 +1,4 @@
-# anfitriao.onda — as portas dos anfitriões, com nomes: o das apps (rt/anfitriao.js, browser e Node: Y 100–117) e o
+# anfitriao.onda — as portas dos anfitriões, com nomes: o das apps (rt/anfitriao.js, browser e Node: Y 100–118) e o
 # dos scripts (rt/anfitriao-node.js: Y 200–214, e também 103/104/108/109). Um texto é o do texto.onda; um nome de
 # função (fn) é um texto com o nome de uma função da Onda que o anfitrião chama (não pode começar por _).
 #
@@ -9,6 +9,7 @@
 #   _an_buscar url fn  fetch(url); no fim chama fn(t, estado): o corpo e o estado HTTP (0 = falhou)
 #   _an_ler k / _an_gravar k t   o armazém do browser (localStorage): o texto (ou 0) / grava (t = 0 apaga)
 #   _an_log t          console.log;  _an_titulo t: document.title
+#   _an_rolar sel      rola a página até ao elemento sel (1 se existe); com 0, até ao topo (ao mudar de vista)
 #   _an_buscam url fn ms   o _an_buscar com memória: se há uma resposta 200 desse url guardada há menos de ms, chama
 #                      logo fn com ela (sem ir à rede; devolve 1); senão vai buscar e guarda a que chegar (precisa de texto.onda)
 #   _an_guardar k t / _an_lembrar k ms   a mesma memória, à mão: guarda t com a chave k / o texto guardado há menos
@@ -51,6 +52,7 @@
 : _an_lembrar ii>i k ms Y 114 k ms
 : _an_esquecer >i Y 115 0 0
 : _an_atocar >i Y 116 0 0
+: _an_rolar i>i sel Y 118 sel 0
 : _an_buscam iii>i url fn ms { = t _tx_abre + _tx_len url 24 _tx_p url P 9 N ms _tx_fecha t Y 117 t fn }
 : _an_arg i>i i Y 200 i 0
 : _an_env i>i t Y 201 t 0

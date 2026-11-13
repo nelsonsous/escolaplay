@@ -2944,3 +2944,23 @@ template literal do JS. A bateria: 174 testes, 150 passam e 24 saltam (Mac e qem
 
 **Fica por fazer.** A ponte C do compilador (`build.sh --c`) não compila para `-a`/`-m` (já não compilava antes desta
 iteração): serve só para arrancar num CPU novo, e os testes usam o compilador nativo.
+
+## Iteração 154: rolar a página (porta 118) e a folha única da Música (2.27.0)
+
+**No anfitrião das apps.** `Y 118` (`_an_rolar sel`): rola a página até um elemento, ou até ao topo com 0. Uma app que
+troca de vista redesenhando o corpo ficava onde a vista anterior estava, se as duas fossem altas — na Música, descer
+os Ajustes e tocar em «Pedir» abria o «Pedir» descido. O `ir` passa a chamar `_an_rolar 0`. A tabela das portas do
+`SPEC.md` ganha as 111–118.
+
+**Na Música.** A playlist tinha três sítios com coisas diferentes (a folha, a vista «Abrir» e a lista dos pedidos). A
+folha passa a ser o único: os botões por cima das faixas, o «⋯» (mudar o nome, atualizar sozinha, apagar), «Sobre
+esta playlist» (o porquê, como correu e a mistura, fechado até se querer), as faixas simples e, ao tocar no título
+de uma, «Mais como esta». Segue o modelo do molde — cada pedaço com a sua função e o seu lugar, e um evento redesenha
+só os que mudam (`refolha m`, com os pedaços somados em `m`): a folha não volta a subir nem perde o sítio. A vista 2
+fica só com o afinador, até ele passar para a folha.
+
+**Testes.** O teste de interface usa a folha para tudo o que usava a vista «Abrir», confere que redesenhar um pedaço
+não fecha os outros, que a folha sobe uma vez só quando se volta do afinador (falhava: o índice e os pedidos
+redesenhavam a página um a seguir ao outro) e que um separador novo abre no topo. 54 testes na Música; no anfitrião,
+os do molde e das apps.
+
