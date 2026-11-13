@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.21.0';
+const VERSION = '1.22.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -152,11 +152,15 @@ function claudeNums() {
     const ap = analysedPoint();
     return ap && ap.d <= 2 ? n : null;
 }
-let numMemo = { fc: null, nums: null, out: null };
+// o peso de cada número do Claude (máx., mín., chuva, rajada): vem com a análise, afinado pela verificação (lib/nums.js);
+// sem ele, a meias
+const claudeW = () => { const p = st.analysis?.analysis?.pesos; return p && typeof p === 'object' ? p : null; };
+const numKey = () => JSON.stringify([claudeNums(), claudeW()]);
+let numMemo = { fc: null, nums: null, w: null, out: null };
 /** A previsão com os números do Claude (a mesma sem eles); a de cada ecrã sai daqui */
 function numFc() {
-    const nums = claudeNums();
-    if (numMemo.fc !== st.fc || numMemo.nums !== nums) numMemo = { fc: st.fc, nums, out: st.fc ? withClaude(st.fc, nums) : null };
+    const nums = claudeNums(), w = nums ? claudeW() : null;
+    if (numMemo.fc !== st.fc || numMemo.nums !== nums || numMemo.w !== w) numMemo = { fc: st.fc, nums, w, out: st.fc ? withClaude(st.fc, nums, w ? { w } : {}) : null };
     return numMemo.out;
 }
 const viewFc = () => { const fc = numFc(); return fc ? withReport(fc, currentReport(), Date.now()) : null; };
@@ -298,6 +302,7 @@ async function loadAnalysis(loc) {
     if (statusP) await statusP;
     const [a, p, r] = await Promise.allSettled([api.getAnalysis(loc.lat, loc.lon), api.getPlaces(), api.getReports(loc.lat, loc.lon)]);
     if (cfg.loc !== loc) return;
+    const nums0 = numKey();
     if (r.status === 'fulfilled') {
         const had = currentReport();
         st.reports = r.value;
@@ -311,7 +316,9 @@ async function loadAnalysis(loc) {
             : { analysis: null, error: a.reason?.message || 'análise indisponível' };
     }
     if (p.status === 'fulfilled') st.places = p.value || [];
-    if (cfg.tab === 'agora' && $('#cl-teaser')) $('#cl-teaser').outerHTML = teaserHtml();
+    // chegaram (ou mudaram) os números do Claude: a previsão no ecrã passa a contar com eles
+    if (numKey() !== nums0 && st.fc && cfg.tab !== 'satelite') scheduleRender();
+    else if (cfg.tab === 'agora' && $('#cl-teaser')) $('#cl-teaser').outerHTML = teaserHtml();
     else if (cfg.tab === 'analise' || cfg.tab === 'ajustes') scheduleRender();
 }
 let statusP = null;
@@ -684,20 +691,29 @@ function dayScale(D) {
 }
 // o que os modelos e o Claude davam para um dia (a app usa a meias)
 const numsTxt = (x) => `${F.deg(x.tmax)} / ${F.deg(x.tmin)}, ${F.mm(x.precip || 0)}, rajada ${F.kmh(x.gust)}`;
+// o peso do Claude em cada número, por extenso (a meias = 50% em todos)
+const pc = (x) => `${F.num(Math.round(x * 100))}%`;
+const halves = (W) => !W || ['tmax', 'tmin', 'chuva', 'rajada'].every((k) => Math.abs((W[k] ?? CLAUDE_W) - CLAUDE_W) < 0.005);
+const weightsTxt = (W) => `máx. ${pc(W.tmax)} · mín. ${pc(W.tmin)} · chuva ${pc(W.chuva)} · rajadas ${pc(W.rajada)}`;
 function claudeDayLine(c) {
-    if (!c) return '';
-    return `<p class="cl-num">${ui('sparkle')}<span><b>A meias com os números do Claude.</b> Modelos: ${esc(numsTxt(c.model))} · Claude: ${esc(numsTxt(c.claude))}.</span></p>`;
+    if (!c?.changed) return ''; // quase igual aos modelos: sem nota
+    const W = numFc()?.claude?.w;
+    return `<p class="cl-num">${ui('sparkle')}<span><b>${halves(W) ? 'A meias com os números do Claude.' : 'Com os números do Claude.'}</b> Modelos: ${esc(numsTxt(c.model))} · Claude: ${esc(numsTxt(c.claude))}.</span></p>`;
 }
 // a tabela dos números da análise (separador Análise): o que dão os modelos, o Claude e a app (a meias)
 function claudeNumsHtml(a, today) {
     const N = a?.numeros || [];
     if (!N.length) return '';
-    const used = !!numFc()?.claude, why = cfg.claudeNums === false ? 'Desligado nos Ajustes: não entram na previsão.'
-        : !used ? 'Não entram na previsão: a análise não é deste ponto ou já tem mais de 16 h.' : `Entram a meias (${F.num(CLAUDE_W * 100)}%) com a média ponderada dos modelos.`;
+    const cl = numFc()?.claude, used = !!cl, nv = a.pesos?.n || 0;
+    const why = cfg.claudeNums === false ? 'Desligado nos Ajustes: não entram na previsão.'
+        : !claudeNums() ? 'Não entram na previsão: a análise não é deste ponto ou já tem mais de 16 h.'
+        : !used ? 'Iguais aos dos modelos, ou para horas que já passaram: a previsão fica como estava.'
+        : halves(cl.w) ? `Entram a meias (${F.num(CLAUDE_W * 100)}%) com a média ponderada dos modelos.`
+        : `Peso do Claude ao lado da média dos modelos: ${weightsTxt(cl.w)}${nv ? ` (afinado com ${F.num(nv)} ${nv === 1 ? 'dia verificado' : 'dias verificados'})` : ''}.`;
     const rows = N.map((n) => {
         const c = claudeDay(n.data), lab = today ? F.dayLabel(n.data, today) : n.data;
-        const cl = { tmax: n.tmax, tmin: n.tmin, precip: n.chuva, gust: n.rajada };
-        return `<tr><th scope="row">${esc(cap1(lab))}</th><td>${esc(c ? numsTxt(c.model) : '–')}</td><td>${esc(numsTxt(cl))}</td><td>${esc(c ? numsTxt(c.final) : '–')}</td></tr>`;
+        const mine = { tmax: n.tmax, tmin: n.tmin, precip: n.chuva, gust: n.rajada };
+        return `<tr><th scope="row">${esc(cap1(lab))}</th><td>${esc(c ? numsTxt(c.model) : '–')}</td><td>${esc(numsTxt(mine))}</td><td>${esc(c ? numsTxt(c.final) : '–')}</td></tr>`;
     }).join('');
     return `<div class="an-sec" id="an-num"><h4>Os números do Claude</h4><div class="cmp-scroll"><table class="tbl"><thead><tr><th scope="col">Dia</th><th scope="col">Modelos</th><th scope="col">Claude</th><th scope="col">Na app</th></tr></thead><tbody>${rows}</tbody></table></div>
         <p class="hint" style="margin-top:6px">${esc(why)}</p></div>`;

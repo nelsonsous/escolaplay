@@ -77,6 +77,33 @@ export function wfrac(vals, ws, thr) {
     return sw > 0 ? hit / sw : null;
 }
 
+// Probabilidade de chuva mensurável numa hora quando um modelo dá x mm/h. A regra antiga («≥ 0,1 mm = chove») dava chuva
+// em 1,6 a 3,3 vezes mais horas do que as estações registam: a chuva de um modelo é a média de uma quadrícula e vem
+// espalhada no tempo. Curva medida em 11/2026 (previsões de 1 dia antes contra 5 estações do IPMA e os aeroportos do
+// Porto, Lisboa e Faro, cerca de 2 300 horas de observação): com ela, quando a app diz 65% chove em 65% das horas (antes dizia 96% e chovia
+// em 59%). Pontos [mm/h, probabilidade], interpolados no logaritmo da quantidade.
+export const RAIN_VOTE = [[0.05, 0.1], [0.1, 0.25], [0.3, 0.4], [1, 0.65], [3, 0.9]];
+export function rainVote(mmh) {
+    const P = RAIN_VOTE;
+    if (!isNum(mmh) || mmh < P[0][0]) return 0;
+    for (let i = 1; i < P.length; i++) {
+        if (mmh < P[i][0]) {
+            const [x0, y0] = P[i - 1], [x1, y1] = P[i];
+            return y0 + ((y1 - y0) * Math.log(mmh / x0)) / Math.log(x1 / x0);
+        }
+    }
+    return P[P.length - 1][1];
+}
+// Média ponderada de um voto (0..1) dado a cada valor
+export function wvote(vals, ws, fn) {
+    let hit = 0, sw = 0;
+    for (let i = 0; i < vals.length; i++) {
+        const v = vals[i], w = ws ? ws[i] : 1;
+        if (isNum(v) && w > 0) { sw += w; hit += w * fn(v); }
+    }
+    return sw > 0 ? hit / sw : null;
+}
+
 export function haversine(lat1, lon1, lat2, lon2) {
     const R = 6371, t = Math.PI / 180;
     const dLat = (lat2 - lat1) * t, dLon = (lon2 - lon1) * t;

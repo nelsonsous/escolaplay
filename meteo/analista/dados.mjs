@@ -1,5 +1,6 @@
 // Analista do tempo — recolhe tudo o que o Claude precisa para cada local a analisar nesta corrida.
-//   NODE_USE_ENV_PROXY=1 node meteo/analista/dados.mjs [--out /tmp/meteo]
+//   NODE_USE_ENV_PROXY=1 node meteo/analista/dados.mjs [--out /tmp/meteo] [--sem-gravar]
+// (--sem-gravar: só mostra; não grava nada na base de dados — para experimentar)
 // Os locais vêm do KV (places): todos os do dono e os dos outros telemóveis em uso, conforme a "análise dos outros"
 // (Ajustes → Utilização: ligada | só 1× por dia, na corrida da manhã | desligada), até 15 — selectPlaces em lib/places.js.
 // Mostra as regras, o resumo numérico (a começar por "## O ponto", com o radar no ponto e os avisos do utilizador),
@@ -14,7 +15,11 @@ import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns } from '.
 import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { selectPlaces, isOwnerPlace, placeOwner, placeMembers, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
 import { mergeMemory } from '../lib/learn.js';
-import { WORKER, getJSON, kvGet, kvPut, arg } from './comum.mjs';
+import { verifyNumbers, claudeWeights, numbersReport } from '../lib/nums.js';
+import { WORKER, getJSON, kvGet, kvPut as kvPutReal, kvList, arg } from './comum.mjs';
+
+const DRY = process.argv.includes('--sem-gravar');
+const kvPut = DRY ? async () => {} : kvPutReal;
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 const savedStations = new Set(); // estações já gravadas nesta corrida (locais perto partilham estações)
@@ -96,6 +101,9 @@ for (const [i, place] of places.entries()) {
         else out.push('\n## Análise anterior: nenhuma (primeira análise deste local).');
         out.push(lessons.length ? `\n## Lições sobre este local\n- ${lessons.join('\n- ')}` : '\n## Lições: ainda nenhuma.');
         out.push('\n' + buildSummary(fc, { perModel: perModelTable(raw.det), reports }));
+        // os números do Claude das análises anteriores, verificados; o peso de cada variável na app afina-se com isto
+        try { out.push(`\n## Os teus números anteriores (contra o observado nas estações e contra o consenso dos modelos da mesma altura)\n${(await verifyClaude(place, fc)).join('\n')}`); }
+        catch (e) { out.push(`\n(números do Claude não verificados: ${e.message})`); }
         const imgs = [];
         for (const [layer, km, tag, what] of SAT) {
             try {
@@ -151,6 +159,23 @@ async function saveObsHistories(raw, fc) {
         const keep = [...map.values()].filter((o) => o.ms >= Date.now() - 14 * 864e5).sort((a, b) => a.ms - b.ms);
         await kvPut(key, keep);
     }
+}
+
+// Números do Claude (nums:<id>): junta à memória os dias já observados (o que o Claude e o consenso davam → o que as
+// estações mediram), recalcula o peso de cada variável e guarda o consenso de agora, que o publicar.mjs junta à análise
+// (para a verificação dos próximos dias comparar os dois com a mesma informação).
+async function verifyClaude(place, fc) {
+    const off = fc.location?.utcOffsetSeconds || 0;
+    const today = new Date(Date.parse(fc.generatedAt) + off * 1000).toISOString().slice(0, 10);
+    const mem = await kvGet('nums:' + place.id).catch(() => null);
+    const since = new Date(Date.now() - 4 * 864e5).toISOString().slice(0, 13);
+    const keys = (await kvList(`analysis:${place.id}:`)).filter((k) => k.slice(-13) >= since).sort().slice(-12);
+    const issues = (await Promise.all(keys.map((k) => kvGet(k).catch(() => null)))).filter((a) => a?.numeros?.length && a.consenso?.length);
+    const next = verifyNumbers(mem, issues, fc.observed?.days || [], { off, today });
+    const pesos = claudeWeights(next, { today });
+    const dias = (fc.daily || []).slice(0, 3).map((d) => ({ data: d.date, tmax: d.tmax, tmin: d.tmin, chuva: d.precip, rajada: d.gustMax }));
+    await kvPut('nums:' + place.id, { ...next, pesos, consenso: { at: fc.generatedAt, dias }, updated: new Date().toISOString() });
+    return numbersReport(next, { today });
 }
 
 // Junta os dias verificados nesta corrida à memória do local (fica o dia mais completo; mais de 90 dias sai)

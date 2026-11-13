@@ -594,6 +594,15 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(await page.locator('.d-sub').textContent(), /consenso de \d+ modelos e do Claude/);
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    // com o peso afinado pela verificação (vem com a análise): 80% na máxima → a máxima de domingo chega-se mais ao Claude
+    const half = await page.evaluate(() => window.__mt.st.fc && document.querySelector('.row.day[data-day="2"] .d-hi').textContent);
+    await page.evaluate(() => { const S = window.__mt.st; S.analysis = { ...S.analysis, analysis: { ...S.analysis.analysis, pesos: { tmax: 0.8, tmin: 0.5, chuva: 0.3, rajada: 0.5, n: 6 } } }; window.__mt.render(); });
+    const heavy = await page.locator('.row.day[data-day="2"] .d-hi').textContent();
+    assert.equal(heavy, `${Math.round(+mx + 0.8 * (15 - +mx))}°`, `a 80%: ${half} → ${heavy}`);
+    await tab('analise');
+    assert.match(await page.locator('#an-num .hint').textContent(), /^Peso do Claude ao lado da média dos modelos: máx\. 80% · mín\. 50% · chuva 30% · rajadas 50% \(afinado com 6 dias verificados\)\.$/);
+    await page.evaluate(() => { const S = window.__mt.st, { pesos, ...a } = S.analysis.analysis; S.analysis = { ...S.analysis, analysis: a }; window.__mt.render(); });
+    assert.match(await page.locator('#an-num .hint').textContent(), /^Entram a meias \(50%\)/);
     // desligado nos Ajustes: os dias voltam a ser só dos modelos
     await tab('ajustes');
     if (!(await page.locator('#d-adv[open]').count())) await page.click('#d-adv > summary'); // as preferências estão em «Avançado»
