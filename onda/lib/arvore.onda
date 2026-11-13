@@ -12,7 +12,8 @@
 #                     ordem do texto (o JS põe primeiro as chaves de índice) e as chaves repetidas (o _ar_get dá a
 #                     primeira; o JS fica com o valor da última): para isso há o _js_parse
 #   _ar_tipo n  _ar_num n (0 se não é número)  _ar_txt n (0 se não é texto)  _ar_n n (quantos filhos)
-#   _ar_get n k       o membro de um objeto pelo nome (k um texto, p. ex. $"preco"); 0 se não há
+#   _ar_get n k       o membro de um objeto pelo nome (k um texto, p. ex. $"preco"); 0 se não há. Com um nome fixo
+#                     escreve-se com o ponto: a.preco é _ar_get a $"preco", e a.b.c o membro c do membro b
 #   _ar_idx n i       o elemento i de uma lista;  _ar_prim n: o primeiro filho;  _ar_prox c: o irmão seguinte;
 #                     _ar_chave c: o nome de um membro
 #   _ar_verd n        if (v): false, 0, -0, NaN, '', null e undefined são falsos
@@ -31,6 +32,8 @@
 : _ar_txt i>i n ? == _ar_tipo n 5 @ + n 1 0
 : _ar_n i>i n ? n @ + n 5 0
 : _ar_get ii>i n k { = c ? == _ar_tipo n 7 @ + n 4 0 W && c ~ _tx_igual @ + c 2 k = c @ + c 3 c }
+# o ponto da linguagem: a.b é _mb a $"b" (o leitor do compilador desdobra-o), aqui o membro b do nó a
+: _mb ii>i n k _ar_get n k
 : _ar_idx ii>i n i { = c ? == _ar_tipo n 6 @ + n 4 0 W && c > i 0 { = c @ + c 3 = i - i 1 } c }
 : _ar_prim i>i n ? n @ + n 4 0
 : _ar_prox i>i c @ + c 3

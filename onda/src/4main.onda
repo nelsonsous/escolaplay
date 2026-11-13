@@ -163,39 +163,20 @@
     { = vb litv p = va litv q ! 19 - @ 19 2 ir 44 r & va 4294967295 & vb 4294967295 0 0 0 }
     { ir 43 r a b 0 0 0 }
   r }
-: usesm >i {
-  = p @ 1
-  = e + @ 1 @ 2
+# o programa usa a matematica (Sn Cs Ex Lg Pw At) ou o armazem (K Kc)? Ve-se nos tokens ja lidos (o leitor ja pos de
+# parte os textos, os moldes e os comentarios)
+: usam >i {
   = r 0
-  = st 0
-  W && ~ r < + p 1 e {
-    = c @ p
-    = d @ + p 1
-    = ini || == p @ 1 isws @ - p 1
-    ? st
-      { ? == c 92 = p + p 1 ? == c 34 = st 0 0 }
-      { ? && == c 39 ini = p + p 1
-        ? == c 34 = st 1
-        ? && == c 35 ini { W && < p e != @ p 10 = p + p 1 }
-        ? && || || && == c 'S == d 'n && == c 'C == d 's || || && == c 'E == d 'x && == c 'L == d 'g || && == c 'P == d 'w && == c 'A == d 't
-             && ini || == + p 2 e isws @ + p 2 = r 1 0 }
-    = p + p 1 }
+  = j 0
+  W && ~ r < j @ 4 {
+    = o ? == tkk j 5 tcode j 0
+    = r || || || == o k2 'S 'n == o k2 'C 's || == o k2 'E 'x == o k2 'L 'g || == o k2 'P 'w == o k2 'A 't
+    = j + j 1 }
   r }
-: usesk >i {
-  = p @ 1
-  = e + @ 1 @ 2
+: usak >i {
   = r 0
-  = st 0
-  W && ~ r < p e {
-    = c @ p
-    = ini || == p @ 1 isws @ - p 1
-    ? st
-      { ? == c 92 = p + p 1 ? == c 34 = st 0 0 }
-      { ? && == c 39 ini = p + p 1
-        ? == c 34 = st 1
-        ? && == c 35 ini { W && < p e != @ p 10 = p + p 1 }
-        ? && && == c 'K ini || || == + p 1 e isws @ + p 1 && == @ + p 1 'c || == + p 2 e isws @ + p 2 = r 1 0 }
-    = p + p 1 }
+  = j 0
+  W && ~ r < j @ 4 { = o ? == tkk j 5 tcode j 0 = r || == o 'K == o k2 'K 'c = j + j 1 }
   r }
 # --- autodiff: diferenciacao simbolica automatica do elemento de um mapa (numeros duais) ---
 # xdiff anda a arvore do resultado (a mesma que o xvan valida: + - * / sobre x e constantes float) e devolve o
@@ -364,6 +345,10 @@
   ? == o k2 'M 'n cmm 0
   ? == o k2 'M 'x cmm 1
   ? == o '? cif
+  ? == o k2 'S 'e cse
+  ? == o 'L clp
+  ? == o '( cpar
+  ? == o '. cdot
   ? == o 'W cwh
   ? == o '{ cblk
   ? == o '= cset
@@ -399,6 +384,7 @@
   ? == o 'Y csys
   ? == o 'K ? isx cki k3 '_ 'k 'o ckst
   ? == o k2 'K 'c ? isx ckc0 ckcm
+  ? == o ') { ! 7 i ebeg "parentese a fechar sem abrir" eend }
   { ! 7 i ebeg "operacao desconhecida" emai i eend } }
 : rdall >i {
   = s @ 1
@@ -473,9 +459,18 @@
   ? || || isw isx isa { ! 23 + @ 1 @ 2 O 23 wrt O 0 ! 2 - @ 23 @ 1 } 0
   # a zona dos dados (textos; ver dent): em todas as formas, porque o $"..." tambem vive em M no C
   ! 20 64 ! 21 A 105536 ! 22 0
-  ? && || || || || == @ 12 0 isw isx isjs isa usesm { ! 23 + @ 1 @ 2 O 23 wmat O 0 ! 2 - @ 23 @ 1 } 0
-  ? && isx usesk { ! 23 + @ 1 @ 2 O 23 xkrt O 0 ! 2 - @ 23 @ 1 } 0
-  ! 3 A + 3 * 3 @ 2
+  # a matematica (wmat) e o armazem do x86 (xkrt) sao fontes em Onda que so entram se o programa as usa: escrevem-se a
+  # seguir a fonte (n0..n1 e n1..n2), le-se a fonte e, pelos tokens, ve-se se tambem se leem
+  = n0 @ 2
+  = tm || || || || == @ 12 0 isw isx isjs isa
+  ? tm { ! 23 + @ 1 n0 O 23 wmat O 0 0 } 0
+  = n1 ? tm - @ 23 @ 1 n0
+  ? isx { ! 23 + @ 1 n1 O 23 xkrt O 0 0 } 0
+  = n2 ? isx - @ 23 @ 1 n1
+  ! 3 A + 3 * 3 n2
+  lxc 0 0
+  ? && > n1 n0 usam { ! 2 n1 lxc n0 0 0 } 0
+  ? && > n2 n1 usak { ! 2 n2 lxc n1 0 0 } 0
   # 5: as funcoes (14 palavras cada) e, a partir de 120000, a dispersao dos nomes (ffun)
   ! 5 A 185536
   ! 8 A 40000
@@ -485,7 +480,6 @@
   ! 16 A Mx 3000000 * 8 @ 2
   ! 17 A Mx 1500000 * 2 @ 2
   ! 18 A 800000
-  lex
   pre
   = m 0
   = k 0

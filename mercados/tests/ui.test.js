@@ -125,6 +125,8 @@ function proxyBody(u) {
     const url = `http://127.0.0.1:${server.address().port}/escolaplay/mercados/`;
     const browser = await chromium.launch();
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1, isMobile: true, hasTouch: true, locale: 'pt-PT', timezoneId: 'Europe/Lisbon' });
+    // com capturas: ao lado de cada imagem do ecrã fica o texto que lá está (um .txt), para se ler o ecrã sem a imagem
+    if (SHOTS) ctx.on('page', (p) => { const tira = p.screenshot.bind(p); p.screenshot = async (o) => { if (o && o.path) fs.writeFileSync(o.path.replace(/\.png$/, '.txt'), await p.evaluate(() => document.body.innerText)); return tira(o); }; });
     const errors = [];
     let wsMsgs = 0;
 

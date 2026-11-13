@@ -8,32 +8,86 @@ const Significado = (() => {
   // tokens com posicao no texto (as mesmas regras do lexer do compilador)
   function tokens(src) {
     const t = [], n = src.length;
-    let i = 0;
-    while (i < n) {
-      const c = src.charCodeAt(i);
-      if (WS(c)) { i++; continue; }
-      if (c === 35) { while (i < n && src.charCodeAt(i) !== 10) i++; continue; }
-      // "..." imprime (tipo 3); $"..." e um texto constante (tipo 6, o endereco de um texto em M; o token comeca nas aspas)
-      const tc = c === 36 && src.charCodeAt(i + 1) === 34;
-      if (tc) i++;
-      const s = i;
-      if (c === 34 || tc) {
-        i++;
-        while (i < n && src.charCodeAt(i) !== 34) { if (src.charCodeAt(i) === 92) i++; i++; }
-        if (i >= n) throw erro('texto sem fim');
-        i++;
-        t.push({ k: tc ? 6 : 3, x: src.slice(s, i), s, e: i });
-        continue;
+    // um token acaba no espaco e nas chavetas e parenteses, que sao tokens sozinhos
+    const FIM = c => WS(c) || c === 123 || c === 125 || c === 40 || c === 41;
+    const poe = (k, s, e) => t.push({ k, x: src.slice(s, e), s, e });
+    // "..." e `...` (sem interpolacoes): do delimitador ao delimitador igual
+    function texto(s, k) {
+      const q = src.charCodeAt(s);
+      let i = s + 1;
+      while (i < n && src.charCodeAt(i) !== q) { if (src.charCodeAt(i) === 92) i++; i++; }
+      if (i >= n) throw erro('texto sem fim');
+      poe(k, s, i + 1);
+      return i + 1;
+    }
+    // o texto de um molde: ate a { de uma interpolacao ou a crase que fecha
+    const seg = i => { while (i < n && src.charCodeAt(i) !== 96 && src.charCodeAt(i) !== 123) { if (src.charCodeAt(i) === 92) i++; i++; } return i; };
+    // molde `texto{ codigo }texto`: sem { } um texto impresso; com elas, um bloco { pedaco codigo pedaco ... }
+    function molde(s) {
+      let i = seg(s + 1);
+      if (i >= n) throw erro('molde sem fim');
+      if (src.charCodeAt(i) === 96) { poe(3, s, i + 1); return i + 1; }
+      poe(5, i, i + 1);
+      if (i - s > 1) poe(3, s, i + 1);
+      let u = 0;
+      for (;;) {
+        const j = codigo(i + 1, 1);
+        u = j;
+        i = seg(j + 1);
+        if (i >= n) throw erro('molde sem fim');
+        if (src.charCodeAt(i) === 96) { poe(3, j, i + 1); break; }
+        if (i - j > 1) poe(3, j, i + 1);
       }
-      while (i < n && !WS(src.charCodeAt(i))) i++;
+      poe(5, u, u + 1);
+      return i + 1;
+    }
+    // a.b.c troca-se por . . a $b $c (cada chave e um texto constante entre o ponto e o caracter a seguir ao nome)
+    function ponto(s, e) {
+      for (let j = s; j < e; j++) if (src.charCodeAt(j) === 46) poe(5, j, j + 1);
+      let j = s;
+      while (src.charCodeAt(j) !== 46) j++;
+      poe(0, s, j);
+      while (j < e) {
+        let q = j + 1;
+        while (q < e && src.charCodeAt(q) !== 46) q++;
+        if (q === j + 1) throw erro('ponto sem nome a seguir');
+        poe(6, j, q + 1);
+        j = q;
+      }
+    }
+    function palavra(s) {
+      const c = src.charCodeAt(s);
+      let i = s + 1;
+      if (c === 39 && i < n) i++;
+      while (i < n && !FIM(src.charCodeAt(i))) i++;
       const x = src.slice(s, i), l = i - s;
       let k;
       if (DG(c) || (c === 45 && l > 1 && DG(src.charCodeAt(s + 1)))) k = x.includes('.') ? 2 : 1;
       else if (c === 39) k = 4;
       else if ((c >= 97 && c <= 122) || c === 95) k = 0;
       else k = 5;
-      t.push({ k, x, s, e: i });
+      if (k === 0 && x.includes('.')) ponto(s, i); else poe(k, s, i);
+      return i;
     }
+    // d = 1: uma interpolacao de um molde, ate a } que a fecha (devolve o indice dela)
+    function codigo(i, d) {
+      let pf = 0;
+      while (i < n) {
+        const c = src.charCodeAt(i), c1 = src.charCodeAt(i + 1);
+        if (WS(c)) { i++; continue; }
+        if (c === 35) { while (i < n && src.charCodeAt(i) !== 10) i++; continue; }
+        if (c === 34) { i = texto(i, 3); continue; }
+        if (c === 96) { i = molde(i); continue; }
+        if (c === 36 && (c1 === 34 || c1 === 96)) { i = texto(i + 1, 6); continue; }
+        if (d && c === 125 && pf === 0) return i;
+        if (c === 123 || c === 125) { pf += c === 123 ? 1 : -1; poe(5, i, i + 1); i++; continue; }
+        if (c === 40 || c === 41) { poe(5, i, i + 1); i++; continue; }
+        i = palavra(i);
+      }
+      if (d) throw erro('falta a } que fecha a interpolacao do molde');
+      return i;
+    }
+    codigo(0, 0);
     return t;
   }
 
@@ -127,6 +181,20 @@ const Significado = (() => {
           case 'Mn': case 'Mx': { const a = ex(), b = ex(); mesmo(a, b); return { o: x === 'Mn' ? 34 : 35, y: a.y, a, b }; }
           case '?': { const c = ex(); int(c); const a = ex(), b = ex(); if (a.y !== b.y) throw erro('ramos com tipos diferentes'); return { o: 36, y: a.y, c, a, b }; }
           case 'W': { const c = ex(); int(c); const b = ex(); return { o: 37, y: 0, c, b }; }
+          // Se c b: o `? c { b 0 } 0`; ( e ): vale e; L i n b: para i de 0 a n-1 (n uma vez)
+          case 'Se': { const c = ex(); int(c); const b = ex(); return { o: 36, y: 0, c, a: { o: 38, y: 0, xs: [b, { o: 0, y: 0, v: 0 }] }, b: { o: 0, y: 0, v: 0 } }; }
+          case '(': { const e = ex(); if (pos >= T.length || T[pos].x !== ')') throw erro('falta )'); pos++; return e; }
+          case 'L': {
+            const nt = T[pos];
+            if (!nt || nt.k !== 0) throw erro('L precisa de nome');
+            pos++;
+            const lim = ex(); int(lim);
+            let l = loc.get(nt.x);
+            if (!l) { l = { s: loc.size, y: 0 }; loc.set(nt.x, l); } else if (l.y !== 0) throw erro('a variavel do L tem de ser inteira');
+            const b = ex();
+            return { o: 43, y: 0, s: l.s, n: lim, b };
+          }
+          case '.': throw erro('operacao so de CPU: .');
           case '{': {
             const xs = [];
             for (;;) { if (pos >= T.length) throw erro('falta }'); if (T[pos].x === '}') break; xs.push(ex()); }
@@ -198,6 +266,7 @@ const Significado = (() => {
       case 37: { while (ev(n.c, e) !== 0) ev(n.b, e); return 0; }
       case 38: { let r = 0; for (let j = 0; j < n.xs.length; j++) r = ev(n.xs[j], e); return r; }
       case 39: return (e[n.s] = ev(n.e, e));
+      case 43: { const lim = ev(n.n, e); e[n.s] = 0; while (e[n.s] < lim) { ev(n.b, e); e[n.s] = e[n.s] + 1; } return 0; }
       case 41: return n.f(ev(n.a, e));
       case 42: { const a = ev(n.a, e); return BW(a, ev(n.b, e)); }
       case 40: {

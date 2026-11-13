@@ -6,11 +6,13 @@ Os operadores `E`, `S` e `D` colapsam o campo e são o único sítio onde há pa
 Não há runtime, GC nem VM. O compilador gera C (e daí código nativo ou WebAssembly) ou GLSL para a GPU.
 
 ## Léxico
-- Os tokens separam-se por espaço, tab ou mudança de linha. `#` no início de um token comenta até ao fim da linha.
+- Os tokens separam-se por espaço, tab ou mudança de linha. `#` no início de um token comenta até ao fim da linha. As chavetas e os parênteses são sempre tokens sozinhos, com ou sem espaços: `{a}` lê-se `{ a }` e `(+ a b)` lê-se `( + a b )`.
 - `123`, `-5`, `0xFF` são inteiros. `1.5`, `-0.25`, `2.` são reais (têm de ter `.`). `'c` é o código do carácter c (`'a` = 97).
 - `"..."` imprime o texto e vale 0. Escapes: `\n \t \\ \"`; mudanças de linha literais são permitidas.
 - `$"..."` (o `$` colado às aspas) é um **texto constante**: vale o endereço de um texto fixo no formato do `O t` (M[t] = fim, um byte por palavra em M[t+1 .. M[t]-1]), posto uma vez na zona dos dados (a partir de M[64]). Os mesmos escapes. É só de leitura (não se escreve nele) e textos iguais dão o mesmo endereço. Existe em C, WebAssembly, x86 e arm64; na GPU e no JavaScript não há memória (erro do texto).
+- `` `...` `` (crases) é um **molde**: imprime o texto, como o `"..."`, mas as aspas não se escapam e cada `{ código }` corre nesse sítio — o que o código imprimir sai ali: `` `<b class="{ cls j }">{N j}</b>` ``. Vale 0, como o `"..."`. Dentro de uma interpolação cabe qualquer código (blocos, outros moldes). Uma chaveta ou uma crase a sério escrevem-se `\{`, `\}` e `` \` ``; os outros escapes são os do `"..."`. `` $`...` `` é um texto constante cru, sem interpolações (para JSON e seletores com aspas): `` $`{"a":1}` ``. Textos constantes com o mesmo conteúdo dão o mesmo endereço, seja qual for o delimitador.
 - Um nome é `[a-z_][a-zA-Z0-9_]*`. Qualquer outro token é um operador.
+- **O ponto:** `a.b` é o membro `b` de `a`. O leitor troca-o por `_mb a $"b"`, e `a.b.c` por `_mb _mb a $"b" $"c"`; a função `_mb` ("membro") é a da biblioteca que o programa juntou (a de `lib/arvore.onda` dá o membro de um nó da árvore). A base é um local ou uma função sem argumentos. Sem `_mb` no programa, o ponto é um erro.
 
 ## Programa
 `: nome ASSIN p1 .. pn CORPO`, onde ASSIN é `[if]*>[if]` (tipos dos parâmetros > tipo de retorno; `i` = int64, `f` = float64).
@@ -32,7 +34,10 @@ Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
 | `Bh` / `Bl` | 1 | palavra alta (com sinal) / baixa (0..2³²-1) dos 64 bits de um real |
 | `Bw h l` | 2 | real com esses 64 bits (`Bw` de dois literais é uma constante exata) |
 | `? c a b` | 3 | se c≠0 então a senão b (a e b do mesmo tipo) |
+| **`Se c b`** | 2 | se c≠0 faz b (de qualquer tipo; o valor não conta); vale 0. É o `? c { b 0 } 0` sem o ramo vazio |
 | `W c b` | 2 | enquanto c≠0 faz b; vale 0 |
+| **`L i n b`** | nome + 2 | para i de 0 a n−1 faz b; vale 0. O limite n calcula-se uma vez; i é um local inteiro (novo ou já existente) e no fim vale n. É o `= i 0 W < i n { b = i + i 1 }` |
+| **`( e )`** | 1 | vale e. O parêntese confere que lá dentro está uma só expressão completa: serve para não errar a aridade (`(+ (* 2 3) (f x))`) |
 | `{ e1 .. en }` | n | sequência; vale en (vazio vale 0) |
 | `= x e` | 2 | atribui à local x (o tipo fica fixo na 1.ª atribuição); vale e |
 | `nome a1..an` | n | chamada (a aridade vem da assinatura) |

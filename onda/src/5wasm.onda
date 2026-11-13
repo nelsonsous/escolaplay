@@ -171,13 +171,25 @@
   dent i adr
   adr }
 : thash i>i i { = s tks i = l tkl i = h 2166136261 = j 0 W < j l { = h & * ^ h @ + s j 16777619 4294967295 = j + j 1 } & h 65535 }
+# os textos constantes comparam-se pelo que tem dentro (os delimitadores ficam de fora): $"x", $`x` e o .x de um
+# a.x sao o mesmo texto
+: thin i>i i { = s tks i = l tkl i = h 2166136261 = j 1 W < j - l 1 { = h & * ^ h @ + s j 16777619 4294967295 = j + j 1 } & h 65535 }
+: teqi ii>i a b {
+  = l tkl a
+  ? != l tkl b 0
+  { = sa tks a
+    = sb tks b
+    = j 1
+    = r 1
+    W && r < j - l 1 { ? != @ + sa j @ + sb j = r 0 0 = j + j 1 }
+    r } }
 : treg i>i i {
-  = h thash i
+  = h thin i
   = r -1
   W < r 0 {
     = q @ + + @ 21 40000 h
     ? q
-      { = e + @ 21 * - q 1 2 ? teq - 0 @ e i = r @ + e 1 = h & + h 1 65535 }
+      { = e + @ 21 * - q 1 2 ? teqi - 0 @ e i = r @ + e 1 = h & + h 1 65535 }
       { = r @ 20
         ! 20 + + r slen i 1
         dent - 0 i r
@@ -297,6 +309,7 @@
       ? == o k2 'C 's wrun k3 '_ 'c 's
       ? == o k2 'E 'x wrun k3 '_ 'x 'p
       ? == o k2 'L 'g wrun k3 '_ 'l 'g
+      ? == o '. wrun k3 '_ 'm 'b
       ? == o k2 'P 'w wrun k3 '_ 'p 'w
       ? == o k2 'A 't wrun k3 '_ 'a 't 0 }
     0 }
