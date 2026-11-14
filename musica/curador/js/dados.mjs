@@ -84,7 +84,7 @@ Conta Tidal: **${perfil.utilizador || '?'}** (${perfil.pais}) · ${perfil.favori
 
 ## Pedidos à espera (${pend.length})
 ${pend.length ? pend.map((p) => `- \`${p.id}\` — «${p.texto}» · ${p.opcoes.faixas} faixas, máx. ${p.opcoes.maxArtista} por artista, estilo ${p.opcoes.estilo}, arco ${p.opcoes.arco}${p.opcoes.limpa ? ', sem letras explícitas' : ''} · pedido a ${lisboa(new Date(p.criadoEm))}` +
-    `${p.afinar ? ` · **afinar a playlist «${p.afinar.nome}» (\`${p.afinar.playlist}\`)**${p.afinar.rejeitadas.length ? ` — tira: ${p.afinar.rejeitadas.map((x) => `${x.artista} — ${x.titulo}`).join('; ')}` : ''}` : ''}`).join('\n') : '- nenhum'}
+    `${p.afinar ? ` · **${p.afinar.rever ? 'rever' : 'afinar'} a playlist «${p.afinar.nome}» (\`${p.afinar.playlist}\`)**${p.afinar.rever ? ' — são as faixas parecidas do Tidal, por rever' : ''}${p.afinar.rejeitadas.length ? ` — tira: ${p.afinar.rejeitadas.map((x) => `${x.artista} — ${x.titulo}`).join('; ')}` : ''}` : ''}`).join('\n') : '- nenhum'}
 
 ## Playlist da semana
 ${ultimaSemanal ? `A última foi «${ultimaSemanal.nome}» há ${diasSemanal} dia(s)${diasSemanal >= 7 ? ' — **está na altura de uma nova**.' : '.'}` : 'Ainda não há nenhuma — **cria a primeira**.'}

@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.20.1';
+const VERSION = '1.21.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -485,7 +485,10 @@ async function guardar(env, c, quem) {
         candidatas: Array.isArray(c.candidatas) ? c.candidatas.slice(0, 200) : [],
         custo: Number(c.custo) || 0, criadaEm: new Date().toISOString(), por: quem.tipo === 'agente' ? 'curador' : 'app', modelo: txt(c.modelo, 60), tidal: null,
         ...(Array.isArray(c.capas) && c.capas.some((u) => /^https:\/\//.test(u)) ? { capas: c.capas.filter((u) => /^https:\/\//.test(u)).slice(0, 4).map((u) => txt(u, 300)) } : {}),
-        // uma de várias propostas para o mesmo pedido: fica só na app até a pessoa a escolher (Enviar para o Tidal)
+        // de onde vem, quando não é do Maestro nem de um pedido: as parecidas do Tidal («Mais como esta») ou juntada
+        ...(c.origem === 'parecidas' || c.origem === 'juntar' ? { origem: c.origem } : {}),
+        // à antiga (o Maestro já não as faz: cada pedido dá uma playlist, logo no Tidal): uma de várias propostas para
+        // o mesmo pedido, que fica só na app até a pessoa a pôr no Tidal
         ...(c.rascunho === true ? { rascunho: true, grupo: txt(c.grupo, 40), variante: txt(c.variante, 40) } : {}),
     };
     if (c.tidal && !doc.rascunho) doc.tidal = await criarNoTidal(env, doc);
@@ -495,7 +498,7 @@ async function guardar(env, c, quem) {
     await env.KV.put('playlists', JSON.stringify(idx.slice(0, MAX_PLAYLISTS)));
     return doc;
 }
-// juntar playlists numa nova (só na app; envia-se depois para o Tidal): uma faixa de cada, à vez, sem repetidas
+// juntar playlists numa nova, logo no Tidal (revê-se depois, na app): uma faixa de cada, à vez, sem repetidas
 // (nem a mesma faixa, nem o mesmo título do mesmo artista noutra edição)
 async function juntar(env, c, quem) {
     const ids = [...new Set((Array.isArray(c?.ids) ? c.ids : []).map((x) => txt(x, 40)).filter(Boolean))].slice(0, 10);
@@ -519,12 +522,13 @@ async function juntar(env, c, quem) {
     const nome = nomes.join(' + ');
     return guardar(env, { nome: nome.length > 60 ? nome.slice(0, 59) + '…' : nome, descricao: txt(`Junta ${nomes.map((n) => `«${n}»`).join(', ')}.`, 300),
         resumo: 'Uma faixa de cada playlist, à vez, sem repetidas. Afina no telemóvel para mudar a ordem ou a escolha.', faixas, candidatas: candidatas.slice(0, 200),
-        opcoes: { ...docs[0].opcoes, faixas: Math.min(faixas.length, 200) }, capas: docs.map((d) => d.capas?.[0]).filter(Boolean) }, quem);
+        opcoes: { ...docs[0].opcoes, faixas: Math.min(faixas.length, 200) }, capas: docs.map((d) => d.capas?.[0]).filter(Boolean), origem: 'juntar', tidal: true }, quem);
 }
 const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.por, faixas: d.faixas.length,
     duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null,
-    ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}), ...(d.afinadaEm ? { afinadaEm: d.afinadaEm } : {}),
+    ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}), ...(d.afinadaEm ? { afinadaEm: d.afinadaEm } : {}), ...(d.revistaEm ? { revistaEm: d.revistaEm } : {}),
     ...(d.rascunho ? { rascunho: true, grupo: d.grupo || '', variante: d.variante || '' } : {}),
+    ...(d.origem ? { origem: d.origem } : {}),
     // para agrupar na app: o pedido (se houve) e o género que mais aparece
     ...(d.pedido ? { pedido: txt(d.pedido, 120) } : {}), ...(generoDe(d.faixas) ? { genero: generoDe(d.faixas) } : {}),
     ...(d.capas?.length ? { capas: d.capas } : {}),
@@ -999,6 +1003,8 @@ async function guardarIdeias(env, c) {
 }
 
 // ---------- mais como esta: faixas parecidas (as do Tidal), numa playlist já no Tidal e pronta para afinar ----------
+// Quem escolhe aqui é o Tidal (parecidas, pela ordem dele): ouve-se logo. Fica um pedido ao Maestro para a rever na
+// corrida seguinte, na mesma playlist (o mesmo link): pesquisa, critério de qualidade e a ordem do motor.
 async function maisComoEsta(env, c, quem) {
     const id = String(c?.faixa || '');
     if (!/^\d+$/.test(id)) throw new Erro(400, 'faixa_invalida', 'Indica "faixa": o id do Tidal.');
@@ -1021,9 +1027,19 @@ async function maisComoEsta(env, c, quem) {
         return { ...p, faixa: f, sinais: sinais(p, f, g) };
     }).filter(Boolean);
     const faixas = candidatas.map((x) => ({ ...x.faixa, genero: x.sinais?.genero || '', motivo: x.motivo }));
-    return guardar(env, { nome: txt(`Parecidas com ${semente.titulo}`, 60), descricao: txt(`Faixas parecidas com «${semente.titulo}», de ${semente.artistas[0] || 'vários'}.`, 300),
-        resumo: `Pedi ao Tidal as faixas parecidas com «${semente.titulo}». Afina no telemóvel para mudar a ordem ou a escolha.`, faixas, candidatas,
-        opcoes: { faixas: Math.max(5, faixas.length), maxArtista: 3, limpa }, tidal: true }, quem);
+    const d = await guardar(env, { nome: txt(`Parecidas com ${semente.titulo}`, 60), descricao: txt(`Faixas parecidas com «${semente.titulo}», de ${semente.artistas[0] || 'vários'}.`, 300),
+        resumo: `Pedi ao Tidal as faixas parecidas com «${semente.titulo}»: são as dele, pela ordem dele. O Maestro revê-a na próxima corrida (às 07:44 ou às 18:44), aqui e no mesmo link do Tidal.`, faixas, candidatas,
+        opcoes: { faixas: Math.max(5, faixas.length), maxArtista: 3, limpa }, origem: 'parecidas', tidal: true }, quem);
+    const lista = (await env.KV.get('pedidos', 'json')) || [];
+    if (lista.filter((x) => x.estado === 'pendente').length < MAX_PEDIDOS) {
+        const p = { id: novoId('q'), texto: txt(`Mais como «${semente.titulo}»${semente.artistas[0] ? `, de ${semente.artistas[0]}` : ''}`, 500), opcoes: d.opcoes, estado: 'pendente', criadoEm: d.criadaEm,
+            afinar: { playlist: d.id, nome: d.nome, rejeitadas: [], rever: true } };
+        lista.unshift(p);
+        await env.KV.put('pedidos', JSON.stringify(lista.slice(0, 60)));
+        d.afinacoes = [{ pedido: p.id, texto: 'Rever as parecidas do Tidal', rejeitadas: 0, em: p.criadoEm, rever: true }];
+        await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+    }
+    return d;
 }
 
 // ---------- para o Maestro: as tuas mixes do Tidal ----------
@@ -1169,16 +1185,20 @@ async function despachar(env, id, playlist) {
                 const agora = new Date().toISOString(), m = d.mudanca && d.mudanca.em >= a.em ? d.mudanca : null;
                 d.afinacoes = d.afinacoes.map((x) => (x.pedido === id ? { ...x, feitoEm: agora, ...(m ? { entraram: m.entraram, sairam: m.sairam, novas: m.novas } : {}) } : x));
                 d.afinadaEm = agora;
+                if (p.afinar.rever) { d.por = 'curador'; d.revistaEm = agora; } // as parecidas do Tidal, revistas: passa a ser do Maestro
             } else d.afinacoes = d.afinacoes.filter((x) => x.pedido !== id);
             await env.KV.put('playlist:' + d.id, JSON.stringify(d));
             if (playlist) await atualizarIndice(env, d); // a lista mostra «afinada»
         }
     }
-    // o pedido acabou de ficar feito: avisa os telemóveis da pessoa (uma vez, mesmo com várias propostas)
+    // o pedido acabou de ficar feito: avisa os telemóveis da pessoa (uma vez). A playlist de um pedido vai logo para o
+    // Tidal; uma proposta à antiga (só na app) ainda se escolhe lá
     if (playlist && p.estado === 'pendente') {
+        const feita = p.afinar ? null : await env.KV.get('playlist:' + playlist, 'json');
         const msg = p.afinar
-            ? { title: 'Playlist afinada', body: `«${txt(p.afinar.nome, 80)}» foi afinada pelo Maestro.`, url: appUrl(env), tag: 'musica-afinar' }
-            : { title: 'Propostas prontas', body: `«${txt(p.texto, 90)}»: escolhe a que vai para o Tidal.`, url: appUrl(env), tag: 'musica-pedido' };
+            ? { title: p.afinar.rever ? 'Playlist revista' : 'Playlist afinada', body: `«${txt(p.afinar.nome, 80)}» foi ${p.afinar.rever ? 'revista' : 'afinada'} pelo Maestro.`, url: appUrl(env), tag: 'musica-afinar' }
+            : feita?.rascunho ? { title: 'Propostas prontas', body: `«${txt(p.texto, 90)}»: escolhe a que vai para o Tidal.`, url: appUrl(env), tag: 'musica-pedido' }
+                : { title: 'Playlist pronta', body: `«${txt(p.texto, 90)}»: ${feita?.tidal ? 'já está no teu Tidal.' : 'já está na app.'}`, url: appUrl(env), tag: 'musica-pedido' };
         try { await avisar(env, msg); } catch (e) { console.error('avisar', e); }
     }
     return { ok: true };

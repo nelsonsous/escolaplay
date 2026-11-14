@@ -39,7 +39,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.20.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.21.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -420,8 +420,9 @@ test('trocar e tirar uma faixa, na hora: no mesmo sítio, logo no Tidal; a que s
     assert.deepEqual([v6.trocas.length, v6.trocas.filter((x) => x.faixa).length, !!v6.trocas.at(-1).faixa], [10, 5, true]);
 });
 
-test('mais como esta: uma playlist de faixas parecidas, logo no Tidal', async () => {
+test('mais como esta: as parecidas do Tidal, logo no Tidal; fica um pedido para o Maestro a rever, na mesma playlist', async () => {
     const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
     const r = await post('/api/mais', { faixa: '101' }, chave);
     assert.equal(r.status, 201);
     const d = await r.json();
@@ -432,9 +433,45 @@ test('mais como esta: uma playlist de faixas parecidas, logo no Tidal', async ()
     assert.match(d.tidal.url, /^https:\/\/tidal.com\/browse\/playlist\//);
     assert.ok(sim.chamadas.some((c) => c.includes('/tracks/101/relationships/similarTracks')));
     assert.equal((await post('/api/mais', { faixa: 'abc' }, chave)).status, 400);
+    // quem escolheu foi o Tidal: diz-se de onde vem, e o Maestro tem um pedido para a rever (no mesmo sítio)
+    assert.deepEqual([d.por, d.origem], ['app', 'parecidas']);
+    assert.match(d.resumo, /O Maestro revê-a na próxima corrida/);
+    const ped = (await (await get('/api/pedidos', chave)).json())[0];
+    assert.deepEqual([ped.estado, ped.texto, ped.afinar], ['pendente', 'Mais como «So What», de Miles Davis', { playlist: d.id, nome: d.nome, rejeitadas: [], rever: true }]);
+    assert.deepEqual(ped.opcoes, d.opcoes);
+    assert.deepEqual(d.afinacoes, [{ pedido: ped.id, texto: 'Rever as parecidas do Tidal', rejeitadas: 0, em: ped.criadoEm, rever: true }]);
+    assert.equal((await (await get('/api/playlists', chave)).json())[0].origem, 'parecidas');
+    // o Maestro revê-a: as faixas mudam na mesma playlist (o mesmo link do Tidal) e ela passa a ser dele
+    const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200 });
+    const ren = await post(`/api/playlists/${d.id}/renovacoes`, { faixas: [f('101', 'So What', 'Miles Davis'), f('107', 'Blue in Green', 'Miles Davis'), f('105', 'Naima', 'John Coltrane')], resumo: 'Revista: mais do sexteto de 1959.', modelo: 'm' }, agente);
+    assert.equal(ren.status, 201);
+    assert.equal((await call(`/api/pedidos/${ped.id}?playlist=${d.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${agente}` } })).status, 200);
+    const d2 = JSON.parse(await env.KV.get('playlist:' + d.id));
+    assert.deepEqual([d2.por, d2.origem, d2.tidal.id, d2.resumo], ['curador', 'parecidas', d.tidal.id, 'Revista: mais do sexteto de 1959.']);
+    assert.ok(d2.revistaEm && d2.revistaEm === d2.afinadaEm);
+    assert.deepEqual(d2.faixas.map((x) => x.id), ['101', '107', '105']);
+    assert.ok(d2.afinacoes[0].feitoEm && d2.afinacoes[0].rever);
+    assert.deepEqual([d2.afinacoes[0].entraram, d2.afinacoes[0].sairam], [1, 3]);
+    const i2 = (await (await get('/api/playlists', chave)).json())[0];
+    assert.deepEqual([i2.por, i2.revistaEm], ['curador', d2.revistaEm]);
+    // cancelar a revisão (na app): o pedido sai e a playlist fica como está, do Tidal
+    const e = await (await post('/api/mais', { faixa: '102' }, chave)).json();
+    const pe = (await (await get('/api/pedidos', chave)).json())[0];
+    assert.equal(pe.afinar.playlist, e.id);
+    assert.equal((await call(`/api/pedidos/${pe.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } })).status, 200);
+    const e2 = JSON.parse(await env.KV.get('playlist:' + e.id));
+    assert.deepEqual([e2.por, e2.afinacoes], ['app', []]);
+    // com a fila de pedidos cheia, a playlist cria-se na mesma (sem pedido de revisão)
+    const cheia = JSON.parse(await env.KV.get('pedidos')).filter((x) => x.estado !== 'pendente');
+    for (let i = 0; i < 20; i++) cheia.unshift({ id: 'qcheia' + i, texto: 'x', estado: 'pendente', criadoEm: new Date().toISOString() });
+    await env.KV.put('pedidos', JSON.stringify(cheia));
+    const g = await post('/api/mais', { faixa: '103' }, chave);
+    assert.equal(g.status, 201);
+    assert.equal((await g.json()).afinacoes, undefined);
+    assert.equal(JSON.parse(await env.KV.get('pedidos')).filter((x) => x.estado === 'pendente').length, 20);
 });
 
-test('juntar playlists: uma faixa de cada, à vez, sem repetidas; fica só na app; pelo menos 2', async () => {
+test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
     const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200 });
@@ -445,10 +482,12 @@ test('juntar playlists: uma faixa de cada, à vez, sem repetidas; fica só na ap
     const d = await r.json();
     assert.equal(d.nome, 'Calma + Noite');
     assert.deepEqual(d.faixas.map((x) => x.id), ['1', '2', '3', '5'], 'alternadas, sem a mesma faixa nem outra edição dela');
-    assert.equal(d.tidal, null, 'fica só na app (envia-se depois)');
-    assert.equal(d.por, 'app');
+    assert.match(d.tidal.url, /^https:\/\/tidal.com\/browse\/playlist\//, 'vai logo para o Tidal (revê-se depois, na app)');
+    assert.deepEqual([d.por, d.origem], ['app', 'juntar']);
+    assert.equal(sim.criadas.at(-1).name, 'Calma + Noite');
     const idx = await (await get('/api/playlists', chave)).json();
     assert.equal(idx[0].id, d.id);
+    assert.equal(idx[0].origem, 'juntar');
     assert.deepEqual(idx[0].capas, ['https://img/a.jpg']);
     assert.equal((await post('/api/juntar', { ids: [a.id] }, chave)).status, 400);
     assert.equal((await post('/api/juntar', { ids: [a.id, 'pnaoexiste'] }, chave)).status, 404);
@@ -799,7 +838,7 @@ async function decifrar(body, { kp, pub, auth }) {
     return JSON.parse(td.decode(plain.slice(0, -1)));
 }
 
-test('avisos no telemóvel: ligar, teste, «propostas prontas» uma vez por pedido, «afinada», assinatura caducada sai, desligar', async () => {
+test('avisos no telemóvel: ligar, teste, «propostas prontas» uma vez por pedido, «afinada», «pronta», «revista», assinatura caducada sai, desligar', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
     const { chave: vapid } = await (await get('/api/push/chave', chave)).json();
@@ -830,6 +869,18 @@ test('avisos no telemóvel: ligar, teste, «propostas prontas» uma vez por pedi
     const af = await (await post(`/api/playlists/${a.id}/afinar`, { texto: 'mais guitarra' }, chave)).json();
     await feito(af.id, a.id);
     assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Playlist afinada', body: '«Fado A» foi afinada pelo Maestro.',
+        url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-afinar' });
+    // um pedido dá uma playlist, logo no Tidal: «Playlist pronta»
+    const ped2 = await (await post('/api/pedidos', { texto: 'Jazz para a estrada' }, chave)).json();
+    const c = await (await post('/api/playlists', { nome: 'Estrada', pedido: ped2.texto, faixas, tidal: true }, agente)).json();
+    assert.ok(c.tidal);
+    await feito(ped2.id, c.id);
+    assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Playlist pronta', body: '«Jazz para a estrada»: já está no teu Tidal.',
+        url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-pedido' });
+    // as parecidas do Tidal revistas pelo Maestro: «foi revista»
+    const m = await (await post('/api/mais', { faixa: '101' }, chave)).json();
+    await feito(m.afinacoes[0].pedido, m.id);
+    assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Playlist revista', body: '«Parecidas com So What» foi revista pelo Maestro.',
         url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-afinar' });
     // o serviço diz que a assinatura caducou (410): sai, e deixa de haver avisos
     sim.pushStatus['https://web.push.apple.com/QGtelemovel'] = 410;
