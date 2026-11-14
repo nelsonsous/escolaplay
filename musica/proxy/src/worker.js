@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.21.0';
+const VERSION = '1.22.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -75,6 +75,7 @@ async function route(req, env, url) {
     if (p === '/api/convites' && m === 'POST') return json(await convidar(env, quem), 201);
     if (p === '/api/aparelho/codigo' && m === 'POST') return json(await codigoAparelho(env, quem), 201);
     const ue = deUtilizador(env, quem.uid);
+    if (p === '/api/conta' && m === 'DELETE') return json(await apagarConta(env, quem));
     if (p === '/api/push/chave' && m === 'GET') return json({ chave: (await chavesPush(env)).publicKey });
     if (p === '/api/push' && m === 'POST') return json(await assinarPush(ue, await corpo(req)), 201);
     if (p === '/api/push' && m === 'DELETE') return json(await desassinarPush(ue, await corpo(req)));
@@ -251,7 +252,8 @@ async function ligar(req, env, url, quem) {
         else if (c.codigo && (await env.KV.get('convite:' + (await sha256(String(c.codigo)))))) { novo = true; convite = await sha256(String(c.codigo)); }
         else throw new Erro(401, 'sem_acesso', 'Código de ligação inválido ou já usado.');
     }
-    const verifier = aleatorio(48), state = aleatorio(24);
+    // a app nativa (com os ficheiros lá dentro) pede para o login voltar a ela e não ao site: o estado diz para onde
+    const verifier = aleatorio(48), state = (c.voltar === 'app' ? 'app-' : '') + aleatorio(24);
     await env.KV.put('tidal:estado:' + state, JSON.stringify({ verifier, novo, convite, uid: quem?.uid || DONO, nome: txt(c.nome, 60) }), { expirationTtl: 600 });
     const q = new URLSearchParams({
         client_id: cid, code_challenge: await desafio(verifier), code_challenge_method: 'S256',
@@ -260,11 +262,12 @@ async function ligar(req, env, url, quem) {
     return { url: `${LOGIN}?${q}` };
 }
 
+const APP_NATIVA = 'capacitor://localhost/'; // a app do iPhone, quando leva os ficheiros dentro (nativo/)
 async function retorno(env, url) {
-    const voltar = (hash) => Response.redirect(appUrl(env) + hash, 302);
+    const state = url.searchParams.get('state') || '', code = url.searchParams.get('code') || '';
+    const voltar = (hash) => new Response(null, { status: 302, headers: { location: (state.startsWith('app-') ? APP_NATIVA : appUrl(env)) + hash } });
     const erro = url.searchParams.get('error');
     if (erro) return voltar('#erro=' + encodeURIComponent(url.searchParams.get('error_description') || erro));
-    const state = url.searchParams.get('state') || '', code = url.searchParams.get('code') || '';
     const est = state && (await env.KV.get('tidal:estado:' + state, 'json'));
     if (!est || !code) return voltar('#erro=' + encodeURIComponent('A ligação expirou. Tenta outra vez.'));
     await env.KV.delete('tidal:estado:' + state);
@@ -310,6 +313,35 @@ async function retorno(env, url) {
     if (!est.novo) return voltar('#ligado=1');
     if (!est.convite) await env.KV.delete('codigo:ligacao');
     return voltar('#chave=' + (await novaChave(env, 'aparelho', est.nome || 'telemóvel', uid)));
+}
+
+// ---------- apagar a conta: tudo o que o conector guarda de uma pessoa (pede-se na app, nos Ajustes) ----------
+// Saem a ligação ao Tidal, o perfil, as playlists da biblioteca, os pedidos, as ideias, os avisos e, no fim, as chaves
+// dos aparelhos dela (se as gravações do dia acabarem a meio, a chave ainda serve para pedir outra vez). As playlists
+// que já estão no Tidal dela ficam lá: são dela. O que é de todos (o Client ID, as tabelas, a chave do Maestro) fica.
+async function apagarConta(env, quem) {
+    if (quem.tipo === 'agente') throw new Erro(403, 'so_a_pessoa', 'Só a própria pessoa apaga a sua conta, na app.');
+    const uid = quem.uid || DONO;
+    const todas = async (prefix) => {
+        const out = [];
+        for (let cursor; ;) {
+            const r = await env.KV.list({ prefix, cursor });
+            out.push(...r.keys.map((k) => k.name));
+            if (r.list_complete || !r.cursor) return out;
+            cursor = r.cursor;
+        }
+    };
+    const pre = uid === DONO ? '' : `u:${uid}:`;
+    const dela = (await todas(pre)).filter((k) => uid !== DONO || (!k.startsWith('u:') && !GLOBAL.test(k)));
+    // primeiro o que mais importa: a ligação ao Tidal e o perfil
+    const peso = (k) => (k.endsWith('tidal:tokens') ? 0 : k.endsWith('perfil') || k.endsWith('push') ? 1 : 2);
+    dela.sort((a, b) => peso(a) - peso(b));
+    for (const k of dela) await env.KV.delete(k);
+    if (uid !== DONO) await env.KV.put('utilizadores', JSON.stringify(((await env.KV.get('utilizadores', 'json')) || []).filter((x) => x.uid !== uid)));
+    const chaves = (await env.KV.get('chaves', 'json')) || {};
+    for (const [h, q] of Object.entries(chaves)) if (q.tipo !== 'agente' && (q.uid || DONO) === uid) delete chaves[h];
+    await env.KV.put('chaves', JSON.stringify(chaves));
+    return { ok: true, apagadas: dela.length };
 }
 
 // ---------- API do Tidal, com renovação do token ----------

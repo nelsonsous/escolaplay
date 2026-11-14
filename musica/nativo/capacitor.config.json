@@ -4,9 +4,10 @@
   "webDir": "www",
   "backgroundColor": "#0b0713",
   "server": {
-    "url": "https://nelsonsous.github.io/escolaplay/musica/",
-    "allowNavigation": ["nelsonsous.github.io", "musica.mercados-proxy.workers.dev", "login.tidal.com"],
-    "errorPath": "erro.html"
+    "allowNavigation": [
+      "musica.mercados-proxy.workers.dev",
+      "login.tidal.com"
+    ]
   },
   "ios": {
     "contentInset": "never",

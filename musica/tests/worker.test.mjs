@@ -39,7 +39,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.21.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.22.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -491,6 +491,71 @@ test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para 
     assert.deepEqual(idx[0].capas, ['https://img/a.jpg']);
     assert.equal((await post('/api/juntar', { ids: [a.id] }, chave)).status, 400);
     assert.equal((await post('/api/juntar', { ids: [a.id, 'pnaoexiste'] }, chave)).status, 404);
+});
+
+test('apagar a conta: sai tudo o que o conector guarda da pessoa (e só dela); as chaves dela deixam de servir; o que é de todos fica', async () => {
+    const { chave } = await ligarPrimeiraVez(); // o dono
+    const agente = await env.KV.get('agente:chave');
+    const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200 });
+    // a Ana, convidada, com a sua biblioteca
+    const cv = await (await post('/api/convites', {}, chave)).json();
+    const st = new URL((await (await post('/api/ligar', { codigo: cv.codigo, nome: 'telemóvel da Ana' })).json()).url).searchParams.get('state');
+    const chaveAna = decodeURIComponent((await call(`/tidal/retorno?code=CODIGO-ANA&state=${st}`)).headers.get('location').split('#chave=')[1]);
+    const uidAna = JSON.parse(await env.KV.get('utilizadores'))[0].uid;
+    for (const [k, q] of [[chave, 'dono'], [chaveAna, 'Ana']]) {
+        await post('/api/pedidos', { texto: `Pedido da ${q}` }, k);
+        for (const n of ['Um', 'Dois']) assert.equal((await post('/api/playlists', { nome: `${n} (${q})`, faixas: [f('101', 'So What', 'Miles Davis')] }, k)).status, 201);
+        assert.equal((await get('/api/perfil', k)).status, 200);
+    }
+    const dela = () => [...env.KV.m.keys()].filter((k) => k.startsWith(`u:${uidAna}:`));
+    assert.ok(dela().length >= 6, `a Ana tem as suas coisas guardadas (${dela().length}: mais do que uma página da lista)`);
+    const doDono = () => [...env.KV.m.keys()].filter((k) => !k.startsWith('u:') && /^(tidal:tokens|perfil|playlists|playlist:|pedidos|ideias|push)$|^playlist:/.test(k));
+    const antes = doDono().length;
+    // o Maestro não apaga contas; sem chave também não
+    const apagar = (k) => call('/api/conta', { method: 'DELETE', headers: k ? { authorization: `Bearer ${k}` } : {} });
+    assert.equal((await apagar(agente)).status, 403);
+    assert.equal((await apagar()).status, 401);
+    // a Ana apaga a sua conta
+    const r = await apagar(chaveAna);
+    assert.equal(r.status, 200);
+    assert.equal((await r.json()).ok, true);
+    assert.deepEqual(dela(), [], 'não fica nada dela');
+    assert.deepEqual(JSON.parse(await env.KV.get('utilizadores')), []);
+    assert.equal((await get('/api/playlists', chaveAna)).status, 401, 'a chave dela deixa de servir');
+    assert.equal(doDono().length, antes, 'as coisas do dono não se mexem');
+    assert.equal((await (await get('/api/playlists', chave)).json()).length, 2);
+    assert.equal((await (await get('/api/utilizadores', agente)).json()).length, 1, 'o Maestro já não a vê');
+    // o dono apaga a sua: fica só o que é de todos (o Client ID, a chave do Maestro, as tabelas)
+    await env.KV.put('config:tidal_client_id', 'CLIENTE-KV');
+    await env.KV.put('tendencias:resumo', '{}');
+    assert.equal((await apagar(chave)).status, 200);
+    assert.deepEqual(doDono(), []);
+    assert.equal((await get('/api/playlists', chave)).status, 401);
+    assert.deepEqual([...env.KV.m.keys()].sort(), ['agente:chave', 'chaves', 'config:tidal_client_id', 'tendencias:resumo', 'utilizadores']);
+    assert.deepEqual(Object.values(JSON.parse(await env.KV.get('chaves'))).map((x) => x.tipo), ['agente'], 'só fica a chave do Maestro');
+    assert.equal((await (await get('/api/estado')).json()).ligado, false);
+});
+
+test('a app nativa (os ficheiros vão dentro dela): o login do Tidal volta à app, não ao site', async () => {
+    await env.KV.put('codigo:ligacao', sha('LIGAR-123'));
+    const r = await post('/api/ligar', { codigo: 'LIGAR-123', nome: 'iPhone', voltar: 'app' });
+    const state = new URL((await r.json()).url).searchParams.get('state');
+    assert.match(state, /^app-.{20,}$/);
+    const ret = await call(`/tidal/retorno?code=CODIGO-BOM&state=${state}`);
+    assert.equal(ret.status, 302);
+    assert.match(ret.headers.get('location'), /^capacitor:\/\/localhost\/#chave=.{20,}$/);
+    const chave = decodeURIComponent(ret.headers.get('location').split('#chave=')[1]);
+    assert.equal((await get('/api/playlists', chave)).status, 200, 'a chave que voltou para a app serve');
+    // ligar outra vez (já com chave) e os erros também voltam à app
+    const st2 = new URL((await (await post('/api/ligar', { voltar: 'app' }, chave)).json()).url).searchParams.get('state');
+    assert.equal((await call(`/tidal/retorno?code=CODIGO-BOM&state=${st2}`)).headers.get('location'), 'capacitor://localhost/#ligado=1');
+    assert.match((await call('/tidal/retorno?code=X&state=app-expirado')).headers.get('location'), /^capacitor:\/\/localhost\/#erro=/);
+    assert.match((await call('/tidal/retorno?error=access_denied&state=app-qualquer')).headers.get('location'), /^capacitor:\/\/localhost\/#erro=access_denied$/);
+    // sem o pedido da app, tudo como dantes: volta ao site
+    const st3 = new URL((await (await post('/api/ligar', {}, chave)).json()).url).searchParams.get('state');
+    assert.doesNotMatch(st3, /^app-/);
+    assert.equal((await call(`/tidal/retorno?code=CODIGO-BOM&state=${st3}`)).headers.get('location'), 'https://nelsonsous.github.io/escolaplay/musica/#ligado=1');
+    assert.match((await call('/tidal/retorno?code=X&state=expirado')).headers.get('location'), /^https:\/\/nelsonsous\.github\.io\/escolaplay\/musica\/#erro=/);
 });
 
 test('para o Maestro: as tuas mixes do Tidal e as novidades dos artistas que segues', async () => {

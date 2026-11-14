@@ -1,7 +1,10 @@
-# Música no iPhone — a app nativa de teste
+# Música no iPhone — a app nativa
 
-Esta pasta é a Música como app nativa (Capacitor 8). A app abre a Música do site em ecrã inteiro, por isso as
-novidades chegam sozinhas, sem reinstalar. Serve para experimentar no simulador e no teu iPhone, sem pagar nada.
+Esta pasta é a Música como app nativa (Capacitor 8). **Os ficheiros da app vão dentro dela**: abre sem rede e não
+depende do site, como a loja da Apple pede (uma app que só abre um site é recusada). Os dados — as playlists, os
+pedidos — continuam a vir do conector, por isso para os ver é precisa Internet.
+
+Serve para experimentar no simulador e no teu iPhone, sem pagar nada, e é a base do que vai para a App Store.
 
 ## No Mac (só precisas do Xcode)
 
@@ -10,6 +13,8 @@ novidades chegam sozinhas, sem reinstalar. Serve para experimentar no simulador 
 3. Abre `musica/nativo/ios/App/App.xcodeproj` com duplo clique. Da primeira vez, o Xcode descarrega o Capacitor
    (aparece «Resolving packages» em baixo; espera que acabe).
 4. Em cima, ao lado de «App», escolhe um iPhone do simulador e carrega em **▶**.
+
+O projeto iOS do repositório já traz a app montada: não é preciso correr mais nada.
 
 ## No teu iPhone (grátis, com o teu Apple ID)
 
@@ -23,24 +28,43 @@ novidades chegam sozinhas, sem reinstalar. Serve para experimentar no simulador 
 
 A app instalada assim dura **7 dias**; depois, carrega outra vez em ▶ no Xcode.
 
+## Novidades da app
+
+Como os ficheiros vão dentro da app, uma versão nova da Música só chega à app nativa quando a voltas a instalar:
+traz o repositório outra vez (ou `git pull`) e carrega em ▶ no Xcode. A app do ecrã principal (a do Safari)
+continua a atualizar-se sozinha.
+
 ## Entrar na tua conta
 
-- **Ligar ao Tidal**: o login abre dentro da app e volta a ela.
+- **Ligar ao Tidal**: o login abre dentro da app e volta a ela (o conector sabe que o pedido veio da app nativa).
+  Entra com o email e a palavra-passe do Tidal: os botões «Continuar com Apple/Google» podem sair para o Safari
+  e, nesse caso, não voltam à app.
 - Ou, na app do ecrã principal (onde já entraste): **Ajustes → Ligar outro aparelho**, e cola o código aqui.
 
-## O que esta versão de teste não faz
+## O que já tem para a App Store
 
-- **Avisos**: numa app nativa precisam do programa pago da Apple (99 USD/ano). Os avisos funcionam já na app do
-  ecrã principal (Safari → Partilhar → Adicionar ao ecrã principal → Ajustes → Avisos).
-- **Sem Internet** mostra «Sem ligação».
-- **App Store**: para lá, os ficheiros passam para dentro da app (sem depender do site) e junta-se o que a Apple pede.
-  Fica para quando decidires.
+- A app vai dentro da app (sem depender do site) e abre sem rede.
+- **Apagar a minha conta**, nos Ajustes (a loja exige que se possa apagar a conta dentro da app).
+- Páginas de **privacidade** e de **apoio**, dentro da app e no site:
+  `https://nelsonsous.github.io/escolaplay/musica/privacidade.html` e `…/apoio.html` (são os endereços a dar à loja).
+- Os textos da app não usam marcas de terceiros para se descrever (o Maestro é «uma IA»; quem a faz está na
+  página de privacidade).
+- A loja não pergunta pela cifra em cada envio (`ITSAppUsesNonExemptEncryption`), e a versão é a da app.
 
-## Para mudar a configuração
+## O que ainda falta (precisa do programa pago da Apple, 99 USD/ano)
 
-A configuração está em `capacitor.config.json`. Depois de a mudar, num terminal nesta pasta:
+- **Avisos nativos** (APNs) e o envio para a loja: ficam para a volta seguinte do plano (`../PLANO.md`).
+- Experimentar o login no iPhone a sério: aqui só foi testado com o simulador do conector.
+
+## Para quem mexe na app
+
+Depois de mudar a app (`npm run onda`, em `musica/`), os ficheiros desta pasta montam-se sozinhos
+(`nativo/montar.mjs`: copia a app para `www/` e para o projeto iOS, com a configuração e a versão). Os testes
+(`tests/nativo.test.mjs`) falham se o que está montado não for a app de agora.
+
+Para mudar a configuração do Capacitor (`capacitor.config.json`) ou juntar um plugin, num Mac, nesta pasta:
 
 ```sh
 npm install
-npm run ios      # copia a configuração para o projeto iOS e abre o Xcode
+npm run ios      # monta, copia a configuração para o projeto iOS e abre o Xcode
 ```

@@ -1,11 +1,12 @@
 {
   "name": "musica-nativo",
-  "version": "2.32.0",
+  "version": "2.33.0",
   "private": true,
-  "description": "A Música como app nativa de teste (Capacitor): abre a app do site em ecrã inteiro, para o simulador do Xcode e o iPhone.",
+  "description": "A Música como app nativa (Capacitor): leva os ficheiros da app lá dentro (montar.mjs), para o simulador do Xcode, o iPhone e a loja.",
   "type": "module",
   "scripts": {
-    "ios": "npx cap sync ios && npx cap open ios"
+    "montar": "node montar.mjs",
+    "ios": "node montar.mjs && npx cap sync ios && npx cap open ios"
   },
   "dependencies": {
     "@capacitor/core": "8.6.2",

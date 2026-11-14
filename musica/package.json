@@ -1,12 +1,13 @@
 {
   "name": "musica",
-  "version": "2.32.0",
+  "version": "2.33.0",
   "private": true,
   "type": "module",
   "description": "Música — curador de playlists para o Tidal; a app e o motor de curadoria são escritos na Onda",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "onda": "node onda/compilar.mjs",
-    "onda:verificar": "node onda/compilar.mjs --verificar"
+    "onda": "node onda/compilar.mjs && node nativo/montar.mjs",
+    "onda:verificar": "node onda/compilar.mjs --verificar && node nativo/montar.mjs --verificar",
+    "nativo": "node nativo/montar.mjs"
   }
 }
