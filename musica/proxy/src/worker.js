@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.34.1';
+const VERSION = '1.35.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -91,11 +91,12 @@ async function route(req, env, url) {
         if (quem.tipo !== 'agente') throw new Erro(403, 'so_maestro', 'Ainda em experiência.');
         const c = await corpo(req), t0 = Date.now();
         const s = await iaSementes(/^@cf\/[\w./-]+$/.test(c?.modelo || '') ? { ...env, IA_MODELO: c.modelo } : env, txt(c?.texto, 500),
-            c?.mistral === true && env.MISTRAL_API_KEY ? { prov: 'mistral', chave: env.MISTRAL_API_KEY }
+            // (com «modelo», só esse modelo da Cloudflare, sem a conta escolhida: para comparar)
+            c?.modelo ? null : c?.mistral === true && env.MISTRAL_API_KEY ? { prov: 'mistral', chave: env.MISTRAL_API_KEY }
                 : c?.gemini === true && env.GEMINI_API_KEY ? { prov: 'gemini', chave: env.GEMINI_API_KEY } : await contaIA(ue));
         return json({ ...s, ms: Date.now() - t0, musicas: s.musicas?.length ? await iaConfirmar(ue, s.musicas, c?.limpa === true) : [] });
     }
-    if (p === '/api/playlists' && m === 'GET') return json((await ue.KV.get('playlists', 'json')) || []);
+    if (p === '/api/playlists' && m === 'GET') return json(await comQuem(ue, (await ue.KV.get('playlists', 'json')) || []));
     if (p === '/api/playlists' && m === 'POST') return json(await guardar(ue, await corpo(req), quem), 201);
     if (p === '/api/ideias' && m === 'GET') return json((await ue.KV.get('ideias', 'json')) || { ideias: [] });
     if (p === '/api/ideias' && m === 'POST') {
@@ -110,7 +111,7 @@ async function route(req, env, url) {
     if (ct && m === 'POST') return json(await ligarConta(ue, ct[1], await corpo(req), quem));
     if (ct && m === 'DELETE') return json(await desligarConta(ue, ct[1]));
     if (p === '/api/pastas' && m === 'DELETE') return json(await apagarPasta(ue, url.searchParams.get('nome')));
-    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/trocar|\/afinar|\/previas|\/pasta)?$/.exec(p);
+    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/trocar|\/afinar|\/rever|\/previas|\/pasta)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
     if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(ue, pl[1], await corpo(req)));
@@ -119,12 +120,13 @@ async function route(req, env, url) {
     if (pl && pl[2] === '/rejeitar' && m === 'POST') return json(await rejeitar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/trocar' && m === 'POST') return json(await trocar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/afinar' && m === 'POST') return json(await comMaestro(ue, await afinarPedido(ue, pl[1], await corpo(req))), 201);
+    if (pl && pl[2] === '/rever' && m === 'POST') return json(await comMaestro(ue, await pedirRevisao(ue, pl[1])), 201);
     if (pl && pl[2] === '/nome' && m === 'POST') return json(await renomear(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/pasta' && m === 'POST') return json(await pastaDe(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovar' && m === 'POST') return json(await renovar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovacoes' && m === 'POST') return json(await renovacao(ue, pl[1], await corpo(req)), 201);
     if (p === '/api/juntar' && m === 'POST') return json(await juntar(ue, await corpo(req), quem), 201);
-    if (p === '/api/mais' && m === 'POST') { const d = await maisComoEsta(ue, await corpo(req), quem); return json(d.afinacoes ? await comMaestro(ue, d) : d, 201); }
+    if (p === '/api/mais' && m === 'POST') return json(await maisComoEsta(ue, await corpo(req), quem), 201);
     if (p === '/api/mixes' && m === 'GET') return json(await mixes(ue));
     if (p === '/api/novidades' && m === 'GET') return json(await novidades(ue, url.searchParams.get('dias')));
     if (p === '/api/tendencias' && m === 'GET') return json(await tendencias(ue));
@@ -379,72 +381,58 @@ async function consentir(env, quem, c = {}) {
 }
 
 // ---------- o Maestro na hora ----------
-// Com os segredos MAESTRO_FIRE_URL e MAESTRO_TOKEN no Worker (o endereço e o token do gatilho «API» da tarefa
-// agendada, criados em claude.ai/code/routines — nunca no código), um pedido novo chama o Maestro em vez de
-// esperar pela corrida seguinte. Sem os segredos, nada muda. Regras, para não haver duas corridas no mesmo pedido
-// nem chamadas à toa (cada corrida gasta da subscrição do Claude):
-//   - espera uns segundos e só chama se entretanto não chegou outro pedido (vários seguidos dão uma só corrida);
-//   - não chama se há uma corrida a decorrer: uma chamada há menos de 15 min, ou à volta das corridas agendadas
-//     (MAESTRO_AGENDADAS, ex. "07:44,18:44"; hoje não há: o Maestro só corre quando é pedido) — essa corrida vê os
-//     pedidos novos antes de acabar (CURADOR.md);
-//   - um pedido que mesmo assim fique para trás é chamado quando a app volta a pedir a lista (a vigia), e cada
-//     pedido conta no máximo 2 chamadas; no total, no máximo MAX_CHAMADAS por hora.
-// O texto que vai na chamada é fixo: nada do que as pessoas escrevem segue no pedido.
+// Com os segredos MAESTRO_FIRE_URL e MAESTRO_TOKEN no Worker (o endereço e o token do gatilho «API» da tarefa,
+// criados em claude.ai/code/routines — nunca no código), cada pedido novo chama logo o Maestro: uma corrida só para
+// esse pedido, e dois pedidos seguidos correm ao mesmo tempo. Sem os segredos, os pedidos ficam à espera. Regras,
+// para não haver chamadas à toa (cada corrida gasta da subscrição do Claude):
+//   - um pedido é chamado no máximo 2 vezes: a 2.ª pela vigia (quando a app pede a lista), se 15 min depois da 1.ª
+//     ainda está à espera;
+//   - no total, no máximo MAX_CHAMADAS por hora.
+// O texto da chamada é fixo, com o id do pedido (gerado aqui): nada do que as pessoas escrevem segue no pedido.
 const MAX_CHAMADAS = 6, CORRIDA_MS = 15 * 60000;
 const FIRE = /^https:\/\/api\.anthropic\.com\/v1\/claude_code\/routines\/[A-Za-z0-9_-]+\/fire$/;
 const naHora = (env) => !!(env.MAESTRO_TOKEN && FIRE.test(env.MAESTRO_FIRE_URL || ''));
-function emCorridaAgendada(env, agora) {
-    const horas = String(env.MAESTRO_AGENDADAS ?? '').split(',').map((x) => /^(\d\d):(\d\d)$/.exec(x.trim())).filter(Boolean).map((m) => Number(m[1]) * 60 + Number(m[2]));
-    if (!horas.length) return false;
-    const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(agora));
-    const min = Number(p.find((x) => x.type === 'hour').value) * 60 + Number(p.find((x) => x.type === 'minute').value);
-    return horas.some((a) => min >= a - 3 && min <= a + 15);
-}
-async function estadoMaestro(env, agora) {
-    const chamadas = ((await env.KV.get('maestro:chamadas', 'json')) || []).filter((x) => agora - x < 3600000);
-    return { chamadas, cheio: chamadas.length >= MAX_CHAMADAS, ocupado: chamadas.some((x) => agora - x < CORRIDA_MS) || emCorridaAgendada(env, agora) };
-}
-// regista primeiro e chama depois (duas chamadas quase ao mesmo tempo não passam as duas; um token revogado não é
-// martelado); os pedidos à espera desta pessoa ficam com mais uma chamada
-async function disparar(env) {
+const chamadasRecentes = async (env, agora) => ((await env.KV.get('maestro:chamadas', 'json')) || []).filter((x) => agora - x < 3600000);
+// pode ser chamado? (à espera, com menos de 2 chamadas e, se já houve uma, há mais de 15 min)
+const chamavel = (x, agora) => x?.estado === 'pendente' && (x.chamadas || 0) < 2 && !(x.chamadoEm && agora - Date.parse(x.chamadoEm) < CORRIDA_MS);
+// regista primeiro e chama depois (duas chamadas quase ao mesmo tempo para o mesmo pedido não passam as duas; um
+// token revogado não é martelado)
+async function disparar(env, id) {
     const agora = Date.now();
-    const e = await estadoMaestro(env, agora);
-    if (e.cheio || e.ocupado) return false;
-    await env.KV.put('maestro:chamadas', JSON.stringify([...e.chamadas, agora]));
+    const chamadas = await chamadasRecentes(env, agora);
+    if (chamadas.length >= MAX_CHAMADAS) return false;
     const l = (await env.KV.get('pedidos', 'json')) || [];
-    if (l.some((x) => x.estado === 'pendente')) await env.KV.put('pedidos', JSON.stringify(l.map((x) => (x.estado === 'pendente' ? { ...x, chamadas: (x.chamadas || 0) + 1 } : x))));
+    if (!chamavel(l.find((x) => x.id === id), agora)) return false;
+    await env.KV.put('maestro:chamadas', JSON.stringify([...chamadas, agora]));
+    await env.KV.put('pedidos', JSON.stringify(l.map((x) => (x.id === id ? { ...x, chamadas: (x.chamadas || 0) + 1, chamadoEm: new Date(agora).toISOString() } : x))));
     const r = await fetch(env.MAESTRO_FIRE_URL, { method: 'POST', headers: { authorization: `Bearer ${env.MAESTRO_TOKEN}`,
         'anthropic-beta': 'experimental-cc-routine-2026-04-01', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ text: 'Corrida pedida pela app Música: há pedidos à espera.' }) });
+        body: JSON.stringify({ text: `Corrida pedida pela app Música: trata o pedido ${id}.` }) });
     if (!r.ok) console.error('maestro', r.status);
     return r.ok;
 }
-// um pedido novo: devolve true se o Maestro foi (ou vai ser) chamado, ou se já há uma corrida que o apanha
-async function chamarMaestro(env) {
-    if (!naHora(env) || !env.espera) return false;
-    const e = await estadoMaestro(env, Date.now());
-    if (e.cheio) return false;
-    if (e.ocupado) return true;
-    const marca = `${Date.now()}-${aleatorio(4)}`;
-    await env.KV.put('maestro:ultimo', marca);
+// um pedido novo à espera: chama o Maestro só para ele (uns segundos depois, para o pedido já estar guardado)
+async function chamarMaestro(env, id) {
+    if (!naHora(env) || !env.espera || !id) return false;
+    if ((await chamadasRecentes(env, Date.now())).length >= MAX_CHAMADAS) return false;
     env.espera((async () => {
         try {
-            await new Promise((ok) => setTimeout(ok, Number(env.MAESTRO_ESPERA_MS ?? 20000)));
-            if ((await env.KV.get('maestro:ultimo')) === marca) await disparar(env); // (senão chegou outro pedido: é esse que chama)
+            await new Promise((ok) => setTimeout(ok, Number(env.MAESTRO_ESPERA_MS ?? 3000)));
+            await disparar(env, id);
         } catch (err) { console.error('maestro', err); }
     })());
     return true;
 }
-// junta à resposta de um pedido novo se o Maestro foi chamado (a app diz «uns minutos» em vez de «na próxima corrida»)
-const comMaestro = async (env, r) => ((await chamarMaestro(env)) ? { ...r, naHora: true } : r);
-// a vigia: quando a app pede a lista, se esta pessoa tem pedidos à espera há mais de 90 s que ainda não tiveram as
-// suas 2 chamadas e não há corrida a decorrer, chama (um pedido que chegou a meio de uma corrida não fica esquecido)
+// junta à resposta de um pedido novo se o Maestro foi chamado (a app diz «uns minutos»)
+const comMaestro = async (env, r) => (r?.estado === 'pendente' && (await chamarMaestro(env, r.id)) ? { ...r, naHora: true } : r);
+// a vigia: quando a app pede a lista, o pedido à espera mais antigo que ainda pode ser chamado (há mais de 90 s à
+// espera e, se já foi chamado, há mais de 15 min) é chamado — um de cada vez
 async function vigiar(env) {
     if (!naHora(env) || !env.espera) return;
     const agora = Date.now();
     const l = (await env.KV.get('pedidos', 'json')) || [];
-    if (!l.some((x) => x.estado === 'pendente' && (x.chamadas || 0) < 2 && agora - Date.parse(x.criadoEm) > 90000)) return;
-    env.espera(disparar(env).catch((err) => console.error('maestro', err)));
+    const p = l.filter((x) => chamavel(x, agora) && agora - Date.parse(x.criadoEm) > 90000).at(-1);
+    if (p) env.espera(disparar(env, p.id).catch((err) => console.error('maestro', err)));
 }
 
 // ---------- apagar a conta: tudo o que o conector guarda de uma pessoa (pede-se na app, nos Ajustes) ----------
@@ -677,7 +665,7 @@ async function guardar(env, c, quem) {
         // de onde vem, quando não é do Maestro nem de um pedido: as parecidas do Tidal («Mais como esta») ou juntada
         ...(c.origem === 'parecidas' || c.origem === 'juntar' ? { origem: c.origem } : {}),
         // as parecidas: a lista tal como o Tidal a fez fica guardada, para se comparar com a revisão do Maestro
-        ...(c.origem === 'parecidas' ? { doTidal: listaDoTidal(faixas) } : {}),
+        ...(c.origem === 'parecidas' ? { doTidal: listaDoTidal(faixas), ...(c.textoRever ? { textoRever: txt(c.textoRever, 500) } : {}) } : {}),
         // à antiga (o Maestro já não as faz: cada pedido dá uma playlist, logo no Tidal): uma de várias propostas para
         // o mesmo pedido, que fica só na app até a pessoa a pôr no Tidal
         ...(c.rascunho === true ? { rascunho: true, grupo: txt(c.grupo, 40), variante: txt(c.variante, 40) } : {}),
@@ -731,11 +719,27 @@ const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.
     duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null,
     ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}), ...(d.afinadaEm ? { afinadaEm: d.afinadaEm } : {}), ...(d.revistaEm ? { revistaEm: d.revistaEm } : {}),
     ...(d.rascunho ? { rascunho: true, grupo: d.grupo || '', variante: d.variante || '' } : {}),
-    ...(d.origem ? { origem: d.origem } : {}), ...(d.ia ? { ia: true } : {}), ...(d.pasta ? { pasta: d.pasta } : {}),
+    ...(d.origem ? { origem: d.origem } : {}), ...(d.ia ? { ia: true } : {}), ...(d.pasta ? { pasta: d.pasta } : {}), feitaPor: feitaPor(d),
     // para agrupar na app: o pedido (se houve) e o género que mais aparece
     ...(d.pedido ? { pedido: txt(d.pedido, 120) } : {}), ...(generoDe(d.faixas) ? { genero: generoDe(d.faixas) } : {}),
     ...(d.capas?.length ? { capas: d.capas } : {}),
     ...(d.avaliacao ? { avaliacao: { nota: d.avaliacao.nota, etiqueta: d.avaliacao.etiqueta, guardadas: d.avaliacao.guardadas.length, tiradas: d.avaliacao.tiradas.length } } : {}) });
+// quem a fez, para se ver na lista: o Maestro (Claude), a IA da playlist na hora (qual), o Tidal (as parecidas) ou a pessoa
+const IA_NOMES = [[/gemini-3\.8-flash/, 'Gemini 3.8 Flash'], [/gemini-3\.5-flash-lite/, 'Gemini 3.5 Flash-Lite'], [/^gemini:/, 'Gemini'],
+    [/^mistral:/, 'Mistral Large'], [/mistral-small/, 'Mistral Small'], [/mistral/, 'Mistral'], [/llama-3\.3/, 'Llama 3.3'], [/llama-4/, 'Llama 4'],
+    [/llama/, 'Llama'], [/gemma/, 'Gemma']];
+function feitaPor(d) {
+    if (d?.por === 'curador') return 'Claude';
+    const m = typeof d?.ia?.modelo === 'string' ? IA_NOMES.find(([r]) => r.test(d.ia.modelo)) : null;
+    if (m) return m[1];
+    if (d?.ia) return 'IA';
+    if (d?.origem === 'parecidas') return 'Tidal';
+    return d?.origem === 'juntar' ? '' : 'Tu';
+}
+// as entradas do índice de antes desta versão não o têm: vê-se ao ler (as da IA vão ao documento ver o modelo)
+async function comQuem(env, l) {
+    return Promise.all(l.map(async (x) => (x.feitaPor !== undefined ? x : { ...x, feitaPor: feitaPor(x.ia ? ((await env.KV.get('playlist:' + x.id, 'json')) || x) : x) })));
+}
 function generoDe(faixas) {
     const n = new Map();
     for (const f of faixas) { const g = txt(f.genero || f.generos?.[0], 40); if (g) n.set(g, (n.get(g) || 0) + 1); }
@@ -1178,13 +1182,16 @@ async function trocar(env, id, c) {
     const todas = [...trocas, registo].slice(-50).map((r, i, l) => (i < l.length - 5 && r.faixa ? (({ faixa, ...resto }) => resto)(r) : r));
     return gravar(faixas, { candidatas: cands, rejeitadas: [...fora], trocas: todas });
 }
+// as faixas que a pessoa tirou ou trocou (já não estão na playlist: o nome vem das candidatas) e as marcadas à
+// antiga (ainda lá estão): o Maestro não as volta a pôr
+function rejeitadasDe(d) {
+    const nomes = new Map([...(d.candidatas || []).map((x) => x?.faixa), ...d.faixas].filter(Boolean).map((f) => [String(f.id), f]));
+    return (d.rejeitadas || []).map(String).map((x) => ({ id: x, artista: nomes.get(x)?.artistas?.[0] || '', titulo: nomes.get(x)?.titulo || '' }));
+}
 async function afinarPedido(env, id, c) {
     const d = await obter(env, id);
     const texto = txt(c?.texto, 500);
-    // as faixas que a pessoa tirou ou trocou (já não estão na playlist: o nome vem das candidatas) e as marcadas à
-    // antiga (ainda lá estão): o Maestro não as volta a pôr
-    const nomes = new Map([...(d.candidatas || []).map((x) => x?.faixa), ...d.faixas].filter(Boolean).map((f) => [String(f.id), f]));
-    const rejeitadas = (d.rejeitadas || []).map(String).map((x) => ({ id: x, artista: nomes.get(x)?.artistas?.[0] || '', titulo: nomes.get(x)?.titulo || '' }));
+    const rejeitadas = rejeitadasDe(d);
     const marcadas = new Set(d.faixas.map((f) => String(f.id)).filter((x) => rejeitadas.some((r) => r.id === x)));
     if (!texto && !marcadas.size) throw new Erro(400, 'afinar_vazio', 'Diz o que mudar.');
     const lista = (await env.KV.get('pedidos', 'json')) || [];
@@ -1195,6 +1202,24 @@ async function afinarPedido(env, id, c) {
     await env.KV.put('pedidos', JSON.stringify(lista.slice(0, 60)));
     // a playlist guarda as afinações que lhe foram pedidas (a app mostra-as por baixo do pedido original)
     d.afinacoes = [...(d.afinacoes || []), { pedido: p.id, texto, rejeitadas: rejeitadas.length, em: p.criadoEm }].slice(-20);
+    await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+    return p;
+}
+
+// a revisão pelo Maestro de uma playlist de parecidas (as do Tidal): só quando a pessoa a pede, na folha. Revê-a com o
+// texto do pedido (ou à volta das músicas de partida), na mesma playlist e no mesmo link do Tidal
+async function pedirRevisao(env, id) {
+    const d = await obter(env, id);
+    if (d.origem !== 'parecidas' || d.revistaEm) throw new Erro(409, 'ja_revista', 'Esta playlist já é do Maestro: para a mudar, afina-a.');
+    const lista = (await env.KV.get('pedidos', 'json')) || [];
+    const ja = lista.find((x) => x.estado === 'pendente' && x.afinar?.playlist === d.id);
+    if (ja) return ja;
+    if (lista.filter((x) => x.estado === 'pendente').length >= MAX_PEDIDOS) throw new Erro(429, 'demasiados', `Já há ${MAX_PEDIDOS} pedidos à espera.`);
+    const p = { id: novoId('q'), texto: txt(d.textoRever || d.pedido || d.descricao || d.nome, 500), opcoes: d.opcoes, estado: 'pendente', criadoEm: new Date().toISOString(),
+        afinar: { playlist: d.id, nome: d.nome, rejeitadas: rejeitadasDe(d), rever: true } };
+    lista.unshift(p);
+    await env.KV.put('pedidos', JSON.stringify(lista.slice(0, 60)));
+    d.afinacoes = [...(d.afinacoes || []), { pedido: p.id, texto: 'Rever as parecidas do Tidal', rejeitadas: p.afinar.rejeitadas.length, em: p.criadoEm, rever: true }].slice(-20);
     await env.KV.put('playlist:' + d.id, JSON.stringify(d));
     return p;
 }
@@ -1215,13 +1240,13 @@ async function guardarIdeias(env, c) {
 }
 
 // ---------- mais como esta: faixas parecidas (as do Tidal), numa playlist já no Tidal e pronta para afinar ----------
-// Quem escolhe aqui é o Tidal (parecidas, pela ordem dele): ouve-se logo. Fica um pedido ao Maestro para a rever na
-// corrida seguinte, na mesma playlist (o mesmo link): pesquisa, critério de qualidade e a ordem do motor.
+// Quem escolhe aqui é o Tidal (parecidas, pela ordem dele): ouve-se logo. Se a pessoa quiser, pede na folha ao
+// Maestro para a rever, na mesma playlist (o mesmo link): pesquisa, critério de qualidade e a ordem do motor.
 async function maisComoEsta(env, c, quem) {
     return parecidasDe(env, String(c?.faixa || ''), { limpa: c?.limpa === true }, quem);
 }
-// as parecidas de uma faixa (as do Tidal, pela ordem dele), numa playlist logo no Tidal, e o pedido de revisão ao
-// Maestro. Com «texto» (um pedido feito em «Pedir» com música de partida), o Maestro revê-a para responder a esse
+// as parecidas de uma faixa (as do Tidal, pela ordem dele), numa playlist logo no Tidal, pronta para o Maestro a rever
+// se a pessoa o pedir (pedirRevisao). Com «texto» (um pedido feito em «Pedir» com música de partida), o Maestro revê-a para responder a esse
 // pedido, com as opções dele, e dá-lhe um nome seu; sem texto («Mais como esta»), revê-a à volta da faixa. Com várias
 // músicas de partida (as que a IA sugeriu para o pedido), as parecidas de cada uma entram à vez
 async function parecidasDe(env, id, { limpa = false, opcoes = null, texto = '', nome = '', ia = '' } = {}, quem) {
@@ -1259,20 +1284,13 @@ async function parecidasDe(env, id, { limpa = false, opcoes = null, texto = '', 
     const partidas = sementes.map((x) => det.get(x)).filter(Boolean).map((f) => `«${f.titulo}»`).join(', ');
     const d = await guardar(env, { nome: txt(nome || `Parecidas com ${semente.titulo}`, 60),
         descricao: txt(ia ? `Começou com ${partidas} e as parecidas do Tidal.` : `Faixas parecidas com «${semente.titulo}», de ${semente.artistas[0] || 'vários'}.`, 300),
-        resumo: ia ? `A IA da Cloudflare escolheu as músicas de partida (${partidas}) e o Tidal juntou as parecidas. O Maestro revê-a com o teu pedido na próxima corrida, aqui e no mesmo link do Tidal.`
-            : texto ? `Começou pelas faixas parecidas com ${de}: as do Tidal, pela ordem dele. O Maestro revê-a com o teu pedido na próxima corrida, aqui e no mesmo link do Tidal.`
-                : `Pedi ao Tidal as faixas parecidas com «${semente.titulo}»: são as dele, pela ordem dele. O Maestro revê-a na próxima corrida, aqui e no mesmo link do Tidal.`,
-        pedido: texto, faixas, candidatas, opcoes: opcoes || { faixas: Math.max(5, faixas.length), maxArtista: 3, limpa }, origem: 'parecidas', tidal: true }, quem);
+        resumo: ia ? `A IA escolheu as músicas de partida (${partidas}) e o Tidal juntou as parecidas. Se quiseres, o Maestro revê-a com o teu pedido, no mesmo link do Tidal.`
+            : texto ? `Começou pelas faixas parecidas com ${de}: as do Tidal, pela ordem dele. Se quiseres, o Maestro revê-a com o teu pedido, no mesmo link do Tidal.`
+                : `Pedi ao Tidal as faixas parecidas com «${semente.titulo}»: são as dele, pela ordem dele. Se quiseres, o Maestro revê-a, no mesmo link do Tidal.`,
+        pedido: texto, faixas, candidatas, opcoes: opcoes || { faixas: Math.max(5, faixas.length), maxArtista: 3, limpa }, origem: 'parecidas', textoRever: texto || txt(`Mais como ${de}`, 500), tidal: true }, quem);
     if (ia) d.ia = { modelo: ia, sementes: sementes.filter((x) => det.has(x)) };
-    const lista = (await env.KV.get('pedidos', 'json')) || [];
-    if (lista.filter((x) => x.estado === 'pendente').length < MAX_PEDIDOS) {
-        const p = { id: novoId('q'), texto: texto || txt(`Mais como ${de}`, 500), opcoes: d.opcoes, estado: 'pendente', criadoEm: d.criadaEm,
-            afinar: { playlist: d.id, nome: d.nome, rejeitadas: [], rever: true } };
-        lista.unshift(p);
-        await env.KV.put('pedidos', JSON.stringify(lista.slice(0, 60)));
-        d.afinacoes = [{ pedido: p.id, texto: 'Rever as parecidas do Tidal', rejeitadas: 0, em: p.criadoEm, rever: true }];
-    }
-    if (ia || d.afinacoes) await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+    // (a IA que escolheu vai também para o índice: a lista diz quem a fez)
+    if (ia) { await env.KV.put('playlist:' + d.id, JSON.stringify(d)); await atualizarIndice(env, d); }
     return d;
 }
 
@@ -1405,6 +1423,8 @@ Responde só com JSON, sem mais nada:
 const MISTRAL = 'https://api.mistral.ai/v1/chat/completions';
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta/models';
 const GEMINI_MODELOS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+// cada IA de fora tem um limite de tempo (um modelo sobrecarregado não deixa a pessoa à espera: passa-se ao seguinte)
+const limite = (env) => AbortSignal.timeout(Number(env.IA_TEMPO_MS ?? 15000));
 async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) => !!j, conta = null } = {}) {
     const erros = [];
     const tenta = async (nome, pede) => {
@@ -1420,7 +1440,7 @@ async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) 
     if (conta?.prov === 'gemini') {
         for (const modelo of env.GEMINI_MODELO ? [env.GEMINI_MODELO] : GEMINI_MODELOS) {
             const j = await tenta(`gemini:${modelo}`, async () => {
-                const r = await fetch(`${GEMINI}/${modelo}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': conta.chave, 'content-type': 'application/json' },
+                const r = await fetch(`${GEMINI}/${modelo}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': conta.chave, 'content-type': 'application/json' }, signal: limite(env),
                     body: JSON.stringify({ systemInstruction: { parts: [{ text: sistema }] }, contents: [{ role: 'user', parts: [{ text: texto }] }],
                         generationConfig: { temperature: temp, maxOutputTokens: Math.max(2048, max * 4), responseMimeType: 'application/json' } }) });
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -1433,7 +1453,7 @@ async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) 
     if (conta?.prov === 'mistral') {
         const modelo = env.MISTRAL_MODELO || 'mistral-large-latest';
         const j = await tenta(`mistral:${modelo}`, async () => {
-            const r = await fetch(MISTRAL, { method: 'POST', headers: { authorization: `Bearer ${conta.chave}`, 'content-type': 'application/json' },
+            const r = await fetch(MISTRAL, { method: 'POST', headers: { authorization: `Bearer ${conta.chave}`, 'content-type': 'application/json' }, signal: limite(env),
                 body: JSON.stringify({ model: modelo, messages: msgs, max_tokens: max, temperature: temp, response_format: { type: 'json_object' } }) });
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return (await r.json())?.choices?.[0]?.message?.content;
@@ -1683,9 +1703,9 @@ async function despachar(env, id, playlist) {
     if (playlist && p.estado === 'pendente') {
         const feita = p.afinar ? null : await env.KV.get('playlist:' + playlist, 'json');
         const msg = p.afinar
-            ? { title: p.afinar.rever ? 'Playlist revista' : 'Playlist afinada', body: `«${txt(p.afinar.nome, 80)}» foi ${p.afinar.rever ? 'revista' : 'afinada'} pelo Maestro.`, url: appUrl(env), tag: 'musica-afinar' }
-            : feita?.rascunho ? { title: 'Propostas prontas', body: `«${txt(p.texto, 90)}»: escolhe a que vai para o Tidal.`, url: appUrl(env), tag: 'musica-pedido' }
-                : { title: 'Playlist pronta', body: `«${txt(p.texto, 90)}»: ${feita?.tidal ? 'já está no teu Tidal.' : 'já está na app.'}`, url: appUrl(env), tag: 'musica-pedido' };
+            ? { title: p.afinar.rever ? 'Playlist revista' : 'Playlist afinada', body: `«${txt(p.afinar.nome, 80)}» foi ${p.afinar.rever ? 'revista' : 'afinada'} pelo Maestro.`, url: `${appUrl(env)}#pl=${playlist}`, tag: 'musica-afinar' }
+            : feita?.rascunho ? { title: 'Propostas prontas', body: `«${txt(p.texto, 90)}»: escolhe a que vai para o Tidal.`, url: `${appUrl(env)}#pl=${playlist}`, tag: 'musica-pedido' }
+                : { title: 'Playlist pronta', body: `«${txt(p.texto, 90)}»: ${feita?.tidal ? 'já está no teu Tidal.' : 'já está na app.'}`, url: `${appUrl(env)}#pl=${playlist}`, tag: 'musica-pedido' };
         try { await avisar(env, msg); } catch (e) { console.error('avisar', e); }
     }
     return { ok: true };
