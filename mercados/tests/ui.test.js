@@ -790,7 +790,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('#mk-sheet details.sh-auto').count(), 1, 'algoritmo como referência, à parte');
     // o sentimento na cripto: o Fear & Greed (24: medo extremo), ao contrário — ao lado do «Manter» do Claude
     await page.waitForSelector('#mk-sheet .dec-f li:has-text("Sentimento")', { state: 'attached' });
-    assert.equal((await page.locator('#mk-sheet .dec-f li:has-text("Sentimento")').textContent()).replace(/\s+/g, ' '), 'Sentimentomedo extremoao lado66Fear & Greed 24 de 100 · com medo compra-se melhor');
+    assert.equal((await page.locator('#mk-sheet .dec-f li:has-text("Sentimento")').textContent()).replace(/\s+/g, ' '), 'Sentimentomedo extremoao lado66Medo e ganância 24 (0 = pânico, 100 = euforia) · com medo os preços costumam estar em baixo: bom para comprar');
     assert.equal(await page.locator('.advice .cl-lv li').count(), 3, 'entrada, alvo e stop');
     assert.match(await page.locator('.advice').textContent(), /€/);
     assert.ok(await page.locator('.levels li').count() >= 2, 'níveis-chave');
