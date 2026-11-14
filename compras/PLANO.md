@@ -59,7 +59,7 @@ Compras.
 | O que falta lá fora | Como fica na Compras |
 |---|---|
 | Comparar é pago (PlanMyMeals) | Tudo é grátis, para a casa toda e para quem convidares. Sem planos e sem anúncios. |
-| 3 ou 4 cadeias, só com preços online | Continente, Pingo Doce, Auchan, Intermarché e Minipreço pelas lojas online. Lidl e Aldi pelos **folhetos, lidos pelo Ecónomo** (o Claude lê imagens, como lê o satélite na Meteo). A Mercadona e o preço real de cada loja pelos **talões**. As cadeias que entram de facto decidem-se na volta 1. |
+| 3 ou 4 cadeias, só com preços online | Continente, Pingo Doce e Auchan pelas lojas online, mais uns 500 produtos do Lidl. O resto do Lidl e o Aldi pelos **folhetos, lidos pelo Ecónomo** (o Claude lê imagens, como lê o satélite na Meteo). A Mercadona, o Intermarché e o preço real de cada loja pelos **talões**. Foi isto que a volta 1 provou. |
 | Preços estimados no meio dos reais | Cada preço diz **de onde vem e de quando** (online, folheto ou talão). Um cabaz só é «o mais barato» quando há preço para quase tudo, e o que falta é indicado. |
 | Dividir por lojas, sem mais nada | **Onde compro:** a melhor combinação de 1, 2 ou 3 das tuas lojas, contando o custo de ir a mais uma, os cartões e as promoções válidas no dia em que vais. Corre no telemóvel, sem rede. |
 | Não se sabe se a promoção é verdadeira | **Promoção verdadeira?** Mostra o preço mais baixo dos últimos 30 dias, tirado do nosso histórico, ao lado do «antes» da loja (a regra do Decreto-Lei 109-G/2021). Fica fiável ao fim de 30 dias de recolha. |
@@ -112,16 +112,38 @@ categoria. O cabaz de 63 produtos da DECO é um bom ponto de partida para os tes
 produtos, que cabem inteiros no telemóvel (umas centenas de KB por dia). Por isso a pesquisa e o «onde compro»
 funcionam na loja sem rede. Como se recolhe só uma parte pequena de cada catálogo, também baixa o risco legal.
 
-| Cadeia | De onde | O que a volta 1 tem de provar |
+| Cadeia | De onde | O que a volta 1 provou (14/11/2026) |
 |---|---|---|
-| Continente, Pingo Doce, Auchan, Intermarché, Minipreço | a loja online de cada uma, lida pelo conector aos poucos, ao longo do dia | se os sites deixam ler (proteção contra robôs), os termos de uso e o tamanho de cada pedido |
-| Lidl, Aldi | os folhetos da semana (imagens ou PDF), lidos pelo Ecónomo; o resto vem dos talões | onde estão os folhetos e quando saem |
-| Mercadona | só os talões (tanto quanto se sabe, não faz folhetos nem promoções) | quantos talões são precisos para haver preço |
-| Todas | os **talões** das casas: o preço real daquela loja, naquele dia | se cada cadeia tem um talão que se lê bem |
-| Nomes, marcas, códigos de barras, fotografias | o Open Food Facts (base aberta, com atribuição) | quantos produtos portugueses tem |
+| Continente, Pingo Doce, Auchan | as páginas de produto (no Auchan, o JSON do produto), lidas pelo conector aos poucos, ao longo do dia | ✔ deixam ler (ver «O que cada cadeia deixa») |
+| Lidl | uns 500 produtos com preço no site; o resto pelos folhetos da semana (lidos pelo Ecónomo) e pelos talões | ✔ o site lê-se; os folhetos ficam para a volta 6 |
+| Aldi | os folhetos da semana e os talões | ✔ as páginas de produto abrem, mas não têm preço |
+| Mercadona, Intermarché, Minipreço | só os talões | a Mercadona recusa o Worker, o Intermarché fecha tudo no robots.txt e o site do Minipreço não responde |
+| Todas | os **talões** das casas: o preço real daquela loja, naquele dia | se cada cadeia tem um talão que se lê bem (volta 5) |
+| Nomes, marcas, códigos de barras, fotografias | o Open Food Facts (base aberta, com atribuição) | ✔ tem 23 976 produtos de Portugal |
 
 O QR code das faturas (Portaria 195/2020) traz quem vendeu (o NIF), a data e os totais, mas não os produtos. Serve
 para confirmar o talão lido, não para o ler (a confirmar no PDF da AT).
+
+## O que cada cadeia deixa (volta 1, 14/11/2026)
+
+Experimentado a partir do Worker `compras`, que se identifica como é, não tenta passar proteções contra robôs e só
+pede o que o robots.txt de cada cadeia deixa. Foram umas dezenas de pedidos, um de cada vez.
+
+| Cadeia | O que o robots.txt deixa | O que o Worker conseguiu | Como se lê | O que fica por ver |
+|---|---|---|---|---|
+| **Continente** | as páginas de produto e os mapas do site (20 000 produtos só no primeiro); a pesquisa não | 3 produtos em 3 (páginas de 1,7 MB, 0,6 a 1,6 s) | JSON-LD: nome, marca, código de barras, preço, validade e disponibilidade. O bloco do preço traz o PVPR e o preço por unidade, e a embalagem vem em «emb. 6 x 1 lt» | a marcação de um preço riscado. A validade vem um ano à frente quando não há promoção |
+| **Pingo Doce** | as páginas de produto e os mapas do site (11 469 no primeiro); os controladores (`/on/demandware.store/`) e a pesquisa não | 2 em 2, um em promoção (1,16 €, antes 1,79 €) | o preço e o preço riscado no HTML, e a embalagem com o preço por unidade («0.5 Kg \| 2,52 €/Kg»). Não há código de barras | juntá-lo aos outros pelo nome e pela embalagem |
+| **Auchan** | as páginas de produto, os mapas do site (34 370 no primeiro) e o JSON do produto; a pesquisa e os filtros não | 2 em 2 | o JSON do produto (`Product-Variation`): nome, marca, código de barras, preço, preço riscado, validade e preço por kg. A página não mostra o preço sem uma loja escolhida | a disponibilidade, que depende da loja (o Auchan escolhe uma por omissão) |
+| **Lidl** | as páginas de produto (532 no mapa do site) e os folhetos | 2 em 2 | o preço e o dia na descrição da página; o nome e a marca no JSON-LD. Não há código de barras | o resto do sortido, pelos folhetos (servidos por `leaflets.schwarz`) e pelos talões |
+| **Aldi** | quase tudo (491 produtos no mapa do site) | as páginas abrem, mas não têm preço | — | os folhetos (não aparecem na página inicial) e os talões |
+| **Mercadona** | o site institucional | recusa o Worker (403), na página inicial e no mapa do site | — | só os talões; não tem loja online em Portugal |
+| **Intermarché** | **nada**: o robots.txt fecha o site todo (`Disallow: /`) | não se tentou | — | só os talões |
+| **Minipreço** | — | o site não responde (erro 1016 da Cloudflare: o servidor de origem não existe) | — | só os talões |
+| **Open Food Facts** | uma API aberta | 23 976 produtos de Portugal. O código de barras do leite Mimosa dá «Leite Meio-Gordo, 6 x 1 l» | nomes, marcas, embalagens e fotografias por código de barras | a atribuição que a licença (ODbL) pede |
+
+Os folhetos estão em `folhetos.continente.pt`, `folhetos.pingodoce.pt`, `leaflets.schwarz` (Lidl) e no visualizador
+do Auchan (que também tem os produtos do folheto como categoria). A página de 1,7 MB do Continente lê-se em cerca de
+1,5 ms, porque as fontes procuram o marcador e só leem esse pedaço. No Worker grátis não houve erros de CPU.
 
 ## O motor: onde compro
 
@@ -156,7 +178,7 @@ guarda lições sobre cada local.
 
 | # | O que muda para ti | Por dentro |
 |---|---|---|
-| **1** | Nada à vista: fica a saber-se que cadeias entram. | O Worker `compras`, publicado em teste com o teu OK, com uma fonte por cadeia (`proxy/src/fontes/*.js`). As respostas ficam gravadas para os testes. Este plano ganha a tabela «O que cada cadeia deixa», como na Música há «O que o Tidal deixa». O ambiente do Claude só precisa de chegar ao endereço do Worker (um pedido de aprovação, uma vez). Se uma cadeia recusar o Worker, experimenta-se a partir da tarefa do Claude, e essa cadeia tem de ser aprovada no ambiente. |
+| **1** ✔ | Nada à vista: ficou a saber-se que cadeias entram (tabela «O que cada cadeia deixa»). | O Worker `compras` 0.2.0, publicado em teste, tem `/sonda` e `/sonda/produto`: só com o segredo, só nos domínios das cadeias e só onde o robots.txt deixa. Tem quatro fontes em `proxy/src/fontes/` (Continente, Pingo Doce, Auchan e Lidl), testadas com excertos reais das páginas (23 testes). O ambiente do Claude chega ao Worker (aprovado a 14/11/2026). Nenhuma cadeia que interessava recusou o Worker, por isso não foi preciso abrir sites no ambiente. |
 | **2** | **A lista da casa:** escreves ou ditas como te sai («2 leites, pão») e a IA arruma. Partilha-se com um código e abre sem rede. «Partilhar no WhatsApp» manda a lista para o grupo da família. No iPhone, o Atalho da Siri junta à lista sem abrir a app. Separadores **Lista · Semana · Casa**. | `onda/molde` → `compras/`. Conector 1.0.0: casa, telemóveis e lista com as gravações juntas. Workers AI para ler o texto. O Atalho fala com o conector com a chave do telemóvel. Os atalhos do ícone (Android) ficam no manifesto. Testes de interface no Chromium. |
 | **3** | Cada produto da lista mostra **o preço em cada cadeia**, por kg ou por litro, com a origem e a data. Escolhes «qualquer marca», «marca branca serve» ou «esta marca». | A recolha fica no cron do conector (o universo, aos poucos) e sai o primeiro `ECONOMO.md` (só pares e revisão). O universo fica na base e no telemóvel. Os pares entre cadeias fazem-se pelo código de barras e pelo nome; o resto decide o Ecónomo. |
 | **4** | **Onde compro:** a melhor combinação das tuas lojas, com a deslocação e os cartões. A lista arruma-se por loja e por corredor para ires às compras. | O motor em Onda (`onde.onda`), com testes de paridade em JavaScript. As tuas lojas e os teus cartões ficam na Casa. |
@@ -172,7 +194,7 @@ guarda lições sobre cada local.
 | O quê | Quando |
 |---|---|
 | Escolher o nome (Compras?) | antes da volta 2 |
-| Dar o OK para publicar o Worker `compras` em teste, e aprovar que o ambiente do Claude chegue ao endereço dele (`compras.mercados-proxy.workers.dev`; o pedido aparece-te aqui) | volta 1 |
+| ✔ Feito a 14/11/2026: o OK para publicar o Worker `compras` em teste, e o acesso do ambiente ao endereço dele (`compras.mercados-proxy.workers.dev`) | volta 1 |
 | Dar ao token da Cloudflare a permissão D1 (Edit) | volta 2 ou 3 |
 | Criar a tarefa do Ecónomo em `claude.ai/code/routines` e o gatilho «API». Os segredos `ECONOMO_FIRE_URL` e `ECONOMO_TOKEN` ficam no Worker, como na Música | volta 3 |
 | Dizer as tuas lojas e os teus cartões, e dar uns talões reais para os testes | voltas 4 e 5 |

@@ -1,0 +1,14 @@
+{
+  "name": "compras-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Conector da app Compras (Cloudflare Worker): na volta 1, a sonda das cadeias",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

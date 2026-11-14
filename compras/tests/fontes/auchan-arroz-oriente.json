@@ -1,0 +1,52 @@
+{
+ "_origem": "Excerto real recolhido pela sonda do conector a 14/11/2026: https://www.auchan.pt/on/demandware.store/Sites-AuchanPT-Site/pt_PT/Product-Variation?pid=3350&quantity=1",
+ "action": "Product-Variation",
+ "product": {
+  "id": "3350",
+  "productName": "ARROZ AGULHA ORIENTE EXTRA LONGO 1KG",
+  "brand": "ORIENTE",
+  "EAN": "5601228228013",
+  "price": {
+   "sales": {
+    "value": 1.55,
+    "currency": "EUR",
+    "formatted": "1,55 €",
+    "decimalPrice": "1.55",
+    "validUntil": null
+   },
+   "list": null,
+   "isPromotion": false,
+   "priceInfo": {
+    "recommendedPrice": null,
+    "recommendedPricePercentage": null,
+    "bestPrice": null,
+    "priceID": 273332321
+   }
+  },
+  "promotions": [],
+  "available": false,
+  "availability": {
+   "messages": [
+    "This item is currently not available"
+   ],
+   "inStockDate": null
+  },
+  "unitPerPrice": {
+   "available": true,
+   "value": "1.55 €/Kg"
+  },
+  "measuresInfo": {
+   "salesUnit": "UN",
+   "minOrderQuantity": 1,
+   "maxOrderQuantity": 100,
+   "stepQuantity": 1,
+   "unitMeasure": "KG",
+   "unitQuantity": 1,
+   "unitMeasureMinOrderQuantity": 1,
+   "unitMeasureStepQuantity": 1,
+   "unitMeasureConversionFactor": null,
+   "minOrderUnits": "1"
+  },
+  "selectedProductUrl": "/pt/alimentacao/mercearia/arroz-e-massa/arroz/arroz-agulha-oriente-extra-longo-1kg/3350.html?%2Fpt%2Falimentacao%2Fmercearia%2Farroz-e-massa%2Farroz%2Farroz-agulha-oriente-extra-longo-1kg%2F3350.html=undefined&quantity=1"
+ }
+}

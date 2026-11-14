@@ -1,0 +1,9 @@
+name = "compras"
+main = "src/worker.js"
+compatibility_date = "2026-10-01"
+# não apagar as variáveis postas no painel do Cloudflare a cada publicação (os segredos ficam sempre)
+keep_vars = true
+
+# Volta 1 (a sonda): ainda sem KV nem D1. O segredo da sonda, longo e ao acaso, põe-se com:
+#   openssl rand -hex 24 | npx wrangler secret put SONDA_TOKEN
+# Sem ele a sonda fica desligada (503).
