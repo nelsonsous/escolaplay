@@ -751,6 +751,13 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await props.getByText('«Para conduzir à noite»').waitFor();
     assert.deepEqual(await props.locator('li b').allInnerTexts(), ['Noite · Mais descoberta', 'Noite · Mais conhecida']);
     assert.equal(await page.locator('#mu-body .mu-grp .mu-pl', { hasText: 'Noite · Mais' }).count(), 0, 'as propostas não estão na lista');
+    // tocar numa proposta abre a folha dela: vêem-se as faixas antes de escolher; fechar volta às propostas
+    await props.locator('li', { hasText: 'Noite · Mais conhecida' }).locator('.mu-prop-ver').click();
+    await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
+    assert.equal((await naFolha(page)).length, bmw.faixas.length, 'a folha mostra as faixas da proposta');
+    await page.keyboard.press('Escape');
+    await page.locator('.mu-folha').waitFor({ state: 'detached' });
+    assert.deepEqual(await props.locator('li b').allInnerTexts(), ['Noite · Mais descoberta', 'Noite · Mais conhecida']);
     const nCriadas = sim.criadas.length;
     await props.locator('li', { hasText: 'Noite · Mais descoberta' }).getByRole('button', { name: 'Ficar com esta' }).click();
     await page.locator('#mu-aviso').getByText('«Noite · Mais descoberta» foi para o teu Tidal; as outras propostas saíram.').waitFor();
@@ -1511,7 +1518,7 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).click();
         await page.locator('#mu-aviso').getByText('Autorização guardada.').waitFor();
         await page.waitForFunction(() => document.querySelector('#mu-body [data-onda="pedir"]')?.innerText === 'Criar já no Tidal');
-        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^«Criar já»: a IA \(Mistral, na Cloudflare\) escolhe as músicas de partida e a playlist nasce já no teu Tidal; o Maestro \(Claude\) revê-a/);
+        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^Criar já — em segundos, no teu Tidal\. A IA \(Mistral, na Cloudflare\) escolhe as músicas; o Maestro revê-a e dá-lhe nome quando estiver ligado\.\nSó o Maestro — o Claude pesquisa e cria-a de raiz \(quando estiver ligado\)\.$/);
         assert.equal(await corpo.getByRole('button', { name: 'Só o Maestro' }).count(), 1, 'e dá para escolher só o Maestro');
         assert.equal(await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).count(), 0);
         assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), texto, 'o texto fica');
@@ -1684,7 +1691,7 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         // «Pedir» diz que IA vai começar
         await nav(3);
         await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
-        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^«Criar já»: a IA \(Mistral avançada, a tua conta\)/);
+        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^Criar já — em segundos, no teu Tidal\. A IA \(Mistral avançada, a tua conta\)/);
         // o Gemini: a conta Google, ligada da mesma maneira
         await nav(5);
         await corpo.locator('.mu-ia-esc').getByRole('button', { name: 'Gemini' }).click();
@@ -1698,7 +1705,7 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         assert.ok(!(await page.content()).includes('AIzaUiBoa'), 'a chave nunca volta à app');
         await nav(3);
         await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
-        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^«Criar já»: a IA \(Gemini, a tua conta Google\)/);
+        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^Criar já — em segundos, no teu Tidal\. A IA \(Gemini, a tua conta Google\)/);
         await nav(5);
         await corpo.getByRole('button', { name: 'Desligar a conta Google' }).click();
         await page.locator('#mu-aviso').getByText('Conta Google desligada.').waitFor();
