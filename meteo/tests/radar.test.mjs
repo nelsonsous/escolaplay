@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { colorToDbz, dbzColor, decodeFrame, dbzToMmh, mmhToDbz, rainLabel, tileGeo, analyzeRadar, radarFrames, radarTileUrl, coverageUrl, coveredAt, NO_ECHO, RADAR } from '../lib/radar.js';
 import { decodePng } from '../lib/png.js';
-import { buildForecast, buildSummary, withReport, reportActive, radarWeight } from '../lib/engine.js';
+import { buildForecast, buildSummary, withReport, reportActive, radarWeight, radarVsModels } from '../lib/engine.js';
 import { synthFrames, framePng, encodePng, coveragePng, mapsJson } from './fixtures/radar.mjs';
 
 const fx = (f) => new URL(`./fixtures/${f}`, import.meta.url);
@@ -282,4 +282,18 @@ test('radar: chove no ponto a partir de 0,1 mm/h na média de 3×3 píxeis (~2,8
     R = analyzeRadar({ ...one, nowMs: NOW });
     assert.equal(R.atPoint.raining, false);
     assert.ok(R.atPoint.mmh > 0 && R.atPoint.mmh < RADAR.wetMmh);
+});
+
+test('radar vs modelos: chuva só possível nos modelos (fraca, abaixo de 45%) não é «sem chuva» (a análise apontou a frase enganadora)', () => {
+    const t = (h, m = 0) => `2026-11-14T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const steps = Array.from({ length: 8 }, (_, i) => ({ time: t(8 + Math.floor(i / 4), (i % 4) * 15), prob: 10, precip: 0 }));
+    const dry = Array.from({ length: 13 }, (_, i) => ({ time: t(8 + i), pop: 5, precip: 0 }));
+    const light = dry.map((h, i) => (i >= 3 && i <= 6 ? { ...h, pop: 38 + i, precip: [0.1, 0.2, 0.4, 0.3][i - 3] } : h));
+    const R = { atPoint: { raining: false }, approach: { time: t(9, 20) }, last2h: [], time: t(8) };
+    assert.equal(radarVsModels(R, steps, light, 0).text, 'O radar prevê a chegada às 09:20; os modelos só dão chuva fraca possível a partir das 11:00 (0,1 a 0,4 mm/h, até 44%).');
+    assert.equal(radarVsModels(R, steps, dry, 0).text, 'O radar prevê a chegada às 09:20; os modelos não a dão nas próximas 12 h.');
+    const R0 = { ...R, approach: null };
+    assert.equal(radarVsModels(R0, steps, light, 0).text, 'Sem chuva no radar; os modelos só dão chuva fraca possível a partir das 11:00 (0,1 a 0,4 mm/h, até 44%).');
+    assert.equal(radarVsModels(R0, steps, dry, 0).text, 'Radar e modelos de acordo: sem chuva.');
+    assert.equal(radarVsModels(R0, steps, light, 0).modelsMaybe, t(11));
 });
