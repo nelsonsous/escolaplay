@@ -171,8 +171,8 @@ button.mu-chip { cursor: pointer; }
 
 /* pedidos */
 .mu-opcoes { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 4px; color: var(--mut); font-size: 13.5px; }
-.mu-mais { flex: none; background: none; border: 0; padding: 6px 0; color: var(--fg); font-size: 14px; font-weight: 650; cursor: pointer; }
-.mu-mais:active { opacity: .6; }
+.mu-mudar { flex: none; background: none; border: 0; padding: 6px 0; color: var(--fg); font-size: 14px; font-weight: 650; cursor: pointer; }
+.mu-mudar:active { opacity: .6; }
 .mu-pedido { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line); }
 .mu-pedido:first-of-type { border-top: 0; }
 .mu-pedido .tx { font-size: 14.5px; }
@@ -544,8 +544,8 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-chips-r { display: flex; flex-wrap: wrap; gap: 8px; }
 .mu-convite-perfil { display: block; margin: 0 2px 12px; text-align: left; }
 
-/* 2.46.1 — os dois caminhos um por baixo do outro, a toda a largura: o nome à esquerda, o tempo à direita (cabem) */
-.mu-duo { grid-template-columns: 1fr; gap: 8px; }
-.mu-duo-b { flex-direction: row; justify-content: space-between; align-items: center; gap: 12px; min-height: 52px; padding: 12px 18px; border-radius: 16px; text-align: left; }
+/* 2.46.1 — os dois caminhos um por baixo do outro, a toda a largura: o nome à esquerda, o tempo à direita (cabem); num ecrã estreito, o tempo passa para baixo do nome */
+.mu-duo { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.mu-duo-b { flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 12px; min-height: 52px; padding: 12px 18px; border-radius: 16px; text-align: left; }
 .mu-duo-b b { white-space: nowrap; }
 .mu-duo-b span { white-space: nowrap; text-align: right; }
