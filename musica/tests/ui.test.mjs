@@ -1412,6 +1412,7 @@ test('pedir com música de partida: procurar, escolher, criar já no Tidal; o Ma
         await page.locator('[data-onda="cod"]').fill('PARTIDA-1');
         await page.getByRole('button', { name: 'Usar este código' }).click();
         await page.locator('#mu-body .mu-pl').first().waitFor();
+        await page.evaluate(() => { window.musicaLeitor.play = () => Promise.resolve(); }); // (sem ir à rede no teste)
         const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
         await nav(3);
         const corpo = page.locator('#mu-body');
@@ -1427,6 +1428,11 @@ test('pedir com música de partida: procurar, escolher, criar já no Tidal; o Ma
         const resultado = corpo.locator('details.mu-partida-d .mu-xf li');
         await resultado.first().waitFor();
         assert.deepEqual(await resultado.locator('.tx b').allInnerTexts(), ['So What']);
+        // cada resultado diz o álbum e o ano, e tem a capa e o ▶ (30 s), para se reconhecer a certa
+        assert.match(await resultado.first().locator('.tx span').innerText(), /^Miles Davis · Álbum al1 · 1959$/);
+        assert.equal(await resultado.first().locator('.cp img').count(), 1);
+        await resultado.first().locator('[data-onda^="ouvir"]').click();
+        await resultado.first().locator('.mu-ouvir.a-tocar[aria-pressed="true"]').waitFor();
         await resultado.first().getByRole('button', { name: 'Começar por «So What»' }).click();
         // a escolhida: um cartão com «Tirar»; o botão passa a criar já
         const escolhida = corpo.locator('.mu-partida');
@@ -1441,7 +1447,8 @@ test('pedir com música de partida: procurar, escolher, criar já no Tidal; o Ma
         await corpo.locator('details.mu-partida-d').waitFor();
         assert.equal(await corpo.locator('[data-onda="pedir"]').innerText(), 'Pedir ao Maestro');
         await corpo.locator('details.mu-partida-d > summary').click();
-        await corpo.locator('details.mu-partida-d').getByRole('button', { name: 'Procurar no Tidal' }).click();
+        // «Pesquisar» no teclado (Enter) também procura
+        await corpo.locator('details.mu-partida-d [data-onda="q"]').press('Enter');
         await resultado.first().getByRole('button', { name: 'Começar por «So What»' }).click();
         await escolhida.waitFor();
         const antes = sim.criadas.length;

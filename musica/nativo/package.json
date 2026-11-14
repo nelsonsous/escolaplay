@@ -1,6 +1,6 @@
 {
   "name": "musica-nativo",
-  "version": "2.36.0",
+  "version": "2.37.0",
   "private": true,
   "description": "A Música como app nativa (Capacitor): leva os ficheiros da app lá dentro (montar.mjs), para o simulador do Xcode, o iPhone e a loja.",
   "type": "module",

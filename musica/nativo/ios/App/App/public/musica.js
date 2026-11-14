@@ -498,6 +498,12 @@
     };
     if (corpo) new MutationObserver(seguirFolha).observe(corpo, { childList: true, subtree: true });
     document.addEventListener('keydown', (e) => {
+        // «Pesquisar» no teclado (Enter) numa caixa de procura do Tidal: procura, e fecha o teclado para se verem os resultados
+        if (e.key === 'Enter' && e.target?.matches?.('input[data-onda="q"]')) {
+            const b = e.target.closest('.mu-junta')?.querySelector('[data-onda="procurar"]');
+            if (b) { e.preventDefault(); e.target.blur(); b.click(); }
+            return;
+        }
         if (e.key !== 'Escape') return;
         const f = document.querySelector('.mu-folha .mu-fechar');
         if (f) { e.preventDefault(); f.click(); }
