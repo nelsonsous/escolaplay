@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.23.0';
+const VERSION = '1.24.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -86,14 +86,14 @@ async function route(req, env, url) {
     if (p === '/api/perfil' && m === 'GET') return json(await perfil(ue, url.searchParams.has('fresco')));
     if (p === '/api/resolver' && m === 'POST') return json(await resolver(ue, await corpo(req)));
     if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(ue, url.searchParams.get('q')));
-    if (p === '/api/playlists' && m === 'GET') return json((await ue.KV.get('playlists', 'json')) || []);
+    if (p === '/api/playlists' && m === 'GET') return json(semTidalIA(quem, (await ue.KV.get('playlists', 'json')) || []));
     if (p === '/api/playlists' && m === 'POST') return json(await guardar(ue, await corpo(req), quem), 201);
     if (p === '/api/ideias' && m === 'GET') return json((await ue.KV.get('ideias', 'json')) || { ideias: [] });
     if (p === '/api/ideias' && m === 'POST') {
         if (quem.tipo !== 'agente') throw new Erro(403, 'so_maestro', 'As ideias são escritas pelo Maestro.');
         return json(await guardarIdeias(ue, await corpo(req)), 201);
     }
-    if (p === '/api/avaliacoes' && m === 'GET') return json(await avaliacoes(ue));
+    if (p === '/api/avaliacoes' && m === 'GET') { const a = await avaliacoes(ue); return json({ ...a, playlists: semTidalIA(quem, a.playlists) }); }
     const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/trocar|\/afinar|\/previas)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
@@ -115,8 +115,22 @@ async function route(req, env, url) {
         if (quem.tipo !== 'agente' && quem.uid !== DONO) throw new Erro(403, 'so_dono', 'Só o dono (ou o Maestro) recolhe as tendências.');
         return json(await recolher(env));
     }
-    if (p === '/api/pedidos' && m === 'GET') { if (quem.tipo !== 'agente') await vigiar(ue); return json(await pedidos(ue)); }
-    if (p === '/api/pedidos' && m === 'POST') return json(await comMaestro(ue, await pedir(ue, await corpo(req))), 201);
+    if (p === '/api/pedidos' && m === 'GET') {
+        if (quem.tipo !== 'agente') await vigiar(ue);
+        const fases = await acompanhar(ue).catch((e) => { console.error('tidal ia', e); return new Map(); });
+        const l = await pedidos(ue);
+        // (os da IA do Tidal não são para o Maestro: ele só trata dos pendentes, e não os vê — a não ser com ?ia, para diagnóstico)
+        return json(quem.tipo === 'agente' && !url.searchParams.has('ia') ? l.filter((x) => !x.ia) : l.map((x) => (fases.has(x.id) ? { ...x, fase: fases.get(x.id) } : x)));
+    }
+    if (p === '/api/pedidos' && m === 'POST') {
+        const c = await corpo(req), quemFaz = ['tidal', 'ambos'].includes(c?.quem) ? c.quem : 'maestro';
+        if (quemFaz === 'tidal') return json(await gerar(ue, c), 201);
+        const r = await comMaestro(ue, await pedir(ue, c));
+        if (quemFaz !== 'ambos') return json(r, 201);
+        // os dois com o mesmo texto: o pedido ao Maestro fica feito mesmo que a IA do Tidal recuse (diz-se porquê)
+        const g = await gerar(ue, c).catch((e) => { if (!(e instanceof Erro)) throw e; return { erro: e.message }; });
+        return json({ ...r, tidalIA: g }, 201);
+    }
     const pd = /^\/api\/pedidos\/([a-z0-9_-]{4,40})$/.exec(p);
     if (pd && m === 'DELETE') return json(await despachar(ue, pd[1], url.searchParams.get('playlist')));
     throw new Erro(404, 'nao_encontrado', 'Pedido desconhecido.');
@@ -463,7 +477,7 @@ async function tidal(env, caminho, { method = 'GET', query = {}, body } = {}) {
         const j = await r.json().catch(() => null);
         if (r.ok) return j;
         const det = j?.errors?.[0]?.detail || j?.errors?.[0]?.title || 'HTTP ' + r.status;
-        throw new Erro(r.status === 404 ? 404 : r.status === 429 ? 429 : 502, 'tidal', 'Tidal: ' + det);
+        throw Object.assign(new Erro(r.status === 404 ? 404 : r.status === 429 ? 429 : 502, 'tidal', 'Tidal: ' + det), { http: r.status });
     }
     throw new Erro(429, 'tidal', 'O Tidal está a limitar pedidos: tenta daqui a um minuto.');
 }
@@ -589,12 +603,12 @@ function normalizarFaixa(f) {
     };
 }
 
-async function guardar(env, c, quem) {
+async function guardar(env, c, quem, ja = null) {
     const faixas = (Array.isArray(c?.faixas) ? c.faixas : []).map(normalizarFaixa).filter(Boolean).slice(0, 200);
     if (!txt(c?.nome, 60)) throw new Erro(400, 'sem_nome', 'A playlist precisa de "nome".');
     if (!faixas.length) throw new Erro(400, 'sem_faixas', 'A playlist precisa de "faixas" já encontradas no Tidal (com "id").');
     const doc = {
-        id: novoId('p'), nome: txt(c.nome, 60), descricao: txt(c.descricao, 300), resumo: txt(c.resumo, 1200),
+        id: ja?.id || novoId('p'), nome: txt(c.nome, 60), descricao: txt(c.descricao, 300), resumo: txt(c.resumo, 1200),
         tendencias: (Array.isArray(c.tendencias) ? c.tendencias : []).map((x) => txt(x, 200)).filter(Boolean).slice(0, 8),
         pedido: txt(c.pedido, 500), opcoes: normalizarOpcoes(c.opcoes || {}), faixas,
         // as candidatas (com os sinais) ficam para a app poder afinar a escolha no telemóvel
@@ -602,14 +616,16 @@ async function guardar(env, c, quem) {
         custo: Number(c.custo) || 0, criadaEm: new Date().toISOString(), por: quem.tipo === 'agente' ? 'curador' : 'app', modelo: txt(c.modelo, 60), tidal: null,
         ...(Array.isArray(c.capas) && c.capas.some((u) => /^https:\/\//.test(u)) ? { capas: c.capas.filter((u) => /^https:\/\//.test(u)).slice(0, 4).map((u) => txt(u, 300)) } : {}),
         // de onde vem, quando não é do Maestro nem de um pedido: as parecidas do Tidal («Mais como esta») ou juntada
-        ...(c.origem === 'parecidas' || c.origem === 'juntar' ? { origem: c.origem } : {}),
+        // (ou feita pela IA do Tidal a partir de um texto: só cá de dentro, com a playlist que ela encheu)
+        ...(ja?.origem ? { origem: ja.origem } : c.origem === 'parecidas' || c.origem === 'juntar' ? { origem: c.origem } : {}),
         // à antiga (o Maestro já não as faz: cada pedido dá uma playlist, logo no Tidal): uma de várias propostas para
         // o mesmo pedido, que fica só na app até a pessoa a pôr no Tidal
         ...(c.rascunho === true ? { rascunho: true, grupo: txt(c.grupo, 40), variante: txt(c.variante, 40) } : {}),
     };
-    if (c.tidal && !doc.rascunho) doc.tidal = await criarNoTidal(env, doc);
+    if (ja?.tidal) doc.tidal = ja.tidal;
+    else if (c.tidal && !doc.rascunho) doc.tidal = await criarNoTidal(env, doc);
     await env.KV.put('playlist:' + doc.id, JSON.stringify(doc));
-    const idx = (await env.KV.get('playlists', 'json')) || [];
+    const idx = ((await env.KV.get('playlists', 'json')) || []).filter((x) => x.id !== doc.id);
     idx.unshift(resumoDe(doc));
     await env.KV.put('playlists', JSON.stringify(idx.slice(0, MAX_PLAYLISTS)));
     return doc;
@@ -792,7 +808,7 @@ async function avaliacoes(env) {
             await env.KV.put('playlist:' + d.id, JSON.stringify(d));
             docs.set(d.id, d);
         }
-        out.push({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, renovadaEm: d.renovadaEm || null, renovar: !!d.renovar, por: d.por, pedido: d.pedido || '',
+        out.push({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, renovadaEm: d.renovadaEm || null, renovar: !!d.renovar, por: d.por, ...(d.origem ? { origem: d.origem } : {}), pedido: d.pedido || '',
             opcoes: d.opcoes, faixas: d.faixas.length, tidal: d.tidal?.url || null, avaliacao: d.avaliacao });
     }
     if (docs.size) await env.KV.put('playlists', JSON.stringify(idx.map((x) => (docs.has(x.id) ? resumoDe(docs.get(x.id)) : x))));
@@ -1245,6 +1261,92 @@ async function pedir(env, c) {
     return p;
 }
 
+// ---------- a IA do Tidal: uma playlist a partir de um texto (para se comparar com as do Maestro) ----------
+// O Tidal gera para dentro de uma playlist que já exista: cria-se vazia, manda-se o texto (até 512 letras) e ele
+// enche-a (planeia, procura, escolhe, grava). Fica na lista dos pedidos como «a gerar» — o Maestro não o vê nem lhe
+// toca (só trata dos pendentes). Quando a app pede a lista, vê-se como vai; pronta, entra na biblioteca com as
+// faixas e os sinais, para se ouvir, trocar e afinar como as outras. A playlist do Tidal é a mesma do princípio ao
+// fim (o mesmo link). O Maestro não vê as playlists da IA do Tidal: assim cada um escolhe sem saber do outro.
+const MAX_GERAR = 3, GERAR_MS = 20 * 60000;
+const FASES = { PLANNING: 'a planear', SEARCHING: 'a procurar faixas', CHOOSING: 'a escolher', COMMITTING: 'a gravar' };
+const semTidalIA = (quem, l) => (quem.tipo === 'agente' ? l.filter((x) => x.origem !== 'tidal-ia') : l);
+const nomeProvisorio = (texto) => (texto.length > 60 ? texto.slice(0, 59).trim() + '…' : texto);
+const apagarNoTidal = (env, pid) => tidal(env, `/playlists/${encodeURIComponent(pid)}`, { method: 'DELETE' }).catch(() => null);
+
+async function gerar(env, c) {
+    const texto = txt(c?.texto, 512);
+    if (texto.length < 3) throw new Erro(400, 'pedido_vazio', 'Escreve o que queres ouvir.');
+    if (((await env.KV.get('pedidos', 'json')) || []).filter((x) => x.estado === 'a gerar').length >= MAX_GERAR) throw new Erro(429, 'demasiados', 'A IA do Tidal ainda está a fazer as anteriores: espera que acabem.');
+    const r = await tidal(env, '/playlists', { method: 'POST', body: { data: { type: 'playlists', attributes: { name: nomeProvisorio(texto), description: txt(texto, 300), accessType: 'UNLISTED' } } } });
+    const pid = r?.data?.id;
+    if (!pid) throw new Erro(502, 'tidal', 'O Tidal não devolveu a playlist criada.');
+    let g;
+    try {
+        g = await tidal(env, '/playlistGenerations', { method: 'POST', body: { data: { type: 'playlistGenerations', attributes: { prompt: texto },
+            relationships: { playlist: { data: { id: String(pid), type: 'playlists' } } } } } });
+        if (!g?.data?.id) throw new Erro(502, 'tidal', 'Tidal: não devolveu a geração.');
+    } catch (e) {
+        await apagarNoTidal(env, pid); // (não fica uma playlist vazia no Tidal)
+        if (e.codigo !== 'tidal') throw e;
+        throw new Erro(e.status === 429 ? 429 : 502, 'tidal_ia', `A IA do Tidal não aceitou o pedido${e.http ? ` (HTTP ${e.http})` : ''}: ${e.message.replace(/^Tidal: /, '')}`);
+    }
+    const p = { id: novoId('q'), texto, estado: 'a gerar', criadoEm: new Date().toISOString(), ia: { geracao: String(g.data.id), playlist: String(pid) } };
+    const lista = (await env.KV.get('pedidos', 'json')) || [];
+    lista.unshift(p);
+    await env.KV.put('pedidos', JSON.stringify(lista.slice(0, 60)));
+    return p;
+}
+
+// como vão as gerações à espera; a que acabou entra na biblioteca. Só se escreve na KV quando o estado muda (a KV
+// gratuita dá 1000 escritas por dia): a fase («a escolher · 12 de 30») vai só na resposta.
+async function acompanhar(env) {
+    const fases = new Map(), mudou = new Map();
+    const lista = (await env.KV.get('pedidos', 'json')) || [];
+    for (const p of lista.filter((x) => x.estado === 'a gerar' && x.ia).slice(0, MAX_GERAR)) {
+        const falhou = async (erro) => { await apagarNoTidal(env, p.ia.playlist); mudou.set(p.id, { estado: 'falhou', erro }); };
+        let a;
+        try { a = (await tidal(env, `/playlistGenerations/${encodeURIComponent(p.ia.geracao)}`))?.data?.attributes; } catch (e) {
+            if (e.status === 404) { await falhou('O Tidal já não tem esta geração.'); continue; }
+            if (e.codigo === 'tidal_desligado') break;
+        }
+        if (a?.status === 'OK') {
+            try { mudou.set(p.id, { estado: 'feito', playlist: (await importar(env, p)).id, feitoEm: new Date().toISOString() }); } catch (e) {
+                if (e.codigo === 'ia_vazia') await falhou(e.message); else console.error('tidal ia', e); // (fica para a próxima vez)
+            }
+        } else if (a?.status === 'ERROR') await falhou(`A IA do Tidal não conseguiu fazer esta playlist${a.progress?.failureCode ? ` (${txt(a.progress.failureCode, 60)})` : ''}.`);
+        else if (Date.now() - Date.parse(p.criadoEm) > GERAR_MS) await falhou('A IA do Tidal demorou demais.');
+        else if (a) {
+            const pr = a.progress || {}, n = pr.committedTrackCount || pr.selectedTrackCount || 0;
+            fases.set(p.id, `${FASES[pr.stage] || 'a começar'}${n && pr.targetTrackCount ? ` · ${n} de ${pr.targetTrackCount}` : ''}`);
+        }
+    }
+    if (mudou.size) await env.KV.put('pedidos', JSON.stringify(((await env.KV.get('pedidos', 'json')) || []).map((x) => (mudou.has(x.id) && x.estado === 'a gerar' ? { ...x, ...mudou.get(x.id) } : x))));
+    return fases;
+}
+
+// a playlist que a IA do Tidal encheu passa para a biblioteca: as faixas pela ordem dela, com os sinais de cada uma
+// (para o gráfico e o «Afinar»). O id vem do pedido: se dois aparelhos a trouxerem ao mesmo tempo, é a mesma.
+async function importar(env, p) {
+    const pais = (await acesso(env)).pais || 'PT';
+    const pid = p.ia.playlist;
+    const ids = [...new Set((await itensNoTidal(env, pid)).filter((x) => x.type === 'tracks').map((x) => x.id))].slice(0, 200);
+    const det = await porIds(env, ids, pais);
+    const g = perfilGosto((await env.KV.get('perfil', 'json')) || {});
+    const candidatas = ids.map((x) => det.get(x)).filter(Boolean).map((f) => {
+        const c = { artista: f.artistas[0] || '', titulo: f.titulo, motivo: 'Escolhida pela IA do Tidal.' };
+        return { ...c, faixa: f, sinais: sinais(c, f, g) };
+    });
+    if (!candidatas.length) throw new Erro(502, 'ia_vazia', 'A IA do Tidal deu a playlist por pronta, mas sem faixas.');
+    const faixas = candidatas.map((x) => ({ ...x.faixa, genero: x.sinais?.genero || '', motivo: x.motivo }));
+    const at = (await tidal(env, `/playlists/${encodeURIComponent(pid)}`, { query: { countryCode: pais } }).catch(() => null))?.data?.attributes;
+    const porArtista = new Map();
+    for (const f of faixas) porArtista.set(f.artistas[0] || '', (porArtista.get(f.artistas[0] || '') || 0) + 1);
+    return guardar(env, { nome: txt(at?.name, 60) || nomeProvisorio(p.texto), descricao: txt(at?.description, 300) || txt(p.texto, 300),
+        resumo: 'Feita pela IA do Tidal a partir do teu texto: as faixas e a ordem são as dela. Ouve, troca e afina como nas outras.', pedido: p.texto, faixas, candidatas,
+        opcoes: { faixas: Math.max(5, Math.min(100, faixas.length)), maxArtista: Math.max(2, Math.min(10, Math.max(...porArtista.values()))) } }, { tipo: 'app' },
+    { id: 'p' + p.id.slice(1), origem: 'tidal-ia', tidal: { id: pid, url: `https://tidal.com/browse/playlist/${pid}`, criadaEm: p.criadoEm, faixas: faixas.length } });
+}
+
 // ---------- avisos no telemóvel (Web Push; a cifra e o VAPID estão em push.js, os mesmos da Meteo) ----------
 // push:vapid = o par de chaves do conector (global, criado no primeiro uso); push = os telemóveis de cada pessoa (até 5)
 async function chavesPush(env) {
@@ -1292,6 +1394,7 @@ async function despachar(env, id, playlist) {
     const out = playlist ? lista.map((x) => (x.id === id ? { ...x, estado: 'feito', playlist: x.playlist || playlist,
         playlists: [...new Set([...(x.playlists || (x.playlist ? [x.playlist] : [])), playlist])], feitoEm: x.feitoEm || new Date().toISOString() } : x)) : lista.filter((x) => x.id !== id);
     await env.KV.put('pedidos', JSON.stringify(out));
+    if (!playlist && p.ia && p.estado === 'a gerar') await apagarNoTidal(env, p.ia.playlist); // (a meio: não fica no Tidal)
     // uma afinação: fica feita (ou sai, se for cancelada) na lista da playlist
     if (p.afinar?.playlist) {
         const d = await env.KV.get('playlist:' + p.afinar.playlist, 'json');

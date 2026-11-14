@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.23.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.24.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -472,6 +472,135 @@ test('mais como esta: as parecidas do Tidal, logo no Tidal; fica um pedido para 
     assert.equal(g.status, 201);
     assert.equal((await g.json()).afinacoes, undefined);
     assert.equal(JSON.parse(await env.KV.get('pedidos')).filter((x) => x.estado === 'pendente').length, 20);
+});
+
+test('a IA do Tidal: uma playlist a partir de um texto — criada vazia no Tidal, gerada, acompanhada e trazida para a biblioteca; o Maestro não a vê; recusas e falhas', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const texto = 'Jazz calmo para o fim da tarde';
+    const apagarPedido = (id) => call(`/api/pedidos/${id}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } });
+    assert.equal((await post('/api/pedidos', { texto: 'x', quem: 'tidal' }, chave)).status, 400);
+    // o Tidal recusa (a conta ou a app não pode usar a IA): diz-se porquê, e a playlist vazia não fica no Tidal
+    sim.ia = { recusa: { status: 403, detail: 'Feature not available' } };
+    const rec = await post('/api/pedidos', { texto, quem: 'tidal' }, chave);
+    assert.equal(rec.status, 502);
+    const jr = await rec.json();
+    assert.equal(jr.error, 'tidal_ia');
+    assert.equal(jr.message, 'A IA do Tidal não aceitou o pedido (HTTP 403): Feature not available');
+    assert.deepEqual(sim.apagadas, ['uuid-nova']);
+    assert.deepEqual(await (await get('/api/pedidos', chave)).json(), []);
+    // gerar: a playlist nasce vazia no Tidal (não listada), com o texto; o pedido fica «a gerar»
+    sim.apagadas = [];
+    sim.ia = { faixas: ['101', '102', '106', '200', '201', '202'], nome: 'Fim de tarde em azul', estados: ['PROCESSING', 'PROCESSING', 'OK'] };
+    const r = await post('/api/pedidos', { texto, quem: 'tidal' }, chave);
+    assert.equal(r.status, 201);
+    const p = await r.json();
+    assert.equal(p.estado, 'a gerar');
+    assert.deepEqual(p.ia, { geracao: 'ger-1', playlist: 'uuid-nova' });
+    assert.equal(p.naHora, undefined, 'não chama o Maestro');
+    assert.deepEqual(sim.criadas.at(-1), { name: texto, description: texto, accessType: 'UNLISTED' });
+    assert.deepEqual(sim.geracoes.map((x) => [x.texto, x.playlist]), [[texto, 'uuid-nova']]);
+    assert.equal((await (await get('/api/estado', chave)).json()).pedidos, 0, 'não conta como pedido ao Maestro');
+    // enquanto gera: a app vê a fase (sem gravar nada na KV); o Maestro não vê o pedido
+    const escritas = env.KV.escritas;
+    const l1 = await (await get('/api/pedidos', chave)).json();
+    assert.equal(l1.length, 1);
+    assert.equal(l1[0].estado, 'a gerar');
+    assert.equal(l1[0].fase, 'a escolher · 1 de 6');
+    assert.deepEqual(await (await get('/api/pedidos', agente)).json(), []);
+    assert.equal(env.KV.escritas, escritas, 'ver como vai não gasta escritas');
+    // pronta: entra na biblioteca com as faixas dela, pela ordem dela, na mesma playlist do Tidal (sem criar outra)
+    const criadas = sim.criadas.length;
+    const l2 = await (await get('/api/pedidos', chave)).json();
+    assert.equal(l2[0].estado, 'feito');
+    assert.equal(l2[0].fase, undefined);
+    assert.equal(l2[0].tidal, 'https://tidal.com/browse/playlist/uuid-nova');
+    const d = await (await get(`/api/playlists/${l2[0].playlist}`, chave)).json();
+    assert.equal(d.id, 'p' + p.id.slice(1));
+    assert.equal(d.nome, 'Fim de tarde em azul', 'o nome que o Tidal lhe deu');
+    assert.equal(d.origem, 'tidal-ia');
+    assert.equal(d.por, 'app');
+    assert.equal(d.pedido, texto);
+    assert.deepEqual(d.tidal, { id: 'uuid-nova', url: 'https://tidal.com/browse/playlist/uuid-nova', criadaEm: p.criadoEm, faixas: 6 });
+    assert.deepEqual(d.faixas.map((f) => f.id), ['101', '102', '106', '200', '201', '202']);
+    assert.equal(d.faixas[0].titulo, 'So What');
+    assert.equal(d.faixas[0].motivo, 'Escolhida pela IA do Tidal.');
+    assert.equal(d.candidatas.length, 6);
+    assert.ok(d.candidatas.every((x) => x.sinais && x.faixa.id), 'com os sinais, para afinar');
+    assert.deepEqual(d.opcoes, { faixas: 6, maxArtista: 4, estilo: 'equilibrado', arco: 'onda' }, 'o máximo por artista é o que ela usou (4 do Miles Davis)');
+    assert.equal(sim.criadas.length, criadas, 'não cria outra playlist no Tidal');
+    assert.deepEqual(sim.itens, [], 'nem lhe mexe nas faixas');
+    // na lista da app está, com a origem e o pedido; o Maestro não a vê (nem nas avaliações): cada um escolhe por si
+    const idx = await (await get('/api/playlists', chave)).json();
+    assert.deepEqual(idx.map((x) => [x.id, x.origem, x.pedido, x.faixas, x.tidal]), [[d.id, 'tidal-ia', texto, 6, 'https://tidal.com/browse/playlist/uuid-nova']]);
+    assert.deepEqual(await (await get('/api/playlists', agente)).json(), []);
+    assert.deepEqual((await (await get('/api/avaliacoes', chave)).json()).playlists.map((x) => [x.id, x.origem]), [[d.id, 'tidal-ia']]);
+    assert.deepEqual((await (await get('/api/avaliacoes', agente)).json()).playlists, []);
+    // trazida duas vezes (dois aparelhos ao mesmo tempo): é a mesma playlist, uma só vez na lista
+    await env.KV.put('pedidos', JSON.stringify((await env.KV.get('pedidos', 'json')).map((x) => ({ ...x, estado: 'a gerar' }))));
+    assert.equal((await (await get('/api/pedidos', chave)).json())[0].playlist, d.id);
+    assert.equal((await (await get('/api/playlists', chave)).json()).length, 1);
+    // afinar com o Maestro uma playlist da IA do Tidal: o pedido de afinação é do Maestro (ele vê-o)
+    const af = await (await post(`/api/playlists/${d.id}/afinar`, { texto: 'mais calma' }, chave)).json();
+    assert.deepEqual((await (await get('/api/pedidos', agente)).json()).map((x) => x.id), [af.id]);
+    await apagarPedido(af.id);
+    // os dois com o mesmo texto: um pedido ao Maestro e uma geração do Tidal
+    sim.ia = { faixas: ['103'], estados: ['PROCESSING'] };
+    const amb = await (await post('/api/pedidos', { texto: 'Soul dos anos 70', quem: 'ambos', opcoes: { faixas: 20 } }, chave)).json();
+    assert.equal(amb.estado, 'pendente');
+    assert.equal(amb.opcoes.faixas, 20);
+    assert.equal(amb.tidalIA.estado, 'a gerar');
+    assert.deepEqual((await (await get('/api/pedidos', agente)).json()).map((x) => x.id), [amb.id], 'o Maestro só vê o dele');
+    assert.deepEqual((await (await get('/api/pedidos', chave)).json()).map((x) => [x.id, x.estado]).slice(0, 2), [[amb.tidalIA.id, 'a gerar'], [amb.id, 'pendente']]);
+    // cancelar a meio: a playlist sai do Tidal
+    assert.equal((await apagarPedido(amb.tidalIA.id)).status, 200);
+    assert.deepEqual(sim.apagadas, ['uuid-nova']);
+    sim.apagadas = [];
+    await apagarPedido(amb.id);
+    // os dois, mas o Tidal recusa: o pedido ao Maestro fica feito e diz-se porquê
+    sim.ia = { recusa: { status: 403, detail: 'Feature not available' } };
+    const amb2 = await post('/api/pedidos', { texto: 'Soul dos anos 70', quem: 'ambos' }, chave);
+    assert.equal(amb2.status, 201);
+    const ja2 = await amb2.json();
+    assert.equal(ja2.estado, 'pendente');
+    assert.deepEqual(ja2.tidalIA, { erro: 'A IA do Tidal não aceitou o pedido (HTTP 403): Feature not available' });
+    await apagarPedido(ja2.id);
+    sim.apagadas = [];
+    // a geração falha: o pedido fica «falhou» com o motivo, e a playlist vazia sai do Tidal
+    sim.ia = { estados: ['ERROR'], falha: 'NO_MATCHING_TRACKS' };
+    const f = await (await post('/api/pedidos', { texto: 'Uma coisa impossível', quem: 'tidal' }, chave)).json();
+    const lf = (await (await get('/api/pedidos', chave)).json()).find((x) => x.id === f.id);
+    assert.equal(lf.estado, 'falhou');
+    assert.equal(lf.erro, 'A IA do Tidal não conseguiu fazer esta playlist (NO_MATCHING_TRACKS).');
+    assert.deepEqual(sim.apagadas, ['uuid-nova']);
+    assert.equal((await apagarPedido(f.id)).status, 200);
+    assert.deepEqual(sim.apagadas, ['uuid-nova'], 'tirar um pedido que falhou já não mexe no Tidal');
+    sim.apagadas = [];
+    // dá-a por pronta mas vazia: falhou
+    sim.ia = { estados: ['OK'], faixas: [] };
+    const v = await (await post('/api/pedidos', { texto: 'Vazia', quem: 'tidal' }, chave)).json();
+    const lv = (await (await get('/api/pedidos', chave)).json()).find((x) => x.id === v.id);
+    assert.deepEqual([lv.estado, lv.erro], ['falhou', 'A IA do Tidal deu a playlist por pronta, mas sem faixas.']);
+    await apagarPedido(v.id);
+    sim.apagadas = [];
+    // demora demais (20 minutos): falhou
+    sim.ia = { estados: ['PROCESSING'], faixas: ['101'] };
+    const lenta = await (await post('/api/pedidos', { texto: 'Lenta', quem: 'tidal' }, chave)).json();
+    await env.KV.put('pedidos', JSON.stringify((await env.KV.get('pedidos', 'json')).map((x) => (x.id === lenta.id ? { ...x, criadoEm: new Date(Date.now() - 21 * 60000).toISOString() } : x))));
+    const ll = (await (await get('/api/pedidos', chave)).json()).find((x) => x.id === lenta.id);
+    assert.deepEqual([ll.estado, ll.erro], ['falhou', 'A IA do Tidal demorou demais.']);
+    await apagarPedido(lenta.id);
+    sim.apagadas = [];
+    // no máximo 3 a gerar ao mesmo tempo
+    for (let i = 0; i < 3; i++) assert.equal((await post('/api/pedidos', { texto: `Tema ${i}`, quem: 'tidal' }, chave)).status, 201);
+    const cheio = await post('/api/pedidos', { texto: 'Mais uma', quem: 'tidal' }, chave);
+    assert.equal(cheio.status, 429);
+    assert.equal((await cheio.json()).error, 'demasiados');
+    // se o Tidal estiver em baixo, a lista dos pedidos continua a vir
+    const de = globalThis.fetch;
+    globalThis.fetch = async (u, init) => (String(u).includes('/playlistGenerations/') ? new Response('{}', { status: 500 }) : de(u, init));
+    assert.equal((await (await get('/api/pedidos', chave)).json()).filter((x) => x.estado === 'a gerar').length, 3);
+    globalThis.fetch = de;
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {
