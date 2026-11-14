@@ -1878,7 +1878,7 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
 test('o teu perfil musical: o convite em «Pedir», os toques que guardam, as perguntas que aparecem, o resumo', { skip: !chromium && 'sem Playwright' }, async () => {
     await env.KV.delete('perfil:respostas');
     await env.KV.put('codigo:ligacao', createHash('sha256').update('PERFIL-1').digest('hex'));
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1, serviceWorkers: 'block', hasTouch: true });
     try {
         const page = await ctx.newPage();
         const erros = [];
@@ -1890,19 +1890,32 @@ test('o teu perfil musical: o convite em «Pedir», os toques que guardam, as pe
         await page.locator('#mu-body .mu-pl').first().waitFor();
         const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
         const corpo = page.locator('#mu-body');
-        // o convite em «Pedir» leva ao cartão, aberto
-        await nav(3);
-        await corpo.locator('.mu-convite-perfil').click();
         const perfil = corpo.locator('.mu-perfil');
-        await perfil.getByText('Para quem é a música?').waitFor();
-        assert.equal(await perfil.getByText('Em casa, onde?').count(), 0, 'só aparece com «Em casa»');
-        assert.equal(await perfil.getByText('De que idades?').count(), 0, 'só aparece com crianças');
         const toca = async (pergunta, rotulo) => {
             const b = perfil.locator('.mu-perg', { hasText: pergunta }).getByRole('button', { name: rotulo, exact: true });
             await b.click();
-            await page.waitForFunction(([q, r]) => [...document.querySelectorAll('#mu-body .mu-perfil .mu-perg')].find((x) => x.querySelector('p')?.innerText === q)
+            await page.waitForFunction(([q, r]) => [...document.querySelectorAll('#mu-body .mu-perfil .mu-perg')].find((x) => x.querySelector('p')?.innerText.startsWith(q))
                 ?.querySelector(`[aria-pressed="true"]`) && [...document.querySelectorAll('#mu-body .mu-perfil .mu-perg button')].some((x) => x.innerText === r && x.getAttribute('aria-pressed') === 'true'), [pergunta, rotulo]);
         };
+        // sem respostas, o cartão vem aberto nos Ajustes, e a primeira resposta não o fecha (fechava-se: só ficava aberto sem respostas)
+        await nav(5);
+        await perfil.getByText('Para quem é a música?').waitFor();
+        await toca('Para quem é a música?', 'Para a família');
+        assert.equal(await perfil.locator('.mu-gosto-a').getAttribute('aria-expanded'), 'true', 'continua aberto depois da primeira resposta');
+        // cada pergunta diz se dá para escolher várias ou só uma
+        const dica = (q) => perfil.locator('.mu-perg', { hasText: q }).locator('p span').innerText();
+        assert.equal(await dica('Para quem é a música?'), 'podes escolher várias');
+        assert.equal(await dica('Ouves com crianças?'), 'escolhe uma');
+        if (SHOTS) await perfil.screenshot({ path: path.join(SHOTS, 'perfil-dicas.png') });
+        // tocar outra vez tira-a; sem respostas, o convite volta a «Pedir»
+        await perfil.locator('.mu-perg', { hasText: 'Para quem é a música?' }).getByRole('button', { name: 'Para a família', exact: true }).click();
+        await page.waitForFunction(() => ![...document.querySelectorAll('#mu-body .mu-perfil .mu-perg button')].some((x) => x.getAttribute('aria-pressed') === 'true'));
+        // o convite em «Pedir» leva ao cartão, aberto
+        await nav(3);
+        await corpo.locator('.mu-convite-perfil').click();
+        await perfil.getByText('Para quem é a música?').waitFor();
+        assert.equal(await perfil.getByText('Em casa, onde?').count(), 0, 'só aparece com «Em casa»');
+        assert.equal(await perfil.getByText('De que idades?').count(), 0, 'só aparece com crianças');
         await toca('Onde ouves?', 'No carro');
         await toca('Onde ouves?', 'Em casa');
         await toca('Em casa, onde?', 'Na sala');
