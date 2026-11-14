@@ -51,6 +51,24 @@ O plano grátis da Cloudflare dá 100 000 pedidos/dia; com a app aberta a atuali
 
 Duas vezes por dia (07:14 e 15:14), uma tarefa agendada do Claude segue [`CONSELHEIRO.md`](CONSELHEIRO.md): corre `conselheiro/dados.mjs` (todos os ativos que a app mostra — o que tens, ETF, cripto, ações da lista e as que juntaste, índices e futuros — numa linha compacta cada, com as outras fontes da decisão no fim da linha (analistas e revisões, fundamentos, sentimento, e a média delas sem o voto do Claude), o contexto do mercado (juros a 10 anos, dólar, Fear & Greed), notícias, agenda, diário e a avaliação dos veredictos anteriores; e um `modelo.json` com todos os ativos), escreve um veredicto por ativo (convicção 0–100 por prazo, entrada/alvo/stop, porquê), a sua classificação por prazo, o plano do mês e as lições, e publica com `conselheiro/publicar.mjs` no KV (os scripts são escritos em Onda: `conselheiro/onda/*.onda`) (`advice:<data>`, `advice:latest`, `advice:lessons`; o publicar recusa se faltar algum ativo). A app mostra-a no cartão **Hoje**, na **Análise** e na ficha de cada ativo (lida em `GET /advice`; a análise antiga, só com alguns veredictos, continua a ser lida). Não é preciso merge diário: só a base de dados muda; alterações às regras chegam como PR em rascunho, à sexta.
 
+## A análise na hora (conector 1.10.0)
+
+Em vez de correr a horas fixas, a análise do Claude pode fazer-se quando abres a app: se a última tem 4 horas ou mais,
+a app pede-a ao conector, que chama a tarefa do Claude; fica pronta em poucos minutos (a app avisa e vai ver sozinha
+se já acabou). Puxar para atualizar pede-a se a última tem 30 minutos ou mais. Se não abrires a app, não há análise.
+Travões no conector: uma corrida de cada vez e no máximo 6 por dia (cada corrida gasta da subscrição do Claude).
+
+**Para ligar** (uma vez; o token nunca passa pelo código nem pelo chat):
+
+1. Em `claude.ai/code/routines`, abre a tarefa «Mercados — conselheiro» → **Edit** → na linha **Trigger** carrega em
+   **+** → **API** → **Generate token**. Copia o endereço («Fire URL») e o token (só aparece uma vez).
+2. No painel do Cloudflare: **Workers** → `mercados-proxy` → **Settings** → **Variables and Secrets** → junta dois,
+   do tipo **Secret**: `CONSELHEIRO_FIRE_URL` (o endereço) e `CONSELHEIRO_TOKEN` (o token).
+3. Abre a app: a linha da análise passa a dizer «atualiza-se quando abres a app».
+4. Depois disso, as corridas a horas fixas podem sair da tarefa (ou ficar só uma, de reserva).
+
+Para desligar, apaga os dois segredos (ou o token, na página da tarefa).
+
 ## Decisão consolidada
 
 Na ficha de cada ativo que se compra há um só cartão, **Decisão**: o veredicto, a confiança e o que cada fonte diz. As regras estão em [`onda/decisao.onda`](onda/decisao.onda) e o cartão em [`onda/ecra-decisao.onda`](onda/ecra-decisao.onda).

@@ -101,7 +101,7 @@ function proxyBody(u) {
     if (p === '/fuel/distritos') return { items: [{ id: 11, name: 'Lisboa' }, { id: 13, name: 'Porto' }] };
     if (p === '/cryptoglobal') return { mcap: 2.1e12, mcapChg: -3.2, vol: 9.5e10, btcDom: 58.4, ethDom: 11.2, fng: { v: 24, label: 'Extreme Fear', prev: 30 } };
     if (p === '/fuel/municipios') return { items: [{ id: 1316, name: 'Santo Tirso' }, { id: 1312, name: 'Porto' }] };
-    if (p === '/me') return { owner: ME.owner, others: ME.others };
+    if (p === '/me') return { owner: ME.owner, others: ME.others, ...(ME.naHora ? { naHora: true } : {}) };
     if (p === '/stats') return ME.owner ? { total: 5, d1: 2, d7: 4, d30: 5, claude: 1, others: ME.others, run: { at: '2026-11-07T07:20:00Z', queued: 1, done: 1, max: 20 } } : null;
     if (p === '/universe') return ME.owner ? UNI : null;
     if (p === '/owner') { ME.others = JSON.parse(u.searchParams.get('_b') || '{}').others ?? ME.others; return { ok: true }; }
@@ -149,13 +149,14 @@ function proxyBody(u) {
 
     const JDOC = { v: 1, days: { '2026-10-01': [{ s: 'NVDA', p: 150, a: 'buy' }, { s: 'TSLA', p: 500, a: 'avoid' }, { s: 'VWCE.DE', p: 150, a: 'buy' }] } };
     let jPosts = 0;
-    const lotPosts = [], claudePosts = [], ownerPosts = [], planoPosts = [];
+    const lotPosts = [], claudePosts = [], ownerPosts = [], planoPosts = [], runPosts = [];
     await ctx.route(/proxy\.test/, (route) => {
         const u = new URL(route.request().url());
         if (u.pathname === '/journal') {
             if (route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); if ('claude' in b) claudePosts.push(b); if (b.date && b.items) { JDOC.days[b.date] = b.items; jPosts++; } if (b.lots) lotPosts.push(b.lots); if (b.plano) planoPosts.push(b.plano); return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
             return route.fulfill({ json: JDOC, headers: { 'Access-Control-Allow-Origin': '*' } });
         }
+        if (u.pathname === '/advice/run' && route.request().method() === 'POST') { runPosts.push(JSON.parse(route.request().postData())); return route.fulfill({ json: { naHora: true, pedidaEm: new Date().toISOString() }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
         if (u.pathname === '/owner' && route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); ownerPosts.push(b); ME.others = b.others; return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
         const body = proxyBody(u);
         return body ? route.fulfill({ json: body, headers: { 'Access-Control-Allow-Origin': '*' } }) : route.fulfill({ status: 404, json: { error: 'x' } });
@@ -1019,6 +1020,14 @@ function proxyBody(u) {
     assert.match(await page.locator('.today .plan-blk').textContent(), /Bitcoin/);
     assert.equal(await page.locator('details.stocks-fold').count(), 0, 'ações à vista no Painel (só informação)');
     console.log('✓ plano do mês 900 €:', amounts.join(' + '));
+    // a análise na hora (4.27): sem gatilho no conector nada se pede; com ele, abrir a app pede-a (a de teste é antiga)
+    assert.equal(runPosts.length, 0, 'sem naHora no /me, nunca se pede');
+    const corrida = await page.evaluate(async () => { const m = window.__mk; m.st.naHora = true; m.cfg.owner = true; await m.pedirAnalise('abrir'); const a = m.st.runAt; await m.pedirAnalise('pedido'); return [!!a, m.clWhen(), document.querySelector('#mk-toast').textContent]; });
+    assert.deepEqual(runPosts, [{ quando: 'abrir' }], 'uma só corrida: a segunda espera por esta');
+    assert.ok(corrida[0]);
+    assert.match(corrida[1], / · a nova vem a caminho \(pedida às \d\d:\d\d\)$/);
+    assert.equal(corrida[2], 'O Claude está a fazer a análise nova: fica pronta em poucos minutos.');
+    await page.evaluate(() => { const m = window.__mk; m.st.runAt = null; m.st.naHora = false; });
     // dias de execução: com 2 e 16, cada execução leva metade
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.click('[data-sday="16"]');
