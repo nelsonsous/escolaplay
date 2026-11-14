@@ -552,3 +552,7 @@ body:has(.mu-folha) { overflow: hidden; }
 
 /* 2.46.3 — o perfil: cada pergunta diz se dá para escolher várias ou só uma */
 .mu-perg > p span { margin-left: 4px; color: var(--dim); font-weight: 500; font-size: 13px; }
+
+/* 2.46.4 — «Feita pelo…» por baixo da capa e do nome, a toda a largura; o pedido sem negrito */
+.mu-fo-quem .mu-feita { margin: -6px 0 16px; }
+.mu-feita .q span { font-weight: 500; color: var(--mut); }

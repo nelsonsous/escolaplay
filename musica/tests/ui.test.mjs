@@ -1601,6 +1601,10 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         assert.match(await folha.locator('.mu-fo-tx > p').innerText(), / · Mistral Small/);
         // o cartão diz quem a fez, para que pedido, e como começou; e tem o «Rever com o Claude»
         const feita = folha.locator('.mu-feita');
+        // o cartão vai por baixo da capa e do nome, a toda a largura (ao lado da capa ficava espremido)
+        const g = await page.evaluate(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const cab = r('.mu-folha .mu-folha-cab'), f = r('.mu-folha .mu-feita'); return { abaixo: f.top >= cab.bottom, w: [Math.round(f.width), Math.round(cab.width)] }; });
+        assert.ok(g.abaixo && g.w[0] === g.w[1], `o cartão por baixo da capa, a toda a largura (${g.w})`);
+        if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'feita-por.png') });
         assert.equal(await feita.locator('.q').innerText(), `✦ Feita pelo Mistral Small para o teu pedido «${MELHORADO}»`);
         assert.match(await feita.locator('.mu-nota').innerText(), /^Começou com «So What», «Feeling Good» e as parecidas do Tidal\.$/);
         assert.equal(await feita.getByRole('button', { name: '✦ Rever com o Claude' }).count(), 1);
