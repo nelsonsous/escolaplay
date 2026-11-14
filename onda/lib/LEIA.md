@@ -11,7 +11,7 @@ ecrã e o conselheiro).
 Uma app em Onda é um só texto: junta-se a biblioteca **antes** da app, por esta ordem (cada módulo só usa os de cima):
 
 ```
-cat onda/lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,grafico,anfitriao,fala}.onda app.onda | onda/build/ondac -w main clique > app.wasm
+cat onda/lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,grafico,anfitriao,tempo,fala}.onda app.onda | onda/build/ondac -w main clique > app.wasm
 ```
 
 Pode-se juntar a biblioteca toda: os nomes dela começam por `_`, que no `-w` são privados — só entram as funções que a
@@ -59,7 +59,8 @@ começam nomes por `_` (são do runtime e das bibliotecas), por isso nunca colid
 | `ordenar.onda` | `_or_` | o `sort` do V8: o PowerSort do Chromium (`_or_power`) e o TimSort do Node 22 (`_or_tim`) |
 | `html.onda` | `_ht_` | pedaços de HTML para o ecrã (`_ht_poe` escreve de raiz; `_ht_muda` mexe só no que mudou), atributos e textos escapados |
 | `grafico.onda` | `_gr_` | gráficos em SVG: o caminho de uma série de valores, em linha quebrada ou em curva suave, à escala de uma caixa |
-| `anfitriao.onda` | `_an_` | as portas dos anfitriões: apps (`rt/anfitriao.js`, `Y 100–119`) e scripts (`rt/anfitriao-node.js`, `Y 200–214`) |
+| `anfitriao.onda` | `_an_` | as portas dos anfitriões: apps (`rt/anfitriao.js`, `Y 100–122`: o ecrã, os eventos, a rede, o armazém, o som, a voz, o ecrã acordado) e scripts (`rt/anfitriao-node.js`, `Y 200–214`) |
+| `tempo.onda` | `_tp_` | contagens: a hora do fim (`_tp_fim s`), o que falta até lá (`_tp_falta`, `_tp_faltams`) e o tempo como num relógio (`_tp_mss`: 75 → `1:15`). Guiam-se pela hora e não pelos tiques, por isso um ecrã que adormece não as atrasa |
 
 Cada ficheiro começa com a lista das suas funções, o que fazem e a que função do JS são iguais.
 
@@ -127,6 +128,7 @@ O `lib/app.onda` (it.137) fica tal e qual para quem ainda o usa (a Música). Os 
 `node --test test/biblioteca-*.test.js` (a partir de `onda/`): números (`String`, `JSON.stringify`, `toFixed` 0–100,
 `toPrecision` 1–100, `Number(texto)`, `Math`, o `Intl` pt-PT e as moedas) em ~120 000 reais de toda a espécie; JSON e
 valores; textos (UTF-16, URI, `TextDecoder`, `trim`, maiúsculas); datas (todos os dias de 1600 a 2400, `toISOString`,
-Lisboa em todas as mudanças de hora de 1996 a 2099); o `sort` contra o Node e contra o Chromium (Playwright); a poda; e o
+Lisboa em todas as mudanças de hora de 1996 a 2099); o `sort` contra o Node e contra o Chromium (Playwright); as contagens
+e o `m:ss` (`biblioteca-tempo.test.js`); a poda; e o
 exemplo `ex/carteira/carteira.onda` (um script com sete módulos) contra o mesmo em JS. `test/lib/sonda.onda` põe a
 biblioteca à vista do JS.

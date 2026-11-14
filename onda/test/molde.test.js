@@ -112,3 +112,42 @@ test('molde: a app monta-se e funciona no browser', async (t) => {
     assert.deepStrictEqual(erros, []);
   } finally { await br.close(); srv.close(); }
 });
+
+test('molde: copia-se para fora da Onda e monta-se; o --verificar dá por um módulo velho; um erro diz o ficheiro e a linha', () => {
+  const t = fs.mkdtempSync(path.join(require('os').tmpdir(), 'onda-molde-'));
+  const copia = path.join(t, 'minha-app');
+  fs.cpSync(path.join(R, 'molde'), copia, { recursive: true });
+  const corre = (...args) => {
+    try { return { ok: true, out: execFileSync('node', [path.join(copia, 'build.mjs'), ...args], { env: { ...process.env, ONDA: R }, cwd: t, stdio: ['ignore', 'pipe', 'pipe'] }).toString() }; } catch (e) { return { ok: false, out: String(e.stdout) + String(e.stderr) }; }
+  };
+  const modulo = () => fs.readFileSync(path.join(copia, 'gerado/app.wasm'));
+  // montar fora da pasta (o caminho do LEIA.md: cp -r onda/molde minha-app; ONDA=onda node minha-app/build.mjs): o mesmo módulo
+  let r = corre();
+  assert.ok(r.ok, r.out);
+  assert.ok(modulo().equals(fs.readFileSync(path.join(R, 'molde/gerado/app.wasm'))), 'o módulo é o mesmo, ao byte');
+  assert.match(corre('--verificar').out, /gerado\/ em dia/);
+  // mudar a app sem a montar: o --verificar dá por isso, e não escreve nada
+  const fonte = fs.readFileSync(path.join(copia, 'app.onda'), 'utf8');
+  assert.ok(fonte.includes('Nada por aqui.'));
+  fs.writeFileSync(path.join(copia, 'app.onda'), fonte.replace('Nada por aqui.', 'Nada.'));
+  const antes = modulo();
+  r = corre('--verificar');
+  assert.ok(!r.ok);
+  assert.match(r.out, /gerado\/app\.wasm não é o da app de agora/);
+  assert.ok(modulo().equals(antes));
+  // um erro na app: além da linha do texto todo junto (a biblioteca e a app), o ficheiro e a linha dele
+  const linhas = fonte.split('\n'), k = linhas.findIndex((l) => l.startsWith(': nfav '));
+  assert.ok(k > 0);
+  linhas[k] = ': nfav >i { = n 0 L i @ 8 = n + n favv i n }';
+  fs.writeFileSync(path.join(copia, 'app.onda'), linhas.join('\n'));
+  r = corre();
+  assert.ok(!r.ok);
+  assert.match(r.out, /nome desconhecido/);
+  assert.ok(r.out.includes(`→ ${path.join('minha-app', 'app.onda')}, linha ${k + 1}, coluna `), r.out);
+  assert.ok(modulo().equals(antes), 'com um erro, o módulo que lá estava fica');
+  // uma função da app com o nome de uma da fala: o erro aponta a linha da app
+  fs.writeFileSync(path.join(copia, 'app.onda'), ': seg i>i x x\n' + fonte);
+  r = corre();
+  assert.match(r.out, /funcao repetida/);
+  assert.ok(r.out.includes(`→ ${path.join('minha-app', 'app.onda')}, linha 1, coluna `), r.out);
+});

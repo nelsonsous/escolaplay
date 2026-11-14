@@ -1,0 +1,67 @@
+/* Ginástica: preto, letra grande, uma coisa de cada vez (o estilo da Mercados e da Música). O relógio lê-se de longe:
+   o telemóvel fica encostado a um canto do tapete. */
+:root { --txt: #fff; --mudo: #9a9aa5; --linha: #1c1c1f; --cartao: #15151a; --cor: #ff6fb1; --ouro: #ffd24a; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { background: #000; }
+body { margin: 0; color: var(--txt); font: 17px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; touch-action: manipulation; }
+main { max-width: 480px; margin: 0 auto; padding: env(safe-area-inset-top) 0 calc(28px + env(safe-area-inset-bottom)); }
+header { padding: 18px 20px 6px; }
+header h1 { margin: 0; font-size: 1.9rem; font-weight: 800; letter-spacing: -.02em; }
+#ecra > * { margin-left: 20px; margin-right: 20px; }
+.vazio { margin-top: 22px; color: var(--mudo); }
+
+.acao { display: block; width: calc(100% - 40px); min-height: 60px; margin-top: 10px; margin-bottom: 10px; border-radius: 18px; background: var(--cor); color: #000; font-size: 1.25rem; font-weight: 800; }
+.acao:active { transform: scale(.98); }
+.acao.fraco { background: var(--cartao); color: var(--txt); }
+.acao[disabled] { opacity: .35; }
+
+/* a casa */
+.estrelas { margin-top: 2px; margin-bottom: 14px; color: var(--mudo); }
+.estrelas b { color: var(--ouro); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.sessoes { display: flex; gap: 10px; }
+.sessoes button { flex: 1; height: 48px; border-radius: 14px; background: var(--cartao); color: var(--mudo); font-size: 1.15rem; font-weight: 750; }
+.sessoes button.on { background: #fff; color: #000; }
+.nome { margin-top: 18px; margin-bottom: 0; font-size: 1.75rem; line-height: 1.15; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.resumo { margin-top: 4px; margin-bottom: 12px; color: var(--mudo); }
+.lista { margin-top: 14px; margin-bottom: 0; padding: 0 0 0 1.9em; color: #d5d5dc; }
+.lista li { padding: 9px 0; border-bottom: 1px solid var(--linha); overflow-wrap: anywhere; }
+.lista li::marker { color: var(--mudo); font-variant-numeric: tabular-nums; }
+.ajustes { display: flex; gap: 10px; margin-top: 22px; }
+.ajustes button { flex: 1; height: 44px; border-radius: 12px; background: var(--cartao); color: var(--mudo); font-size: .92rem; font-weight: 600; }
+
+/* a sessão: um exercício de cada vez */
+.barra { height: 6px; margin-top: 8px; border-radius: 3px; background: var(--cartao); overflow: hidden; }
+.barra i { display: block; height: 100%; border-radius: 3px; background: var(--cor); transition: width .35s ease; }
+.passo { margin-top: 12px; margin-bottom: 0; color: var(--mudo); font-size: .92rem; font-variant-numeric: tabular-nums; }
+.passo + .nome { margin-top: 2px; font-size: 2rem; }
+.como { margin-top: 10px; margin-bottom: 0; color: #d5d5dc; overflow-wrap: anywhere; }
+.dose { margin-top: 10px; margin-bottom: 0; color: var(--cor); font-weight: 700; }
+.relogio { min-height: 31vw; margin-top: 6px; display: flex; align-items: center; justify-content: center; }
+.relogio b { font-size: min(31vw, 150px); line-height: 1; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.relogio b.parado { color: var(--mudo); }
+.etiqueta { min-height: 1.5em; margin-top: 0; margin-bottom: 10px; text-align: center; font-size: 1.25rem; font-weight: 700; }
+.botoes { display: flex; flex-wrap: wrap; gap: 10px; }
+.botoes .acao { width: 100%; min-height: 72px; margin: 0; font-size: 1.5rem; }
+.menos { flex: 1; height: 48px; border-radius: 14px; background: var(--cartao); color: var(--mudo); font-weight: 650; }
+
+/* o fim: a estrela */
+.fim { padding-top: 4vh; text-align: center; }
+.fim .estrela { margin: 0; font-size: 34vw; line-height: 1.1; color: var(--ouro); animation: salta .6s cubic-bezier(.2, 1.5, .4, 1); }
+.fim .estrela.apagada { color: var(--mudo); animation: none; }
+.fim h2 { margin: 0; font-size: 2rem; font-weight: 800; letter-spacing: -.02em; }
+.fim .texto { margin: 8px 0 22px; color: #d5d5dc; }
+.fim .acao { width: 100%; }
+@keyframes salta { from { transform: scale(.2) rotate(-25deg); opacity: 0; } }
+@media (min-width: 480px) { .relogio { min-height: 150px; } .fim .estrela { font-size: 160px; } }
+/* um telemóvel baixo: tudo um pouco mais junto, para o botão principal se ver sem rolar */
+@media (max-height: 600px) {
+    header { padding-top: 10px; }
+    header h1 { font-size: 1.4rem; }
+    .passo + .nome { font-size: 1.6rem; }
+    .como { font-size: .94rem; }
+    .relogio { min-height: 26vw; }
+    .relogio b { font-size: min(26vw, 150px); }
+    .botoes .acao { min-height: 60px; }
+}
+@media (prefers-reduced-motion: reduce) { .fim .estrela { animation: none; } .barra i { transition: none; } .acao:active { transform: none; } }

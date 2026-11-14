@@ -6,6 +6,7 @@ O estilo é o da Mercados e da Música: preto, letra grande, pouca coisa no ecr�
 
 ```sh
 node onda/molde/build.mjs               # app.onda + onda/lib → gerado/app.wasm (49 KB) e gerado/anfitriao.js
+node onda/molde/build.mjs --verificar   # não escreve nada: falha se o gerado/ não é o da app de agora
 npx serve onda/molde                    # ou qualquer servidor de ficheiros; abrir index.html
 node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
 ```
@@ -19,7 +20,7 @@ node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
 | `app.css` | o aspeto | sim |
 | `dados.json` | os dados de exemplo | troca-se pelos da app (ou por um endereço na rede) |
 | `app.js` | a casca (16 linhas): carrega o módulo e entrega-o ao anfitrião | quase nunca |
-| `build.mjs` | junta a biblioteca e a app e compila | só a lista `EVENTOS`, ao criar uma função de evento nova |
+| `build.mjs` | junta a biblioteca toda e a app e compila; num erro diz o ficheiro e a linha (`→ minha-app/app.onda, linha 46`) | só a lista `EVENTOS`, ao criar uma função de evento nova |
 | `sw.js`, `manifest.webmanifest`, `icone.svg` | instalar no ecrã principal e abrir sem rede | o nome, o ícone e a versão da cache |
 | `gerado/` | o que o `build.mjs` escreve | nunca à mão |
 
@@ -53,7 +54,7 @@ node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
   Com `_ht_muda` em vez de `_ht_poe`, o anfitrião compara o HTML novo com o que lá está e mexe só no que é
   diferente: as imagens não piscam e a lista não salta. Os itens de uma lista levam `data-chave` (o id), para
   tirar ou trocar um não mexer nos outros.
-- **O que vem de fora é sempre escapado** (`esc` para um nó, `esct` para um texto). O exemplo tem um `<` e um `&` nos dados para o teste o provar.
+- **O que vem de fora é sempre escapado** (`esc` para um nó, `esct` para um texto). O `esc` serve qualquer valor do JS e por isso traz o `String(x)` dos números; num ecrã só com textos, `esct txt c.nome` deixa o módulo uns 7 KB mais pequeno. O exemplo tem um `<` e um `&` nos dados para o teste o provar.
 - **Números e datas como o utilizador os lê:** `inteiro x` e `casas x d` são o `Intl.NumberFormat('pt-PT')`, igual ao bit.
 - **A rede pode falhar:** `lido` recebe o estado HTTP; o ecrã diz «Sem ligação» e deixa tentar outra vez.
 
@@ -63,6 +64,10 @@ node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
 |---|---|
 | ordenar, datas, JSON para escrever, textos | `onda/lib/LEIA.md` (a biblioteca toda; só pesa o que se usa) |
 | relógio (atualizar de x em x segundos) | `_an_relogio ms $"funcao"` |
+| uma contagem (um relógio a andar para trás) | `onda/lib/tempo.onda`: guarda-se a hora do fim (`! 11 _tp_fim 20`) e em cada tique pergunta-se o que falta (`_tp_falta @ 11`); `_tp_mss` escreve `1:15`. Guia-se pela hora, não pelos tiques: um ecrã que adormece não a atrasa. Um tique redesenha só os algarismos (`_ht_muda`) e só quando mudam. Exemplo: `ginastica/app.onda` |
+| o ecrã sempre aceso, um sinal sonoro, voz | `_an_acordado 1`, `_an_tom 880 120` e `_an_falar texto $"pt-PT"` (portas 120 a 122). O primeiro som e a primeira fala fazem-se num toque: `_an_tom 0 0` só prepara |
+| testar uma app com relógio | o relógio do Playwright (`page.clock`): `runFor` anda tique a tique e `fastForward` salta como um telemóvel que adormeceu. Exemplo: `ginastica/tests/ginastica.test.mjs` |
+| conferir o desenho sem olhar para ele | o `MEDE` do mesmo teste: o que sai do ecrã ou fica cortado, botões mais pequenos do que um dedo, pouco contraste, o botão principal à vista |
 | gráficos e animações calculados em Onda | `mercados/proto/` (campos: cada píxel é uma função) |
 | um script sem ecrã (Node) | `onda/ex/carteira/` e `onda/rt/anfitriao-node.js` |
 | gestos (arrastar, puxar para fechar), ecrãs longos com estado no JS | ainda na casca: ver `mercados/mercados.js` e o que falta em `onda/docs/ARQUITETURA.md` |

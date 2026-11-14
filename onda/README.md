@@ -25,7 +25,7 @@ ia/ia 3b                    # IA no Mac: conversa com um modelo aberto (Qwen2.5)
 build/ondac -q alvo < ex/oraculo.onda             # o mesmo predicado vira um programa de Grover em OpenQASM 3
 ./onda run ex/qasm.onda < f.qasm                   # simulador quantico escrito em Onda: corre esse programa
 ONDA_ARM=kv.arm ./onda run ex/arm.onda poe 1000000 # armazem persistente: a memoria e o ficheiro
-node --test test/*.test.js  # todos os testes (80): + integracao numerica e CRC-32
+node --test test/*.test.js  # todos os testes (186; 24 so correm no Mac ou com qemu-aarch64)
 sh test/w/correr.sh         # o mesmo programa em C, WebAssembly e x86 da o mesmo resultado
 node wasm/host.js seed/ondac.wasm < ex/fib.onda  # o compilador em WebAssembly escrito pela propria Onda
 python3 web/montar.py       # monta as duas paginas em build/
@@ -63,7 +63,8 @@ O motor (`ia/qwen.onda`) está todo em Onda:
 | `rt/prelude.c` | runtime C mínimo (só para o alvo C opcional) |
 | `rt/anfitriao.js`, `lib/app.onda`, `ex/app/` | **apps em Onda**: o anfitrião (browser e Node: ecrã, eventos, rede, relógios, armazém), a biblioteca (textos, números pt-PT, JSON, regiões de memória) e uma app de exemplo — ver "Apps" no `SPEC.md` |
 | `docs/ARQUITETURA.md`, `molde/` | **o mapa de tudo** (camadas, modelo de uma app, o que falta) e **o molde de uma app nova**: uma PWA em Onda pronta a copiar (`molde/LEIA.md`) |
-| `lib/` | a biblioteca da Onda: o que o JavaScript traz de origem (`lib/LEIA.md`) |
+| `../ginastica/` | a primeira app nascida do molde: uma sessão guiada, com relógio, voz, sinais e o ecrã acordado |
+| `lib/` | a biblioteca da Onda: o que o JavaScript traz de origem, e as contagens (`lib/LEIA.md`) |
 | `wasm/` | anfitrião WebAssembly de três portas (`host.js`) |
 | `web/` | carregador WebAssembly, intérprete de referência (`significado.js`), núcleo da Onda Viva e as duas páginas |
 | `ex/` | exemplos: fractal, ondas, Grover, π, fib, simulador de OpenQASM (`qasm.onda`), armazém chave-valor (`arm.onda`), `fib` memorizado (`memo.onda`) um interpretador de Brainfuck (`bf.onda`), matmul pelo paradigma de campo (`matmul.onda`), SHA-256 (`sha256.onda`), o Jogo da Vida (`life.onda`) um avaliador de expressões (`calc.onda`) e uma mini-linguagem Turing-completa (`mini.onda`) um crivo de Eratóstenes (`crivo.onda`) um armazém endereçado por conteúdo (`cas.onda`), base64 (`b64.onda`) um matcher de expressões regulares (`regex.onda`) aritmética de precisão arbitrária (`big.onda`) quicksort (`qsort.onda`) BFS num labirinto (`maze.onda`) integração de Simpson (`integra.onda`) e CRC-32 (`crc.onda`) |

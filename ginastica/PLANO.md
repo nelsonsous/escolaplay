@@ -201,8 +201,9 @@ Chama-se **Ginástica** e vive em `ginastica/`. Depois de junta ao `main` abre e
 `https://nelsonsous.github.io/escolaplay/ginastica/`. É para a família, no telemóvel ou no tablet encostado a um canto
 do tapete.
 
-Como se usa: ela abre a app, toca em «Começar» e a app diz o exercício, mostra como se faz em duas linhas e conta o
-tempo em voz alta («troca de lado», «faltam dez»). O ecrã não apaga a meio. No fim, a estrela do dia.
+Como se usa: ela abre a app, toca em «Começar» e a app diz o exercício e mostra como se faz. Ela toca em «Vai» e o
+relógio conta; a voz avisa das trocas de lado e dos descansos, e há um sinal aos 3, 2 e 1. O ecrã não apaga a meio. No
+fim, a estrela do dia. O pormenor está no [`README.md`](README.md).
 
 ### As seis voltas
 
@@ -210,7 +211,7 @@ Cada volta é um PR com testes; a versão sobe e a app continua a funcionar.
 
 | # | O que muda para vocês | Por dentro | O que a Onda ganha |
 |---|---|---|---|
-| **1** | **A sessão de hoje, guiada.** «Começar» e a app leva-a exercício a exercício: o nome, como se faz, o relógio, «troca de lado», um sinal no fim de cada um. Pausa e saltar à frente. No fim, a estrela. Funciona sem rede e instala-se no ecrã principal. | Cópia do molde: `ginastica/app.onda` e um `dados.json` com os 29 exercícios e as quatro sessões deste plano. As estrelas no armazém do browser. Teste: uma sessão inteira num Chromium, com o relógio acelerado. | Três portas novas no anfitrião: **ecrã acordado**, **sinal sonoro sem ficheiros** e **voz** em português. Na biblioteca: contagens que se guiam pela hora e não pelos tiques do relógio (não se atrasam quando o ecrã adormece) e o tempo escrito `m:ss`. No molde: a receita «uma sequência com relógio». |
+| **1** ✔ | **A sessão de hoje, guiada** (Ginástica 0.1.0). A app propõe a sessão que se segue (A, B, C, D) e leva-a exercício a exercício: o nome, como se faz, o relógio, as vezes, os lados e os descansos. A voz diz o exercício e as trocas, e há um sinal aos 3, 2 e 1 e no fim. Pausa, saltar e sair; se a página se esconde, pára sozinha. No fim, a estrela, com pelo menos metade dos exercícios feitos. O som e a voz desligam-se na casa. Funciona sem rede e instala-se no ecrã principal. | `ginastica/app.onda` (272 linhas, módulo de 54 KB), a partir do molde, e um `dados.json` com os 29 exercícios e as quatro sessões, nas doses das semanas 1 a 4. As estrelas no armazém do browser. 7 testes: as quatro sessões inteiras num Chromium com o relógio do teste, o desenho medido em três ecrãs e a memória. | Portas 120 a 122 no anfitrião: **ecrã acordado**, **sinal sonoro sem ficheiros** e **voz**. Na biblioteca, `lib/tempo.onda`: contagens que se guiam pela hora e o tempo escrito `m:ss`. No compilador: o «quis dizer…?» passou a sugerir o nome certo. No molde: a biblioteca toda, erros com o ficheiro e a linha, `--verificar` e as receitas novas. É a iteração 158. |
 | **2** | **A semana e as doze semanas.** Marcas os dias de clube; a app propõe a sessão certa nos outros (A, B, C, D), guarda o dia livre e passa sozinha de fase na semana 5 e na 9. As estrelas da semana e das semanas todas. | O calendário pela data de Lisboa (`lib/data.onda`); as doze semanas nos dados. | `lib/data.onda`: o início da semana e os nomes curtos dos dias e dos meses em português. Hoje só há o dia da semana em número e o «quinta-feira, 07:15». |
 | **3** | **As medidas.** De quatro em quatro semanas a app pede as medidas e mostra cada uma a melhorar, num gráfico. | Gráficos em SVG desenhados em Onda. | `lib/grafico.onda`: pontos, barras e etiquetas dos eixos. Hoje só faz a linha e a curva. |
 | **4** | **Os vídeos.** A rotina da semana e os tutoriais de cada exercício, a abrir no YouTube. Uma área dos pais para juntar e tirar ligações. | As ligações de partida nos dados; as vossas no armazém. Só entram endereços `https://` do YouTube. | Na biblioteca: conferir e arrumar um endereço colado. O que vem de fora é sempre validado. |
@@ -249,15 +250,18 @@ O teu pedido vale para todas as voltas, não só para esta app.
 - Quantos dias e horas treina no clube, e se compete.
 - Que aparelhos usa esta época.
 - Se tem ou teve dores.
-- Em que aparelho vai usar a app. A voz, o som e o ecrã acordado só se confirmam num telemóvel ou tablet a sério:
-  aqui os testes correm num Chromium sem ecrã.
+- Em que aparelho vai usar a app. A voz, o som e o ecrã acordado só se confirmam num telemóvel ou tablet a sério.
 
-## Conferido neste ambiente
+## Conferido neste ambiente (volta 1)
 
-- O molde monta: `node onda/molde/build.mjs` → `gerado/app.wasm`, 49 550 bytes.
-- O teste do molde passa: `node --test onda/test/molde.test.js` (1 de 1).
-- O anfitrião tem as portas 100 a 119. Não tem ecrã acordado, voz, som sem ficheiro, câmara nem armazém para dados
-  grandes: são as portas novas das voltas 1 e 5.
+- Os testes passam: 7 de 7 na Ginástica; 186 na Onda (162 passam, 24 só correm no Mac ou com `qemu-aarch64`, nenhum
+  falha); 77 de 77 na Música, com o anfitrião novo.
+- As outras apps montam-se iguais ao byte com o compilador corrigido (Mercados, Meteo, Música, o molde).
+- Oito erros postos de propósito na app foram todos apanhados pelos testes (um deles só depois de apertar o teste
+  da memória).
+- O desenho foi conferido por medidas, não a olho: em 320×568, 390×844 e 768×1024 nada sai do ecrã nem fica cortado,
+  os botões têm tamanho de dedo, o contraste chega, e num telemóvel normal uma sessão inteira faz-se sem rolar.
+- **Por experimentar num telemóvel a sério:** a voz, o som e o ecrã acordado. Aqui o Chromium não tem ecrã nem colunas.
 
 ## Fontes
 

@@ -28,6 +28,12 @@
 //   118 rolar    sel 0    → rola a página até ao elemento sel (1 se existe); com 0, até ao topo
 //   119 mudar    sel txt  → como o 100, mas mexe só no que mudou: um nó que continua igual é o mesmo nó (as imagens não
 //                           piscam, o que está a meio de uma animação continua, um campo não perde o cursor). Ver `mudar`
+//   120 acordado v 0     → v = 1: o ecrã não apaga enquanto a app se vê (Screen Wake Lock); v = 0: deixa de o segurar.
+//                           O browser larga-o quando a página se esconde: volta a pedir-se quando ela se vê  → 1 se o há
+//   121 tom      hz ms   → um sinal sonoro sem ficheiro (Web Audio): um tom de hz hertz durante ms. Com hz = 0 só
+//                           prepara o som (num toque: há browsers que só o deixam começar num gesto)         → 1 se o há
+//   122 falar    t l     → diz o texto t em voz alta (speechSynthesis) na língua l ("pt-PT"; 0 = a da página) e cala
+//                           o que estava a dizer; com t = 0 só cala                                          → 1 se o há
 // Depois de desenhar (100 e 119), o elemento recebe o evento `onda-desenho` (sobe pela página): «a app desenhou».
 // Os nomes de funções (fn) são textos com o nome de uma função da Onda (ex.: "clique").
 // Memória: cada texto que o anfitrião entrega é reservado com o alocador do runtime (_oa). Para não crescer sem fim,
@@ -66,7 +72,9 @@
     }
 
     // Cria a app. `bytes`: o módulo (Uint8Array) ou um WebAssembly.Module já compilado.
-    // opcoes: { documento, armazem (objeto chave→texto), buscar (fetch), registo (função de log), prefixo (localStorage) }
+    // opcoes: { documento, armazem (objeto chave→texto), buscar (fetch), registo (função de log), prefixo (localStorage),
+    //           e, para os testes, o que o browser dá: som (o leitor), acordado (navigator.wakeLock), audio (AudioContext),
+    //           voz e vozFrase (speechSynthesis e SpeechSynthesisUtterance); com null, é como se o browser não o tivesse }
     // ---------- mudar: pôr um HTML novo num elemento sem deitar fora o que lá está igual ----------
     // O innerHTML faz tudo de novo: as imagens piscam, uma animação a meio recomeça, a lista perde o sítio. O mudar
     // compara o que lá está com o HTML novo e mexe só no que é diferente. Os filhos emparelham-se pela ordem e pelo
@@ -177,6 +185,43 @@
         };
         const aTocar = () => (leitor && !leitor.paused && leitor.__url ? leitor.__url : '');
         const memoria = new Map(); // 113/114/115
+        // o ecrã acordado (120): enquanto a app o quer e a página se vê, um trinco. O browser tira-o quando a página se
+        // esconde; ao voltar a ver-se pede-se outra vez. Um pedido recusado (bateria fraca) não se repete até lá
+        const trincos = opcoes.acordado !== undefined ? opcoes.acordado : (typeof navigator !== 'undefined' && navigator.wakeLock) || null;
+        let querAcordado = false, trinco = null, aPedir = false, ouveVer = false;
+        const acordar = () => {
+            if (!trincos || !querAcordado || trinco || aPedir || (doc && doc.visibilityState && doc.visibilityState !== 'visible')) return;
+            aPedir = true;
+            let p;
+            try { p = Promise.resolve(trincos.request('screen')); } catch (e) { p = Promise.reject(e); }
+            p.then((s) => {
+                aPedir = false;
+                if (!s) return;
+                if (!querAcordado) { if (s.release) s.release(); return; } // largou-se antes de o browser responder
+                trinco = s;
+                if (s.addEventListener) s.addEventListener('release', () => { if (trinco === s) trinco = null; });
+            }, () => { aPedir = false; });
+        };
+        // o sinal sonoro (121): um contexto de som só para a app, criado ao primeiro uso
+        const Som = opcoes.audio !== undefined ? opcoes.audio : typeof AudioContext !== 'undefined' ? AudioContext : typeof webkitAudioContext !== 'undefined' ? webkitAudioContext : null;
+        let ctxSom = null;
+        const tom = (hz, ms) => {
+            if (!Som) return 0n;
+            try {
+                if (!ctxSom) ctxSom = new Som();
+                if (ctxSom.state === 'suspended' && ctxSom.resume) { const p = ctxSom.resume(); if (p && p.catch) p.catch(() => {}); }
+                if (hz > 0) {
+                    const o = ctxSom.createOscillator(), g = ctxSom.createGain(), t0 = ctxSom.currentTime, d = Math.max(0.02, ms / 1000);
+                    o.type = 'sine'; o.frequency.value = hz;
+                    // o volume sobe e desce em 10 ms, para o tom não estalar
+                    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.35, t0 + 0.01);
+                    g.gain.setValueAtTime(0.35, Math.max(t0 + 0.01, t0 + d - 0.01)); g.gain.linearRampToValueAtTime(0, t0 + d);
+                    o.connect(g); g.connect(ctxSom.destination);
+                    o.start(t0); o.stop(t0 + d);
+                }
+                return 1n;
+            } catch (e) { return 0n; }
+        };
         const sys = (c, a, b) => {
             switch (Number(c)) {
                 case 0: saida.push(dec.decode(bytesDe(Number(a), Number(b)))); return 0n;
@@ -246,6 +291,34 @@
                     if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
                     else if (!Number(a) && typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
                     return el ? 1n : 0n;
+                }
+                case 120: {
+                    if (!trincos) return 0n;
+                    querAcordado = !!Number(a);
+                    if (querAcordado) {
+                        if (!ouveVer && doc && doc.addEventListener) { ouveVer = true; doc.addEventListener('visibilitychange', acordar); }
+                        acordar();
+                    } else if (trinco) {
+                        const s = trinco; trinco = null;
+                        try { const p = s.release && s.release(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* já estava solto */ }
+                    }
+                    return 1n;
+                }
+                case 121: return tom(Number(a), Number(b));
+                case 122: {
+                    const voz = opcoes.voz !== undefined ? opcoes.voz : typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
+                    const Frase = opcoes.vozFrase || (typeof SpeechSynthesisUtterance !== 'undefined' ? SpeechSynthesisUtterance : null);
+                    if (!voz || !Frase) return 0n;
+                    try {
+                        // cala o que estava a dizer (só se estava: há browsers que perdem a fala seguinte a um cancel)
+                        if (!Number(a) || voz.speaking !== false || voz.pending) voz.cancel();
+                        if (Number(a)) {
+                            const u = new Frase(ler(a));
+                            u.lang = Number(b) ? ler(b) : (doc && doc.documentElement && doc.documentElement.lang) || '';
+                            voz.speak(u);
+                        }
+                        return 1n;
+                    } catch (e) { return 0n; }
                 }
             }
             return 0n;

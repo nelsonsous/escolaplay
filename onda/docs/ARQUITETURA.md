@@ -8,7 +8,7 @@ partida é o molde (`onda/molde/`); este documento explica o que está por baixo
 Cada camada só usa as de baixo.
 
 ```
-5  APPS            mercados/ (app, tarefa do Claude, protótipo visual) · musica/ · onda/molde/ (o ponto de partida)
+5  APPS            mercados/ (app, tarefa do Claude, protótipo visual) · musica/ · ginastica/ · onda/molde/ (o ponto de partida)
 4  BIBLIOTECA      onda/lib/*.onda — textos, números, JSON, datas, ordenar, HTML, portas (o que o JS traz de origem)
                    e a fala (lib/fala.onda): os nomes curtos com que um ecrã se escreve
 3  ANFITRIÕES      onda/rt/anfitriao.js (browser) · anfitriao-node.js (scripts) · wasm/host.js (linha de comandos)
@@ -20,7 +20,7 @@ Cada camada só usa as de baixo.
 |---|---|---|
 | 1 Linguagem | o compilador compila-se a si próprio e dá o mesmo resultado, bit a bit, partindo de qualquer semente | `onda/build.sh` (ponto fixo) |
 | 2 Alvos | o mesmo programa dá o mesmo resultado em todos os alvos, incluindo a matemática (seno, exp, potência…) | `onda/test/it140.test.js`, `test/w/correr.sh`, `test/gpu.test.js` |
-| 3 Anfitriões | a única ponte entre a Onda e o mundo: ecrã, eventos, rede, armazém, relógio, ficheiros | `onda/test/app.test.js` |
+| 3 Anfitriões | a única ponte entre a Onda e o mundo: ecrã, eventos, rede, armazém, relógio, som, voz, ecrã acordado, ficheiros | `onda/test/app.test.js`, `test/mudar.test.js`, `test/portas.test.js` |
 | 4 Biblioteca | o que diz ser igual ao JavaScript é igual ao byte (números, JSON, datas de Lisboa, ordenação) | `onda/test/biblioteca-*.test.js` |
 | 5 Apps | cada ecrã e cada script em Onda dá o mesmo que a versão em JavaScript que substituiu | `mercados/tests/`, `onda/test/molde.test.js` |
 
@@ -89,14 +89,15 @@ de cima, com o estado dentro da Onda.
 |---|---|---|
 | `onda/src/` | o compilador (leitor, tipos, alvos, otimizações, matemática) | 6 257 linhas de Onda |
 | `onda/seed/` | as sementes de arranque: WebAssembly (519 KB), x86-64, arm64, C | geradas pela Onda |
-| `onda/lib/` | a biblioteca: 12 módulos, 310 funções (`lib/LEIA.md`) | 1 589 linhas |
+| `onda/lib/` | a biblioteca: 13 módulos, 309 funções (`lib/LEIA.md`) | 1 572 linhas |
 | `onda/tools/` | o conversor para a Onda fluida (`fluir.mjs`) | 348 linhas de JS |
-| `onda/rt/`, `onda/wasm/` | os anfitriões | 194 + 143 + 114 linhas de JS |
+| `onda/rt/`, `onda/wasm/` | os anfitriões | 338 + 143 + 114 linhas de JS |
 | `onda/molde/` | o ponto de partida de uma app nova | 140 linhas de Onda, módulo de 49 KB |
 | `mercados/onda/` | a análise, a decisão consolidada, os separadores e o cartão «Decisão» da Mercados | 3 226 linhas, módulo de 402 KB |
 | `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 2 046 linhas, módulo de 393 KB |
 | `mercados/proto/` | gráficos vivos e o mapa do mercado (o guia: `docs/CAMPOS.md`) | 265 linhas, módulo de 27 KB |
 | `musica/onda/` | o motor e o curador da Música (de outra sessão; usa ainda o `lib/app.onda`) | 231 linhas |
+| `ginastica/` | a Ginástica: a sessão de hoje, guiada (o relógio, as vezes e os lados, a voz, os sinais, o ecrã acordado, a estrela) — a primeira app nascida do molde | 272 linhas de Onda, módulo de 54 KB |
 | `meteo/onda/` | os campos da Meteo: o gráfico da chuva das próximas 2 horas (WebAssembly) e o céu do cartão «Agora» (GLSL) | 91 + 169 linhas, 11 KB de WASM e 32 KB de GLSL |
 
 ## Estado de cada app
@@ -105,6 +106,7 @@ de cima, com o estado dentro da Onda.
 |---|---|---|
 | Molde | tudo (estado, ecrã, eventos, rede, armazém) | a casca de 16 linhas e o service worker |
 | Música | o motor e o curador | uma casca de 57 linhas |
+| Ginástica | tudo (estado, ecrã, eventos, relógio, armazém) | a casca de 18 linhas e o service worker |
 | Mercados — tarefa do Claude | tudo | lançadores de uma linha |
 | Mercados — app | a análise toda, a decisão consolidada, os separadores Painel, Destaques, Análise, Carteira e Ajustes e o cartão «Decisão» da ficha (pela ponte) | o resto da ficha e os gráficos, os dados ao vivo, o estado e os gestos (`mercados.js`, 2 720 linhas) |
 | Mercados — conector (Cloudflare) | nada | tudo |

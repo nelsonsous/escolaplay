@@ -46,3 +46,22 @@ test('um nome com maiuscula: diz que e um operador', () => {
   // um operador que existe nao muda: = precisa de nome continua para os outros casos
   assert.deepStrictEqual(erro(': main >i { = 1 1 }'), ['= precisa de nome', 15]);
 });
+
+// it.158: a distância entre dois nomes deixava de contar o início do nome errado (um `0` a mais na conta), por isso
+// um nome curto que acabasse como ele ganhava a todos: com a fala junta (`ha`, `eh`…), quase todos os enganos davam
+// «quis dizer ha?». Agora é a distância de edição a sério.
+test('nome desconhecido: sugere o nome mais parecido, e só se estiver mesmo perto', () => {
+  const msg = (src) => erro(src)[0];
+  // o nome parecido ganha a um nome curto que por acaso acaba como o errado, venha antes ou depois
+  assert.strictEqual(msg(': ha i>i n n : entra i>i i i : main >i entraa 1'), 'nome desconhecido, quis dizer entra?');
+  assert.strictEqual(msg(': entra i>i i i : ha i>i n n : main >i entraa 1'), 'nome desconhecido, quis dizer entra?');
+  assert.strictEqual(msg(': main >i entraa 1 : entra i>i i i'), 'nome desconhecido, quis dizer entra?');
+  // nada perto: não sugere nada
+  assert.strictEqual(msg(': ha i>i n n : main >i entraa 1'), 'nome desconhecido');
+  assert.strictEqual(msg(': soma ii>i a b + a b : main >i zzz 1 2'), 'nome desconhecido');
+  assert.strictEqual(msg(': abc i>i n n : main >i xyc 1'), 'nome desconhecido');
+  // a uma letra (a mais, a menos, trocada); num nome de 4 ou mais letras, até duas
+  for (const errado of ['somma', 'som', 'sona']) assert.strictEqual(msg(`: soma ii>i a b + a b : main >i ${errado} 1 2`), 'nome desconhecido, quis dizer soma?', errado);
+  assert.strictEqual(msg(': desenha >i 0 : main >i dezenhar'), 'nome desconhecido, quis dizer desenha?');
+  assert.strictEqual(msg(': ha i>i n n : main >i he 1'), 'nome desconhecido, quis dizer ha?');
+});
