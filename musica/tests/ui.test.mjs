@@ -1511,7 +1511,7 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
     delete t.iaCfEm;
     await env.KV.put('tidal:tokens', JSON.stringify(t));
     let pedidosIA = 0, falhaMelhorar = false, atraso = 0, nomeIA = '';
-    const MELHORADO = 'Jazz modal calmo para o fim do dia, energia baixa: Miles Davis, John Coltrane e Bill Evans.';
+    const MELHORADO = 'Jazz modal calmo para o fim do dia, com energia baixa e de preferência instrumental.';
     env.AI = { run: async (modelo, entrada) => {
         pedidosIA++;
         if (atraso) await new Promise((ok) => setTimeout(ok, atraso));
