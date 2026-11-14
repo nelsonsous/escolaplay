@@ -80,7 +80,9 @@ Texto a colar (em inglês, é o que a revisão lê):
 > be tried right away: open a playlist to preview tracks, swap a track (⇄), tune it ("Afinar"), or delete it.
 >
 > AI disclosure and consent (5.1.2): before connecting, the app states that the curator is a third-party AI
-> (Claude, by Anthropic) and what it reads; connecting requires tapping "Concordo e ligar ao Tidal".
+> (Claude, by Anthropic) and what it reads, and that request texts also go to Cloudflare's AI (Workers AI) so the
+> playlist can start at once; connecting requires tapping "Concordo e ligar ao Tidal". The instant playlist
+> (Cloudflare AI) can be switched on or off separately in Pedir and in Ajustes → A tua conta.
 > Account deletion (5.1.1(v)): Ajustes → A tua conta → Apagar a minha conta.
 > The app content is bundled in the binary; the network is only used for the user's data.
 

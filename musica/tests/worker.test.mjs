@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.29.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.30.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -624,17 +624,17 @@ test('a IA da Cloudflare (em experiência, só para o Maestro): sugere músicas 
     const vistos = [];
     env.AI = { run: async (modelo, entrada) => {
         vistos.push([modelo, entrada.messages[1].content]);
-        if (modelo.includes('llama-3.3')) throw new Error('No such model');
+        if (modelo.includes('mistral')) throw new Error('No such model');
         return { response: 'Aqui vai:\n{"nome": "Modal ao fim do dia", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}, {"artista": "Nina Simone", "titulo": "Feeling Good"}, {"artista": "Ninguém", "titulo": "Não Existe"}, {"artista": "", "titulo": "Sem artista"}, {"artista": "Daft Punk", "titulo": "Título Inventado"}]}' };
     } };
     const r = await (await pede('Jazz modal para o fim do dia')).json();
-    assert.equal(r.modelo, '@cf/meta/llama-4-scout-17b-16e-instruct');
+    assert.equal(r.modelo, '@cf/meta/llama-3.3-70b-instruct-fp8-fast');
     assert.deepEqual(vistos.map((v) => v[1]), ['Jazz modal para o fim do dia', 'Jazz modal para o fim do dia']);
     assert.equal(r.nome, 'Modal ao fim do dia');
     // a inventada de um artista que existe dá a canção mais ouvida dele (de estúdio: não a ao vivo); a de quem não existe, nada
     assert.deepEqual(r.musicas.map((x) => [x.artista, x.titulo, x.tidal?.id || null, !!x.porArtista]),
         [['Miles Davis', 'So What', '101', false], ['Nina Simone', 'Feeling Good', '102', false], ['Ninguém', 'Não Existe', null, false], ['Daft Punk', 'Título Inventado', '103', true]]);
-    assert.match(r.erros[0], /llama-3\.3.*No such model/);
+    assert.match(r.erros[0], /mistral.*No such model/);
     // uma resposta sem músicas passa ao modelo seguinte; nenhum responde: diz-se
     env.AI = { run: async () => ({ response: 'não sei' }) };
     const nada = await (await pede('Jazz modal')).json();
@@ -648,6 +648,58 @@ test('a IA da Cloudflare (em experiência, só para o Maestro): sugere músicas 
     // só o Maestro (ainda em experiência)
     assert.equal((await post('/api/ia/sementes', { texto: 'Jazz' }, chave)).status, 403);
     delete env.AI; delete env.IA_MODELO;
+});
+
+test('a playlist na hora: com a autorização da pessoa, a IA da Cloudflare escolhe as músicas de partida e a playlist nasce já; sem ela, ou se a IA falhar, fica como sempre', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const estado = async () => (await get('/api/estado', chave)).json();
+    // sem a IA no conector, a app nem a mostra
+    assert.equal((await estado()).iaCfPode, undefined);
+    let chamadas = 0, resposta = '{"nome": "Modal ao fim do dia", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}, {"artista": "Nina Simone", "titulo": "Feeling Good"}, {"artista": "Daft Punk", "titulo": "Inventada"}, {"artista": "Ninguém", "titulo": "Nada"}]}';
+    env.AI = { run: async () => { chamadas++; if (!resposta) throw new Error('Neurons esgotados'); return { response: resposta }; } };
+    // ligado o Tidal antes desta versão: a IA da Cloudflare ainda não está autorizada; o pedido fica para o Maestro
+    assert.deepEqual([(await estado()).iaCfPode, (await estado()).iaCf], [true, false]);
+    const sem = await (await post('/api/pedidos', { texto: 'Jazz modal para o fim do dia' }, chave)).json();
+    assert.deepEqual([sem.estado, sem.criada, chamadas], ['pendente', undefined, 0]);
+    await call(`/api/pedidos/${sem.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } });
+    // ligar só a «playlist na hora» (não mexe na autorização do Maestro); desligar; e o «Concordo» dá as duas
+    assert.equal((await post('/api/consentir', { cloudflare: true }, chave)).status, 200);
+    assert.deepEqual([(await estado()).iaCf, (await estado()).ia], [true, false]);
+    await post('/api/consentir', { cloudflare: false }, chave);
+    assert.equal((await estado()).iaCf, false);
+    await post('/api/consentir', {}, chave);
+    assert.deepEqual([(await estado()).iaCf, (await estado()).ia], [true, true]);
+    assert.equal((await post('/api/consentir', { cloudflare: true }, agente)).status, 403);
+    // com ela: a playlist nasce já, com as músicas que o Tidal confirmou (a inventada dá a mais ouvida do artista) e as
+    // parecidas de cada uma, à vez; o nome é o da IA; o Maestro tem a revisão com o texto
+    const texto = 'Jazz modal para o fim do dia';
+    const r = await post('/api/pedidos', { texto, opcoes: { faixas: 30 } }, chave);
+    assert.equal(r.status, 201);
+    const p = await r.json();
+    assert.equal(chamadas, 1);
+    assert.equal(p.ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    assert.deepEqual([p.texto, p.afinar.rever, p.criada.nome], [texto, true, 'Modal ao fim do dia']);
+    const d = await (await get(`/api/playlists/${p.criada.id}`, chave)).json();
+    assert.deepEqual(d.ia, { modelo: '@cf/mistralai/mistral-small-3.1-24b-instruct', sementes: ['101', '102', '103'] });
+    assert.deepEqual(d.faixas.slice(0, 3).map((f) => [f.id, f.motivo]), [['101', 'Sugerida pela IA para o teu pedido.'], ['102', 'Sugerida pela IA para o teu pedido.'], ['103', 'Sugerida pela IA para o teu pedido.']]);
+    // (as parecidas: a primeira de cada música de partida, depois a segunda de cada…, sem repetir)
+    assert.deepEqual(d.faixas.slice(3).map((f) => f.id), ['106', '105']);
+    // (a primeira parecida do «So What» já é uma música de partida: a primeira nova vem da lista da «Feeling Good»)
+    assert.equal(d.faixas[3].motivo, 'Parecida com «Feeling Good».');
+    assert.deepEqual([d.origem, d.pedido, d.nome], ['parecidas', texto, 'Modal ao fim do dia']);
+    assert.match(d.resumo, /^A IA da Cloudflare escolheu as músicas de partida \(«So What», «Feeling Good», «Get Lucky»\)/);
+    assert.ok(d.candidatas.filter((x) => x.fixa).length === 3, 'as músicas de partida ficam fixas');
+    assert.deepEqual(d.doTidal.faixas.map((f) => f.id), d.faixas.map((f) => f.id), 'a lista de partida fica, para comparar com a revisão');
+    // a IA falha (sem «Neurons» no dia, por exemplo): o pedido fica para o Maestro, como sempre
+    resposta = '';
+    const f = await (await post('/api/pedidos', { texto: 'Outra coisa' }, chave)).json();
+    assert.deepEqual([f.estado, f.criada, f.afinar], ['pendente', undefined, undefined]);
+    // com música de partida, quem manda é ela (a IA não é chamada)
+    chamadas = 0; resposta = 'x';
+    const m = await (await post('/api/pedidos', { texto: 'Outra', partida: '106' }, chave)).json();
+    assert.deepEqual([chamadas, m.criada.nome, m.ia], [0, 'Parecidas com Teardrop', undefined]);
+    delete env.AI;
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {
