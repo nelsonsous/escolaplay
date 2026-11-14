@@ -825,7 +825,7 @@
       # com a folha aberta redesenham-se só os pedaços dela (a página toda fazia a folha subir outra vez)
       ? && == @ 1 1 _tx_len @ 50 refolha 143 render
       # a sugestão não veio (a IA não respondeu): cria logo, com o texto da pessoa
-      ? == modo 37 { = mm sug_mm tcopia @ 47 $"R" 10 pedir_enviar mm 0 } { erro_ped t s 0 } } }
+      ? == modo 37 { = mm sug_mm tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 } { erro_ped t s 0 } } }
 
 # ===== Pedir =====
 # começar por uma música (opcional): procura-se no Tidal (a mesma pesquisa de «Acrescentar uma faixa», a mesma caixa
@@ -849,7 +849,7 @@
 # antes de criar, a sugestão da IA (a da playlist na hora: a da Cloudflare, a Mistral ou o Gemini) para o texto do
 # pedido; a pessoa escolhe: criar com ela, ajustá-la (vai para o texto) ou manter o seu. Em @47: vazio (ainda não
 # houve sugestão); «PJ»/«PM» à espera dela (J: já, com a IA; M: com o Claude); «S?», tab, texto, tab, porquê, tab,
-# quem a fez (a sugestão à vista); «R» (já vista: o toque seguinte cria). Mudar de vista esquece tudo.
+# quem a fez (a sugestão à vista); «RJ»/«RM» (já vista: o toque seguinte cria). Mudar de vista esquece tudo.
 : sug_bloco >i {
   Se == _tx_b @ 47 0 83 {
       = qm _tx_campo @ 47 3 9 = pq _tx_campo @ 47 2 9
@@ -861,9 +861,17 @@
 # tocar em criar: com a playlist na hora ligada e sem sugestão vista, primeiro a sugestão; senão, cria logo
 : pedir_tocar i>i mm {
   ? && && == tipo _ar_get @ 3 $"iaCf" 3 ~ _tx_len @ 47 >= _tx_len @ 20 3 { tcopia @ 47 ? mm $"PM" $"PJ" 10 melhorar_enviar 0 }
-    { tcopia @ 47 $"R" 10 pedir_enviar mm 0 } }
+    { tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 } }
 # o caminho guardado com a sugestão (M: com o Claude)
 : sug_mm >i == _tx_b @ 47 1 77
+: espera_ia iii>i nm pt ia {
+  = mm || == _tx_b @ 47 1 77 ~ || ia pt
+  `<div class="mu-espera-ia" role="status" aria-live="polite"><div class="cx"><span class="roda" aria-hidden="true"></span>`
+  ? == @ 34 37 `<b>O { esct nm } está a ler o teu pedido</b><p>Para te sugerir um texto mais apurado. Uns segundos…</p>`
+    ? mm `<b>A enviar o pedido ao Claude…</b><p>Ele pesquisa e escolhe as faixas, e avisa-te quando a playlist estiver pronta (uns minutos).</p>`
+      ? pt `<b>O Tidal está a criar a tua playlist</b><p>Junta as parecidas da música de partida. São só uns segundos.</p>`
+        `<b>O { esct nm } está a criar a tua playlist</b><p>Escolhe as músicas de partida e o Tidal junta as parecidas. Pode levar até meio minuto: não feches a app.</p>`
+  "</div></div>" }
 : v_pedir >i {
   `<header class="mu-head"><div><h1>Pedir</h1><div class="sub">Ao Maestro, que pesquisa e cria no teu Tidal</div></div>{ pill }</header>`
   Se && @ 3 ~ acesso boas_vindas
@@ -876,11 +884,13 @@
   ? && ia ~ pt {
       `<div class="mu-duo"><button type="button" class="mu-btn mu-duo-b" data-onda="pedir"{ ? && acesso ~ || ac am 0 " disabled" }><b>⚡ Já, com o { esct ianm }</b><span>{ ? ac "a criar no Tidal…" ? am "a ler o pedido…" "em segundos" }</span></button><button type="button" class="mu-btn mu-duo-b" data-onda="pedir_m"{ ? && acesso ~ || ac am 0 " disabled" }><b>✦ Com o Claude</b><span>em minutos · mais apurada</span></button></div>` 0 }
     `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? && acesso ~ ac 0 " disabled" }>{ ic 2 }{ ? ac ? pt "A criar no Tidal…" "A enviar…" ? pt "Criar já no Tidal" "Pedir ao Maestro" }</button></div>`
-  `<p class="mu-nota">{ ? am `<b>O { esct ianm } está a ler o teu pedido, para sugerir um texto mais apurado.</b> Uns segundos…<br>` Se && ac || pt ia `<b>{ ? pt "O Tidal está a juntar as parecidas." `O { esct ianm } está a escolher as músicas.` }</b> São só uns segundos: não precisas de tocar outra vez.<br>` }`
+  `<p class="mu-nota">`
   ? pt `A playlist nasce já no teu Tidal com as parecidas da música de partida. Depois, se quiseres, o Claude revê-a com o teu pedido, no mesmo link, e dá-lhe nome.`
     { ? ia `<b>⚡ Já</b> — o { esct ianm } escolhe 4 músicas de partida e o Tidal junta as parecidas: fica no teu Tidal em segundos. Depois, se quiseres, o Claude revê-a.<br><b>✦ Com o Claude</b> — o Maestro (Claude) pesquisa e escolhe todas as faixas, com critério{ ? nh ": leva uns minutos e avisa-te quando estiver" " (quando estiver ligado)" }.`
       `{ ? nh "O Maestro é chamado logo e cria a playlist em poucos minutos, no teu Tidal." "O Maestro ainda não está ligado: o pedido fica à espera até ser chamado." } Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.{ Se iap ` <button type="button" class="mu-ligacao" data-onda="iacf&#9;1">Ligar a playlist na hora</button>: a IA da Cloudflare lê o texto do pedido e a playlist nasce logo.` }` }
   `</p>{ pd_partida }`
+  # a espera (a sugestão ou a criar): uma janela por cima de tudo, para se saber que está a trabalhar e que é esperar
+  Se || ac am espera_ia ianm pt ia
   # as opcoes ficam escondidas (uma linha com o resumo); "Mudar" mostra-as
   ? @ 39 {
       `<div class="mu-opcoes"><span>Opções</span><button type="button" class="mu-mais" data-onda="opcoes">Fechar</button></div>`
@@ -1123,7 +1133,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.45.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.45.1 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»
@@ -1254,9 +1264,9 @@
   ? mesmo a $"rever" { rever_pedir 0 }
   ? mesmo a $"ia_gosto" { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"gosto":{ ? mesmo b $"1" "true" "false" }\}` 38 0 } }
   # a sugestão: criar com ela; ajustá-la (vai para o texto; o toque seguinte cria); manter o meu (cria com ele)
-  ? mesmo a $"sug_usar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 $"R" 10 pedir_enviar mm 0 }
-  ? mesmo a $"sug_ajustar" { tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 $"R" 10 render aviso $"Ajusta o texto e toca outra vez em criar." 0 }
-  ? mesmo a $"sug_manter" { = mm sug_mm tcopia @ 47 $"R" 10 pedir_enviar mm 0 }
+  ? mesmo a $"sug_usar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 }
+  ? mesmo a $"sug_ajustar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 ? mm $"RM" $"RJ" 10 render aviso $"Ajusta o texto e toca outra vez em criar." 0 }
+  ? mesmo a $"sug_manter" { = mm sug_mm tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 }
   # uma pasta: abre (e fecha a que estava aberta) ou fecha
   ? mesmo a $"pasta_alt" { = ab _an_ler $"pasta_aberta" ? && ab mesmo ab b { _an_gravar $"pasta_aberta" 0 0 } { _an_gravar $"pasta_aberta" b 0 } render 0 }
   # tocar num aviso do telemóvel com a app aberta: o anfitrião guardou o id em «abrir»; abre-se quando a lista chegar
