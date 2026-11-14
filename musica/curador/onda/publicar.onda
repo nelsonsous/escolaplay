@@ -16,7 +16,7 @@
 #   28 ordem (3 por faixa: encontrada, motivo, pontos)  29 quantas  30 custo  31 modelo (texto; 0 = sem)
 #   32..46 o gosto (pb_gosto)  47 48 e 53 54 os ids de artistas e generos para o motor  50 bytes do ultimo
 #   caracter lido  51 o Number() deu numero  55 a playlist gravada  56 posicao ao ver se e JSON  57 sem letras
-#   explicitas  58 a playlist a renovar (id, ou 0)  52 a variante (proposta so na app; 0)  49 as ideias (texto JSON; 0)
+#   explicitas  58 a playlist a renovar (id, ou 0)  49 as ideias (texto JSON; 0)
 # Candidata (16): 0 artista 1 titulo 2 ano (-1) 3 album (0) 4 genero (0) 5 nota 6 energia 7 tendencia 8 bpm (-1)
 #   9 motivo (0) 10 isrc (0) 11 tidalId (0) 12 fixa 13 a faixa do Tidal (no; 0) 14 chave (artista|titulo)
 #   15 sinais (12: artista genero ano gosto qualidade tendencia claude novidade energia bpm tom fixa)
@@ -634,7 +634,6 @@
   ",\"candidatas\":[" = i 0 W < i @ 27 { ? i P ', 0 pb_guardada @ + @ 18 @ + @ 26 i = i + i 1 } "]"
   ? @ 31 { ",\"modelo\":" pb_js @ 31 0 } 0
   ",\"tidal\":" ? pb_flag $"--sem-tidal" { "false" 0 } { "true" 0 }
-  ? @ 52 { ",\"rascunho\":true,\"grupo\":" pb_js ? @ 5 @ 5 $"" ",\"variante\":" pb_js @ 52 0 } 0
   "}"
   = b h_fecha
   = u ? @ 58 { = t tx "/api/playlists/" tpor @ 58 "/renovacoes" O 0 t } $"/api/playlists"
@@ -647,7 +646,7 @@
   = f tx tpor @ 24 "/publicada.json" O 0
   h_abre f pb_jw d 2 0 h_fecha
   P 10 ? @ 58 { "Renovada" 0 } { "Publicada" 0 } ": «" pv jg d $"nome" "» (" pv jg d $"id" ")"
-  = t jg d $"tidal" ? jv t { " · no Tidal: " pv jg t $"url" 0 } ? jv jg d $"rascunho" { " · proposta «" pv jg d $"variante" "», só na app (escolhe-se lá para o Tidal)" 0 } { " · só na biblioteca da app" 0 }
+  = t jg d $"tidal" ? jv t { " · no Tidal: " pv jg t $"url" 0 } { " · só na biblioteca da app" 0 }
   ? @ 5 { " · pedido " tpor @ 5 " feito" 0 } 0
   P 10 h_sair 0 0 }
 
@@ -664,7 +663,6 @@
   = i pb_argi $"--pedido" = x ? >= i 0 h_arg i 0 ! 5 ? cheio x x 0
   = i pb_argi $"--modelo" ! 31 ? >= i 0 h_arg i $"claude"
   = i pb_argi $"--renovar" = x ? >= i 0 h_arg i 0 ! 58 ? cheio x x 0
-  = i pb_argi $"--variante" = x ? >= i 0 h_arg i 0 ! 52 ? cheio x x 0
   = w h_env $"MUSICA_WORKER" ! 2 ? cheio w w $"https://musica.mercados-proxy.workers.dev"
   ! 21 h_env $"MUSICA_DIR"
   ! 24 pb_pasta f

@@ -20,8 +20,9 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
 - **Maestro** — como o Conselheiro dos Mercados e o Analista do Meteo, uma **tarefa agendada do Claude** segue
   [`CURADOR.md`](CURADOR.md) às 07:44 e às 18:44: lê o teu gosto (favoritas, artistas seguidos, playlists), pesquisa
   na web o que está a dar e tem qualidade (crítica, tabelas, cena portuguesa, jazz, clássica, reedições, gravações de
-  referência), escreve uma proposta com 1,5× a 2× as faixas necessárias, e publica: os pedidos que fizeste na app e,
-  uma vez por semana, a **«Onda da semana»**. Usa também as tuas **mixes do Tidal** e, às sextas de manhã, cria
+  referência), escreve uma proposta com 2,5× a 3× as faixas necessárias, e publica: os pedidos que fizeste na app —
+  **cada pedido dá uma playlist, logo no teu Tidal** (revês depois na app: trocar faixas, mudar o estilo, afinar; as
+  candidatas que sobram ficam guardadas para isso) — e, uma vez por semana, a **«Onda da semana»**. Usa também as tuas **mixes do Tidal** e, às sextas de manhã, cria
   **«Novidades dos teus artistas»** com os álbuns novos dos artistas que segues.
 - **Motor de curadoria em Onda** — [`onda/curador.onda`](onda/curador.onda): da proposta, escolhe K faixas pela
   pontuação (gosto, qualidade do som, tendência, nota do Claude, novidade) com diversidade (máximo por artista, géneros
@@ -34,7 +35,7 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   versão de estúdio antes de ao vivo, preferência por Hi-Res), criar playlists (lotes de 50) e a biblioteca da app,
   afinar na **mesma** playlist (troca as faixas no Tidal, sem cópias), **trocar ou tirar uma faixa na hora**
   (`POST /api/playlists/:id/trocar`: a que entra é uma candidata guardada, escolhida pelo motor no telemóvel, ou uma
-  parecida do Tidal; dá para desfazer), **«Mais como esta»** (as faixas parecidas do Tidal), apagar também no Tidal e, para o Maestro, as tuas mixes e os álbuns novos dos artistas que segues.
+  parecida do Tidal; dá para desfazer), **«Mais como esta»** (as faixas parecidas do Tidal, logo numa playlist; fica um pedido para o Maestro a rever na corrida seguinte, na mesma playlist), juntar playlists (também logo no Tidal), apagar também no Tidal e, para o Maestro, as tuas mixes e os álbuns novos dos artistas que segues.
   Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Maestro).
 - **App em Onda** ([`app/musica.onda`](app/musica.onda)) — na Onda fluida (moldes, o ponto, a fala e moldes com
   nome), monta-se com a biblioteca da Onda (`onda/lib`) e o motor (`node musica/onda/compilar.mjs`, que tira da fonte
@@ -44,7 +45,7 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   Playlists (cada uma abre numa **folha** que é o único sítio onde se mexe nela: ouvir 30 s, **⇄ trocar uma faixa**
   por outra — vê-se logo e fica gravada no Tidal —, arrastar para a esquerda para a tirar, «Desfazer», o «⋯» para
   mudar o nome, atualizar sozinha e apagar, «Sobre esta playlist» com o porquê e a mistura, tocar no título de uma
-  faixa para tirar ou **«Mais como esta»**, «Acrescentar uma faixa» do Tidal, pedir uma afinação ao Maestro; os pedidos à espera do Maestro ficam no cimo da lista, com cancelar),
+  faixa para tirar ou **«Mais como esta»**, «Acrescentar uma faixa» do Tidal, pedir uma afinação ao Maestro; os pedidos à espera do Maestro ficam no cimo da lista, com cancelar; tudo o que se cria vai logo para o Tidal — as playlists antigas que só estão na app têm «Pôr no Tidal»),
   Pedir (só pedir: o texto, as opções e as ideias do Maestro), Gosto e Ajustes; o estado, a navegação e o motor de curadoria, tudo em Onda. **Afinar** é dentro da folha: o
   `motor.onda` corre na própria app a cada mudança (estilo, energia, número de faixas, máximo por artista, fixar) em
   menos de 1 ms, o gráfico da energia é SVG escrito pela Onda (`onda/lib/grafico.onda`), e o juiz dos testes confirma

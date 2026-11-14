@@ -3,7 +3,6 @@
 //   NODE_USE_ENV_PROXY=1 node musica/curador/publicar.mjs /tmp/musica/<pessoa>/proposta.json [--utilizador <pessoa>] [--pedido <id>] [--modelo <id>]
 //        [--ensaio] (não grava nada) [--sem-tidal] (só na biblioteca da app) [--aceitar-menos]
 //        [--renovar <id>] (renova essa playlist, a que se atualiza sozinha: no mesmo sítio da app e do Tidal)
-//        [--variante <nome>] (uma de várias propostas para o --pedido: só na app, a pessoa escolhe a que vai para o Tidal)
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { api, pessoa, arg, flag, minutos } from '../comum.mjs';
@@ -21,7 +20,6 @@ if (!ok) { console.error('Proposta inválida:\n- ' + errors.join('\n- ')); proce
 pessoa(arg('--utilizador'));
 const pedidoId = arg('--pedido');
 const renovarId = arg('--renovar');
-const variante = arg('--variante'); // uma de várias propostas para o pedido: só na app, a pessoa escolhe qual vai para o Tidal
 if (pedidoId) {
     const pedido = (await api('/api/pedidos')).find((x) => x.id === pedidoId);
     if (!pedido) { console.error(`O pedido ${pedidoId} não existe.`); process.exit(1); }
@@ -59,8 +57,7 @@ if (flag('--ensaio')) { console.log('\n(ensaio: nada gravado)'); process.exit(0)
 const doc = await api(renovarId ? `/api/playlists/${renovarId}/renovacoes` : '/api/playlists', { method: 'POST', body: {
     nome: p.nome, descricao: p.descricao, resumo: p.resumo, tendencias: p.tendencias, pedido: p.pedido, opcoes: p.opcoes, faixas, custo,
     candidatas: paraGuardar(cands), modelo: arg('--modelo', 'claude'), tidal: !flag('--sem-tidal'),
-    ...(variante ? { rascunho: true, grupo: pedidoId || '', variante } : {}),
 } });
 if (pedidoId) await api(`/api/pedidos/${pedidoId}?playlist=${doc.id}`, { method: 'DELETE' });
 writeFileSync(join(dirname(file), 'publicada.json'), JSON.stringify(doc, null, 2));
-console.log(`\n${renovarId ? 'Renovada' : 'Publicada'}: «${doc.nome}» (${doc.id})${doc.tidal ? ` · no Tidal: ${doc.tidal.url}` : doc.rascunho ? ` · proposta «${doc.variante}», só na app (escolhe-se lá para o Tidal)` : ' · só na biblioteca da app'}${pedidoId ? ` · pedido ${pedidoId} feito` : ''}`);
+console.log(`\n${renovarId ? 'Renovada' : 'Publicada'}: «${doc.nome}» (${doc.id})${doc.tidal ? ` · no Tidal: ${doc.tidal.url}` : ' · só na biblioteca da app'}${pedidoId ? ` · pedido ${pedidoId} feito` : ''}`);

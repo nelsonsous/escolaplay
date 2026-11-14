@@ -42,15 +42,24 @@ nesta tarefa.
      típico (verão, chuva de novembro, Natal), a hora da corrida, as tendências e *Como correram as playlists* (puxa
      pelo que resultou, evita o que não resultou). O `porque` diz numa frase a razão, ligada ao gosto ou ao momento
      (ex.: «Sexta à tarde, e a Som do carro resultou: mais funk para a estrada»).
-   - **Pedidos à espera** (feitos na app): trata até **2** por corrida, os mais antigos primeiro. Para cada pedido faz
-     **2 ou 3 propostas** com ângulos diferentes (ex.: «Mais conhecida», «Mais descoberta», «Mais calma» ou «Com mais
-     energia»), cada uma no seu ficheiro e publicada com `--pedido <id> --variante "<nome curto>"`: ficam só na app,
-     agrupadas pelo pedido, e a pessoa escolhe a que vai para o Tidal. As propostas podem partilhar algumas faixas, mas
-     não mais de metade.
+   - **Pedidos à espera** (feitos na app): trata até **3** por corrida, os mais antigos primeiro. Cada pedido dá
+     **uma só playlist — a tua melhor decisão** —, publicada com `--pedido <id>`: vai **logo para o Tidal** da pessoa,
+     que a revê depois na app (troca faixas, muda o estilo, afina). Não faças várias propostas para ela escolher: se
+     hesitares entre ângulos (mais conhecida ou mais descoberta, mais calma ou com mais energia), decide pelo que o
+     pedido e o gosto dela pedem e **põe nas candidatas boas faixas dos outros ângulos** — é o que a app usa quando ela
+     muda o estilo ou troca uma faixa, sem esperar por ti.
    - **Pedidos de afinação** (a linha do pedido diz *"afinar a playlist «…» (`<id>`)"*): uma só versão, publicada com
      `--renovar <id da playlist> --pedido <id do pedido>` (no mesmo sítio e no mesmo link do Tidal). A lista *"tira"*
      são as faixas que a pessoa já tirou ou trocou na app (já não estão na playlist): não as voltes a pôr, e conta
      com elas para perceber o que ela não quer ali. Segue o que o texto pede e mantém o resto que encaixe.
+   - **Pedidos de revisão** (a linha diz *"rever a playlist «Parecidas com …» (`<id>`)"*): a pessoa tocou em «Mais
+     como esta» numa faixa e a app criou logo a playlist com as **faixas parecidas do Tidal**, pela ordem dele — sem
+     critério de qualidade. Faz dela uma playlist tua, como um pedido: o texto (*«Mais como «…», de …»*) diz a faixa
+     de partida, que fica (com o `tidalId` e `"fixa": true`); das que lá estão (a lista dela vem em *O que o Maestro
+     já fez*; aqui podes repeti-las, é a mesma playlist), mantém só as que passam no teu critério; pesquisa os
+     **vizinhos** da faixa de partida (produtor, editora, músicos, cena e época) e junta-os. Publica com
+     `--renovar <id da playlist> --pedido <id do pedido>` (no mesmo sítio e no mesmo link do Tidal), com o mesmo
+     `nome`. No `resumo`, diz o que mudaste.
    - **Playlist da semana**: se o `dados.md` disser *"está na altura de uma nova"* (ou que ainda não há nenhuma) e for
      a corrida da **manhã**, cria a **«Onda da semana · dd/mm»**.
    - **Novidades dos teus artistas**: se o `dados.md` disser *"É sexta de manhã: cria a playlist «Novidades dos teus
@@ -113,7 +122,9 @@ nesta tarefa.
    - **Entre 2,5× e 3× o número de faixas** em candidatas: o motor Onda escolhe e ordena, e algumas podem não estar no
      Tidal. Vários artistas — o motor respeita o máximo por artista. **Só entram candidatas com nota 80 ou mais**
      (exceto a playlist *Novidades dos teus artistas*, que é o que saiu): se faltarem, pesquisa mais em vez de baixar a
-     fasquia.
+     fasquia. As que o motor não escolhe **ficam guardadas com a playlist**: são as substitutas quando a pessoa troca
+     uma faixa (⇄) e o que muda quando ela escolhe outro estilo. Por isso, varia-as — conhecidas e descobertas,
+     recentes e de outras décadas, mais calmas e com mais energia — sem baixar a fasquia.
    - Em cada candidata: `ano` = ano **original** da gravação (não o da remasterização); `genero` = uma etiqueta curta,
      sempre a mesma para o mesmo género dentro da proposta (o motor usa-a para espalhar os géneros); `nota` 0–100 =
      quão boa e adequada é (composição, interpretação, **gravação**, encaixe no pedido); `energia` 0–100 (calma ~20,
@@ -144,7 +155,7 @@ nesta tarefa.
    disser que **só conseguiu X de Y** faixas, acrescenta candidatas de outros artistas. Vê a mistura de géneros,
    décadas e qualidade no fim — se estiver desequilibrada face às regras, ajusta a proposta.
 
-   **Revisão antes de publicar** (sempre, em cada playlist e em cada proposta): lê a lista final do ensaio, pela ordem
+   **Revisão antes de publicar** (sempre, em cada playlist): lê a lista final do ensaio, pela ordem
    do motor, como um crítico exigente que a vai ouvir no carro, e pergunta de cada faixa:
    - **É a melhor escolha para este lugar?** Encaixa no pedido e no ambiente; não é enchimento; há outra do mesmo artista
      ou do mesmo estilo claramente melhor?
@@ -157,7 +168,7 @@ nesta tarefa.
      playlists nem o *"Não voltes a propor"*.
 
    Troca as **~20% mais fracas** (pelo menos 3) por candidatas melhores e volta a fazer o ensaio; no máximo 2 voltas.
-   No `resumo`, diz em uma frase o que a revisão mudou e porque é esta a melhor proposta.
+   No `resumo`, diz em uma frase o que a revisão mudou e porque é esta a melhor escolha.
 
 6. **Publica** (cria a playlist no Tidal, pela ordem do motor, e guarda-a na biblioteca da app):
 
@@ -165,7 +176,8 @@ nesta tarefa.
    NODE_USE_ENV_PROXY=1 node musica/curador/publicar.mjs /tmp/musica/proposta.json --modelo <id do modelo>
    ```
 
-   Para um pedido, junta `--pedido <id>` (fica marcado como feito e ligado à playlist). Para renovar uma playlist que
+   Para um pedido, junta `--pedido <id>` (fica marcado como feito e ligado à playlist; a pessoa recebe um aviso de
+   que já está no Tidal dela). Para renovar uma playlist que
    se atualiza sozinha, escreve a proposta noutro ficheiro (ex.: `/tmp/musica/renovar-<id>.json`, com o mesmo `nome`)
    e publica-a com `--renovar <id>` em vez de `--pedido`: fica no mesmo sítio da app e no mesmo link do Tidal. Se o Worker responder
    `tidal_desligado` (sessão expirada), termina e diz no resumo que é preciso **ligar o Tidal outra vez na app**.

@@ -138,9 +138,9 @@
     W c { Se ped_novo c { = op c.opcoes
         `<div class="mu-pedido" data-chave="{ esct txt c.id }" data-esq="cancelar&#9;{ esct txt c.id }" data-esq-rotulo="Cancelar"><div><div class="tx">«{ esct txt c.texto }»</div><div class="mt">pedido a { pdia txt c.criadoEm } · { N int op.faixas } faixas · { nome_estilo idx_estilo txt op.estilo }</div></div><button type="button" class="mu-btn sec peq" data-onda="cancelar&#9;{ esct txt c.id }">Cancelar</button></div>` }
       = c seg c }
-    `</div><p class="mu-nota">O Maestro trata deles às 07:44 e às 18:44, e as playlists aparecem aqui.</p></section>` } }
+    `</div><p class="mu-nota">O Maestro trata deles às 07:44 e às 18:44, e as playlists aparecem aqui e no teu Tidal.</p></section>` } }
 # a playlist (id) tem uma afinação pedida, ainda à espera do Maestro?
-: afina_pend i>i id { = r 0 = c pri @ 5 W && c ~ r { = r && mesmo txt c.estado $"pendente" mesmo txt c.afinar.playlist id = c seg c } r }
+: afina_pend i>i id { = r 0 = c pri @ 5 W && c ~ r { Se && mesmo txt c.estado $"pendente" mesmo txt c.afinar.playlist id = r ? == tipo c.afinar.rever 3 2 1 = c seg c } r }
 # arrastar um cartão para a esquerda (a casca) pede para o apagar: a pergunta aparece no lugar do cartão
 # o nome da proposta (a variante) antes do nome, se o nome ainda nao o tiver (o Maestro as vezes ja o junta)
 : tmin i>i c ? && >= c 65 <= c 90 + c 32 c
@@ -151,7 +151,7 @@
 : pl_apagar i>i c {
   = id txt c.id
   `<div class="mu-pl mu-pl-apagar" role="group" aria-label="Apagar"><div class="tx"><b>Apagar «{ var_pref c }{ esct txt c.nome }»?</b><span>`
-  ? pl_rasc c "É uma proposta: sai só da app." ? txt c.tidal "Também está no teu Tidal." "Sai da app."
+  ? txt c.tidal "Também está no teu Tidal." "Sai da app."
   `</span></div><div class="mu-acoes">`
   ? txt c.tidal `<button type="button" class="mu-btn perigo forte peq" data-onda="apagarl_t&#9;{ esct id }">{ ic 9 }No Tidal e na app</button><button type="button" class="mu-btn sec peq" data-onda="apagarl_s&#9;{ esct id }">Só na app</button>`
     `<button type="button" class="mu-btn perigo forte peq" data-onda="apagarl_s&#9;{ esct id }">{ ic 9 }Apagar</button>`
@@ -164,9 +164,10 @@
   `<button type="button" class="mu-pl-a" data-onda="exp&#9;{ esct txt c.id }" aria-expanded="{ ? ab "true" "false" }"><div class="nm">{ var_pref c }{ esct txt c.nome }</div><div class="mt">{ N int c.faixas } faixas · { pmin int c.duracao } · { pdia txt c.criadaEm }`
   = av c.avaliacao Se av { = e txt av.etiqueta ? || mesmo e $"ainda cedo" mesmo e $"sem sinais" 0 { ` · { esct e }` 0 } }
   Se == tipo c.renovar 3 " · ↻"
-  Se afina_pend txt c.id ` · <span class="mu-pedida">afinação pedida</span>`
-  # afinada pelo Maestro nos ultimos 7 dias: um selo, para se ver logo na lista
-  = fa txt c.afinadaEm Se fa Se <= - / _an_agora 86400000 dias_de fa 7 ` · <span class="mu-afinada">✓ afinada a { pdia fa }</span>`
+  = ap afina_pend txt c.id Se ap ` · <span class="mu-pedida">{ ? == ap 2 "o Maestro vai revê-la" "afinação pedida" }</span>`
+  Se ~ txt c.tidal " · só na app"
+  # afinada (ou revista, as parecidas do Tidal) pelo Maestro nos últimos 7 dias: um selo, para se ver logo na lista
+  = fa txt c.afinadaEm Se fa Se <= - / _an_agora 86400000 dias_de fa 7 ` · <span class="mu-afinada">✓ { ? mesmo fa txt c.revistaEm "revista" "afinada" } a { pdia fa }</span>`
   `</div><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>`
   Se txt c.tidal `<a class="mu-tocar" href="{ esct txt c.tidal }" target="_blank" rel="noopener" aria-label="Ouvir «{ esct txt c.nome }» no Tidal">{ ic 4 }</a>`
   Se ab folha c
@@ -190,10 +191,12 @@
 : dur_de i>i fx { = s 0 = f pri fx W f { = s + s int f.duracao = f seg f } s }
 : fo_tx i>i c { = d @ 51 = nm ? d txt d.nome 0
   = nf ? d quantos d.faixas int c.faixas = du ? d dur_de d.faixas int c.duracao
-  `<h2>{ var_pref c }{ esct ? _tx_len nm nm txt c.nome }</h2><p>{ N nf }{ ? == nf 1 " faixa" " faixas" } · { pmin du } · { pdia txt c.criadaEm } · { ? mesmo txt c.por $"curador" "✦ Maestro" "por ti" }{ Se d Se == tipo d.opcoes.limpa 3 " · sem letras explícitas" }</p>` }
-# o «⋯»: mudar o nome, atualizar sozinha e apagar; e, por cima das faixas, o aviso de que é uma proposta
+  `<h2>{ var_pref c }{ esct ? _tx_len nm nm txt c.nome }</h2><p>{ N nf }{ ? == nf 1 " faixa" " faixas" } · { pmin du } · { pdia txt c.criadaEm } · { ? mesmo txt ? d d.por c.por $"curador" "✦ Maestro" ? mesmo txt c.origem $"parecidas" "parecidas do Tidal" "por ti" }{ Se d Se == tipo d.opcoes.limpa 3 " · sem letras explícitas" }</p>` }
+# a playlist está no Tidal? (pelo documento, quando já chegou — acabada de lá pôr —, ou pelo índice)
+: no_tidal i>i c { = d @ 51 || && d == tipo d.tidal 7 > _tx_len txt c.tidal 0 }
+# o «⋯»: mudar o nome, atualizar sozinha e apagar; e, por cima das faixas, o aviso de que só está na app
 : fo_gerir i>i c { = d @ 51
-  Se pl_rasc c `<p class="mu-nota">Proposta — ainda não está no Tidal. Ouve um bocado de cada faixa (▶) e envia-a se gostares.</p>`
+  Se ~ no_tidal c `<p class="mu-nota">Só está na app. Põe-na no Tidal para a ouvires lá.</p>`
   ? == @ 28 2 `<div class="mu-card mu-renomear"><h3>Mudar o nome</h3><label class="mu-campo"><span>Nome</span><input data-onda="rn-nome" maxlength="60" value="{ esct @ 46 }"></label><label class="mu-campo"><span>Descrição (opcional)</span><textarea data-onda="rn-desc" maxlength="300">{ esct @ 47 }</textarea></label><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="renomear_sim">Guardar</button><button type="button" class="mu-btn sec" data-onda="nao">Cancelar</button></div><p class="mu-nota">Muda na app e, se lá estiver, no Tidal (o link fica o mesmo). Quando se atualiza sozinha, o nome que deres fica.</p></div>`
   ? == @ 28 1 { `<div class="mu-card mu-confirma"><h3>Apagar esta playlist?</h3>`
       ? txt c.tidal `<p>Também está no teu Tidal.</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="apagar_tidal">{ ic 9 }Apagar no Tidal e na app</button><button type="button" class="mu-btn sec" data-onda="apagar_sim">Só na app</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
@@ -207,7 +210,7 @@
 : fo_acoes i>i c Se ~ @ 6 { = d @ 51 = td ? d d.tidal 0
   ? && td == tipo td 7 `<a class="mu-btn peq" href="{ esct txt td.url }" target="_blank" rel="noopener">{ ic 4 }Ouvir no Tidal</a>`
     { ? txt c.tidal `<a class="mu-btn peq" href="{ esct txt c.tidal }" target="_blank" rel="noopener">{ ic 4 }Ouvir no Tidal</a>`
-      `<button type="button" class="mu-btn peq" data-onda="enviar">{ ic 3 }Enviar para o Tidal</button>` }
+      `<button type="button" class="mu-btn peq" data-onda="enviar">{ ic 3 }Pôr no Tidal</button>` }
   Se && d quantos d.candidatas `<button type="button" class="mu-btn sec peq" data-onda="afinar">{ ic 5 }Afinar</button>` }
 # o porquê da playlist, como correu (o conector avalia-a sozinho) e a mistura: fechado até se querer ver
 : fo_sobre i>i c { = d @ 51
@@ -251,8 +254,8 @@
     Se _tx_len txt d.pedido `<li><span class="q">«{ esct txt d.pedido }»</span><span class="m">O pedido · { pdia txt d.criadaEm }</span></li>`
     = c pri af
     W c {
-      = nr int c.rejeitadas
-      `<li{ ? _tx_len txt c.feitoEm 0 ` class="espera"` }><span class="q">{ ? _tx_len txt c.texto `«{ esct txt c.texto }»` `Sem { N nr }{ ? > nr 1 " faixas que tiraste" " faixa que tiraste" }` }</span><span class="m">Afinação · `
+      = nr int c.rejeitadas = rv == tipo c.rever 3
+      `<li{ ? _tx_len txt c.feitoEm 0 ` class="espera"` }><span class="q">{ ? rv "Rever as parecidas do Tidal" ? _tx_len txt c.texto `«{ esct txt c.texto }»` `Sem { N nr }{ ? > nr 1 " faixas que tiraste" " faixa que tiraste" }` }</span><span class="m">{ ? rv "Revisão" "Afinação" } · `
       ? _tx_len txt c.feitoEm { `feita a { pdia txt c.feitoEm }` 0 } "à espera do Maestro"
       `{ Se && nr _tx_len txt c.texto ` · sem { N nr } que tiraste` }{ Se && ~ _tx_len txt c.feitoEm _tx_len txt c.pedido ` · <button type="button" class="mu-ligacao" data-onda="cancelar&#9;{ esct txt c.pedido }">Cancelar</button>` }</span>`
       # o que mudou com a afinacao: quantas entraram e sairam, e as primeiras novas
@@ -285,7 +288,7 @@
       = u txt _ar_get _ar_get @ 52 $"previas" txt g.id
       ? && u ~ tr { = tc mesmo u @ 55 `<button type="button" class="mu-ouvir{ Se tc " a-tocar" }" data-onda="ouvir&#9;{ esct u }" aria-pressed="{ ? tc "true" "false" }" aria-label="{ ? tc "Parar" "Ouvir 30 segundos de" } «{ esct txt f.titulo }»">{ ic 4 }</button>` } `<span class="mu-ouvir vazio"></span>`
       `<button type="button" class="mu-trocar" data-onda="trocar&#9;{ N p }" aria-label="Trocar «{ esct txt f.titulo }» por outra"{ Se tr ` aria-busy="true"` }><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h11l-3-3M17 16H6l3 3"/></svg></button>`
-      Se && ab ~ tr `<div class="mu-xf-mais"><button type="button" class="mu-btn perigo peq" data-onda="tirarf&#9;{ esct id }">{ ic 14 }Tirar</button><button type="button" class="mu-btn sec peq" data-onda="mais&#9;{ esct id }">{ ic 5 }Mais como esta</button><span class="mu-nota">«Mais como esta» cria outra playlist no Tidal com faixas parecidas.</span></div>`
+      Se && ab ~ tr `<div class="mu-xf-mais"><button type="button" class="mu-btn perigo peq" data-onda="tirarf&#9;{ esct id }">{ ic 14 }Tirar</button><button type="button" class="mu-btn sec peq" data-onda="mais&#9;{ esct id }">{ ic 5 }Mais como esta</button><span class="mu-nota">«Mais como esta» cria outra playlist no Tidal com as faixas parecidas; o Maestro revê-a na corrida seguinte.</span></div>`
       "</li>"
       = f seg f = p + p 1 }
     "</ol>"
@@ -341,21 +344,21 @@
   ? == q 4 { = e txt c.avaliacao.etiqueta ? || ~ e || mesmo e $"ainda cedo" mesmo e $"sem sinais" $"Ainda sem avaliação" ? mesmo e $"resultou" $"Resultaram" ? mesmo e $"boa" $"Boas" ? mesmo e $"morna" $"Mornas" $"Não resultaram" }
   { = t txt c.criadaEm = dd - / _an_agora 86400000 ? t dias_de t 0 ? <= dd 6 $"Esta semana" ? <= dd 30 $"Este mês" $"Mais antigas" } }
 : grp i>i c grpq c 0
-# passa no filtro escolhido (e nao e proposta)?
-: pl_vis i>i c && ~ pl_rasc c ? @ 53 mesmo grpq c @ 53 @ 59 1
+# passa no filtro escolhido?
+: pl_vis i>i c ? @ 53 mesmo grpq c @ 53 @ 59 1
 # c e a primeira do seu grupo (entre as que se veem)?
 : grp_primeiro ii>i d c { = e pri d = r 1 = k grp c W && e != e c { Se && pl_vis e mesmo grp e k = r 0 = e seg e } r }
 : grp_n ii>i d c { = e pri d = n 0 = k grp c W e { Se && pl_vis e mesmo grp e k = n + n 1 = e seg e } n }
 # os filtros: um botao por valor que existe (com quantas tem), por esta ordem: Tidal, tipo, avaliacao, genero
-: chip_prim iii>i d c q { = e pri d = r 1 = k grpq c q W && e != e c { Se && ~ pl_rasc e mesmo grpq e q k = r 0 = e seg e } r }
-: chip_n iii>i d c q { = e pri d = n 0 = k grpq c q W e { Se && ~ pl_rasc e mesmo grpq e q k = n + n 1 = e seg e } n }
+: chip_prim iii>i d c q { = e pri d = r 1 = k grpq c q W && e != e c { Se mesmo grpq e q k = r 0 = e seg e } r }
+: chip_n iii>i d c q { = e pri d = n 0 = k grpq c q W e { Se mesmo grpq e q k = n + n 1 = e seg e } n }
 : chips_pl ii>i d nf {
   `<div class="mu-filtros" role="toolbar" aria-label="Filtrar"><button type="button" class="mu-chip-f" data-onda="filtro&#9;0" aria-pressed="{ ? @ 53 "false" "true" }">Todas <span>{ N nf }</span></button>`
   L i 4 {
     = q ? == i 0 3 ? == i 1 1 ? == i 2 4 2
     = c pri d
     W c {
-      Se && ~ pl_rasc c chip_prim d c q {
+      Se chip_prim d c q {
         = n chip_n d c q = l grpq c q = at && == q @ 53 mesmo l @ 59
         # um filtro que deixa tudo na mesma nao vale a pena (a nao ser o que esta escolhido, para o poder tirar)
         Se || < n nf at `<button type="button" class="mu-chip-f" data-onda="filtro&#9;{ N q }{ esct l }" aria-pressed="{ ? at "true" "false" }">{ esct l } <span>{ N n }</span></button>` }
@@ -365,7 +368,7 @@
 : tigualem iii>i t i p { = m _tx_len p = r 1 = j 0 W && r < j m { = r == _tx_b t + i j _tx_b p j = j + j 1 } r }
 : ttemid ii>i t p { = n _tx_len t = m _tx_len p = r 0 = i 1
   W && ~ r < + i m n { Se && == _tx_b t - i 1 44 == _tx_b t + i m 44 = r tigualem t i p = i + i 1 } r }
-: n_esc i>i d { = n 0 = c pri d W c { Se && ~ pl_rasc c ttemid @ 58 txt c.id = n + n 1 = c seg c } n }
+: n_esc i>i d { = n 0 = c pri d W c { Se ttemid @ 58 txt c.id = n + n 1 = c seg c } n }
 : esc_alt i>i id {
   = d @ 4 = ja ttemid @ 58 id
   ? && ~ ja >= n_esc d 10 { aviso $"No máximo 10 playlists de cada vez." 0 } {
@@ -388,41 +391,28 @@
     ? < n_esc d 2 { aviso $"Escolhe pelo menos 2 playlists." 0 } {
       = r _tx_abre 1200 `POST /api/juntar{ P 10 }\{"ids":[`
       = c pri d = k 0
-      W c { = e txt c.id Se && ~ pl_rasc c ttemid @ 58 e { Se k "," pjs e = k 1 } = c seg c }
+      W c { = e txt c.id Se ttemid @ 58 e { Se k "," pjs e = k 1 } = c seg c }
       `]\}`
       pede _tx_fecha r 19
       aviso $"A juntar…" 0 } }
 : pl_rasc i>i c == tipo c.rascunho 3
-# c e a primeira proposta do seu grupo (o pedido) na lista d?
-: pl_primeiro ii>i d c { = e pri d = r 1 W && e != e c { Se && pl_rasc e mesmo txt e.grupo txt c.grupo = r 0 = e seg e } r }
-: pl_ngrupo ii>i d c { = e pri d = n 0 W e { Se && pl_rasc e mesmo txt e.grupo txt c.grupo = n + n 1 = e seg e } n }
 : lista_pl i>i d {
   ? ~ quantos d `<div class="mu-card nada"><h3>Ainda não há playlists</h3><p>O Maestro cria a primeira «Onda da semana» na próxima manhã. Ou faz já um pedido.</p><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="ir&#9;3">{ ic 2 }Fazer um pedido</button></div></div>`
   {
-    # as propostas por escolher, agrupadas pelo pedido (abre-se uma para ver as faixas; envia-se a preferida para o Tidal)
-    = c pri d = np 0
+    = nf quantos d
+    `<div class="mu-lista-topo"><span>{ ? @ 56 "Escolhe as playlists a juntar" "As tuas playlists" }</span>`
+    `{ Se && ~ @ 56 >= nf 2 `<button type="button" class="mu-btn sec peq" data-onda="juntar_modo">{ ic 12 }Juntar</button>` }</div>`
+    Se > nf 1 chips_pl d nf
+    = nv 0 = c pri d W c { Se pl_vis c = nv + nv 1 = c seg c }
+    Se ~ nv `<p class="mu-nota">Nenhuma playlist com este filtro.</p>`
+    = c pri d
     W c {
-      Se && && ~ @ 56 pl_rasc c pl_primeiro d c {
-        Se ~ np `<h2 class="mu-sec">Propostas para escolher</h2>` = np + np 1
-        `<details class="mu-grupo" open><summary><span class="tx">{ ? _tx_len txt c.pedido `«{ esct txt c.pedido }»` "Propostas" }</span><span class="n">{ N pl_ngrupo d c }{ ? == pl_ngrupo d c 1 " proposta" " propostas" }<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></summary><div class="mu-lista-pl">`
-        = e pri d W e { Se && pl_rasc e mesmo txt e.grupo txt c.grupo pl_card e = e seg e }
-        "</div></details>" }
+      Se && pl_vis c grp_primeiro d c {
+        `<section class="mu-grp" data-chave="g-{ esct grp c }"><h2 class="mu-sec">{ esct grp c } <span>{ N grp_n d c }</span></h2><div class="mu-lista-pl">`
+        = k grp c = e pri d W e { Se && pl_vis e mesmo grp e k pl_card e = e seg e }
+        "</div></section>" }
       = c seg c }
-    = nf 0 = c pri d W c { Se ~ pl_rasc c = nf + nf 1 = c seg c }
-    Se nf {
-      `<div class="mu-lista-topo"><span>{ ? @ 56 "Escolhe as playlists a juntar" "As tuas playlists" }</span>`
-      `{ Se && ~ @ 56 >= nf 2 `<button type="button" class="mu-btn sec peq" data-onda="juntar_modo">{ ic 12 }Juntar</button>` }</div>`
-      Se > nf 1 chips_pl d nf
-      = nv 0 = c pri d W c { Se pl_vis c = nv + nv 1 = c seg c }
-      Se ~ nv `<p class="mu-nota">Nenhuma playlist com este filtro.</p>`
-      = c pri d
-      W c {
-        Se && pl_vis c grp_primeiro d c {
-          `<section class="mu-grp" data-chave="g-{ esct grp c }"><h2 class="mu-sec">{ esct grp c } <span>{ N grp_n d c }</span></h2><div class="mu-lista-pl">`
-          = k grp c = e pri d W e { Se && pl_vis e mesmo grp e k pl_card e = e seg e }
-          "</div></section>" }
-        = c seg c }
-      Se @ 56 barra_juntar d } } }
+    Se @ 56 barra_juntar d } }
 : v_playlists >i {
   `<header class="mu-head"><div><h1>Música</h1><div class="sub">Playlists de qualidade para o teu Tidal</div></div>{ pill }</header>`
   ? ~ @ 3 carregar {
@@ -641,7 +631,7 @@
     # das faixas novas e o índice (a lista por baixo e a duração)
     ? && >= modo 20 <= modo 22 { ! 51 r ! 60 0 ! 61 0 refolha 9
       _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl" 0 }
-    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas. Abre-a para a enviar para o Tidal.` 0 }
+    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas, já no teu Tidal.` 0 }
     ? == modo 18 { tvazio @ 49 refolha 64
       # (os pedidos também: o cartão da playlist passa a dizer «afinação pedida»)
       _an_buscar $"/api/pedidos" $"lido_ped"
@@ -650,7 +640,8 @@
     ? == modo 16 { ! 51 r ! 28 0 refolha 3 _an_buscar $"/api/playlists" $"lido_pl" aviso ? == tipo r.tidal 7 $"Nome mudado na app e no Tidal." $"Nome mudado." 0 }
     ? == modo 15 { ! 51 r refolha 2 _an_buscar $"/api/playlists" $"lido_pl" aviso ? == tipo r.renovar 3 $"Passa a atualizar-se sozinha toda a semana." $"Deixa de se atualizar sozinha." 0 }
     # «mais como esta»: a playlist nova abre-se logo, na lista
-    ? == modo 12 { tcopia @ 30 txt r.id 70 ir 1 abre_folha @ 30 aviso $"Criada no Tidal — já a podes ouvir." 0 }
+    # (o `ir` solta o monte, e a resposta com ele: o que se quer dela lê-se antes)
+    ? == modo 12 { = rv quantos r.afinacoes tcopia @ 30 txt r.id 70 ir 1 abre_folha @ 30 aviso ? rv $"Criada no Tidal com as parecidas. O Maestro vai revê-la." $"Criada no Tidal — já a podes ouvir." 0 }
     ? == modo 5 { ir 1 aviso $"Apagada da app." 0 }
     ? == modo 11 { ir 1 aviso $"Apagada no Tidal e na app." 0 }
     # pedido feito: vai-se para a lista das playlists, onde ele fica à espera (no cimo)
@@ -672,7 +663,7 @@
   Se && @ 3 ~ acesso boas_vindas
   `<div class="mu-card"><h3>O que te apetece ouvir?</h3><label class="mu-campo"><span class="sr">Pedido</span><textarea data-onda="ptx" maxlength="500" placeholder="Ex.: jazz dos anos 60 bem gravado para a viagem de sábado">{ esct @ 20 }</textarea></label>`
   # o botao logo a seguir ao texto: com o teclado aberto (iPhone) fica a vista
-  `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? acesso 0 " disabled" }>{ ic 2 }Pedir ao Maestro</button></div><p class="mu-nota">O Maestro prepara 2 ou 3 propostas às 07:44 e às 18:44; escolhes a que vai para o Tidal. Até lá, o pedido fica à espera no cimo da lista das playlists.</p>`
+  `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? acesso 0 " disabled" }>{ ic 2 }Pedir ao Maestro</button></div><p class="mu-nota">O Maestro cria a playlist às 07:44 ou às 18:44 e põe-na logo no teu Tidal. Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.</p>`
   # as opcoes ficam escondidas (uma linha com o resumo); "Mudar" mostra-as
   ? @ 39 {
       `<div class="mu-opcoes"><span>Opções</span><button type="button" class="mu-mais" data-onda="opcoes">Fechar</button></div>`
@@ -846,8 +837,8 @@
   `<div class="mu-card" id="aj-avisos"><h3>Avisos</h3>`
   ? && ok mesmo ok $"1" {
       ? && av _tx_len av {
-          `<p>Ligados neste telemóvel: chega um aviso quando as propostas de um pedido ficam prontas e quando o Maestro acaba uma afinação.</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-avisos="teste">{ ic 17 }Enviar um de teste</button><button type="button" class="mu-btn sec" data-avisos="desligar">Desligar</button></div>` }
-        `<p>Recebe um aviso neste telemóvel quando as propostas de um pedido ficarem prontas e quando o Maestro acabar uma afinação.</p><div class="mu-acoes"><button type="button" class="mu-btn" data-avisos="ligar">{ ic 17 }Ligar os avisos</button></div>` }
+          `<p>Ligados neste telemóvel: chega um aviso quando a playlist de um pedido fica pronta no Tidal e quando o Maestro acaba uma afinação.</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-avisos="teste">{ ic 17 }Enviar um de teste</button><button type="button" class="mu-btn sec" data-avisos="desligar">Desligar</button></div>` }
+        `<p>Recebe um aviso neste telemóvel quando a playlist de um pedido ficar pronta no Tidal e quando o Maestro acabar uma afinação.</p><div class="mu-acoes"><button type="button" class="mu-btn" data-avisos="ligar">{ ic 17 }Ligar os avisos</button></div>` }
     { ? && ok mesmo ok $"ios" "<p>No iPhone, os avisos só funcionam na app do ecrã principal: no Safari, toca em Partilhar e depois em <b>Adicionar ao ecrã principal</b>, e abre a Música por lá.</p>"
       { ? && ok mesmo ok $"nativo" "<p>Nesta app de teste não há avisos: numa app nativa precisam do programa pago da Apple. Liga-os na app do ecrã principal.</p>"
         "<p>Este browser não deixa enviar avisos.</p>" } }
@@ -879,7 +870,7 @@
         "</div>" }
     `<div class="mu-card"><h3>Conector de dados</h3><label class="mu-campo"><span>Endereço</span><input data-onda="px" value="{ esct @ 22 }" inputmode="url" autocapitalize="off" spellcheck="false"></label><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="px-ok">Guardar</button><button type="button" class="mu-btn sec" data-onda="px-rep">Repor</button></div></div>`
     `<div class="mu-card"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="motor">{ ic 7 }Testar o motor</button></div><p class="mu-motor" id="aj-motor-r"></p></div>`
-    `<p class="mu-nota">Música 2.30.1 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.31.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====

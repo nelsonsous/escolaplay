@@ -374,7 +374,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-afina').waitFor({ state: 'detached' });
     assert.deepEqual(await naFolha(page), ordemFinal, 'a folha fica com a playlist nova');
     assert.equal(sim.criadas.length, 0, 'ainda só na app');
-    await page.getByRole('button', { name: 'Enviar para o Tidal' }).click();
+    await page.getByRole('button', { name: 'Pôr no Tidal' }).click();
     await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
     await page.locator('.mu-folha').getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
     assert.equal(sim.criadas.length, 1);
@@ -466,13 +466,38 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('#mu-body .mu-pl').first().locator('.mu-pl-a').click();
     await page.locator('.mu-folha .mu-xf button.tx').first().click();
     await page.getByRole('button', { name: 'Mais como esta' }).click();
-    await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
+    await page.locator('#mu-aviso').getByText('Criada no Tidal com as parecidas. O Maestro vai revê-la.').waitFor();
     await page.locator('.mu-folha').getByRole('heading', { name: /^Parecidas com / }).waitFor();
     assert.equal(sim.criadas.length, 2);
     assert.match(sim.criadas[1].name, /^Parecidas com /);
+    // quem escolheu foi o Tidal: a folha di-lo, e fica à espera da revisão do Maestro (que se pode cancelar)
+    assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), / · parecidas do Tidal/);
+    await page.locator('.mu-folha .mu-hist li.espera').getByText('Rever as parecidas do Tidal').waitFor();
+    assert.match(await page.locator('.mu-folha .mu-hist li.espera').textContent(), /Revisão · à espera do Maestro · Cancelar$/);
+    await foto('6-parecidas');
     await page.locator('.mu-folha .mu-fechar').click();
     await page.locator('.mu-folha').waitFor({ state: 'detached' });
     await page.locator('#mu-body .mu-pl').nth(1).waitFor();
+    const parecidas = page.locator('#mu-body .mu-pl', { hasText: 'Parecidas com' });
+    await parecidas.locator('.mu-pedida').getByText('o Maestro vai revê-la').waitFor();
+    await foto('6-lista');
+    assert.equal(await page.locator('#mu-body .mu-espera').count(), 0, 'a revisão não é um pedido novo: não vai para o cimo da lista');
+    // o Maestro revê-a (na mesma playlist, no mesmo link): passa a ser dele — o cartão e a folha dizem-no
+    {
+        const ag = await env.KV.get('agente:chave');
+        const rev = JSON.parse(await env.KV.get('pedidos')).find((x) => x.afinar?.rever);
+        const r = await worker.fetch(new Request(`${WORKER}/api/pedidos/${rev.id}?playlist=${rev.afinar.playlist}`, { method: 'DELETE', headers: { authorization: `Bearer ${ag}` } }), env, { waitUntil() {} });
+        assert.equal(r.status, 200);
+    }
+    await nav(1);
+    await parecidas.locator('.mu-afinada').getByText(/^✓ revista a /).waitFor();
+    assert.equal(await parecidas.locator('.mu-pedida').count(), 0);
+    await parecidas.locator('.mu-pl-a').click();
+    await page.locator('.mu-folha .mu-hist li').getByText('Rever as parecidas do Tidal').waitFor();
+    assert.match(await page.locator('.mu-folha .mu-hist li').last().textContent(), /Revisão · feita a /);
+    assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), / · ✦ Maestro/);
+    await page.locator('.mu-folha .mu-fechar').click();
+    await page.locator('.mu-folha').waitFor({ state: 'detached' });
     // as tendências: 9 dias de tabelas (a Nina Simone, que segues, a subir em Portugal)
     const { recolher } = await import('../proxy/src/tendencias.js');
     for (let d = 0; d < 9; d++) {
@@ -657,26 +682,21 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
         await api7('/api/playlists', { nome: `Noite · ${v}`, pedido: 'Para conduzir à noite', faixas: bmw.faixas, candidatas: bmw.candidatas, opcoes: bmw.opcoes, rascunho: true, grupo: 'qgrupo1', variante: v, tidal: true });
     }
     await nav(1);
-    await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
-    const grupo = page.locator('details.mu-grupo');
-    await grupo.getByText('«Para conduzir à noite»').waitFor();
-    assert.equal(await grupo.locator('.mu-pl').count(), 2);
-    // a seta do grupo: aberto aponta para cima; tocar no título fecha (e a seta vira para baixo) e volta a abrir
-    const seta = () => grupo.locator('summary .chev').evaluate((e) => getComputedStyle(e).transform);
-    assert.equal(await seta(), 'matrix(-1, 0, 0, -1, 0, 0)');
-    await grupo.locator('summary').click();
-    assert.equal(await grupo.locator('.mu-pl').first().isVisible(), false);
-    assert.equal(await seta(), 'none');
-    await grupo.locator('summary').click();
-    await grupo.locator('.mu-pl-a', { hasText: 'Mais descoberta' }).click();
-    await page.locator('.mu-folha').getByText(/^Proposta — ainda não está no Tidal/).waitFor();
+    // as propostas à antiga (o Maestro já não as faz: cada pedido dá uma playlist, logo no Tidal) são playlists como as
+    // outras, com «só na app» no cartão e «Pôr no Tidal» na folha
+    const proposta = (v) => page.locator('#mu-body .mu-grp .mu-pl', { hasText: `Noite · ${v}` });
+    await proposta('Mais descoberta').locator('.mt').getByText(/ · só na app$/).waitFor();
+    await proposta('Mais conhecida').locator('.mt').getByText(/ · só na app$/).waitFor();
+    assert.equal(await page.getByRole('heading', { name: 'Propostas para escolher' }).count(), 0, 'já não há um grupo de propostas à parte');
+    await proposta('Mais descoberta').locator('.mu-pl-a').click();
+    await page.locator('.mu-folha').getByText('Só está na app. Põe-na no Tidal para a ouvires lá.').waitFor();
     const nCriadas = sim.criadas.length;
-    await page.getByRole('button', { name: 'Enviar para o Tidal' }).click();
+    await page.getByRole('button', { name: 'Pôr no Tidal' }).click();
     await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
     assert.equal(sim.criadas.length, nCriadas + 1);
-    // enviada, deixa de ser proposta: a folha (a mesma) passa a ter «Ouvir no Tidal» e perde o aviso
+    // posta no Tidal: a folha (a mesma) passa a ter «Ouvir no Tidal» e perde o aviso
     await page.locator('.mu-folha').getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
-    await page.locator('.mu-folha').getByText(/^Proposta — ainda não está no Tidal/).waitFor({ state: 'detached' });
+    await page.locator('.mu-folha').getByText(/^Só está na app/).waitFor({ state: 'detached' });
     await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
     const nAntes = (await naFolha(page)).length;
     await page.locator('.mu-folha .mu-xf button.tx').first().click();
@@ -731,13 +751,13 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-folha .mu-hist').waitFor();
     await page.locator('.mu-folha .mu-fechar').click();
     await page.waitForFunction(() => !document.querySelector('.mu-folha'));
-    await page.getByRole('heading', { name: 'Propostas para escolher' }).waitFor();
-    assert.equal(await page.locator('details.mu-grupo .mu-pl').count(), 1, 'a escolhida sai das propostas');
-    assert.match(await page.locator('details.mu-grupo summary .n').textContent(), /^1 proposta$/);
-    assert.equal(await page.locator('details.mu-grupo .mu-pl .nm').textContent(), 'Noite · Mais conhecida', 'o nome já tem a variante: não se repete');
-    // arrastar a proposta para a esquerda: pouco volta ao sítio; mais de um terço pergunta se é para apagar
+    // a que foi para o Tidal já não diz «só na app»; a outra continua, à espera
+    await proposta('Mais conhecida').locator('.mt').getByText(/ · só na app$/).waitFor();
+    assert.equal(await proposta('Mais descoberta').locator('.mt').getByText(/só na app/).count(), 0);
+    assert.equal(await proposta('Mais conhecida').locator('.nm').textContent(), 'Noite · Mais conhecida', 'o nome já tem a variante: não se repete');
+    // arrastar o cartão para a esquerda: pouco volta ao sítio; mais de um terço pergunta se é para apagar
     const deslizar = (ate) => page.evaluate(async (ate) => {
-        const c = document.querySelector('details.mu-grupo .mu-pl');
+        const c = [...document.querySelectorAll('#mu-body .mu-grp .mu-pl')].find((x) => x.textContent.includes('Noite · Mais conhecida'));
         const toque = (x) => new Touch({ identifier: 2, target: c, clientX: x, clientY: c.getBoundingClientRect().top + 30 });
         c.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(330)], bubbles: true, cancelable: true }));
         for (const x of [310, (330 + ate) / 2, ate]) c.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(x)], bubbles: true, cancelable: true }));
@@ -751,22 +771,22 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(await page.locator('.mu-pl-apagar').count(), 0, 'arrastar pouco não pergunta');
     await deslizar(60);
     await page.locator('.mu-pl-apagar').getByText(/^Apagar «.*»\?$/).waitFor();
-    await page.locator('.mu-pl-apagar').getByText('É uma proposta: sai só da app.').waitFor();
+    await page.locator('.mu-pl-apagar').getByText('Sai da app.').waitFor();
     await page.getByRole('button', { name: 'Não', exact: true }).click();
-    await page.locator('details.mu-grupo .mu-pl-a').waitFor();
+    await proposta('Mais conhecida').locator('.mu-pl-a').waitFor();
     // se o apagar falhar (ex.: o Cloudflare sem gravações), diz porquê e o cartão volta ao normal
     env.KV.cheia = true;
     await deslizar(60);
     await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
     await page.locator('#mu-aviso').getByText(/gravações grátis do Cloudflare/).waitFor();
-    await page.locator('details.mu-grupo .mu-pl-a').waitFor();
+    await proposta('Mais conhecida').locator('.mu-pl-a').waitFor();
     assert.equal(await page.locator('.mu-pl-apagar').count(), 0, 'depois do erro, o cartão volta ao normal');
     env.KV.cheia = false;
     for (let i = erros.length - 1; i >= 0; i--) if (/status of 503/.test(erros[i])) erros.splice(i, 1); // (o 503 deste passo é o esperado)
     await deslizar(60);
     await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
     await page.locator('#mu-aviso').getByText('Apagada da app.').waitFor();
-    assert.equal(await page.locator('details.mu-grupo').count(), 0, 'a proposta apagada sai da lista');
+    await proposta('Mais conhecida').waitFor({ state: 'detached' });
     // filtrar: «Todas» e um botão por valor que existe (Tidal, tipo, avaliação, género); tocar outra vez tira o filtro
     await page.getByRole('heading', { name: /^Esta semana/ }).waitFor();
     const nCartoes = () => page.locator('#mu-body .mu-grp .mu-pl').count();
@@ -781,7 +801,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(await chip.getAttribute('aria-pressed'), 'true');
     await chip.click();
     await page.waitForFunction((n) => document.querySelectorAll('#mu-body .mu-grp .mu-pl').length === n, todas);
-    // juntar: escolher 2 playlists; o conector junta-as numa nova (só na app)
+    // juntar: escolher 2 playlists; o conector junta-as numa nova, logo no Tidal
     await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar' }).click();
     const barra = page.locator('#mu-body .mu-juntar-barra');
     await barra.getByText('Escolhe 2 ou mais').waitFor();
@@ -794,9 +814,13 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await barra.getByText('2 escolhidas').waitFor();
     await foto('5b-juntar');
     assert.equal(await esc.nth(0).getAttribute('aria-pressed'), 'true');
+    const nJuntar = sim.criadas.length;
     await barra.getByRole('button', { name: 'Juntar' }).click();
-    await page.locator('#mu-aviso').getByText(/^Juntas em «/).waitFor();
+    await page.locator('#mu-aviso').getByText(/^Juntas em «.+» — \d+ faixas, já no teu Tidal\.$/).waitFor();
     await page.locator('#mu-body .mu-pl-a .nm', { hasText: `${nome1} + ` }).first().waitFor();
+    assert.equal(sim.criadas.length, nJuntar + 1, 'a juntada vai logo para o Tidal');
+    assert.match(sim.criadas.at(-1).name, / \+ /);
+    assert.equal(await page.locator('#mu-body .mu-pl', { hasText: `${nome1} + ` }).first().locator('.mt').getByText(/só na app/).count(), 0);
     assert.equal(await page.locator('#mu-body .mu-juntar-barra').count(), 0, 'sai do modo de juntar');
     // cancelar também sai
     await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar' }).click();

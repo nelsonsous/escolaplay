@@ -157,6 +157,8 @@ test('paridade: o dados.md da versão Onda é o da versão em JavaScript, ao byt
     const pedirAo = (caminho, corpo) => worker.fetch(new Request(base + caminho, { method: 'POST', headers: { authorization: `Bearer ${CHAVE}`, 'content-type': 'application/json' }, body: JSON.stringify(corpo) }), env, { waitUntil() {} });
     assert.equal((await pedirAo(`/api/playlists/${doc.id}/rejeitar`, { faixa: novas[1].id })).status, 200);
     assert.equal((await pedirAo(`/api/playlists/${doc.id}/afinar`, { texto: 'Mais vozes, menos eletrónica' })).status, 201);
+    // «Mais como esta»: as parecidas do Tidal, com um pedido para o Maestro as rever
+    assert.equal((await pedirAo('/api/mais', { faixa: doc.faixas[0].id })).status, 201);
     const ren = await worker.fetch(new Request(`${base}/api/playlists/${doc.id}/renovar`, { method: 'POST', headers: { authorization: `Bearer ${CHAVE}`, 'content-type': 'application/json' }, body: '{"ativo":true}' }), env, { waitUntil() {} });
     assert.equal(ren.status, 200);
     for (const agora of ['2026-11-13T09:30:00Z', '2026-07-03T22:59:00Z', '2027-03-28T00:59:59Z']) {
@@ -167,6 +169,8 @@ test('paridade: o dados.md da versão Onda é o da versão em JavaScript, ao byt
         assert.equal(js.code, undefined, js.stderr);
         const md = (d) => readFileSync(join(d, 'dados.md'), 'utf8').replaceAll(d, '<dir>');
         assert.equal(md(a), md(b), `dados.md com MUSICA_AGORA=${agora}`);
+        assert.match(md(a), /» · .* · \*\*rever a playlist «Parecidas com [^»]+» \(`p[a-z0-9]+`\)\*\* — são as faixas parecidas do Tidal, por rever$/m);
+        assert.match(md(a), /\*\*afinar a playlist «/);
         assert.equal(onda.stdout.replaceAll(a, '<dir>'), js.stdout.replaceAll(b, '<dir>'));
         // o perfil.json é o que o Worker deu (tirando a hora em que o gerou)
         const pj = (f) => { const x = JSON.parse(readFileSync(f, 'utf8')); delete x.geradoEm; return x; };
@@ -286,21 +290,6 @@ test('paridade: o publicar da versão Onda mostra, recusa e grava como a versão
     assert.equal(ro.d.modelo, 'modelo-renovar');
     assert.equal(ro.d.opcoes.estilo, 'gosto');
     assert.equal(JSON.parse(await env.KV.get('playlist:' + id)).renovacoes, 2);
-    // uma proposta (variante) de um pedido: só na app, à espera de ser escolhida
-    writeFileSync(f, JSON.stringify(rica));
-    const variante = async (nome) => {
-        const r = await script(nome, [f, '--variante', 'Mais conhecida', '--modelo', 'm']);
-        assert.equal(r.code, undefined, r.stderr);
-        const pub = JSON.parse(readFileSync(join(dir, 'publicada.json'), 'utf8'));
-        const d = JSON.parse(await env.KV.get('playlist:' + pub.id));
-        for (const k of ['id', 'criadaEm']) delete d[k];
-        return { stdout: r.stdout.replaceAll(pub.id, '<id>'), d };
-    };
-    const vo = await variante('publicar.mjs'), vj = await variante(join('js', 'publicar.mjs'));
-    assert.equal(vo.stdout, vj.stdout);
-    assert.deepEqual(vo.d, vj.d);
-    assert.deepEqual([vo.d.rascunho, vo.d.variante, vo.d.tidal], [true, 'Mais conhecida', null]);
-    assert.match(vo.stdout, /proposta «Mais conhecida», só na app/);
     // as ideias de pedidos: as duas versões guardam o mesmo
     const fi = join(dir, 'ideias.json');
     writeFileSync(fi, JSON.stringify({ ideias: [{ texto: 'Estrada ao sol, rock com energia', momento: 'dia', opcoes: { arco: 'sobe' } }, { texto: 'Condução à noite: synthwave', momento: 'noite' }, { texto: 'Clássicos portugueses' }] }));
