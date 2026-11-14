@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.26.0';
+const VERSION = '1.27.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -85,7 +85,7 @@ async function route(req, env, url) {
     if (p === '/api/desligar' && m === 'POST') { await ue.KV.delete('tidal:tokens'); await ue.KV.delete('perfil'); return json({ ok: true }); }
     if (p === '/api/perfil' && m === 'GET') return json(await perfil(ue, url.searchParams.has('fresco')));
     if (p === '/api/resolver' && m === 'POST') return json(await resolver(ue, await corpo(req)));
-    if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(ue, url.searchParams.get('q')));
+    if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(ue, url.searchParams.get('q'), url.searchParams.has('unicas')));
     if (p === '/api/playlists' && m === 'GET') return json((await ue.KV.get('playlists', 'json')) || []);
     if (p === '/api/playlists' && m === 'POST') return json(await guardar(ue, await corpo(req), quem), 201);
     if (p === '/api/ideias' && m === 'GET') return json((await ue.KV.get('ideias', 'json')) || { ideias: [] });
@@ -569,13 +569,32 @@ async function pesquisar(env, q, pais) {
     return idsDe({ data: r?.relationships?.tracks?.data });
 }
 
-async function pesquisa(env, q) {
+// a pesquisa de faixas da app (a música de partida e «Acrescentar uma faixa»): as do Tidal, pela relevância dele, cada
+// uma com a capa e os 30 s de pré-escuta, para se reconhecer a certa. Com «unicas» (a música de partida), cada canção
+// aparece uma vez, na melhor versão: a de estúdio mais ouvida — o Tidal dá a mesma canção em várias (ao vivo,
+// remisturas, aceleradas, karaoke, só em Dolby Atmos…), e na lista pareciam repetidas
+const VARIANTE = /\b(live|ao vivo|en vivo|remix|remixed|mix|sped up|slowed|extended|karaoke|instrumental|acoustic|acustica|piano version|demo|edit|sequence|take \d+|outtake|rehearsal|alternate|version|versao)\b/;
+const variante = (f) => VARIANTE.test(`${f.titulo} ${f.versao || ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())
+    || ((f.tags || []).includes('DOLBY_ATMOS') && !(f.tags || []).some((x) => /LOSSLESS/.test(x)));
+async function pesquisa(env, q, unicas = false) {
     q = txt(q, 200).replace(/[/\\?#]/g, ' ');
     if (q.length < 2) throw new Erro(400, 'pesquisa_curta', 'Escreve pelo menos 2 letras.');
     const t = await acesso(env);
-    const ids = (await pesquisar(env, q, t.pais || 'PT')).slice(0, 10);
-    const detalhe = await porIds(env, ids, t.pais || 'PT');
-    return { faixas: ids.map((id) => detalhe.get(id)).filter(Boolean) };
+    const pais = t.pais || 'PT';
+    const ids = (await pesquisar(env, q, pais)).slice(0, unicas ? 20 : 10);
+    const detalhe = await porIds(env, ids, pais);
+    let faixas = ids.map((id) => detalhe.get(id)).filter(Boolean);
+    if (unicas) {
+        // (a canção: o título sem o que vem entre parênteses e o artista principal; pela ordem em que o Tidal a deu)
+        const grupos = new Map();
+        for (const f of faixas) { const k = `${normal(f.titulo)}|${normal(f.artistas[0] || '')}`; grupos.set(k, [...(grupos.get(k) || []), f]); }
+        const peso = (f) => (variante(f) ? 0 : 1e6) + (Number(f.popularidade) || 0);
+        faixas = [...grupos.values()].map((g) => g.reduce((a, b) => (peso(b) > peso(a) ? b : a))).slice(0, 8);
+    }
+    const capas = await capasTidal(env, faixas).catch(() => ({}));
+    let n = 0;
+    const pv = await Promise.all(faixas.map((f) => previaDeezer(f, () => ++n <= 12).catch(() => null)));
+    return { faixas: faixas.map((f, i) => ({ ...f, capa: capas[f.id] || pv[i]?.c || '', previa: pv[i]?.p || '' })) };
 }
 
 // ---------- biblioteca de playlists ----------

@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.26.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.27.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -566,6 +566,31 @@ test('pedir com música de partida: a playlist nasce já no Tidal com as parecid
     // sem música de partida, fica como sempre: o pedido espera pelo Maestro
     const sem = await (await post('/api/pedidos', { texto: 'Soul dos anos 70' }, chave)).json();
     assert.deepEqual([sem.estado, sem.afinar, sem.criada], ['pendente', undefined, undefined]);
+});
+
+test('pesquisa: as do Tidal com capa e 30 s de pré-escuta; com «unicas», cada canção uma vez, na versão de estúdio mais ouvida', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const q = (t, unicas) => get(`/api/pesquisa?q=${encodeURIComponent(t)}${unicas ? '&unicas=1' : ''}`, chave).then((r) => r.json());
+    assert.equal((await get('/api/pesquisa?q=x', chave)).status, 400);
+    // todas, pela ordem do Tidal: a «Get Lucky» (Radio Edit) e a ao vivo, cada uma com a capa (do Tidal) e a pré-escuta
+    const todas = await q('Get Lucky');
+    assert.deepEqual(todas.faixas.map((f) => f.id), ['103', '104']);
+    assert.match(todas.faixas[0].capa, /^https:\/\/resources\.tidal\.com\/images\//);
+    assert.match(todas.faixas[0].previa, /^https:\/\/cdn\.deezer\.example\//);
+    // (a ao vivo não tem capa no Tidal: vem a do Deezer, com a pré-escuta da canção)
+    assert.match(todas.faixas[1].capa, /^https:\/\/cdn-images\.dzcdn\.net\//);
+    assert.ok(todas.faixas[1].previa);
+    // sem capa nem pré-escuta em lado nenhum, vêm vazias
+    const s1 = (await q('Só Explícita')).faixas[0];
+    assert.deepEqual([s1.id, s1.capa, s1.previa], ['109', '', '']);
+    // uma vez cada canção: das duas versões (ambas outras versões), a mais ouvida
+    assert.deepEqual((await q('Get Lucky', true)).faixas.map((f) => f.id), ['103']);
+    // a de estúdio ganha à «Clean Edit»; e a pré-escuta e a capa também vêm
+    const cf = await q('Canção Forte', true);
+    assert.deepEqual(cf.faixas.map((f) => f.id), ['107']);
+    assert.deepEqual((await q('Canção Forte')).faixas.map((f) => f.id), ['107', '108']);
+    // canções diferentes do mesmo artista continuam todas
+    assert.deepEqual((await q('So What Feeling Good Teardrop', true)).faixas.map((f) => f.id), ['101', '102', '106']);
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {

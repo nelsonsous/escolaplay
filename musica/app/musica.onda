@@ -584,6 +584,13 @@
   `<li class="af{ Se fx " fixa" }{ Se nova " nova" }" data-chave="{ esct id }" data-id="{ esct id }"><span class="cp">{ Se cv `<img src="{ esct cv }" alt="" loading="lazy" decoding="async">` }</span><div class="tx"><b>{ esct txt f.titulo }</b><span>{ Se nova `<i>nova</i> · ` }{ partistas f.artistas }</span></div><span class="mu-ouvir vazio"></span>`
   ? >= ci 0 `<button type="button" class="mu-fixar" data-onda="fixar&#9;{ N ci }" aria-pressed="{ ? fx "true" "false" }" aria-label="{ ? fx "Deixar de fixar" "Fixar" } «{ esct txt f.titulo }»"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5h6l-1 6 3.5 3.5h-11L10 9.5z"/><path d="M12 13v7.5"/></svg></button>` `<span class="mu-ouvir vazio"></span>`
   "</li>" }
+# uma faixa encontrada no Tidal (a música de partida e «Acrescentar uma faixa»): a capa, o título (com a versão), quem
+# toca, o álbum e o ano, os 30 s de pré-escuta (▶) e o botão de escolher (acao) — para se reconhecer a certa
+: res_linha iiii>i x q acao rot {
+  = cv txt x.capa = u txt x.previa = vs txt x.versao
+  `<li><span class="cp">{ Se _tx_len cv `<img src="{ esct cv }" alt="" loading="lazy" decoding="async">` }</span><div class="tx"><b>{ esct txt x.titulo }{ Se _tx_len vs ` <i>({ esct vs })</i>` }</b><span>{ partistas x.artistas }{ Se _tx_len txt x.album ` · { esct txt x.album }` }{ Se int x.ano ` · { N int x.ano }` }</span></div>`
+  ? _tx_len u { = tc mesmo u @ 55 `<button type="button" class="mu-ouvir{ Se tc " a-tocar" }" data-onda="ouvir&#9;{ esct u }" aria-pressed="{ ? tc "true" "false" }" aria-label="{ ? tc "Parar" "Ouvir 30 segundos de" } «{ esct txt x.titulo }»">{ ic 4 }</button>` } `<span class="mu-ouvir vazio"></span>`
+  `<button type="button" class="mu-trocar" data-onda="{ esct acao }&#9;{ N q }" aria-label="{ esct rot } «{ esct txt x.titulo }»">{ ic 12 }</button></li>` }
 # acrescentar uma faixa do Tidal: procura-se (artista e título) e a escolhida entra no fim da playlist, logo
 : fo_junta i>i c Se && @ 51 ~ @ 6 {
   ? ~ @ 62 `<button type="button" class="mu-junta-a" data-onda="junta_abre">{ ic 12 }Acrescentar uma faixa</button>` {
@@ -593,7 +600,7 @@
       ? ~ quantos l `<p class="mu-nota">Nada encontrado.</p>` {
         `<ol class="mu-xf">` = x pri l = q 0
         W && x < q 6 {
-          `<li><span class="cp"></span><div class="tx"><b>{ esct txt x.titulo }</b><span>{ partistas x.artistas }</span></div><span class="mu-ouvir vazio"></span><button type="button" class="mu-trocar" data-onda="juntar&#9;{ N q }" aria-label="Acrescentar «{ esct txt x.titulo }»"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></li>`
+          res_linha x q $"juntar" $"Acrescentar"
           = x seg x = q + q 1 }
         "</ol>" } }
     "</div></div>" } }
@@ -715,16 +722,15 @@
 : pd_partida >i {
   = s @ 19
   ? pd_tem s {
-      `<div class="mu-partida"><div class="tx"><span>Começa por</span><b>«{ esct txt s.titulo }»</b><span>{ partistas s.artistas }</span></div><button type="button" class="mu-btn sec peq" data-onda="pd_sem_x" aria-label="Não começar por «{ esct txt s.titulo }»">Tirar</button></div>` }
+      = cv txt s.capa
+      `<div class="mu-partida"><span class="cp">{ Se _tx_len cv `<img src="{ esct cv }" alt="" decoding="async">` }</span><div class="tx"><span>Começa por</span><b>«{ esct txt s.titulo }»</b><span>{ partistas s.artistas }</span></div><button type="button" class="mu-btn sec peq" data-onda="pd_sem_x" aria-label="Não começar por «{ esct txt s.titulo }»">Tirar</button></div>` }
     {
       `<details class="mu-partida-d"{ Se s " open" }><summary>{ ic 12 }Começar por uma música<span>opcional</span></summary>`
       `<div class="mu-junta"><label class="mu-campo"><span class="sr">Música de partida</span><input type="search" data-onda="q" placeholder="artista e título" value="{ esct @ 23 }"></label><div class="mu-acoes"><button type="button" class="mu-btn sec peq" data-onda="procurar">{ ic 8 }Procurar no Tidal</button></div>`
       Se s { = l s.faixas
-        ? ~ quantos l `<p class="mu-nota">Nada encontrado.</p>` {
+        ? ~ quantos l `<p class="mu-nota">Nada encontrado. Escreve o nome do artista e o da música, por exemplo «Gabriela KATSEYE».</p>` {
           `<ol class="mu-xf">` = x pri l = q 0
-          W && x < q 6 {
-            `<li><span class="cp"></span><div class="tx"><b>{ esct txt x.titulo }</b><span>{ partistas x.artistas }</span></div><span class="mu-ouvir vazio"></span><button type="button" class="mu-trocar" data-onda="pd_sem&#9;{ N q }" aria-label="Começar por «{ esct txt x.titulo }»">{ ic 12 }</button></li>`
-            = x seg x = q + q 1 }
+          W && x < q 8 { res_linha x q $"pd_sem" $"Começar por" = x seg x = q + q 1 }
           "</ol>" } }
       "</div></details>" } }
 : v_pedir >i {
@@ -854,9 +860,12 @@
 # depois de mexer no «⋯» (@28): na folha redesenha-se só esse pedaço; nos Ajustes, a vista
 : redes >i ? && == @ 1 1 _tx_len @ 50 refolha 2 render
 # ouvir 30 s: um só leitor (o do anfitrião); tocar outra vez a que está a tocar pára-a
-: ouvir i>i u { ? _an_som u { tcopia @ 55 u 900 0 } { tvazio @ 55 0 } Se _tx_len @ 50 refolha ? tem_cmp @ 51 24 8 0 }
+# o que tem ▶ volta a desenhar-se: as faixas da folha (e a história, com as do Tidal que saíram, e os resultados de
+# «Acrescentar uma faixa») ou a vista «Pedir» (os resultados da música de partida)
+: ouvir_ref >i { Se _tx_len @ 50 refolha + + 8 ? tem_cmp @ 51 16 0 ? @ 62 512 0 Se == @ 1 3 render 0 }
+: ouvir i>i u { ? _an_som u { tcopia @ 55 u 900 0 } { tvazio @ 55 0 } ouvir_ref }
 # o som parou sem ser pela app (acabou, erro): a app volta a saber o que está a tocar
-: som_fim i>i z { = a _an_atocar ? a { tcopia @ 55 a 900 0 } { tvazio @ 55 0 } Se _tx_len @ 50 refolha ? tem_cmp @ 51 24 8 0 }
+: som_fim i>i z { = a _an_atocar ? a { tcopia @ 55 a 900 0 } { tvazio @ 55 0 } ouvir_ref }
 : afinar_maestro >i ? ocupado 0 { = r _tx_abre + 400 * 7 _tx_len @ 49 `POST /api/playlists/{ purl @ 30 }/afinar{ P 10 }\{"texto":{ pjs @ 49 }\}` pede _tx_fecha r 18 0 }
 : renomear_enviar >i ? ocupado 0 {
     ? < _tx_len @ 46 1 { aviso $"Escreve um nome para a playlist." 0 } {
@@ -956,7 +965,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.36.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.37.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
@@ -1056,7 +1065,7 @@
   ? mesmo a $"af-mx" { Se @ 6 { ! 8 _tx_int b afina_muda 136 } 0 }
   ? mesmo a $"af-es" { Se @ 6 { ! 9 _tx_int b afina_muda 136 } 0 }
   ? mesmo a $"af-ar" { Se @ 6 { ! 10 _tx_int b afina_muda 136 } 0 }
-  ? mesmo a $"procurar" { ? < _tx_len @ 23 2 { aviso $"Escreve pelo menos 2 letras." 0 } { = u _tx_abre + 40 * 3 _tx_len @ 23 `/api/pesquisa?q={ purl @ 23 }` _tx_fecha u _an_buscar u $"lido_pesq" aviso $"A procurar no Tidal…" 0 } }
+  ? mesmo a $"procurar" { ? < _tx_len @ 23 2 { aviso $"Escreve pelo menos 2 letras." 0 } { = u _tx_abre + 40 * 3 _tx_len @ 23 `/api/pesquisa?q={ purl @ 23 }{ Se == @ 1 3 "&unicas=1" }` _tx_fecha u _an_buscar u $"lido_pesq" aviso $"A procurar no Tidal…" 0 } }
   ? mesmo a $"juntar" { junta_faixa _tx_int b 0 }
   ? mesmo a $"pd_sem" { = r @ 19 = f ? r idx r.faixas _tx_int b 0 Se f { ! 19 f render } 0 }
   ? mesmo a $"pd_sem_x" { ! 19 0 render 0 }
