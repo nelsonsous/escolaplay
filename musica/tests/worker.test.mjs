@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.32.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.33.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -792,42 +792,55 @@ test('arrumar a lista: pastas (só na app), pastas sugeridas pela IA, propostas 
     assert.ok((await indice()).some((x) => x.id === k1.id));
 });
 
-test('a conta Mistral do dono: primeiro a Mistral (só nos pedidos dele), depois a IA da Cloudflare; os convidados nunca passam pela Mistral', async () => {
+test('a Mistral avançada: cada pessoa escolhe a IA; liga a conta Mistral dela (a chave confirma-se e nunca volta); a do dono pode estar no Cloudflare', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
-    const ia = (texto, k = agente) => post('/api/ia/sementes', { texto }, k).then((r) => r.json());
-    // só com a chave da Mistral (sem a IA da Cloudflare) já há IA; o estado diz que é a do dono
-    env.MISTRAL_API_KEY = 'mk-teste';
+    const estado = async (k) => (await get('/api/estado', k)).json();
+    env.AI = { run: async () => ({ response: '{"nome": "Da Cloudflare", "musicas": [{"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }) };
     sim.mistral = { status: 200, conteudo: '{"nome": "Da Mistral", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}]}' };
-    const e = await (await get('/api/estado', chave)).json();
-    assert.deepEqual([e.iaCfPode, e.iaMistral], [true, true]);
-    const r = await ia('Jazz modal');
-    assert.deepEqual([r.modelo, r.nome, r.musicas[0].tidal?.id], ['mistral:mistral-large-latest', 'Da Mistral', '101']);
-    const pm = sim.mistralPedidos.at(-1);
-    assert.deepEqual([pm.authorization, pm.corpo.model, pm.corpo.response_format], ['Bearer mk-teste', 'mistral-large-latest', { type: 'json_object' }]);
-    assert.deepEqual(pm.corpo.messages.map((x) => x.role), ['system', 'user']);
+    sim.mistralBoas = ['mkAnaBoaChave1234567890', 'mkDonoChave1234567890ab'];
+    await post('/api/consentir', { cloudflare: true }, chave);
+    // o dono, com a chave no Cloudflare: está ligada, mas só se usa quando ele a escolhe
+    env.MISTRAL_API_KEY = 'mkDonoChave1234567890ab';
+    assert.deepEqual([(await estado(chave)).mistralLigada, (await estado(chave)).iaMistral], [true, false]);
+    assert.equal((await (await post('/api/pedidos', { texto: 'Jazz para o dono' }, chave)).json()).ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    assert.deepEqual(await (await post('/api/consentir', { mistral: true }, chave)).json(), { ok: true, mistral: true });
+    assert.equal((await estado(chave)).iaMistral, true);
+    const pd = await (await post('/api/pedidos', { texto: 'Mais jazz para o dono' }, chave)).json();
+    assert.equal(pd.ia, 'mistral:mistral-large-latest');
+    assert.equal(sim.mistralPedidos.at(-1).authorization, 'Bearer mkDonoChave1234567890ab');
+    assert.deepEqual([sim.mistralPedidos.at(-1).corpo.model, sim.mistralPedidos.at(-1).corpo.response_format], ['mistral-large-latest', { type: 'json_object' }]);
     // a Mistral recusa (limite do plano grátis, por exemplo): segue para a IA da Cloudflare
     sim.mistral.status = 429;
-    env.AI = { run: async () => ({ response: '{"nome": "Da Cloudflare", "musicas": [{"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }) };
-    const r2 = await ia('Jazz modal');
+    const r2 = await (await post('/api/ia/sementes', { texto: 'Jazz' }, agente)).json();
     assert.equal(r2.modelo, '@cf/mistralai/mistral-small-3.1-24b-instruct');
     assert.match(r2.erros[0], /^mistral:mistral-large-latest: HTTP 429$/);
     sim.mistral.status = 200;
-    // uma convidada: a playlist na hora usa a IA da Cloudflare; a Mistral do dono nunca vê os pedidos dela
+    // uma convidada: a Mistral do dono não é dela; liga a conta dela (a chave confirma-se na Mistral)
     const cv = await (await post('/api/convites', {}, chave)).json();
     const st = new URL((await (await post('/api/ligar', { codigo: cv.codigo, nome: 'Ana', consente: true })).json()).url).searchParams.get('state');
-    const chaveAna = decodeURIComponent((await call(`/tidal/retorno?code=CODIGO-ANA&state=${st}`)).headers.get('location').split('#chave=')[1] || '');
-    assert.ok(chaveAna.length > 20);
-    const eAna = await (await get('/api/estado', chaveAna)).json();
-    assert.deepEqual([eAna.iaCf, eAna.iaMistral], [true, undefined], 'autorizou ao ligar; a Mistral não é dela');
+    const ana = decodeURIComponent((await call(`/tidal/retorno?code=CODIGO-ANA&state=${st}`)).headers.get('location').split('#chave=')[1] || '');
+    assert.deepEqual([(await estado(ana)).mistralLigada, (await estado(ana)).iaMistral], [false, false]);
+    assert.equal((await (await post('/api/consentir', { mistral: true }, ana)).json()).error, 'sem_mistral');
     const antes = sim.mistralPedidos.length;
-    const p = await (await post('/api/pedidos', { texto: 'Fado para a Ana' }, chaveAna)).json();
-    assert.equal(p.ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
-    assert.equal(sim.mistralPedidos.length, antes, 'nada foi para a Mistral');
-    // e o dono, com a Mistral: a playlist na hora usa-a
-    await post('/api/consentir', { cloudflare: true }, chave);
-    const pd = await (await post('/api/pedidos', { texto: 'Jazz para o dono' }, chave)).json();
-    assert.equal(pd.ia, 'mistral:mistral-large-latest');
+    assert.equal((await (await post('/api/pedidos', { texto: 'Fado para a Ana' }, ana)).json()).ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    assert.equal(sim.mistralPedidos.length, antes, 'sem a escolha dela, nada vai para a Mistral');
+    assert.equal((await (await post('/api/mistral', { chave: 'curta' }, ana)).json()).error, 'mistral_chave');
+    const errada = await post('/api/mistral', { chave: 'mkErradaChave1234567890' }, ana);
+    assert.deepEqual([errada.status, (await errada.json()).message], [400, 'A Mistral não aceitou esta chave. Confirma que a copiaste toda.']);
+    assert.deepEqual(await (await post('/api/mistral', { chave: 'mkAnaBoaChave1234567890' }, ana)).json(), { ok: true, iaMistral: true });
+    const eAna = await estado(ana);
+    assert.deepEqual([eAna.mistralLigada, eAna.iaMistral], [true, true]);
+    assert.ok(!JSON.stringify(eAna).includes('mkAnaBoaChave'), 'a chave nunca volta nas respostas');
+    const pa = await (await post('/api/pedidos', { texto: 'Mais fado para a Ana' }, ana)).json();
+    assert.equal(pa.ia, 'mistral:mistral-large-latest');
+    assert.equal(sim.mistralPedidos.at(-1).authorization, 'Bearer mkAnaBoaChave1234567890', 'com a conta dela');
+    // voltar à da Cloudflare (a conta fica ligada) e desligar a conta
+    await post('/api/consentir', { mistral: false }, ana);
+    assert.deepEqual([(await estado(ana)).mistralLigada, (await estado(ana)).iaMistral], [true, false]);
+    assert.equal((await call('/api/mistral', { method: 'DELETE', headers: { authorization: `Bearer ${ana}` } })).status, 200);
+    assert.equal((await estado(ana)).mistralLigada, false);
+    assert.equal((await post('/api/mistral', { chave: 'mkAnaBoaChave1234567890' }, agente)).status, 403, 'o Maestro não liga contas');
     delete env.AI; delete env.MISTRAL_API_KEY;
 });
 

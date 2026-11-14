@@ -1636,3 +1636,61 @@ test('pastas: pôr numa pasta, a IA sugere as outras, o guia para o Tidal; junta
         if (SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(SHOTS, 'pastas.png') }); }
     } finally { await ctx.close(); delete env.AI; }
 });
+
+// A IA da playlist na hora, escolhida por cada pessoa nos Ajustes: a Mistral da Cloudflare ou a Mistral avançada (a
+// conta Mistral da própria pessoa: a chave cola-se uma vez, confirma-se na Mistral e nunca volta a aparecer)
+test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chave boa), escolher, voltar à da Cloudflare e desligar', { skip: !chromium && 'sem Playwright' }, async () => {
+    const t = JSON.parse(await env.KV.get('tidal:tokens'));
+    t.iaCfEm = new Date().toISOString();
+    delete t.iaMistralEm;
+    await env.KV.put('tidal:tokens', JSON.stringify(t));
+    await env.KV.delete('mistral:chave');
+    env.AI = { run: async () => ({ response: '{"nome": "X", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}]}' }) };
+    sim.mistralBoas = ['mkUiBoaChave1234567890ab'];
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('MISTRAL-1').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    try {
+        const page = await ctx.newPage();
+        const erros = [];
+        page.on('pageerror', (e) => erros.push(String(e)));
+        page.on('console', (m) => { if (m.type() === 'error') erros.push('consola: ' + m.text()); });
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('MISTRAL-1');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        await page.locator('#mu-body .mu-pl').first().waitFor();
+        const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
+        const corpo = page.locator('#mu-body');
+        await nav(5);
+        const esc = corpo.locator('.mu-ia-esc');
+        await esc.waitFor();
+        assert.equal(await esc.getByRole('button', { name: 'Mistral da Cloudflare' }).getAttribute('aria-pressed'), 'true', 'por omissão, a da Cloudflare');
+        // a avançada, sem a conta ligada: aparece o «Liga a tua conta Mistral»
+        await esc.getByRole('button', { name: 'Mistral avançada' }).click();
+        const liga = corpo.locator('.mu-mistral');
+        await liga.waitFor();
+        await liga.locator('[data-onda="mi-chave"]').fill('mkErradaChave1234567890');
+        await liga.getByRole('button', { name: 'Ligar' }).click();
+        await page.locator('#mu-aviso').getByText('A Mistral não aceitou esta chave. Confirma que a copiaste toda.').waitFor();
+        await liga.locator('[data-onda="mi-chave"]').fill('mkUiBoaChave1234567890ab');
+        await liga.getByRole('button', { name: 'Ligar' }).click();
+        await page.locator('#mu-aviso').getByText('Conta Mistral ligada: a playlist na hora passa a usá-la.').waitFor();
+        await page.waitForFunction(() => document.querySelector('#mu-body .mu-ia-esc [data-onda="ia_mi\t1"]')?.getAttribute('aria-pressed') === 'true');
+        await corpo.getByRole('button', { name: 'Desligar a conta Mistral' }).waitFor();
+        assert.equal(await env.KV.get('mistral:chave'), 'mkUiBoaChave1234567890ab');
+        assert.ok(!(await page.content()).includes('mkUiBoaChave'), 'a chave nunca volta à app');
+        // «Pedir» diz que IA vai começar
+        await nav(3);
+        await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
+        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^«Criar já»: a IA \(Mistral avançada, a tua conta\)/);
+        // voltar à da Cloudflare (a conta fica ligada) e desligar a conta
+        await nav(5);
+        await corpo.locator('.mu-ia-esc').getByRole('button', { name: 'Mistral da Cloudflare' }).click();
+        await page.locator('#mu-aviso').getByText('A playlist na hora passa a usar a Mistral da Cloudflare.').waitFor();
+        await corpo.getByRole('button', { name: 'Desligar a conta Mistral' }).click();
+        await page.locator('#mu-aviso').getByText('Conta Mistral desligada.').waitFor();
+        await page.waitForFunction(() => ![...document.querySelectorAll('#mu-body button')].some((b) => b.innerText === 'Desligar a conta Mistral'));
+        assert.equal(await env.KV.get('mistral:chave'), null);
+        for (let i = erros.length - 1; i >= 0; i--) if (/status of 400/.test(erros[i])) erros.splice(i, 1); // (o 400 da chave errada é o esperado)
+        assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
+    } finally { await ctx.close(); delete env.AI; }
+});

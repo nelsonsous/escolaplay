@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay, a Mercados e a Meteo (/escolaplay/): este SW só mexe nas
 // caches "musica-*" e só trata pedidos dentro da sua pasta (/escolaplay/musica/) e o anfitrião das apps Onda.
 // O conector e o Tidal (outros domínios) nunca passam por aqui.
-const CACHE = 'musica-v59'; // 2.40.0 — as tuas pastas (a IA arruma nelas), «Criar já» ou «Só o Maestro», a conta Mistral do dono
+const CACHE = 'musica-v60'; // 2.41.0 — a IA de cada pessoa: a Mistral da Cloudflare ou a Mistral avançada, com a conta Mistral dela
 const ASSETS = [
     './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js', '../onda/rt/gestos-onda.js',
     './privacidade.html', './apoio.html',

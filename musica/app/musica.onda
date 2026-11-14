@@ -670,7 +670,8 @@
 # a resposta por ele (1 config, 2 ligar, 3 enviar, 4/9 guardar versão, 5/11 apagar, 6 pedir, 7 cancelar, 8 desligar,
 # 10 aparelho, 12 mais, 13 convite, 14 código de aparelho, 15 renovar, 16 renomear, 18 afinar, 19 juntar, 20 trocar,
 # 21 tirar, 22 desfazer, 23 acrescentar, 25 autorizar, 26 voltar a pôr uma das do Tidal, 27 desligar a playlist na hora,
-# 28 pasta, 29 arrumar as propostas, 30 sugerir pastas, 31 criar uma pasta, 32 apagar uma pasta)
+# 28 pasta, 29 arrumar as propostas, 30 sugerir pastas, 31 criar uma pasta, 32 apagar uma pasta, 33 escolher a IA,
+# 34 ligar a conta Mistral, 35 desligá-la)
 : pede ii>i r m { ! 31 1 ! 34 m _an_buscar r $"lido_escrita" }
 # guardar o que o motor escolheu: a app manda só a decisão (a ordem, o porquê e os pontos, por índice das candidatas)
 # e o conector monta a playlist — na app e, se ela lá está, no Tidal (a mesma playlist, no mesmo link)
@@ -769,12 +770,16 @@
     ? == modo 27 { _an_buscar $"/api/estado" $"lido_estado" aviso $"A playlist na hora ficou desligada." 0 }
     ? == modo 28 { ! 28 0 refolha 2 _an_buscar $"/api/estado" $"lido_estado" _an_buscar $"/api/playlists" $"lido_pl" ? _tx_len txt r.pasta { aviso`Na pasta «{ crut txt r.pasta }».` 0 } { aviso $"Saiu da pasta." 0 } }
     ? == modo 29 { _an_buscar $"/api/playlists" $"lido_pl" ? == tipo r.ficou 7 { aviso`«{ crut txt r.ficou.nome }» foi para o teu Tidal; as outras propostas saíram.` 0 } { aviso`Apagadas { N int r.apagadas } propostas.` 0 } }
+    ? == modo 33 { _an_buscar $"/api/estado" $"lido_estado" aviso ? == tipo r.mistral 3 $"A playlist na hora passa a usar a Mistral avançada." $"A playlist na hora passa a usar a Mistral da Cloudflare." 0 }
+    ? == modo 34 { tvazio @ 46 ! 28 0 _an_buscar $"/api/estado" $"lido_estado" aviso $"Conta Mistral ligada: a playlist na hora passa a usá-la." 0 }
+    ? == modo 35 { _an_buscar $"/api/estado" $"lido_estado" aviso $"Conta Mistral desligada." 0 }
     ? == modo 31 { tvazio @ 46 _an_buscar $"/api/estado" $"lido_estado" aviso`Pasta «{ crut txt r.nome }» criada.` 0 }
     ? == modo 32 { _an_buscar $"/api/estado" $"lido_estado" _an_buscar $"/api/playlists" $"lido_pl" aviso ? int r.soltas $"Pasta apagada; as playlists dela ficaram sem pasta." $"Pasta apagada." 0 }
     ? == modo 30 { _an_buscar $"/api/estado" $"lido_estado" _an_buscar $"/api/playlists" $"lido_pl" ? int r.arrumadas { aviso`Arrumei { N int r.arrumadas } playlists em pastas.` 0 } { aviso $"Já estão todas em pastas." 0 } }
     ? == modo 24 { _an_gravar $"chave" 0 ! 28 0 ir 1 aviso $"Conta apagada: o conector já não guarda nada sobre ti." 0 }
     Se == modo 10 { = ch txt r.chave Se ch { _an_gravar $"chave" ch tvazio @ 38 ir 1 aviso $"Este aparelho fica com acesso." } } }
-    { ! 28 0 ! 60 0 ! 61 0 tvazio @ 54
+    # (o «Liga a tua conta Mistral» fica aberto para tentar outra vez, com o campo vazio)
+    { ! 28 ? == @ 28 7 7 0 tvazio @ 46 ! 60 0 ! 61 0 tvazio @ 54
       # o codigo guardado (de um convite ou link ja usado) nao serve: esquece-o, para aparecer o campo do codigo
       Se && == modo 2 == s 401 _an_gravar $"codigo" 0
       # com a folha aberta redesenham-se só os pedaços dela (a página toda fazia a folha subir outra vez)
@@ -808,7 +813,7 @@
   = pt pd_tem @ 19 = nh == tipo _ar_get @ 3 $"naHora" 3 = ia == tipo _ar_get @ 3 $"iaCf" 3 = iap == tipo _ar_get @ 3 $"iaCfPode" 3
   `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? acesso 0 " disabled" }>{ ic 2 }{ ? || pt ia "Criar já no Tidal" "Pedir ao Maestro" }</button>{ Se && ia ~ pt `<button type="button" class="mu-btn sec" data-onda="pedir_m"{ ? acesso 0 " disabled" }>Só o Maestro</button>` }</div><p class="mu-nota">`
   ? pt `A playlist nasce já no teu Tidal com as parecidas da música de partida. O Maestro revê-a com o teu pedido { ? nh "daqui a poucos minutos" "às 07:44 ou às 18:44" }, no mesmo link, e dá-lhe nome.`
-    { ? ia `«Criar já»: a IA ({ ? == tipo _ar_get @ 3 $"iaMistral" 3 "Mistral, a tua conta" "Mistral, na Cloudflare" }) escolhe as músicas de partida e a playlist nasce já no teu Tidal; o Maestro (Claude) revê-a com o teu pedido { ? nh "daqui a poucos minutos" "às 07:44 ou às 18:44" }, no mesmo link, e dá-lhe nome. «Só o Maestro»: sem a IA, só o Claude.`
+    { ? ia `«Criar já»: a IA ({ ? == tipo _ar_get @ 3 $"iaMistral" 3 "Mistral avançada, a tua conta" "Mistral, na Cloudflare" }) escolhe as músicas de partida e a playlist nasce já no teu Tidal; o Maestro (Claude) revê-a com o teu pedido { ? nh "daqui a poucos minutos" "às 07:44 ou às 18:44" }, no mesmo link, e dá-lhe nome. «Só o Maestro»: sem a IA, só o Claude.`
       `{ ? nh "O Maestro é chamado logo e cria a playlist em poucos minutos, no teu Tidal." "O Maestro cria a playlist às 07:44 ou às 18:44 e põe-na logo no teu Tidal." } Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.{ Se iap ` <button type="button" class="mu-ligacao" data-onda="iacf&#9;1">Ligar a playlist na hora</button>: a IA da Cloudflare lê o texto do pedido e a playlist nasce logo.` }` }
   `</p>{ pd_partida }`
   # as opcoes ficam escondidas (uma linha com o resumo); "Mudar" mostra-as
@@ -1032,11 +1037,19 @@
         `<p>{ txt_ia }</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="consentir">Concordo</button></div>`
       # a playlist na hora (a IA da Cloudflare a ler o texto dos pedidos): liga-se e desliga-se aqui
       Se && ligado == tipo e.iaCfPode 3 { = cf == tipo e.iaCf 3
-        `<p class="mu-nota mu-iacf">Playlist na hora: { ? cf "ligada — a IA da Cloudflare lê o texto dos teus pedidos e a playlist nasce logo." "desligada — os pedidos esperam pelo Maestro." }{ Se && cf == tipo e.iaMistral 3 " Nos teus pedidos usa a tua conta Mistral (no plano grátis, a Mistral pode usá-los para treinar os modelos dela)." } <button type="button" class="mu-ligacao" data-onda="iacf&#9;{ ? cf "0" "1" }">{ ? cf "Desligar" "Ligar" }</button></p>` }
+        `<p class="mu-nota mu-iacf">Playlist na hora: { ? cf "ligada — a IA da Cloudflare lê o texto dos teus pedidos e a playlist nasce logo." "desligada — os pedidos esperam pelo Maestro." } <button type="button" class="mu-ligacao" data-onda="iacf&#9;{ ? cf "0" "1" }">{ ? cf "Desligar" "Ligar" }</button></p>` }
+        # a IA da playlist na hora: a Mistral da Cloudflare (não treina) ou a Mistral avançada (a conta Mistral da pessoa:
+        # a chave cola-se uma vez, @46, e nunca volta; @28 = 7 mostra o «Liga a tua conta Mistral»)
+        Se cf { = mi == tipo e.iaMistral 3 = ml == tipo e.mistralLigada 3
+          `<div class="mu-campo mu-ia-esc"><span>IA da playlist na hora</span><div class="mu-seg"><button type="button" data-onda="ia_mi&#9;0" aria-pressed="{ ? mi "false" "true" }">Mistral da Cloudflare</button><button type="button" data-onda="ia_mi&#9;1" aria-pressed="{ ? mi "true" "false" }">Mistral avançada</button></div></div>`
+          `<p class="mu-nota">{ ? mi "Usa a tua conta Mistral (no plano grátis, a Mistral pode usar os teus pedidos para treinar os modelos dela)." "A Cloudflare não usa os teus pedidos para treinar modelos. A Mistral avançada é maior e usa a tua conta Mistral." }</p>`
+          ? && == @ 28 7 ~ ml
+            `<div class="mu-mistral"><p><b>Liga a tua conta Mistral</b></p><ol><li>Em <a href="https://console.mistral.ai" target="_blank" rel="noopener">console.mistral.ai</a>, cria a conta e escolhe o plano grátis «Experiment».</li><li>Em «API Keys», cria uma chave e copia-a.</li><li>Cola-a aqui: fica guardada no conector, como a ligação ao Tidal, e não volta a aparecer.</li></ol><label class="mu-campo"><span class="sr">Chave da Mistral</span><input type="password" data-onda="mi-chave" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="a chave da tua conta Mistral" value=""></label><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="mi_ligar">Ligar</button><button type="button" class="mu-btn sec" data-onda="nao">Cancelar</button></div></div>`
+            { Se ml `<p class="mu-nota">Conta Mistral ligada. <button type="button" class="mu-ligacao" data-onda="mi_desligar">Desligar a conta Mistral</button></p>` 0 } }
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.40.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.41.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
@@ -1062,7 +1075,7 @@
   espera_para
   _me_solta @ 2
   = q 3 W <= q 19 { ! q 0 = q + q 1 }
-  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 ! 60 0 ! 61 0 ! 62 0 tvazio @ 50 tvazio @ 54 ! 56 0 tvazio @ 58 tvazio @ 23
+  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 ! 60 0 ! 61 0 ! 62 0 tvazio @ 50 tvazio @ 54 ! 56 0 tvazio @ 58 tvazio @ 23 tvazio @ 46
   ! 1 v
   render
   # cada vista abre no topo (sem isto ficava onde a anterior estava, se as duas fossem altas)
@@ -1130,7 +1143,7 @@
   ? mesmo a $"mais" { mais_criar b 0 }
   ? mesmo a $"convidar" { convidar_pedir 0 }
   ? mesmo a $"ligar_outro" { codaparelho_pedir 0 }
-  ? mesmo a $"nao" { ! 28 0 redes 0 }
+  ? mesmo a $"nao" { ! 28 0 tvazio @ 46 redes 0 }
   # fixar: enquanto não há mudanças só se marca; depois, o motor corre outra vez com ela segura
   ? mesmo a $"fixar" { Se @ 6 { = i _tx_int b ! + @ 17 i ~ @ + @ 17 i Se == @ 6 2 afina_correr refolha 264 } 0 }
   ? mesmo a $"af-mx" { Se @ 6 { ! 8 _tx_int b afina_muda 136 } 0 }
@@ -1188,6 +1201,9 @@
   ? mesmo a $"ligar_c" { ligar_enviar 1 0 }
   ? mesmo a $"consentir" { consentir_enviar 0 }
   ? mesmo a $"iacf" { iacf_enviar _tx_int b 0 }
+  ? mesmo a $"ia_mi" { ? && _tx_int b ~ == tipo _ar_get @ 3 $"mistralLigada" 3 { ! 28 7 render 0 } { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"mistral":{ ? _tx_int b "true" "false" }\}` 33 0 } } }
+  ? mesmo a $"mi_ligar" { ? < _tx_len @ 46 16 { aviso $"Cola a chave toda, tal como a Mistral a mostra." 0 } { ? ocupado 0 { pede`POST /api/mistral{ P 10 }\{"chave":{ pjs @ 46 }\}` 34 0 } } }
+  ? mesmo a $"mi_desligar" { ? ocupado 0 { pede $"DELETE /api/mistral" 35 0 } }
   ? mesmo a $"config" { config_enviar 0 }
   ? mesmo a $"gosto" { gosto_alternar 0 }
   ? mesmo a $"atualizar" { _an_buscar $"/api/perfil?fresco=1" $"lido_perfil" aviso $"A ler do Tidal…" 0 }
@@ -1211,6 +1227,7 @@
   ? mesmo a $"cod" { tcopia @ 38 b 90 0 }
   ? mesmo a $"rn-nome" { tcopia @ 46 b 250 0 }
   ? mesmo a $"pa-nome" { tcopia @ 46 b 60 0 }
+  ? mesmo a $"mi-chave" { tcopia @ 46 b 200 0 }
   ? mesmo a $"rn-desc" { tcopia @ 47 b 1250 0 }
   ? mesmo a $"af-tx" { tcopia @ 49 b 1990 0 }
   # o deslizador: o motor corre a cada passo; redesenha-se o gráfico, o guardar e a lista (o deslizador fica quieto)
