@@ -24,7 +24,7 @@ const sonda = (url, token = TOKEN) => call('/sonda?url=' + encodeURIComponent(ur
 test('a raiz diz a versão e a fase', async () => {
     const r = await call('/');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { app: 'compras', conector: VERSION, fase: 'sonda (volta 1)' });
+    assert.deepEqual(await r.json(), { app: 'compras', conector: VERSION, fase: 'volta 2: a lista da casa' });
 });
 
 test('sem o segredo, ou com outro, a sonda recusa e não vai à rede', async () => {
@@ -88,7 +88,8 @@ test('se a cadeia não responde, diz porquê', async () => {
 });
 
 test('caminhos que não existem dão 404', async () => {
-    assert.equal((await call('/api/nada')).status, 404);
+    assert.equal((await call('/nada')).status, 404);
+    assert.equal((await call('/api/nada')).status, 401); // a API pede sempre a chave do aparelho primeiro
 });
 
 // /sonda/produto: vai buscar um produto e lê-o com a fonte da cadeia
