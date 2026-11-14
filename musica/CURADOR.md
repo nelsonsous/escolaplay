@@ -61,14 +61,21 @@ nesta tarefa.
      `--renovar <id da playlist> --pedido <id do pedido>` (no mesmo sítio e no mesmo link do Tidal). A lista *"tira"*
      são as faixas que a pessoa já tirou ou trocou na app (já não estão na playlist): não as voltes a pôr, e conta
      com elas para perceber o que ela não quer ali. Segue o que o texto pede e mantém o resto que encaixe.
-   - **Pedidos de revisão** (a linha diz *"rever a playlist «Parecidas com …» (`<id>`)"*): a pessoa tocou em «Mais
-     como esta» numa faixa e a app criou logo a playlist com as **faixas parecidas do Tidal**, pela ordem dele — sem
-     critério de qualidade. Faz dela uma playlist tua, como um pedido: o texto (*«Mais como «…», de …»*) diz a faixa
-     de partida, que fica (com o `tidalId` e `"fixa": true`); das que lá estão (a lista dela vem em *O que o Maestro
-     já fez*; aqui podes repeti-las, é a mesma playlist), mantém só as que passam no teu critério; pesquisa os
-     **vizinhos** da faixa de partida (produtor, editora, músicos, cena e época) e junta-os. Publica com
-     `--renovar <id da playlist> --pedido <id do pedido>` (no mesmo sítio e no mesmo link do Tidal), com o mesmo
-     `nome`. No `resumo`, diz o que mudaste.
+   - **Pedidos de revisão** (a linha diz *"rever a playlist «Parecidas com …» (`<id>`)"*): a app criou logo a
+     playlist com as **faixas parecidas do Tidal** de uma faixa de partida, pela ordem dele — sem critério de
+     qualidade. Vêm de dois sítios:
+     - **«Mais como esta»** (o texto é *«Mais como «…», de …»*): faz dela uma playlist tua à volta dessa faixa, com o
+       mesmo `nome`.
+     - **«Pedir» com música de partida** (o texto é o pedido, escrito pela pessoa): a playlist tem de responder a esse
+       pedido, com as opções dele; as parecidas do Tidal são só o ponto de partida. Dá-lhe um `nome` teu, que diga o
+       pedido: na primeira revisão o conector muda-o, na app e no Tidal.
+
+     Nos dois casos, a faixa de partida é a primeira da playlist e fica (com o `tidalId` e `"fixa": true`); das que lá
+     estão (a lista dela vem em *O que o Maestro já fez*; aqui podes repeti-las, é a mesma playlist), mantém só as que
+     passam no teu critério; pesquisa os **vizinhos** da faixa de partida (produtor, editora, músicos, cena e época) e
+     junta-os. Publica com `--renovar <id da playlist> --pedido <id do pedido>` (no mesmo sítio e no mesmo link do
+     Tidal). No `resumo`, diz o que mudaste. A app compara a tua versão com a lista do Tidal (quantas ficaram, quantas
+     entraram, o que a pessoa guarda nas favoritas de cada lado): escolhe pelo mérito, sem tirar por tirar.
    - **Playlist da semana**: se o `dados.md` disser *"está na altura de uma nova"* (ou que ainda não há nenhuma) e for
      a corrida da **manhã**, cria a **«Onda da semana · dd/mm»**.
    - **Novidades dos teus artistas**: se o `dados.md` disser *"É sexta de manhã: cria a playlist «Novidades dos teus
