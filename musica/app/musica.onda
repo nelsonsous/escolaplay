@@ -179,7 +179,7 @@
 #   .mu-folha-cv a capa · .mu-fo-tx o nome · .mu-fo-gerir o «⋯» (mudar o nome, atualizar sozinha, apagar) ·
 #   .mu-fo-acoes os botões · .mu-fo-afina o afinar (com .mu-af-graf o gráfico e .mu-af-guarda o guardar) ·
 #   .mu-cx-xf as faixas · .mu-fo-junta acrescentar uma faixa · .mu-fo-sobre o porquê, como correu e a mistura ·
-#   .mu-fo-hist os pedidos · .mu-fo-afinar afinar com o Maestro
+#   .mu-fo-hist os pedidos
 # c é a playlist no índice (está lá logo: a folha abre com o tamanho certo); d = @51 é o documento, que chega a
 # seguir com as faixas, e @52 as pré-escutas e as capas. @28: 1 a perguntar se apaga, 2 a mudar o nome, 4 o «⋯»
 # aberto. @40: a faixa aberta (posição + 1).
@@ -187,7 +187,7 @@
   `<div class="mu-folha" role="dialog" aria-modal="true" aria-label="{ esct txt c.nome }">`
   `<div class="mu-folha-topo"><button type="button" class="mu-fechar" data-onda="exp&#9;{ esct txt c.id }" aria-label="Fechar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><button type="button" class="mu-mais" data-onda="menu" aria-label="Mais opções"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button></div>`
   `<div class="mu-folha-cab"><div class="mu-folha-cv">{ cx_capa c }</div><div class="tx mu-fo-tx">{ fo_tx c }</div></div>`
-  `<div class="mu-cx"><div class="mu-fo-gerir">{ fo_gerir c }</div><div class="mu-acoes mu-fo-acoes">{ fo_acoes c }</div><div class="mu-fo-afina">{ fo_afina c }</div><div class="mu-cx-xf">{ fo_faixas c }</div><div class="mu-fo-junta">{ fo_junta c }</div><div class="mu-fo-sobre">{ fo_sobre c }</div><div class="mu-fo-hist">{ Se @ 51 hist_pl @ 51 }</div><div class="mu-fo-afinar">{ fo_afinar }</div></div></div>` }
+  `<div class="mu-cx"><div class="mu-fo-gerir">{ fo_gerir c }</div><div class="mu-acoes mu-fo-acoes">{ fo_acoes c }</div><div class="mu-fo-afina">{ fo_afina c }</div><div class="mu-cx-xf">{ fo_faixas c }</div><div class="mu-fo-junta">{ fo_junta c }</div><div class="mu-fo-sobre">{ fo_sobre c }</div><div class="mu-fo-hist">{ Se @ 51 hist_pl @ 51 }</div></div></div>` }
 # o nome e o resumo (do documento, quando ele já chegou: um nome acabado de mudar ou uma faixa tirada veem-se logo)
 : dur_de i>i fx { = s 0 = f pri fx W f { = s + s int f.duracao = f seg f } s }
 : fo_tx i>i c { = d @ 51 = nm ? d txt d.nome 0
@@ -207,12 +207,12 @@
       `<div class="mu-card mu-menu"><button type="button" class="mu-btn sec" data-onda="renomear">Mudar o nome</button>`
       `<div class="mu-interruptor"><div><b>Atualizar sozinha</b><span class="mu-nota">Toda a semana o Maestro renova-a com o mesmo critério, no mesmo link do Tidal: ficam as que guardaste, saem as que tiraste.{ Se d Se txt d.renovadaEm ` Última: { pdia txt d.renovadaEm }.` }</span></div><button type="button" class="mu-btn sec peq" data-onda="renovar" aria-pressed="{ ? rv "true" "false" }">{ ? rv "Ligado" "Desligado" }</button></div>`
       `<button type="button" class="mu-btn perigo" data-onda="apagar">{ ic 9 }Apagar</button></div>` } }
-# os botões: ouvir no Tidal (ou enviar para lá) e afinar (se o Maestro deixou candidatas); a afinar, dão lugar ao afinar
+# os botões: ouvir no Tidal (ou pôr lá) e afinar; a afinar, dão lugar ao cartão do afinar
 : fo_acoes i>i c Se ~ @ 6 { = d @ 51 = td ? d d.tidal 0
   ? && td == tipo td 7 `<a class="mu-btn peq" href="{ esct txt td.url }" target="_blank" rel="noopener">{ ic 4 }Ouvir no Tidal</a>`
     { ? txt c.tidal `<a class="mu-btn peq" href="{ esct txt c.tidal }" target="_blank" rel="noopener">{ ic 4 }Ouvir no Tidal</a>`
       `<button type="button" class="mu-btn peq" data-onda="enviar">{ ic 3 }Pôr no Tidal</button>` }
-  Se && d quantos d.candidatas `<button type="button" class="mu-btn sec peq" data-onda="afinar">{ ic 5 }Afinar</button>` }
+  Se d `<button type="button" class="mu-btn sec peq" data-onda="afinar">{ ic 5 }Afinar</button>` }
 # o porquê da playlist, como correu (o conector avalia-a sozinho) e a mistura: fechado até se querer ver
 : fo_sobre i>i c { = d @ 51
   Se d {
@@ -232,7 +232,6 @@
       Se quantos a.eco ` · nas tuas mixes: { partistas a.eco }`
       `</p><p class="mu-nota">Sem perguntar nada: as faixas que guardas nas favoritas, as que tiras ou juntas no Tidal, e os artistas que o Tidal passa a pôr nas tuas mixes.</p>` }
     `<h3>A mistura</h3>{ mistura_de d.faixas }</details>` } }
-: fo_afinar >i `<div class="mu-cx-afinar"><label class="mu-campo"><span>Afinar com o Maestro</span><textarea data-onda="af-tx" maxlength="500" rows="2" placeholder="Ex.: menos eletrónica, mais vozes femininas">{ esct @ 49 }</textarea></label><button type="button" class="mu-btn sec peq" data-onda="afinar_pedir">{ ic 2 }Pedir ao Maestro</button></div>`
 # a capa grande da folha: as 4 primeiras capas diferentes das faixas (160 px), ou 1; enquanto nao chegam, as do indice
 : cx_img i>i u `<img src="{ esct u }" alt="" decoding="async">`
 : cx_capa i>i c {
@@ -269,6 +268,8 @@
 # as faixas: capa, título e artista, ouvir 30 s e ⇄ trocar. Enquanto não chegam, linhas cinzentas do mesmo tamanho (a
 # folha não salta). Tocar no título abre a linha: tirar e «Mais como esta». Arrastar a linha para a esquerda tira-a.
 # A faixa que está a ser trocada (@60 = posição + 1) mostra já a que entra (@61, a candidata que o motor escolheu)
+# a afinar pelas regras (o afinar aberto e a playlist com candidatas): as linhas passam a ter o alfinete
+: afr >i && @ 6 > @ 37 0
 : fo_faixas i>i c {
   = d @ 51
   ? ~ d {
@@ -276,10 +277,10 @@
     `<ol class="mu-xf" aria-busy="true" aria-label="A carregar as faixas">`
     L p n `<li class="sk"><span class="cp"></span><div class="tx"><b>&nbsp;</b><span>&nbsp;</span></div><span class="mu-ouvir vazio"></span><span class="mu-ouvir vazio"></span></li>`
     "</ol>" } {
-    `<ol class="mu-xf{ Se @ 6 " a-afinar" }">`
+    `<ol class="mu-xf{ Se afr " a-afinar" }">`
     Se == @ 6 2 L p @ 14 { = ci @ + @ 13 p = g _ar_get cn ci $"faixa" af_linha g ci ~ na_doc d txt g.id }
     = f ? == @ 6 2 0 pri d.faixas = p 0
-    W f ? @ 6 { af_linha f cand_de d txt f.id 0 = f seg f = p + p 1 } {
+    W f ? afr { af_linha f cand_de d txt f.id 0 = f seg f = p + p 1 } {
       = id txt f.id = ab == @ 40 + p 1 = tr == @ 60 + p 1
       # a trocar: a linha já mostra a que entra (se o motor a escolheu aqui); sem ela, espera pela parecida do Tidal
       # (a chave da linha é a faixa que se vê: a que entra é uma linha nova, e fica a mesma quando a troca é gravada)
@@ -293,7 +294,7 @@
       "</li>"
       = f seg f = p + p 1 }
     "</ol>"
-    Se ~ @ 6 troca_nota d } }
+    Se ~ afr troca_nota d } }
 # milissegundos desde 1970 de «AAAA-MM-DDTHH:MM:SS…» (UTC)
 : ms_de i>i t ? < _tx_len t 19 0 + * dias_de t 86400000 * 1000 + + * dnum t 11 2 3600 * dnum t 14 2 60 dnum t 17 2
 # a última troca ou faixa tirada (nos últimos 10 minutos, se o conector ainda guarda a faixa que saiu), com «Desfazer»
@@ -308,7 +309,7 @@
 # Desenha-se com o _ht_muda: no ecrã só muda o que é diferente (as capas não piscam, a lista não salta, o que está a
 # meio de uma animação continua); cada item de uma lista leva data-chave, para se saber qual é qual.
 # redesenha pedaços da folha aberta sem mexer no resto (m, somados: 1 o nome, 2 o «⋯», 4 os botões, 8 as faixas,
-# 16 o porquê e os pedidos, 32 a capa, 64 afinar com o Maestro, 128 o afinar, 256 só o gráfico e o guardar do
+# 16 o porquê e os pedidos, 32 a capa, 128 o afinar (com a caixa do Maestro), 256 só o gráfico e o guardar do
 # afinar, 512 acrescentar uma faixa). Se a folha ainda não está no ecrã, desenha tudo
 : refolha i>i m {
   = c pl_aberta
@@ -320,7 +321,6 @@
     Se && ok & m 4 { = h _ht_ini 3000 fo_acoes c = ok _ht_muda $".mu-folha .mu-fo-acoes" h }
     Se && ok & m 16 { = h _ht_ini 40000 fo_sobre c = ok _ht_muda $".mu-folha .mu-fo-sobre" h = h _ht_ini 40000 Se @ 51 hist_pl @ 51 _ht_muda $".mu-folha .mu-fo-hist" h }
     Se && ok & m 32 { = h _ht_ini 4000 cx_capa c = ok _ht_muda $".mu-folha .mu-folha-cv" h }
-    Se && ok & m 64 { = h _ht_ini 6000 fo_afinar = ok _ht_muda $".mu-folha .mu-fo-afinar" h }
     Se && ok & m 128 { = h _ht_ini 40000 fo_afina c = ok _ht_muda $".mu-folha .mu-fo-afina" h }
     Se && && ok & m 256 @ 6 { = h _ht_ini 30000 af_graf = ok _ht_muda $".mu-folha .mu-af-graf" h = h _ht_ini 3000 af_guarda _ht_muda $".mu-folha .mu-af-guarda" h }
     Se && ok & m 512 { = h _ht_ini 20000 fo_junta c = ok _ht_muda $".mu-folha .mu-fo-junta" h }
@@ -506,10 +506,12 @@
   _me_solta mk
   ! 33 - _an_agora t0
   0 }
-# abrir o afinar: as opções são as da playlist; enquanto não se mexe em nada vê-se a playlist como está
+# abrir o afinar: em cima, a caixa para pedir ao Maestro; por baixo, as regras (as opções são as da playlist;
+# enquanto não se mexe em nada vê-se a playlist como está). Sem candidatas, fica só a caixa do Maestro
 : afina_abrir >i {
-  = d @ 51 = n quantos d.candidatas
-  Se n {
+  = d @ 51
+  Se d {
+    = n quantos d.candidatas
     ! 37 n ! 11 A + n 1 ! 13 A + n 1 ! 15 A + n 1 ! 17 A + n 1 ! 32 A + n 1
     = x pri d.candidatas = i 0 W x { ! + @ 11 i x = x seg x = i + i 1 }
     = op d.opcoes = us af_usaveis d
@@ -538,13 +540,19 @@
   `<button type="button" class="mu-btn" data-onda="af-guardar"{ Se != @ 6 2 " disabled" }>{ ic 3 }{ ? == tipo d.tidal 7 "Guardar no Tidal" "Guardar" }</button><button type="button" class="mu-btn sec" data-onda="af-fechar">{ ? == @ 6 2 "Cancelar" "Fechar" }</button>` }
 # o afinar na folha: o gráfico, quatro escolhas (estilo, energia, quantas faixas, quantas por artista) e guardar
 : fo_afina i>i c Se @ 6 { = us af_usaveis @ 51
-  `<div class="mu-card mu-afina"><h3>Afinar</h3><p class="mu-nota">Muda as regras e o motor escolhe e ordena outra vez, aqui no telemóvel. O alfinete de uma faixa segura-a na playlist.</p>`
-  `<div class="mu-af-graf">{ af_graf }</div>`
-  `<div class="mu-campo"><span>Estilo</span><div class="mu-seg" data-seg="estilo">{ seg_af 2 5 0 @ 9 }</div></div>`
-  `<div class="mu-campo"><span>Energia ao longo da playlist</span><div class="mu-seg" data-seg="arco">{ seg_af 3 4 0 @ 10 }</div></div>`
-  `<label class="mu-campo"><span>Faixas</span><div class="mu-range"><input type="range" data-onda="af-n" min="{ N Mn 5 us }" max="{ N us }" value="{ N @ 7 }"><output id="af-nv">{ N @ 7 }</output></div></label>`
-  `<div class="mu-campo"><span>Máximo por artista</span><div class="mu-seg" data-seg="maxArtista">{ seg_af 1 4 1 @ 8 }</div></div>`
-  `<div class="mu-acoes mu-af-guarda">{ af_guarda }</div></div>` }
+  `<div class="mu-card mu-afina"><h3>Afinar</h3>`
+  # por palavras: o Maestro refaz a playlist com o que se pede (no mesmo sítio e no mesmo link do Tidal)
+  `<div class="mu-cx-afinar"><label class="mu-campo"><span>Diz ao Maestro o que mudar</span><textarea data-onda="af-tx" maxlength="500" rows="2" placeholder="Ex.: menos eletrónica, mais vozes femininas">{ esct @ 49 }</textarea></label><button type="button" class="mu-btn sec peq" data-onda="afinar_pedir">{ ic 2 }Pedir ao Maestro</button></div>`
+  # pelas regras: o motor escolhe e ordena outra vez, aqui no telemóvel (só com as candidatas que a playlist guarda)
+  ? ~ us `<div class="mu-acoes mu-af-guarda"><button type="button" class="mu-btn sec" data-onda="af-fechar">Fechar</button></div>` {
+    `<p class="mu-nota mu-af-ou">Ou muda tu as regras: o motor escolhe e ordena outra vez, aqui no telemóvel. O alfinete de uma faixa segura-a na playlist.</p>`
+    `<div class="mu-af-graf">{ af_graf }</div>`
+    `<div class="mu-campo"><span>Estilo</span><div class="mu-seg" data-seg="estilo">{ seg_af 2 5 0 @ 9 }</div></div>`
+    `<div class="mu-campo"><span>Energia ao longo da playlist</span><div class="mu-seg" data-seg="arco">{ seg_af 3 4 0 @ 10 }</div></div>`
+    `<label class="mu-campo"><span>Faixas</span><div class="mu-range"><input type="range" data-onda="af-n" min="{ N Mn 5 us }" max="{ N us }" value="{ N @ 7 }"><output id="af-nv">{ N @ 7 }</output></div></label>`
+    `<div class="mu-campo"><span>Máximo por artista</span><div class="mu-seg" data-seg="maxArtista">{ seg_af 1 4 1 @ 8 }</div></div>`
+    `<div class="mu-acoes mu-af-guarda">{ af_guarda }</div>` }
+  "</div>" }
 # uma faixa da folha a afinar: capa, título, artista e o alfinete (fixar)
 : af_linha iii>i f ci nova {
   = id txt f.id = cv txt _ar_get _ar_get @ 52 $"capas" id = fx ? >= ci 0 @ + @ 17 ci 0
@@ -639,7 +647,7 @@
     ? && >= modo 20 <= modo 22 { ! 51 r ! 60 0 ! 61 0 refolha 9
       _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl" 0 }
     ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas, já no teu Tidal.` 0 }
-    ? == modo 18 { tvazio @ 49 refolha 64
+    ? == modo 18 { tvazio @ 49 Se != @ 6 2 ! 6 0 refolha 652
       # (os pedidos também: o cartão da playlist passa a dizer «afinação pedida»)
       _an_buscar $"/api/pedidos" $"lido_ped"
       Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp"
@@ -892,7 +900,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.34.1 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.34.2 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====

@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay, a Mercados e a Meteo (/escolaplay/): este SW só mexe nas
 // caches "musica-*" e só trata pedidos dentro da sua pasta (/escolaplay/musica/) e o anfitrião das apps Onda.
 // O conector e o Tidal (outros domínios) nunca passam por aqui.
-const CACHE = 'musica-v52'; // 2.34.1 — limpeza: sai o que ficou sem uso
+const CACHE = 'musica-v53'; // 2.34.2 — os botões do cimo da folha respondem sempre ao toque; a caixa do Maestro passa para dentro do «Afinar»
 const ASSETS = [
     './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js', '../onda/rt/gestos-onda.js',
     './privacidade.html', './apoio.html',

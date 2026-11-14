@@ -371,7 +371,8 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-sobre h3 { margin: 14px 0 4px; font-size: 13px; font-weight: 650; color: var(--mut); }
 .mu-sobre h3:first-of-type { margin-top: 2px; }
 .mu-sobre p { margin: 4px 0; color: var(--mut); font-size: 14.5px; }
-.mu-cx-afinar { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
+.mu-cx-afinar { display: flex; gap: 8px; align-items: flex-end; margin: 6px 0 4px; }
+.mu-afina > .mu-af-ou { margin: 16px 0 10px; padding-top: 14px; border-top: 1px solid var(--line); }
 .mu-cx-afinar .mu-campo { flex: 1; margin: 0; }
 .mu-cx-afinar textarea { min-height: 44px; }
 /* a lista: o título com «Juntar», os filtros (uma fila que desliza para o lado) e o modo de escolher para juntar */

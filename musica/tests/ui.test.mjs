@@ -167,16 +167,13 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     // o cartão abre-se ali mesmo: as faixas, ouvir 30 s (as que têm pré-escuta), «não esta» e afinar; «Abrir» leva à playlist
     assert.ok(await page.locator('.mu-pl .chev').first().isVisible(), 'a seta mostra que o cartão abre');
     await page.locator('.mu-pl-a').click();
-    // o cartão abre logo com o tamanho certo; as faixas e as pré-escutas chegam depois só para dentro dele (não treme,
-    // e quem já está a escrever na caixa de afinar não perde o teclado)
+    // o cartão abre logo com o tamanho certo; as faixas e as pré-escutas chegam depois só para dentro dele (não treme)
     await page.locator('.mu-folha').waitFor();
     assert.ok(await page.evaluate(() => document.activeElement.classList.contains('mu-fechar')), 'ao abrir, o foco vai para o «fechar»');
-    const caixa = await page.locator('.mu-pl.aberta [placeholder^="Ex.: menos eletrónica"]').elementHandle();
-    await caixa.focus();
     await page.locator('.mu-pl.aberta .mu-xf li:not(.sk)').first().waitFor();
     assert.equal(await page.locator('.mu-pl.aberta .mu-xf li').count(), doc.faixas.length);
     await page.locator('.mu-pl.aberta [data-onda^="ouvir"]').first().waitFor();
-    assert.ok(await caixa.evaluate((el) => el.isConnected && document.activeElement === el), 'a caixa de afinar ficou (com o foco)');
+    assert.equal(await page.locator('.mu-folha [data-onda="af-tx"]').count(), 0, 'a caixa do Maestro já não está no fundo da folha: é dentro do «Afinar»');
     assert.equal(await page.getAttribute('.mu-pl.aberta .mu-pl-a', 'aria-expanded'), 'true');
     const previa = (await page.locator('.mu-pl.aberta [data-onda^="ouvir"]').first().getAttribute('data-onda')).split('\t')[1];
     assert.match(previa, /^https:\/\/(audio|cdn\.deezer)\.example\//);
@@ -199,7 +196,6 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.ok(srcs.some((u) => /^https:\/\/resources\.tidal\.com\/images\/[0-9a-f/]+\/160x160\.jpg$/.test(u)), 'capas do Tidal');
     assert.ok(srcs.every((u) => /^https:\/\/(resources\.tidal\.com|cdn-images\.dzcdn\.net)\//.test(u)));
     assert.equal(await page.locator('.mu-pl.aberta .mu-xf .cp').count(), doc.faixas.length);
-    await page.locator('.mu-pl.aberta [placeholder^="Ex.: menos eletrónica"]').waitFor();
     // a folha ocupa o ecrã (por cima da barra de baixo), com a capa grande: as 4 primeiras capas diferentes, em 160 px
     const ecra = await page.evaluate(() => { const r = document.querySelector('.mu-folha').getBoundingClientRect(); return [r.top, r.left, r.width - innerWidth, r.height - innerHeight]; });
     assert.deepEqual(ecra.map(Math.round), [0, 0, 0, 0], 'a folha ocupa o ecrã');
@@ -331,6 +327,16 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.getByRole('button', { name: 'Afinar', exact: true }).click();
     // aberto: ainda se vê a playlist como está, com o gráfico da energia (a linha, a área e o arco pedido a tracejado)
     await page.locator('.mu-afina .mu-graf path.linha').waitFor();
+    // o afinar abre em cima, antes das faixas; a primeira coisa é a caixa para dizer ao Maestro o que mudar, e só
+    // depois as regras
+    const ordemAf = await page.evaluate(() => { const y = (q) => document.querySelector(q).getBoundingClientRect().top;
+        return [y('.mu-folha .mu-afina'), y('.mu-folha [data-onda="af-tx"]'), y('.mu-folha .mu-graf'), y('.mu-folha .mu-xf li')]; });
+    assert.deepEqual(ordemAf, [...ordemAf].sort((a, b) => a - b), `a caixa do Maestro, depois o gráfico, depois as faixas: ${ordemAf.map(Math.round)}`);
+    await page.locator('.mu-afina').getByText('Diz ao Maestro o que mudar').waitFor();
+    assert.equal(await page.locator('.mu-afina').getByRole('button', { name: 'Pedir ao Maestro' }).count(), 1);
+    const caixa = await page.locator('.mu-afina [data-onda="af-tx"]').elementHandle();
+    await caixa.focus();
+    await page.keyboard.type('mais vozes');
     assert.deepEqual(await afinadas(), docA.faixas.map((f) => f.id));
     assert.equal(await page.locator('[data-onda="af-guardar"]').isDisabled(), true, 'sem mudanças não há nada para guardar');
     assert.match(await page.locator('.mu-afina .mu-graf path.linha').getAttribute('d'), /^M8 [\d.]+(C[\d. ]+){3}$/, 'uma curva por 4 faixas');
@@ -341,6 +347,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     // cada mudança corre o motor: o juiz (o curador.wasm com as mesmas entradas) tem de dar a mesma ordem
     await page.locator('[data-onda="af-mx\t2"]').click(); op.maxArtista = 2;
     await juiz('máximo 2 por artista');
+    assert.deepEqual(await caixa.evaluate((el) => [el.isConnected, el.value]), [true, 'mais vozes'], 'mudar uma regra redesenha o afinar, mas a caixa do Maestro é a mesma e o que lá se escreveu fica');
     assert.match(await conta.textContent(), /^5 faixas · .+ · \d+ entram?, \d+ sa(i|em)$/);
     assert.equal(await page.locator('[data-onda="af-guardar"]').isDisabled(), false);
     assert.ok(await page.locator('.mu-folha .mu-xf li.af.nova').count() >= 1, 'as que entram vêm marcadas');
@@ -478,6 +485,11 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-folha .mu-hist li.espera').getByText('Rever as parecidas do Tidal').waitFor();
     assert.match(await page.locator('.mu-folha .mu-hist li.espera').textContent(), /Revisão · à espera do Maestro · Cancelar$/);
     await foto('6-parecidas');
+    // «Afinar» numa playlist de parecidas (todas as candidatas já lá estão): abre o afinador, como nas outras
+    await page.locator('.mu-folha').getByRole('button', { name: 'Afinar', exact: true }).click();
+    await page.locator('.mu-folha .mu-afina').waitFor({ timeout: 5000 });
+    await page.locator('.mu-afina').getByRole('button', { name: 'Fechar' }).click();
+    await page.locator('.mu-folha .mu-afina').waitFor({ state: 'detached' });
     await page.locator('.mu-folha .mu-fechar').click();
     await page.locator('.mu-folha').waitFor({ state: 'detached' });
     await page.locator('#mu-body .mu-pl').nth(1).waitFor();
@@ -754,10 +766,17 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-folha .mu-xf-mais').getByRole('button', { name: 'Tirar' }).click();
     await page.locator('.mu-folha .mu-xf-nota').getByText(/^Tiraste «/).waitFor();
     assert.equal((await naFolha(page)).length, nAntes - 1, 'tirar é na hora');
-    await page.locator('[data-onda="af-tx"]').fill('Mais vozes, menos jazz');
-    await page.getByRole('button', { name: 'Pedir ao Maestro' }).click();
+    // afinar por palavras: «Afinar» abre em cima a caixa do Maestro; enviado o pedido, o afinar fecha e fica limpo
+    await page.locator('.mu-folha').getByRole('button', { name: 'Afinar', exact: true }).click();
+    await page.locator('.mu-afina [data-onda="af-tx"]').fill('Mais vozes, menos jazz');
+    await page.locator('.mu-afina').getByRole('button', { name: 'Pedir ao Maestro' }).click();
     await page.locator('#mu-aviso').getByText(/Pedido de afinação enviado/).waitFor();
-    assert.equal(await page.locator('[data-onda="af-tx"]').inputValue(), '', 'enviado, o campo fica limpo');
+    await page.locator('.mu-folha .mu-afina').waitFor({ state: 'detached' });
+    await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
+    await page.locator('.mu-folha').getByRole('button', { name: 'Afinar', exact: true }).click();
+    assert.equal(await page.locator('.mu-afina [data-onda="af-tx"]').inputValue(), '', 'enviado, o campo fica limpo');
+    await page.locator('.mu-afina').getByRole('button', { name: 'Fechar' }).click();
+    await page.locator('.mu-folha .mu-afina').waitFor({ state: 'detached' });
     const af = JSON.parse(await env.KV.get('pedidos'))[0];
     assert.deepEqual([af.texto, af.afinar.rejeitadas.length], ['Mais vozes, menos jazz', 1]);
     // a playlist mostra o pedido original e a afinação, à espera do Maestro
@@ -783,8 +802,9 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-folha .mu-hist .mu-mudou').getByText('0 novas, 1 saiu').waitFor();
     assert.match(await page.locator('.mu-folha .mu-hist li').last().textContent(), /Afinação · feita a /);
     // outra afinação pedida: o cartão da playlist diz «afinação pedida», e cancela-se na folha, na linha dela
-    await page.locator('[data-onda="af-tx"]').fill('Mais calma');
-    await page.getByRole('button', { name: 'Pedir ao Maestro' }).click();
+    await page.locator('.mu-folha').getByRole('button', { name: 'Afinar', exact: true }).click();
+    await page.locator('.mu-afina [data-onda="af-tx"]').fill('Mais calma');
+    await page.locator('.mu-afina').getByRole('button', { name: 'Pedir ao Maestro' }).click();
     await page.locator('.mu-folha .mu-hist li.espera').getByText('«Mais calma»').waitFor();
     await page.locator('.mu-folha .mu-fechar').click();
     await page.waitForFunction(() => !document.querySelector('.mu-folha'));
@@ -1246,4 +1266,61 @@ test('o Maestro na hora: o pedido chama-o, a app diz «uns minutos» e vai ver s
         delete env.MAESTRO_FIRE_URL; delete env.MAESTRO_TOKEN; delete env.MAESTRO_ESPERA_MS;
         await ctx.close();
     }
+});
+
+test('afinar uma playlist de parecidas à antiga, com 30 faixas (as do Tidal: energias com casas decimais, nomes com apóstrofos, faixas sem capa)', { skip: !chromium && 'sem Playwright' }, async () => {
+    // como as «Parecidas com …» criadas antes de haver revisão do Maestro: todas as candidatas estão na playlist
+    const nomes = [['Hallelujah', 'Jeff Buckley'], ['Hallelujah', 'Leonard Cohen'], ['Hurt', 'Johnny Cash'], ['Angel', 'Sarah McLachlan'], ['Lilac Wine', 'Jeff Buckley'], ['Mike Koss - halleaugh', 'Mike'],
+        ['Hallelujah', 'Rufus Wainwright'], ['Mad World', 'Gary Jules', 'Michael Andrews'], ['Suzanne', 'Leonard Cohen'], ['Everybody Hurts', 'R.E.M.'], ['Nothing Compares 2 U', "Sinéad O'Connor"],
+        ['Streets of Philadelphia', 'Bruce Springsteen'], ['Comfortably Numb', 'Pink Floyd'], ['Hallelujah', 'John Cale'], ['Where Did You Sleep Last Night', 'Nirvana'], ['High and Dry', 'Radiohead'],
+        ['Teardrop', 'Massive Attack', 'Elizabeth Fraser'], ['1979', 'Smashing Pumpkins'], ['Skinny Love', 'Bon Iver']];
+    while (nomes.length < 30) nomes.push([`Faixa "${nomes.length}" <b>&`, `Artista ${nomes.length % 7}`]);
+    const faixas = nomes.map(([titulo, ...artistas], i) => ({ id: String(700000 + i), titulo, versao: '', artistas, album: 'Álbum', ano: 1990 + (i % 30), duracao: 200 + i * 7, tags: i % 3 ? ['LOSSLESS'] : ['HIRES_LOSSLESS'],
+        bpm: i === 5 ? 0 : 71.5 + i * 3.7, tom: (i % 24) + 1, genero: '', popularidade: 30 + i, motivo: i ? 'Parecida com «Hallelujah».' : 'A faixa de partida.', porque: '', pontos: 0, url: `https://tidal.com/browse/track/${700000 + i}` }));
+    const candidatas = faixas.map((f, i) => ({ artista: f.artistas[0], titulo: f.titulo, motivo: f.motivo, fixa: !i, faixa: f,
+        sinais: { artista: f.artistas[0], genero: '', ano: f.ano, gosto: 200, qualidade: 700, tendencia: f.popularidade, claude: 700, novidade: 1000, energia: f.bpm ? Math.min(950, Math.max(100, ((f.bpm - 60) * 1000) / 110)) : 500, bpm: f.bpm, tom: f.tom, fixa: !i } }));
+    const doc = { id: 'pparecidas30', nome: 'Parecidas com Hallelujah', descricao: 'Faixas parecidas com «Hallelujah», de Jeff Buckley.', resumo: 'Pedi ao Tidal as faixas parecidas com «Hallelujah».', tendencias: [], pedido: '',
+        opcoes: { faixas: 30, maxArtista: 3, estilo: 'equilibrado', arco: 'onda' }, faixas, candidatas, custo: 0, criadaEm: '2026-11-13T10:00:00.000Z', por: 'app', modelo: '',
+        tidal: { id: 'uuid-nova', url: 'https://tidal.com/browse/playlist/uuid-nova', criadaEm: '2026-11-13T10:00:00.000Z', faixas: 30 } };
+    await env.KV.put('playlist:' + doc.id, JSON.stringify(doc));
+    const idx = JSON.parse(await env.KV.get('playlists'));
+    idx.unshift({ id: doc.id, nome: doc.nome, criadaEm: doc.criadaEm, por: 'app', faixas: 30, duracao: faixas.reduce((t, f) => t + f.duracao, 0), tidal: doc.tidal.url });
+    await env.KV.put('playlists', JSON.stringify(idx));
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('TRINTA-30').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    try {
+        const page = await ctx.newPage();
+        const erros = [];
+        page.on('pageerror', (e) => erros.push(String(e)));
+        page.on('console', (m) => { if (m.type() === 'error') erros.push('consola: ' + m.text()); });
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('TRINTA-30');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        const cartao = page.locator('#mu-body .mu-pl', { has: page.locator(`[data-onda="exp\t${doc.id}"]`) });
+        await cartao.locator('.mu-pl-a').click();
+        await page.locator('.mu-folha .mu-xf li[data-esq]').nth(29).waitFor();
+        await page.waitForLoadState('networkidle');
+        // um dedo nunca fica parado: com a folha no topo, um toque que mexe 2 px para baixo continua a ser um toque (se a
+        // casca segurasse esse movimento, o iPhone desistia do toque e o «Afinar» não respondia); a partir de 4 px é puxar
+        const mexer = (dy) => page.evaluate((dy) => {
+            const b = document.querySelector('.mu-folha [data-onda="afinar"]'), r = b.getBoundingClientRect();
+            const toque = (y) => new Touch({ identifier: 9, target: b, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 + y });
+            b.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(0)], bubbles: true, cancelable: true }));
+            const m = new TouchEvent('touchmove', { touches: [toque(dy)], bubbles: true, cancelable: true });
+            b.dispatchEvent(m);
+            b.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
+            return m.defaultPrevented;
+        }, dy);
+        assert.equal(await page.locator('.mu-folha').evaluate((f) => f.scrollTop), 0);
+        assert.equal(await mexer(2), false, 'um toque que mexe 2 px para baixo não é segurado: o iPhone ainda dá o toque');
+        assert.equal(await mexer(-3), false);
+        assert.equal(await mexer(6), true, 'a partir de 4 px para baixo é puxar para fechar: a folha segura o movimento');
+        await page.locator('.mu-folha').getByRole('button', { name: 'Afinar', exact: true }).tap();
+        await page.locator('.mu-folha .mu-afina').waitFor({ timeout: 5000 });
+        assert.equal(await page.locator('.mu-folha .mu-xf li.af').count(), 30);
+        // em cima, logo depois do cabeçalho: a caixa do Maestro vê-se sem descer a folha
+        const caixa = await page.locator('.mu-afina [data-onda="af-tx"]').boundingBox();
+        assert.ok(caixa.y > 0 && caixa.y + caixa.height < 844, `a caixa do Maestro está à vista (${Math.round(caixa.y)})`);
+        assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros (as capas de fora não se carregam neste teste)');
+    } finally { await ctx.close(); }
 });
