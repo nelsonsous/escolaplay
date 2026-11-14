@@ -53,6 +53,11 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   candidatas) e o Worker monta a versão (`POST /api/playlists/:id/versoes`), na app e no Tidal.
   A casca [`musica.js`](musica.js) só trata do que a Onda não tem como porta: a chave do aparelho nos pedidos, os
   pedidos que escrevem ("MÉTODO caminho" + corpo), sair para o login do Tidal ("IR url") e o regresso dele.
+- **A tua conta e a App Store** — nos Ajustes, «A tua conta» diz o que se guarda e tem **«Apagar a minha conta»**
+  (`DELETE /api/conta`: o conector apaga tudo o que guarda da pessoa; as playlists do Tidal ficam). As páginas de
+  [privacidade](privacidade.html) e de [apoio](apoio.html) vão com a app. A **app nativa** ([`nativo/`](nativo/LEIA.md),
+  Capacitor) leva os ficheiros da app lá dentro — `nativo/montar.mjs`, chamado pelo `npm run onda` — e o login do
+  Tidal volta a ela.
 
 ## Partilhar com outras pessoas
 

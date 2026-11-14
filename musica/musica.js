@@ -43,11 +43,14 @@
 
     function buscar(pedido) {
         const nl = pedido.indexOf('\n');
-        const linha = nl < 0 ? pedido : pedido.slice(0, nl), corpo = nl < 0 ? '' : pedido.slice(nl + 1);
+        const linha = nl < 0 ? pedido : pedido.slice(0, nl);
+        let corpo = nl < 0 ? '' : pedido.slice(nl + 1);
         const esp = linha.indexOf(' ');
         const metodo = esp < 0 ? 'GET' : linha.slice(0, esp), alvo = esp < 0 ? linha : linha.slice(esp + 1);
         if (metodo === 'IR') { location.href = alvo; return Promise.resolve(new Response('')); }
         if (!/^(GET|POST|DELETE)$/.test(metodo) || !alvo.startsWith('/api/')) return Promise.resolve(new Response('', { status: 400 }));
+        // a app nativa com os ficheiros lá dentro (capacitor://localhost): o login do Tidal tem de voltar à app, não ao site
+        if (alvo === '/api/ligar' && location.protocol === 'capacitor:') { try { corpo = JSON.stringify({ ...JSON.parse(corpo || '{}'), voltar: 'app' }); } catch { /* fica como estava */ } }
         const headers = {};
         const chave = ls.get('chave');
         if (chave) headers.authorization = `Bearer ${chave}`;

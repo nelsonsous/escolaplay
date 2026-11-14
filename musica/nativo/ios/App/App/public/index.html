@@ -3,9 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0713">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Playlists de qualidade para o Tidal: uma IA analisa o que ouves e o que está a dar, e a app e o motor de curadoria são escritos na Onda.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Música">
     <title>Música</title>
-    <meta http-equiv="refresh" content="0; url=https://nelsonsous.github.io/escolaplay/musica/">
-    <style>html, body { margin: 0; height: 100%; background: #0b0713; }</style>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="stylesheet" href="musica.css">
 </head>
-<body></body>
+<body>
+    <div id="app" class="mu-app">
+        <main class="mu-body" id="mu-body" tabindex="-1"><p class="mu-load">A abrir…</p></main>
+        <nav class="mu-nav" id="mu-nav" aria-label="Secções"></nav>
+        <div id="mu-aviso" role="status" aria-live="polite"></div>
+    </div>
+    <script src="onda/anfitriao.js"></script>
+    <script src="onda/gestos-onda.js"></script>
+    <script src="musica.js"></script>
+</body>
 </html>

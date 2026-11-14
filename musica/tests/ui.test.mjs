@@ -552,6 +552,13 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.getByRole('button', { name: 'Testar o motor' }).click();
     await page.locator('#aj-motor-r').filter({ hasText: 'faixas escolhidas de 60' }).waitFor();
     await foto('4-ajustes');
+    // a tua conta (apagar tudo pede-se aqui; ao dono avisa que é quem montou a app) — «Não» não apaga nada
+    await page.locator('.mu-conta').getByRole('button', { name: 'Apagar a minha conta', exact: true }).click();
+    await page.locator('.mu-conta').getByText(/És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo\.$/).waitFor();
+    await foto('8-conta');
+    await page.locator('.mu-conta').getByRole('button', { name: 'Não', exact: true }).click();
+    await page.locator('.mu-conta').getByRole('button', { name: 'Apagar a minha conta', exact: true }).waitFor();
+    assert.ok(await env.KV.get('tidal:tokens'), 'o Tidal continua ligado');
 
     // 6) um pedido ao Maestro
     await nav(3);
@@ -1141,6 +1148,32 @@ test('convidar: o dono cria o convite nos Ajustes; a convidada liga o seu Tidal 
     await pc.locator('#mu-aviso').getByText('Este aparelho fica com acesso').waitFor();
     await pc.getByText('Ainda não há playlists').waitFor();
     assert.ok(await pc.evaluate(() => localStorage.getItem('musica:chave')), 'a app do ecrã principal fica com a chave dela');
+    // a tua conta: o que se guarda, as páginas de privacidade e de apoio, e apagar tudo (pede-se na app; pergunta primeiro)
+    const uidAna = JSON.parse(await env.KV.get('utilizadores'))[0].uid;
+    const daAna = () => [...env.KV.m.keys()].filter((k) => k.startsWith(`u:${uidAna}:`));
+    assert.ok(daAna().length > 0);
+    const conta = pb.locator('.mu-conta');
+    await conta.getByRole('heading', { name: 'A tua conta' }).waitFor();
+    assert.equal(await pb.locator('#mu-body').getByRole('link', { name: 'Privacidade' }).getAttribute('href'), 'privacidade.html');
+    assert.equal(await pb.locator('#mu-body').getByRole('link', { name: 'Apoio' }).getAttribute('href'), 'apoio.html');
+    await conta.getByRole('button', { name: 'Apagar a minha conta', exact: true }).click();
+    await conta.getByText(/^Apagar tudo\? Sai a ligação ao Tidal, .* As playlists que já estão no teu Tidal ficam lá\. Não dá para desfazer\.$/).waitFor();
+    assert.equal(await conta.getByText(/És quem montou a app/).count(), 0, 'o aviso de quem montou a app é só para o dono');
+    await conta.getByRole('button', { name: 'Não', exact: true }).click();
+    await conta.getByRole('button', { name: 'Apagar a minha conta', exact: true }).waitFor();
+    assert.ok(daAna().length > 0, '«Não» não apaga nada');
+    await conta.getByRole('button', { name: 'Apagar a minha conta', exact: true }).click();
+    await conta.getByRole('button', { name: 'Sim, apagar a minha conta' }).click();
+    await pb.locator('#mu-aviso').getByText('Conta apagada: o conector já não guarda nada sobre ti.').waitFor();
+    // fica como quem nunca entrou: sem chave no aparelho, sem nada no conector; a outra app dela também perde o acesso
+    await pb.locator('[data-onda="cod"]').waitFor();
+    assert.equal(await pb.evaluate(() => localStorage.getItem('musica:chave')), null);
+    assert.deepEqual(daAna(), []);
+    assert.deepEqual(JSON.parse(await env.KV.get('utilizadores')), []);
+    await pc.locator('#mu-nav [data-onda="ir\t1"]').click();
+    await pc.getByRole('heading', { name: 'Este aparelho perdeu o acesso' }).waitFor();
+    assert.ok(await env.KV.get('tidal:tokens'), 'o Tidal do dono continua ligado');
+    for (let i = erros.length - 1; i >= 0; i--) if (/status of 401/.test(erros[i])) erros.splice(i, 1); // (o 401 da outra app dela é o esperado)
     await c.close();
     assert.deepEqual(erros, []);
     await b.close();

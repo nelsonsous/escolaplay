@@ -5,7 +5,10 @@ export function kv() {
     const m = new Map();
     // escritas: conta-as (o plano gratuito dá 1000 por dia); cheia: recusa-as, como quando se passa o limite
     const o = { m, escritas: 0, cheia: false, get: async (k, t) => (m.has(k) ? (t === 'json' ? JSON.parse(m.get(k)) : m.get(k)) : null),
-        put: async (k, v) => { if (o.cheia) throw new Error('KV put() limit exceeded for the day.'); o.escritas++; m.set(k, String(v)); }, delete: async (k) => { m.delete(k); } };
+        put: async (k, v) => { if (o.cheia) throw new Error('KV put() limit exceeded for the day.'); o.escritas++; m.set(k, String(v)); }, delete: async (k) => { m.delete(k); },
+        // (páginas de 3, para se ver que quem lista segue o cursor)
+        list: async ({ prefix = '', cursor } = {}) => { const t = [...m.keys()].filter((k) => k.startsWith(prefix)).sort(); const i = Number(cursor) || 0; const keys = t.slice(i, i + 3).map((name) => ({ name }));
+            return i + 3 >= t.length ? { keys, list_complete: true } : { keys, list_complete: false, cursor: String(i + 3) }; } };
     return o;
 }
 

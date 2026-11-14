@@ -17,7 +17,7 @@
 #     1 tipo, 2 genero, 3 Tidal, 4 avaliacao), 59 filtro: qual (texto), 56 a escolher para juntar, 58 as escolhidas
 #     («,id,id,»)
 #   da folha de uma playlist (na vista 1): 50 o id da que está aberta, 51 o documento, 52 as pré-escutas e as capas,
-#     28 o «⋯» (1 a perguntar se apaga, 2 a mudar o nome, 4 aberto), 40 a faixa aberta (posição + 1), 55 o que toca,
+#     28 o «⋯» (1 a perguntar se apaga, 2 a mudar o nome, 4 aberto; nos Ajustes: 2 desligar, 3 esquecer, 5 apagar a conta), 40 a faixa aberta (posição + 1), 55 o que toca,
 #     60 a faixa que está a ser trocada (posição + 1) e 61 a candidata que entra (0: espera-se uma parecida do Tidal),
 #     6 o afinar (0 fechado, 1 aberto, 2 com mudanças; ver «afinar na folha»), 62 a procura de «acrescentar uma faixa»
 #   da vista (a zero ao navegar): 3 estado, 4 dados da vista, 5 pedidos, 12 a vista que está desenhada (ver `render`),
@@ -121,10 +121,10 @@
       `<div class="mu-card boas"><h3>Primeiro: a tua app no Tidal</h3><p>Em <a href="https://developer.tidal.com/dashboard" target="_blank" rel="noopener">developer.tidal.com</a> cria uma app (grátis) e, nas definições dela:</p><ul class="mu-tend"><li>Redirect URI: <code>{ esct txt e.retorno }</code></li><li>Scopes: <code>user.read collection.read playlists.read playlists.write search.read recommendations.read</code></li></ul>`
       ? || cod && ch e.tu {
           `<label class="mu-campo"><span>Client ID da app</span><input data-onda="cid" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="copia-o do Tidal" value="{ esct @ 21 }"></label><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="config">{ ic 15 }Guardar e continuar</button></div>` }
-        `<p class="mu-nota">Depois abre o link de ligação que o Claude te deu (termina em <code>?ligar=…</code>) para colares aqui o Client ID.</p>`
+        `<p class="mu-nota">Depois abre o link de ligação que recebeste (termina em <code>?ligar=…</code>) para colares aqui o Client ID.</p>`
       "</div>" }
-    { ? && ch ~ e.tu `<div class="mu-card boas"><h3>Este aparelho perdeu o acesso</h3><p>A chave guardada já não é válida. Cola aqui um código de ligação novo, que o Claude te dá.</p>{ campo_codigo }</div>`
-      ? cod `<div class="mu-card boas"><h3>Liga o teu Tidal</h3><p>Vais à página de login do Tidal, autorizas, e voltas aqui. As playlists passam a ser criadas na tua conta e o Maestro (o Claude) passa a ler o teu gosto.</p><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="ligar">{ ic 1 }Ligar ao Tidal</button></div></div>`
+    { ? && ch ~ e.tu `<div class="mu-card boas"><h3>Este aparelho perdeu o acesso</h3><p>A chave guardada já não é válida. Cola aqui um código de ligação novo.</p>{ campo_codigo }</div>`
+      ? cod `<div class="mu-card boas"><h3>Liga o teu Tidal</h3><p>Vais à página de login do Tidal, autorizas, e voltas aqui. As playlists passam a ser criadas na tua conta e o Maestro — uma IA — passa a ler o teu gosto (as tuas favoritas, os artistas que segues e as tuas playlists). <a href="privacidade.html">Privacidade</a></p><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="ligar">{ ic 1 }Ligar ao Tidal</button></div></div>`
       `<div class="mu-card boas"><h3>{ ? ligado "Liga este aparelho" "Liga o teu Tidal" }</h3><p>Num aparelho onde já entraste, vai a Ajustes → <b>Ligar outro aparelho</b> e cola aqui o código. Se é a primeira vez, abre o link do convite.</p>{ campo_codigo }</div>` } }
 
 # ===== Playlists =====
@@ -610,6 +610,8 @@
       = r _tx_abre + 400 * 7 _tx_len @ 38 `POST /api/aparelho{ P 10 }\{"codigo":{ pjs @ 38 },"nome":"app Música"\}`
       pede _tx_fecha r 10 0 } }
 : desligar_enviar >i ? ocupado 0 { pede`POST /api/desligar{ P 10 }\{\}` 8 0 }
+# apagar a conta: o conector apaga tudo o que guarda da pessoa; este aparelho fica sem chave
+: conta_apagar >i ? ocupado 0 { pede`DELETE /api/conta` 24 aviso $"A apagar a conta…" 0 }
 : lido_escrita ii>i t s {
   _an_esquecer
   = modo @ 34 ! 34 0 ! 31 0
@@ -627,7 +629,7 @@
       _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl"
       aviso $"Faixa acrescentada." 0 }
     ? == modo 14 { = c txt r.codigo Se c { tcopia @ 43 c 40 = w texto`Abre a Música (na app do ecrã principal, se a usares) e cola este código em «Código de ligação»: { crut c } — serve uma vez, durante 24 h.` = x _tx_abre 1800 purl w _tx_fecha x tcopia @ 44 x 580 render aviso $"Código criado: usa-o no outro aparelho." } }
-    ? == modo 13 { = l txt r.url Se l { tcopia @ 41 l 200 = w texto`Experimenta a Música: playlists de qualidade no teu Tidal, feitas pelo Claude. Abre este link no iPhone (serve uma vez): { crut l }` = x _tx_abre 1800 purl w _tx_fecha x tcopia @ 42 x 880 render aviso $"Convite criado: envia o link." } }
+    ? == modo 13 { = l txt r.url Se l { tcopia @ 41 l 200 = w texto`Experimenta a Música: playlists de qualidade no teu Tidal, feitas por uma IA que aprende o teu gosto. Abre este link no iPhone (serve uma vez): { crut l }` = x _tx_abre 1800 purl w _tx_fecha x tcopia @ 42 x 880 render aviso $"Convite criado: envia o link." } }
     # trocar (20), tirar (21) e desfazer (22): a playlist nova vem na resposta; pedem-se as capas e as pré-escutas
     # das faixas novas e o índice (a lista por baixo e a duração)
     ? && >= modo 20 <= modo 22 { ! 51 r ! 60 0 ! 61 0 refolha 9
@@ -650,6 +652,7 @@
     # cancelado: sai da lista; se era uma afinação, sai também da folha da playlist
     ? == modo 7 { _an_buscar $"/api/pedidos" $"lido_ped" Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp" aviso $"Pedido cancelado." 0 }
     ? == modo 8 { ir 5 aviso $"Tidal desligado." 0 }
+    ? == modo 24 { _an_gravar $"chave" 0 ! 28 0 ir 1 aviso $"Conta apagada: o conector já não guarda nada sobre ti." 0 }
     Se == modo 10 { = ch txt r.chave Se ch { _an_gravar $"chave" ch tvazio @ 38 ir 1 aviso $"Este aparelho fica com acesso." } } }
     { ! 28 0 ! 60 0 ! 61 0 tvazio @ 54
       # o codigo guardado (de um convite ou link ja usado) nao serve: esquece-o, para aparecer o campo do codigo
@@ -875,7 +878,13 @@
         "</div>" }
     `<div class="mu-card"><h3>Conector de dados</h3><label class="mu-campo"><span>Endereço</span><input data-onda="px" value="{ esct @ 22 }" inputmode="url" autocapitalize="off" spellcheck="false"></label><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="px-ok">Guardar</button><button type="button" class="mu-btn sec" data-onda="px-rep">Repor</button></div></div>`
     `<div class="mu-card"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="motor">{ ic 7 }Testar o motor</button></div><p class="mu-motor" id="aj-motor-r"></p></div>`
-    `<p class="mu-nota">Música 2.32.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    # a conta: o que se guarda, e apagar tudo (pede-se aqui, na app)
+    Se && ch e.tu {
+      `<div class="mu-card mu-conta"><h3>A tua conta</h3><p>A Música guarda a ligação ao teu Tidal, o teu perfil de gosto, as playlists da app e os teus pedidos.</p>`
+      ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
+        `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
+      "</div>" }
+    `<p class="mu-nota">Música 2.33.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
@@ -996,6 +1005,8 @@
   ? mesmo a $"atualizar" { _an_buscar $"/api/perfil?fresco=1" $"lido_perfil" aviso $"A ler do Tidal…" 0 }
   ? mesmo a $"desligar" { ! 28 2 render 0 }
   ? mesmo a $"desligar_sim" { desligar_enviar 0 }
+  ? mesmo a $"conta" { ! 28 5 render 0 }
+  ? mesmo a $"conta_sim" { conta_apagar 0 }
   ? mesmo a $"esquecer" { ! 28 3 render 0 }
   ? mesmo a $"esquecer_sim" { _an_gravar $"chave" 0 ir 5 aviso $"Aparelho esquecido." = fica 1 0 }
   ? mesmo a $"px-ok" { _an_gravar $"proxy" @ 22 ir 5 aviso $"Conector guardado." = fica 1 0 }
