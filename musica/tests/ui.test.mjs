@@ -1510,10 +1510,11 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
     const t = JSON.parse(await env.KV.get('tidal:tokens'));
     delete t.iaCfEm;
     await env.KV.put('tidal:tokens', JSON.stringify(t));
-    let pedidosIA = 0, falhaMelhorar = false;
+    let pedidosIA = 0, falhaMelhorar = false, atraso = 0;
     const MELHORADO = 'Jazz modal calmo para o fim do dia, energia baixa: Miles Davis, John Coltrane e Bill Evans.';
     env.AI = { run: async (modelo, entrada) => {
         pedidosIA++;
+        if (atraso) await new Promise((ok) => setTimeout(ok, atraso));
         if (/^És um curador de música\. Uma pessoa escreveu/.test(entrada.messages[0].content)) return { response: falhaMelhorar ? 'não sei' : JSON.stringify({ texto: MELHORADO, porque: 'Juntei a energia e três exemplos.' }) };
         return { response: JSON.stringify({ nome: falhaMelhorar ? 'Fado ao jantar' : 'Modal ao fim do dia', musicas: [{ artista: 'Miles Davis', titulo: 'So What' }, { artista: 'Nina Simone', titulo: 'Feeling Good' }] }) };
     } };
@@ -1561,13 +1562,22 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         await nav(1);
         await nav(3);
         await corpo.locator('[data-onda="ptx"]').fill(texto);
+        // (a IA a demorar: uma janela por cima de tudo diz o que está a fazer, e sai quando acaba)
+        atraso = 700;
+        const esperaIA = page.locator('.mu-espera-ia');
         await ja.click();
+        await esperaIA.getByText('O Mistral Small está a ler o teu pedido').waitFor();
         await sug.waitFor();
+        await esperaIA.waitFor({ state: 'detached' });
         const iaAntes = pedidosIA;
         await sug.getByRole('button', { name: 'Criar com esta' }).click();
+        await esperaIA.getByText('O Mistral Small está a criar a tua playlist').waitFor();
+        assert.match(await esperaIA.innerText(), /Pode levar até meio minuto: não feches a app\.$/);
+        atraso = 0;
         // criar já: enquanto a IA escolhe, o botão diz «A criar no Tidal…»; depois a playlist abre-se, com o nome que a IA
         // deu e quem a fez (o Mistral Small, na Cloudflare); nada fica à espera do Maestro
         await page.locator('#mu-aviso').getByText('Já está no teu Tidal e aberta aqui. Se quiseres, o Claude revê-a: «Rever com o Claude».').waitFor();
+        await esperaIA.waitFor({ state: 'detached' });
         assert.equal(pedidosIA, iaAntes + 1);
         assert.equal(JSON.parse((await env.KV.get('pedidos')) || '[]').filter((x) => x.estado === 'pendente' && x.texto === texto).length, 0);
         const folha = page.locator('.mu-folha');

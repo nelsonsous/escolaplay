@@ -512,3 +512,15 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-feita .pq { margin: 0 0 6px; font-size: 14.5px; line-height: 1.4; }
 .mu-feita .mu-nota { margin: 0 0 8px; }
 .mu-feita .mu-btn { margin-top: 2px; }
+
+/* a janela da espera (a sugestão ou a criar), por cima de tudo */
+.mu-espera-ia { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px;
+    background: rgba(0, 0, 0, .55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.mu-espera-ia .cx { width: 100%; max-width: 340px; padding: 22px 20px; border-radius: 18px; background: var(--panel2); text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .45), inset 0 0 0 1px var(--line2); }
+.mu-espera-ia .roda { display: block; width: 34px; height: 34px; margin: 0 auto 14px; border-radius: 50%; border: 3px solid var(--line2);
+    border-top-color: var(--fg); animation: mu-roda .9s linear infinite; }
+.mu-espera-ia b { display: block; margin-bottom: 6px; font-size: 17px; }
+.mu-espera-ia p { margin: 0; color: var(--mut); font-size: 14px; line-height: 1.45; }
+@keyframes mu-roda { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .mu-espera-ia .roda { animation-duration: 3s; } }
