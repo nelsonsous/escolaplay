@@ -1226,7 +1226,7 @@
             const P = posOf(k); return [k, { ...L, qty: Math.round(P.q * 1e8) / 1e8, cost: Math.round(P.c * 100) / 100, ...(hz ? { hz } : {}) }];
         }));
         for (const k of cfg.holdings) if (!o[k] && REG[k]) o[k] = { plan: '', buys: [], hz: hzOf(k) };
-        // o que tem primeiro (o conector guarda 12 ativos)
+        // o que tem primeiro (o conector guarda até 60 ativos)
         const ks = Object.keys(o).sort((a, b) => (owns(b) ? 1 : 0) - (owns(a) ? 1 : 0));
         return Object.fromEntries(ks.map((k) => [k, o[k]]));
     };

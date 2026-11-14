@@ -382,6 +382,9 @@ test('/journal guarda as compras de cripto sem apagar o diário', async () => {
     // 1.9.0: o valor por mês e o prazo de cada ativo; só um deles já chega para guardar o ativo
     assert.deepEqual(cleanLots({ 'VWCE.DE': { qty: 5, cost: 900, pm: '810', hz: 'long' }, 'c:BTC': { pm: 90.456 }, 'c:SOL': { hz: 'short' }, NVDA: { hz: 'sempre', pm: -5 }, AAPL: { pm: 2e6 } }),
         { 'VWCE.DE': { plan: '', buys: [], qty: 5, cost: 900, pm: 810, hz: 'long' }, 'c:BTC': { plan: '', buys: [], pm: 90.46 }, 'c:SOL': { plan: '', buys: [], hz: 'short' } });
+    // 1.9.1: até 60 ativos (eram 12)
+    const muitos = Object.fromEntries(Array.from({ length: 70 }, (_, i) => [`A${i}`, { hz: 'short' }]));
+    assert.deepEqual([Object.keys(cleanLots(muitos)).length, Object.keys(cleanLots(muitos)).at(-1)], [60, 'A59']);
     assert.deepEqual([cleanPlano({ budget: '1600', cryptoPct: 10 }), cleanPlano({ budget: 900, cryptoPct: 140 }), cleanPlano({ budget: -1 }), cleanPlano('x'), cleanPlano(null)],
         [{ budget: 1600, cryptoPct: 10 }, { budget: 900 }, null, null, null]);
 });
