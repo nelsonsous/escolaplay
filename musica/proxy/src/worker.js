@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.28.0';
+const VERSION = '1.29.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -580,7 +580,7 @@ async function pesquisar(env, q, pais) {
 // uma com a capa e os 30 s de pré-escuta, para se reconhecer a certa. Com «unicas» (a música de partida), cada canção
 // aparece uma vez, na melhor versão: a de estúdio mais ouvida — o Tidal dá a mesma canção em várias (ao vivo,
 // remisturas, aceleradas, karaoke, só em Dolby Atmos…), e na lista pareciam repetidas
-const VARIANTE = /\b(live|ao vivo|en vivo|remix|remixed|mix|sped up|slowed|extended|karaoke|instrumental|acoustic|acustica|piano version|demo|edit|sequence|take \d+|outtake|rehearsal|alternate|version|versao)\b/;
+const VARIANTE = /\b(live|ao vivo|en vivo|remix|remixed|mix|sped up|slowed|extended|karaoke|instrumental|acoustic|acustica|piano version|cover|covers|tribute|originally performed|made famous|demo|edit|sequence|take \d+|outtake|rehearsal|alternate|version|versao)\b/;
 const variante = (f) => VARIANTE.test(`${f.titulo} ${f.versao || ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())
     || ((f.tags || []).includes('DOLBY_ATMOS') && !(f.tags || []).some((x) => /LOSSLESS/.test(x)));
 async function pesquisa(env, q, unicas = false) {
@@ -592,15 +592,21 @@ async function pesquisa(env, q, unicas = false) {
     const detalhe = await porIds(env, ids, pais);
     let faixas = ids.map((id) => detalhe.get(id)).filter(Boolean);
     if (unicas) {
+        // só as que têm a ver com o que se escreveu (uma palavra no título ou no artista): o Tidal enche a lista com outras
+        const pal = normal(q).split(' ').filter((w) => w.length >= 3);
+        const tem = (f) => !pal.length || normal(`${f.titulo} ${f.artistas.join(' ')}`).split(' ').some((w) => pal.includes(w));
         // (a canção: o título sem o que vem entre parênteses e o artista principal; pela ordem em que o Tidal a deu)
         const grupos = new Map();
-        for (const f of faixas) { const k = `${normal(f.titulo)}|${normal(f.artistas[0] || '')}`; grupos.set(k, [...(grupos.get(k) || []), f]); }
+        for (const f of faixas.filter(tem)) { const k = `${normal(f.titulo)}|${normal(f.artistas[0] || '')}`; grupos.set(k, [...(grupos.get(k) || []), f]); }
         const peso = (f) => (variante(f) ? 0 : 1e6) + (Number(f.popularidade) || 0);
-        faixas = [...grupos.values()].map((g) => g.reduce((a, b) => (peso(b) > peso(a) ? b : a))).slice(0, 8);
+        let melhores = [...grupos.values()].map((g) => g.reduce((a, b) => (peso(b) > peso(a) ? b : a)));
+        // karaoke, versões de piano, «cover», ao vivo… só se não houver outra coisa
+        if (melhores.some((f) => !variante(f))) melhores = melhores.filter((f) => !variante(f));
+        faixas = melhores.slice(0, 8);
     }
     const capas = await capasTidal(env, faixas).catch(() => ({}));
     let n = 0;
-    const pv = await Promise.all(faixas.map((f) => previaDeezer(f, () => ++n <= 12).catch(() => null)));
+    const pv = await Promise.all(faixas.map((f) => previaDeezer(f, () => ++n <= 2 * faixas.length).catch(() => null)));
     return { faixas: faixas.map((f, i) => ({ ...f, capa: capas[f.id] || pv[i]?.c || '', previa: pv[i]?.p || '' })) };
 }
 

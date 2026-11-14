@@ -4,7 +4,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import worker from '../proxy/src/worker.js';
-import { simulador, kv } from './simulador.mjs';
+import { simulador, kv, FAIXAS } from './simulador.mjs';
 import { b64u, b64uDecode } from '../proxy/src/push.js';
 
 const ORIGIN = 'https://musica.example.workers.dev';
@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.28.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.29.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -591,6 +591,27 @@ test('pesquisa: as do Tidal com capa e 30 s de pré-escuta; com «unicas», cada
     assert.deepEqual((await q('Canção Forte')).faixas.map((f) => f.id), ['107', '108']);
     // canções diferentes do mesmo artista continuam todas
     assert.deepEqual((await q('So What Feeling Good Teardrop', true)).faixas.map((f) => f.id), ['101', '102', '106']);
+    // o karaoke de outro artista (mais ouvido que a original) e o enchimento do Tidal (uma faixa sem nada a ver) saem
+    // na música de partida; na pesquisa toda continuam
+    FAIXAS['901'] = { title: 'So What', version: 'Karaoke Version', artists: ['a6'], album: ['al7', '2025-01-01', ['LOSSLESS']], popularity: 0.95, duration: 'PT3M' };
+    const de = globalThis.fetch;
+    globalThis.fetch = async (u, init) => {
+        const r = await de(u, init);
+        if (!String(u).includes('/v2/searchResults')) return r;
+        const j = await r.json();
+        j.data?.[0]?.relationships?.tracks?.data?.push({ id: '105', type: 'tracks' });
+        return new Response(JSON.stringify(j), { status: r.status, headers: { 'content-type': 'application/vnd.api+json' } });
+    };
+    try {
+        assert.deepEqual((await q('So What')).faixas.map((f) => f.id), ['101', '901', '105']);
+        assert.deepEqual((await q('So What', true)).faixas.map((f) => f.id), ['101']);
+        // só versões (aqui, só o karaoke): mostram-se, que é o que há
+        delete FAIXAS['101'];
+        assert.deepEqual((await q('So What', true)).faixas.map((f) => f.id), ['901']);
+    } finally {
+        globalThis.fetch = de; delete FAIXAS['901'];
+        FAIXAS['101'] = { title: 'So What', artists: ['a1'], album: ['al1', '1959-08-17', ['HIRES_LOSSLESS']], key: 'D', keyScale: 'DORIAN', bpm: 136.2, popularity: 0.81, duration: 'PT9M22S' };
+    }
 });
 
 test('a IA da Cloudflare (em experiência, só para o Maestro): sugere músicas de partida para um pedido, e o Tidal confirma-as', async () => {
