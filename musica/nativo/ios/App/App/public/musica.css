@@ -423,9 +423,9 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-prop-q { font-weight: 650; font-size: 14.5px; margin-bottom: 8px; }
 .mu-prop ul { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .mu-prop li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.mu-prop li > span { min-width: 0; display: flex; flex-direction: column; }
-.mu-prop li > span b { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mu-prop li > span i { font-style: normal; color: var(--mut); font-size: 12.5px; }
+.mu-prop li > .mu-prop-ver { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: flex-start; text-align: left; background: none; border: 0; padding: 4px 0; margin: 0; color: inherit; font: inherit; cursor: pointer; }
+.mu-prop li > .mu-prop-ver b { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-prop li > .mu-prop-ver i { font-style: normal; color: var(--mut); font-size: 12.5px; }
 .mu-prop li .mu-btn { flex: none; }
 /* as pastas (da app) e o guia para as fazer no Tidal */
 .mu-pasta-l { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
