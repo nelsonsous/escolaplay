@@ -2,7 +2,7 @@
 // A previsão é calculada no telemóvel por ./lib/data.js (com o radar no ponto, RainViewer); o conector (Cloudflare
 // Worker) serve METAR, FIRMS, fogos.pt, satélite, locais, avisos do utilizador e a análise do Claude.
 // Endereço do conector nos Ajustes ou ?proxy=URL. Sem contas: cada telemóvel tem uma identidade anónima (api.js); a
-// análise diária do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
+// análise do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps, tidyCache } from './lib/data.js';
 import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE_MAX_AGE_H, CLAUDE_RAMP_H } from './lib/engine.js';
@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.25.0';
+const VERSION = '1.25.1';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -33,20 +33,20 @@ const RZOOMS = [7, 6]; // radar: imagens centradas no ponto, ~240 e ~470 km de l
 const RAIN_CLS = (mmh) => (mmh >= 10 ? 'r3' : mmh >= 2.5 ? 'r2' : mmh >= RADAR.wetMmh ? 'r1' : '');
 const REPORT_ICON = { chuva: 61, 'chuva-forte': 65, 'nao-chove': 2, nevoeiro: 45, granizo: 89, trovoada: 95 };
 const IND = { rain: ['rain', 'Chuva'], wind: ['wind', 'Vento'], thunder: ['bolt', 'Trovoada'], fog: ['fog', 'Nevoeiro'], frost: ['frost', 'Geada'], heat: ['heat', 'Calor'], snow: ['snow', 'Neve'], uv: ['sun', 'UV'] };
-const SRC = { marine: 'Mar (Open-Meteo Marine)', det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise diária', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
+const SRC = { marine: 'Mar (Open-Meteo Marine)', det: 'Modelos determinísticos', ens: 'Ensembles', prev: 'Corridas anteriores', metar: 'METAR (aeroportos)', place: 'Nome do local', clim: 'Normal climática', analysis: 'Análise', stations: 'Estações do IPMA', obs: 'Observações do IPMA', warnings: 'Avisos do IPMA', rcm0: 'Risco de incêndio (hoje)', rcm1: 'Risco de incêndio (amanhã)', districts: 'Distritos do IPMA', fogos: 'Ocorrências ANEPC', firms: 'Focos de calor (FIRMS)', ipmaFc: 'Previsão oficial do IPMA (concelho)', elev: 'Altitude das estações', obsHist: 'Histórico das estações', terrain: 'Relevo à volta do ponto', radar: 'Radar de chuva (RainViewer)' };
 const SHARE_KM = 5; // como o conector (lib/places.js): na mesma cidade junta-se à análise que já existe
 const FAR_KM = 2; // a análise mostrada é de um ponto a mais do que isto do ponto selecionado → avisar e oferecer mudar
 const TITLES = { dias: 'Próximos dias', satelite: 'Satélite', analise: 'Análise', ajustes: 'Ajustes' };
 const APP_URL = 'https://nelsonsous.github.io/escolaplay/meteo/';
 // texto de "Partilhar" (já leva o endereço: sem url à parte, que alguns sítios repetem)
 const SHARE_TEXT = '🌦️ Meteo — previsão do tempo para o sítio exato onde estás. Junta 9 modelos meteorológicos, 212 cenários, a previsão oficial do IPMA, as estações mais próximas e o radar, e ajusta tudo ao ponto e ao relevo onde estás: agora e próximas 2 horas, 72 horas e 16 dias com a confiança de cada dia, avisos do IPMA, incêndios, satélite e, opcional, uma análise escrita por inteligência artificial. Grátis, sem conta e sem publicidade. https://nelsonsous.github.io/escolaplay/meteo/ — iPhone: abre no Safari → Partilhar → «Adicionar ao ecrã principal». Android: abre no Chrome → ⋮ → «Instalar app».';
-// «IA» pequeno e subido, como o º: marca o que vem da análise diária (escrita por inteligência artificial) — o nome da
+// «IA» pequeno e subido, como o º: marca o que vem da análise (escrita por inteligência artificial) — o nome da
 // análise e cada valor que ela muda à vista (o final, como se mostra, diferente do dos modelos sozinhos). As pessoas não
 // sabem o que é o Claude: o nome só aparece nos créditos.
 const iaSup = (t) => `<sup class="ia" title="${t}">IA</sup>`;
 const IA_AN = iaSup('Escrita por inteligência artificial'), IA_VAL = iaSup('Ajustado pela análise (inteligência artificial)');
 const OTHERS_UI = [['on', 'Ligada'], ['1x', 'Só 1× por dia (07:34)'], ['off', 'Desligada']]; // "análise dos outros" (só o dono)
-const PAUSE_DAYS = 14; // como o conector (lib/places.js): sem abrir a app 14 dias, a análise diária fica em pausa
+const PAUSE_DAYS = 14; // como o conector (lib/places.js): sem abrir a app 14 dias, a análise fica em pausa
 
 // ---------- configuração ----------
 const KEY = 'meteo:v1';
@@ -176,7 +176,7 @@ function reportTimer() { // ao fim dos 45 min o aviso deixa de contar: volta a d
     if (r) reportT = setTimeout(() => { scheduleRender(); reportTimer(); }, Math.max(1000, Date.parse(r.time) + REPORT_MIN * 6e4 - Date.now() + 1000));
 }
 const near = (a, b, km = 0.2) => a && b && haversineKm(a.lat, a.lon, b.lat, b.lon) <= km;
-// locais com análise diária: os deste telemóvel (o dono vê também os dos outros, com mine = false e ~1 km)
+// locais com análise: os deste telemóvel (o dono vê também os dos outros, com mine = false e ~1 km)
 const isOwner = () => !!st.status?.owner;
 const myPlaces = () => st.places.filter((p) => p.mine !== false);
 const onPlaces = () => myPlaces().filter((p) => !p.off);
@@ -271,7 +271,7 @@ async function refresh() {
     const loc = cfg.loc;
     st.loading = true; renderStatus();
     const an = loadAnalysis(loc);
-    // aprendizagem: a memória deste telemóvel e a do conector (a do local com a análise diária, ≤ 3 km)
+    // aprendizagem: a memória deste telemóvel e a do conector (a do local com a análise, ≤ 3 km)
     const local = api.loadLearning(loc.lat, loc.lon);
     const remote = (statusP || Promise.resolve()).then(() => api.getLearning(loc.lat, loc.lon)).then((r) => r?.memory || null).catch(() => null);
     try {
@@ -399,7 +399,7 @@ function renderStatus() {
     let b = `${F.num(cfg.loc.lat, 4)}, ${F.num(cfg.loc.lon, 4)}`;
     if (F.isNum(L?.elevation)) b += ` · ${F.num(L.elevation)} m`;
     if (cfg.loc.gps && F.isNum(cfg.loc.acc)) b += ` · GPS ±${F.num(cfg.loc.acc)} m`;
-    el.innerHTML = `${a}<span class="num">${esc(b)}</span>${nearPlace() ? '<span class="cl-on">✦ análise diária</span>' : ''}`;
+    el.innerHTML = `${a}<span class="num">${esc(b)}</span>${nearPlace() ? '<span class="cl-on">✦ com análise</span>' : ''}`;
 }
 // o céu animado pára quando o cartão sai do ecrã (poupa bateria)
 let skyWatch = null;
@@ -535,7 +535,7 @@ function analysedPoint() {
     if (!p) return null;
     const d = haversineKm(cfg.loc.lat, cfg.loc.lon, p.lat, p.lon);
     const reg = r.place?.id ? myPlaces().find((x) => x.id === r.place.id) || null : null; // local deste telemóvel, como está agora (pode ter mudado de sítio)
-    const moved = !!reg && haversineKm(cfg.loc.lat, cfg.loc.lon, reg.lat, reg.lon) <= FAR_KM; // a análise diária já é deste ponto
+    const moved = !!reg && haversineKm(cfg.loc.lat, cfg.loc.lon, reg.lat, reg.lon) <= FAR_KM; // a análise já é deste ponto
     return { name: p.name || reg?.name || 'local', lat: p.lat, lon: p.lon, d, far: d > FAR_KM, reg, moved };
 }
 const forTxt = (ap) => `Para ${ap.name} · ${F.num(ap.lat, 4)}, ${F.num(ap.lon, 4)} · ${ap.d < 0.05 ? 'no ponto selecionado' : `a ${F.km(ap.d)} do ponto selecionado`}`;
@@ -592,29 +592,29 @@ function teaserHtml() {
     const tomorrow = a.notificacao?.amanha || a.vestir || '';
     const main = `<div class="adv-src">Análise${IA_AN} <span>· ${esc(F.ago(r.ageMin ?? 0))}${r.refreshing ? ' · a atualizar…' : ''}</span></div>${ap ? forLine(ap) : ''}
         <div class="cl-head">${esc(a.titulo)}</div>${tomorrow ? `<p class="cl-tom"><b>Amanhã</b> ${esc(tomorrow)}</p>` : a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise</span>`;
-    // feita para outro ponto (> 2 km): dizê-lo e oferecer mudar a análise diária para aqui
+    // feita para outro ponto (> 2 km): dizê-lo e oferecer mudar a análise para aqui
     if (ap?.far && ap.reg && !ap.moved) {
         return `<div class="claude far" id="cl-teaser"><button type="button" class="cl-go" data-tab="analise">${main}</button>
             <div class="cl-far"><p>Esta análise é para um ponto a ${esc(F.km(ap.d))} daqui: o tempo aqui pode ser diferente.</p>
-            <button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise diária para este ponto</button></div></div>`;
+            <button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise para este ponto</button></div></div>`;
     }
-    const note = ap?.far ? `<p class="cl-farmsg">${esc(ap.moved ? `A análise diária já passou para este ponto: a próxima chega ${nextRun()}.` : 'Feita para outro ponto: o tempo aqui pode ser diferente.')}</p>` : '';
+    const note = ap?.far ? `<p class="cl-farmsg">${esc(ap.moved ? `A análise já passou para este ponto: a próxima chega ${nextRun()}.` : 'Feita para outro ponto: o tempo aqui pode ser diferente.')}</p>` : '';
     return `<button type="button" class="claude" id="cl-teaser" data-tab="analise">${main}${note}</button>`;
 }
-// Sem análise para este ponto. A análise diária do Claude está desligada por omissão: ligá-la é uma escolha clara, para
+// Sem análise para este ponto. A análise do Claude está desligada por omissão: ligá-la é uma escolha clara, para
 // este local e só para este telemóvel (os outros telemóveis têm 1 local: ligar aqui muda-o para aqui)
 function optInHtml() {
     const head = `<div class="adv-src">Análise${IA_AN}</div>`;
     if (st.analysis?.error && !st.analysis.offline) return `${head}<p>Não foi possível obter a análise (${esc(st.analysis.error)}).</p>`;
     const here = nearPlace();
-    if (here) return `${head}<p>A análise diária está ligada para este local (${esc(here.name)}). A primeira chega ${esc(nextRun())}.</p>`;
+    if (here) return `${head}<p>A análise está ligada para este local (${esc(here.name)}). A primeira chega ${esc(nextRun())}.</p>`;
     const owner = isOwner(), mine = owner ? null : myPlaces()[0];
-    if (!owner && mine?.off && mine.offBy === 'owner') return `${head}<p>A análise diária deste telemóvel foi desligada pelo dono da app.</p>`;
-    if (!owner && othersMode() === 'off') return `${head}<p>A análise diária está desligada, por agora, pelo dono da app.</p>`;
+    if (!owner && mine?.off && mine.offBy === 'owner') return `${head}<p>A análise deste telemóvel foi desligada pelo dono da app.</p>`;
+    if (!owner && othersMode() === 'off') return `${head}<p>A análise está desligada, por agora, pelo dono da app.</p>`;
     const when = !owner && othersMode() === '1x' ? (onOpenH() ? 'uma vez por dia, quando abres a app' : 'uma vez por dia, às 07:34') : whenTxt();
     return `${head}<p>Opcional: uma análise escrita por inteligência artificial para este ponto exato, ${esc(when)}, com os modelos, as observações, o radar e o satélite. Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma.</p>
-        ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada pessoa tem 1 local: a tua análise diária passa de ${mine.name} para aqui.`)}</p>` : ''}
-        <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise diária para este local</span></button>`;
+        ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada pessoa tem 1 local: a tua análise passa de ${mine.name} para aqui.`)}</p>` : ''}
+        <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise para este local</span></button>`;
 }
 // o mar (só num ponto na costa ou na praia): a temperatura da água, as ondas e o UV de hoje; os próximos dias em «Ver mais»
 const uvWord = (u) => (!F.isNum(u) ? '' : u < 3 ? 'baixo' : u < 6 ? 'moderado' : u < 8 ? 'alto' : u < 11 ? 'muito alto' : 'extremo');
@@ -701,8 +701,8 @@ function viewDays() {
     return { title, html: `<section class="sec"><div class="sec-h"><h2>${D.length} dias</h2><span class="sub">toca num dia para ver as horas</span></div>
         <div class="list">${rows}</div>
         <p class="legend-inline" aria-hidden="true"><span class="lg"><i class="k-rb"></i>mín.–máx.</span><span class="lg"><i class="k-wh"></i>80% dos cenários</span><span class="lg">${ui('signal3')}confiança</span></p>
-        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações${fc.claude ? ' e, até depois de amanhã, com a análise diária' : ''}. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p>${fc.claude ? `
-        <p class="note">${IA_VAL} num valor quer dizer que foi ajustado pela análise diária (escrita por inteligência artificial): é a mistura do que ela apurou com a média dos modelos — a meias no início; depois a análise pesa mais (até 80%) ou menos (até 20%) conforme acerta mais ou menos do que os modelos. Só hoje, amanhã e depois, na máxima, na mínima, na chuva e nas rajadas, e só quando o número mostrado muda. Nas próximas ${CLAUDE_RAMP_H} horas manda o que se mede (radar e estações), e a máxima ou a mínima de hoje que já passaram não mudam.</p>` : ''}</section>` };
+        <p class="note">Dias 1 a 7: consenso ponderado de ${esc(fc.models?.length || 0)} modelos, corrigido com as observações${fc.claude ? ' e, até depois de amanhã, com a análise' : ''}. Depois: mediana do ensemble. A linha fina vai do cenário frio (P10) ao quente (P90).</p>${fc.claude ? `
+        <p class="note">${IA_VAL} num valor quer dizer que foi ajustado pela análise (escrita por inteligência artificial): é a mistura do que ela apurou com a média dos modelos — a meias no início; depois a análise pesa mais (até 80%) ou menos (até 20%) conforme acerta mais ou menos do que os modelos. Só hoje, amanhã e depois, na máxima, na mínima, na chuva e nas rajadas, e só quando o número mostrado muda. Nas próximas ${CLAUDE_RAMP_H} horas manda o que se mede (radar e estações), e a máxima ou a mínima de hoje que já passaram não mudam.</p>` : ''}</section>` };
 }
 // escala comum das barras mín.–máx. dos dias (e a faixa P10–P90 por trás)
 function dayScale(D) {
@@ -885,13 +885,13 @@ function viewAnalysis() {
         const hm = g && !Number.isNaN(+g) ? `${String(g.getHours()).padStart(2, '0')}:${String(g.getMinutes()).padStart(2, '0')}` : '';
         const sec = (t, x, id) => (x ? `<div class="an-sec"${id ? ` id="${id}"` : ''}><h4>${t}</h4>${richText(x)}</div>` : '');
         const ap = analysedPoint();
-        // feita para outro ponto (> 2 km): dizê-lo claramente e oferecer mudar a análise diária para o ponto selecionado
+        // feita para outro ponto (> 2 km): dizê-lo claramente e oferecer mudar a análise para o ponto selecionado
         if (ap?.far) {
             h += `<div class="warn far-pt" role="note">${ui('alert')}<div><b>Esta análise é para outro ponto, a ${esc(F.km(ap.d))} daqui</b>
                 <span class="w-when">${esc(forTxt(ap))}</span>
-                <p>${esc(ap.moved ? `O tempo aqui pode ser diferente. A análise diária já passou para este ponto: a próxima chega ${nextRun()}.`
+                <p>${esc(ap.moved ? `O tempo aqui pode ser diferente. A análise já passou para este ponto: a próxima chega ${nextRun()}.`
                     : 'O tempo aqui pode ser diferente (altitude, relevo, distância ao mar).')}</p>
-                ${ap.reg && !ap.moved && !ap.reg.shared ? `<button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise diária para este ponto</button>` : ''}</div></div>`;
+                ${ap.reg && !ap.moved && !ap.reg.shared ? `<button type="button" class="btn sm pri" data-act="place-move">${ui('pin')}Mudar a análise para este ponto</button>` : ''}</div></div>`;
         }
         h += `<article class="today">
             <div class="adv-src">Análise${IA_AN} <span>· ${a.by === 'claude-api' ? 'a pedido' : 'agendada'}${hm ? ` às ${esc(hm)}` : ''}${r.offline ? ' · guardada' : ''}</span></div>
@@ -916,8 +916,8 @@ function viewAnalysis() {
         : owner ? `${at} · sem limite de locais`
         : othersMode() === 'off' ? 'Desligada pelo dono da app, por agora'
         : `${othersMode() === '1x' ? (onOpenH() ? '1× por dia, ao abrir a app' : '1× por dia, às 07:34') : at} · 1 local por pessoa${mine && !mine.off ? ` (agora em ${mine.name})` : ''}`;
-    h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${esc(swHint)}</small></span>
-        <div class="seg" role="group" aria-label="Análise diária"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
+    h += `<div class="form"><div class="sw"><span><b>Análise para este local</b><br><small class="hint">${esc(swHint)}</small></span>
+        <div class="seg" role="group" aria-label="Análise para este local"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
     if (fc) h += more('d-tec', 'Detalhes técnicos', compareHtml(fc) + reliabilityHtml(fc) + learningHtml(fc) + obsHtml(fc) + modelsHtml(fc), 'sec-more');
     return { title, html: h };
@@ -961,10 +961,10 @@ function obsHtml(fc) {
         <div class="r-px num">${esc(F.deg(x.tempAdj, 1))}<small>${esc(F.isNum(x.temp) ? `${F.deg(x.temp, 1)} medido` : '')}</small></div></div>`).join('')}</div>
         <p class="note">Cada estação é levada à altitude do ponto (0,65° por 100 m) e pesa pela distância, pela altitude parecida e por ser recente; as muito diferentes das outras ficam de fora. Juntas dão ${esc(F.deg(o.temp, 1))} a ${esc(F.km(o.distanceKm))} em média${F.isNum(o.repr) ? ` · confiança ${esc(F.pct(o.repr * 100))}` : ''}.</p></section>`;
 }
-// o local deste telemóvel com a análise diária ligada aqui (≤ 2 km do ponto selecionado)
+// o local deste telemóvel com a análise ligada aqui (≤ 2 km do ponto selecionado)
 const claudeAt = (loc) => (loc ? onPlaces().find((p) => haversineKm(p.lat, p.lon, loc.lat, loc.lon) <= (p.shared ? SHARE_KM : FAR_KM)) : null);
 const nearPlace = () => claudeAt(cfg.loc);
-// «Os meus locais»: os guardados (até 12) e os que têm análise diária do Claude (mesmo que não estejam guardados);
+// «Os meus locais»: os guardados (até 12) e os que têm análise do Claude (mesmo que não estejam guardados);
 // o atual marcado, ✦ nos analisados pelo Claude, ✕ para tirar um guardado
 function locsHtml({ remove = true } = {}) {
     const L = cfg.loc;
@@ -973,7 +973,7 @@ function locsHtml({ remove = true } = {}) {
     if (!rows.length) return '<div class="hint">Ainda não guardaste locais. Pesquisa um abaixo: fica logo aqui.</div>';
     return `<div class="wl locs">${rows.map(({ f, i, p }) => {
         const here = L && near(f, L);
-        const sub = [here ? 'a ver agora' : '', p ? '✦ análise diária' : '', !here && !p ? `${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}` : ''].filter(Boolean).join(' · ');
+        const sub = [here ? 'a ver agora' : '', p ? '✦ com análise' : '', !here && !p ? `${F.num(f.lat, 3)}, ${F.num(f.lon, 3)}` : ''].filter(Boolean).join(' · ');
         const go = i >= 0 ? `data-fav="${i}"` : `data-goplace="${esc(p.id)}"`;
         return `<div class="wl-i${here ? ' here' : ''}"><button type="button" class="wl-go" ${go}><b>${esc(f.name)}${here ? ` ${ui('check')}` : ''}</b><small class="num${p ? ' cl' : ''}">${esc(sub)}</small></button>${remove && i >= 0 ? `<button type="button" class="xbtn" data-rmfav="${i}" aria-label="${esc('Tirar ' + f.name)}">✕</button>` : ''}</div>`;
     }).join('')}</div>`;
@@ -1090,7 +1090,7 @@ function viewSettings() {
         <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>
         <div class="sw" id="animacoes"><span><b>Animações</b><br><small class="hint">O céu do cartão «Agora» e os ícones grandes a mexer (chuva, sol, neve…).</small></span>
         <div class="seg" role="group" aria-label="Animações"><button type="button" data-act="anim-on" class="${cfg.anim !== false ? 'on' : ''}" aria-pressed="${cfg.anim !== false}">Sim</button><button type="button" data-act="anim-off" class="${cfg.anim === false ? 'on' : ''}" aria-pressed="${cfg.anim === false}">Não</button></div></div>
-        <div class="sw" id="claude-num"><span><b>Análise na previsão</b><br><small class="hint">Hoje, amanhã e depois, a máxima, a mínima, a chuva e as rajadas contam também com a análise diária deste ponto, quando a há.</small></span>
+        <div class="sw" id="claude-num"><span><b>Análise na previsão</b><br><small class="hint">Hoje, amanhã e depois, a máxima, a mínima, a chuva e as rajadas contam também com a análise deste ponto, quando a há.</small></span>
         <div class="seg" role="group" aria-label="Análise na previsão"><button type="button" data-act="cnum-on" class="${cfg.claudeNums !== false ? 'on' : ''}" aria-pressed="${cfg.claudeNums !== false}">Sim</button><button type="button" data-act="cnum-off" class="${cfg.claudeNums === false ? 'on' : ''}" aria-pressed="${cfg.claudeNums === false}">Não</button></div></div></div></section>`;
     const S = st.fc?.status;
     if (S) adv += `<section class="sec"><div class="sec-h"><h2>Estado das fontes</h2><span class="sub">última atualização</span></div><div class="list">${Object.entries(S).map(([k, v]) => `<div class="row" style="min-height:48px"><span class="r-ico ${v === 'ok' ? 'ok-ico' : 'inc-ico'}">${ui(v === 'ok' ? 'check' : 'alert')}</span><div class="r-main"><div class="r-name">${esc(SRC[k] || k)}</div>${v === 'ok' ? '' : `<div class="r-sub">${esc(v)}</div>`}</div></div>`).join('')}</div></section>`;
@@ -1102,7 +1102,7 @@ function viewSettings() {
 
 // ---------- este telemóvel: o código curto e o nome (obrigatório) que o dono vê no painel Utilização ----------
 // Abrir a app não regista nada no conector: o telemóvel fica registado quando a pessoa diz o nome (antes de ligar a
-// análise diária, as notificações ou dar um aviso).
+// análise, as notificações ou dar um aviso).
 const hasName = () => !!st.status?.name;
 function ensureName(then = null) {
     if (hasName()) return true;
@@ -1115,7 +1115,7 @@ function meHtml() {
     if (!S) return '';
     return `<section class="sec" id="telemovel"><div class="sec-h"><h2>Este telemóvel</h2>${S.device && S.id ? `<span class="sub num">código ${esc(S.id)}</span>` : ''}</div><div class="form">
         <div><label for="f-name">O teu nome</label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
-        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel no painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização.'} É obrigatório para ligar a análise diária, as notificações e os avisos. A tua localização não é registada.</div></div>
+        <div class="hint">${S.owner ? 'Para reconheceres este telemóvel no painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização.'} É obrigatório para ligar a análise, as notificações e os avisos. A tua localização não é registada.</div></div>
     </div></section>`;
 }
 async function nameSave(id = 'f-name') {
@@ -1149,7 +1149,7 @@ function notifHtml() {
     let body;
     if (isIos() && !isStandalone()) body = '<div class="hint">No iPhone, as notificações só chegam à app instalada no ecrã principal (iOS 16.4 ou mais recente): Partilhar → «Adicionar ao ecrã principal», abre a Meteo de lá e liga aqui.</div>';
     else if (!pushSupported()) body = '<div class="hint">Este browser não recebe notificações.</div>';
-    else if (!onPlaces().length && !P.on) body = '<div class="hint">A notificação traz a análise diária do teu local: liga-a primeiro (Análise → «Análise diária para este local»).</div>';
+    else if (!onPlaces().length && !P.on) body = '<div class="hint">A notificação traz a análise do teu local: liga-a primeiro (Análise → «Análise para este local»).</div>';
     else {
         const own = onPlaces(), cur = pushPlace();
         body = `<div class="sw"><span><b>Resumo ao fim do dia</b><br><small class="hint">${esc(P.on ? `Às ${P.time}${cur ? ` · ${cur.name}` : ''}` : 'Como vai estar amanhã e o que vestir')}</small></span>${seg('push', P.on, 'Notificação ao fim do dia')}</div>
@@ -1227,7 +1227,7 @@ function ownerSave() {
     inp.blur(); // com o campo focado a página não se redesenha (para não estragar o que se escreve)
     api.setOwnerCode(v); ownerJust = 'set'; loadStatus();
 }
-// Ajustes → "Análise diária do Claude": os locais deste telemóvel; o dono vê também os dos outros (só o nome, ~1 km e o
+// Ajustes → "Análise do Claude": os locais deste telemóvel; o dono vê também os dos outros (só o nome, ~1 km e o
 // estado) e pode desligá-los (e voltar a ligar os que desligou)
 function placeState(p) {
     if (p.off) return p.offBy === 'owner' ? 'desligada por ti' : 'desligada no telemóvel';
@@ -1242,7 +1242,7 @@ function placeRow(p, other = false) {
 function placesSettingsHtml() {
     const owner = isOwner(), mineOn = onPlaces();
     const byOwner = !owner && myPlaces().some((p) => p.off && p.offBy === 'owner');
-    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Análise diária</h2><span class="sub">${owner ? 'sem limite de locais' : '1 local por pessoa'}</span></div><div class="form">
+    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Locais com análise</h2><span class="sub">${owner ? 'sem limite de locais' : '1 local por pessoa'}</span></div><div class="form">
         <div class="wl">${mineOn.length ? mineOn.map((p) => placeRow(p)).join('') : `<div class="hint">${byOwner ? 'Desligada pelo dono da app.' : 'Desligada (é opcional). Liga-a no cartão «Análise» do local que quiseres.'}</div>`}</div>`;
     if (owner) {
         const others = st.places.filter((p) => p.mine === false);
@@ -1274,7 +1274,7 @@ function usageHtml() {
             <div><small>7 dias · 30 dias</small><b class="num">${esc(`${F.num(D.d7)} · ${F.num(D.d30)}`)}</b><em>${esc(`${F.num(D.total)} no total${D.owner ? ` (${F.num(D.owner)} teu${D.owner === 1 ? '' : 's'})` : ''}`)}</em></div>
             <div><small>Locais com análise</small><b class="num">${esc(F.num(P.owner + P.guests - P.off))}</b><em>${esc(`${F.num(P.owner)} teu${P.owner === 1 ? '' : 's'} · ${F.num(P.guests)} de outros${P.paused ? ` · ${F.num(P.paused)} em pausa` : ''}`)}</em></div>
             <div><small>Analisados por corrida</small><b class="num">${esc(`${F.num(P.analysed)} de ${F.num(P.cap)}`)}</b><em>os teus nunca ficam de fora</em></div></div>
-            ${D.list?.length ? `<div><label>Telemóveis <small>(o nome que escolheram, ou o código)</small></label><ul class="use-l">${D.list.map((d) => `<li><b>${esc(d.name ? `${d.name} · ${d.id}` : `Telemóvel ${d.id}`)}${d.owner ? ' (teu)' : ''}</b><span>${esc([seenTxt(d.days), d.places.length ? d.places.join(', ') : 'sem análise diária', d.push ? 'notificações' : null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul></div>` : ''}
+            ${D.list?.length ? `<div><label>Telemóveis <small>(o nome que escolheram, ou o código)</small></label><ul class="use-l">${D.list.map((d) => `<li><b>${esc(d.name ? `${d.name} · ${d.id}` : `Telemóvel ${d.id}`)}${d.owner ? ' (teu)' : ''}</b><span>${esc([seenTxt(d.days), d.places.length ? d.places.join(', ') : 'sem análise', d.push ? 'notificações' : null].filter(Boolean).join(' · '))}</span></li>`).join('')}</ul></div>` : ''}
             <div><label>Locais dos outros <small>(só o nome)</small></label>${guests.length ? `<ul class="use-l">${guests.map((x) => `<li><b>${esc(x.name)}</b><span>${esc(useState(x))}</span></li>`).join('')}</ul>` : '<div class="hint">Ainda nenhum.</div>'}</div>
             <div><label>Análises, últimos 7 dias</label><div class="cmp-scroll"><table class="tbl use-t"><thead><tr><th scope="col">Dia</th><th scope="col">Agendadas</th><th scope="col">Imediatas</th><th scope="col">De outros</th></tr></thead>
                 <tbody>${u.analyses.map((d) => `<tr><th scope="row">${esc(pastDay(d.date, u.today))}</th><td>${esc(F.num(d.scheduled))}</td><td>${esc(F.num(d.instant))}</td><td>${esc(F.num(d.guest))}</td></tr>`).join('')}</tbody>
@@ -1282,8 +1282,8 @@ function usageHtml() {
     }
     const mode = u?.others || othersMode();
     return `<section class="sec" id="uso"><div class="sec-h"><h2>Utilização</h2><span class="sub">só tu vês isto</span></div><div class="form">${b}
-        <div><label>Análise dos outros</label><div class="seg use-seg" role="group" aria-label="Análise diária nos outros telemóveis">${OTHERS_UI.map(([v, l]) => `<button type="button" data-others="${v}" class="${mode === v ? 'on' : ''}" aria-pressed="${mode === v}">${v === '1x' && onOpenH() ? 'Só 1× por dia' : l}</button>`).join('')}</div>
-        <div class="hint">A análise diária nos outros telemóveis. «Só 1× por dia»: ${onOpenH() ? 'no máximo uma análise por dia em cada local dos outros' : 'só na análise das 07:34'}. «Desligada»: os outros não a ligam nem a recebem, e a análise imediata fica só para ti. Os teus locais nunca são cortados; no máximo ${esc(F.num(u?.places?.cap ?? 15))} locais por corrida.</div></div></div></section>`;
+        <div><label>Análise dos outros</label><div class="seg use-seg" role="group" aria-label="Análise nos outros telemóveis">${OTHERS_UI.map(([v, l]) => `<button type="button" data-others="${v}" class="${mode === v ? 'on' : ''}" aria-pressed="${mode === v}">${v === '1x' && onOpenH() ? 'Só 1× por dia' : l}</button>`).join('')}</div>
+        <div class="hint">A análise nos outros telemóveis. «Só 1× por dia»: ${onOpenH() ? 'no máximo uma análise por dia em cada local dos outros' : 'só na análise das 07:34'}. «Desligada»: os outros não a ligam nem a recebem, e a análise imediata fica só para ti. Os teus locais nunca são cortados; no máximo ${esc(F.num(u?.places?.cap ?? 15))} locais por corrida.</div></div></div></section>`;
 }
 
 // ---------- folhas ----------
@@ -1313,7 +1313,7 @@ function renderSheet() {
     if (!s) return;
     if (s.kind === 'place') {
         const L = cfg.loc, saved = L && cfg.favs.some((f) => near(f, L));
-        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Os meus locais</h2><div class="d-sub">Toca num local para o ver. ✦ = com análise diária.</div></div>${closeBtn}</div>
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Os meus locais</h2><div class="d-sub">Toca num local para o ver. ✦ = com análise.</div></div>${closeBtn}</div>
             ${locsHtml()}
             ${L && !saved ? `<button type="button" class="btn blk" data-act="fav" style="margin-top:10px">${ui('plus')}Guardar ${esc(placeName())} nos meus locais</button>` : ''}
             <div class="grp-h" style="margin-top:20px">Adicionar um local</div>
@@ -1322,7 +1322,7 @@ function renderSheet() {
         return;
     }
     if (s.kind === 'nome') {
-        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Como te chamas?</h2><div class="d-sub">É obrigatório para ligar a análise diária, as notificações e os avisos. Só o dono da app vê o nome.</div></div>${closeBtn}</div>
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Como te chamas?</h2><div class="d-sub">É obrigatório para ligar a análise, as notificações e os avisos. Só o dono da app vê o nome.</div></div>${closeBtn}</div>
             <div class="form"><input id="f-myname" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" aria-label="O teu nome">
             <button type="button" class="btn pri blk" data-act="name-sheet-save">Continuar</button></div>`;
         setTimeout(() => $('#f-myname')?.focus(), 50);
@@ -1340,9 +1340,9 @@ function renderSheet() {
         const p = st.places.find((x) => x.id === s.arg?.id);
         if (!p) { closeSheet(); return; }
         const other = p.mine === false; // o dono a desligar o local de outro telemóvel
-        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Desligar a análise diária de ${esc(p.name)}?</h2>
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Desligar a análise de ${esc(p.name)}?</h2>
             <div class="d-sub">${other ? 'É o local de outro telemóvel.' : p.shared ? 'É uma análise partilhada.' : 'A análise atual fica guardada.'}</div></div>${closeBtn}</div>
-            <p class="note" style="margin:0 2px 14px">${other ? 'Esse telemóvel deixa de receber a análise diária e não a pode voltar a ligar; tu podes, em Ajustes.'
+            <p class="note" style="margin:0 2px 14px">${other ? 'Esse telemóvel deixa de receber a análise e não a pode voltar a ligar; tu podes, em Ajustes.'
                 : p.shared ? 'Deixa de aparecer neste telemóvel; continua para quem a ligou.'
                 : `${onOpenH() ? 'Este local deixa de ter análise.' : `Este local deixa de ter análise às ${esc(schedTxt())}.`} Se voltares a ligar, aparece outra vez a última análise.`}</p>
             <div class="btns-col"><button type="button" class="btn blk danger" data-act="off-yes">Desligar</button><button type="button" class="btn blk" data-act="close">Cancelar</button></div>`;
@@ -1590,24 +1590,24 @@ async function togglePlace(on) {
     try {
         if (on) {
             if (!nearPlace() && !ensureName(() => togglePlace(true))) return;
-            if (nearPlace()) toast('A análise diária já está ligada para este local.');
+            if (nearPlace()) toast('A análise já está ligada para este local.');
             else await turnOn();
         } else {
             const p = nearPlace();
             if (p) { openSheet('off', { id: p.id }); return; }
-            toast('A análise diária já está desligada para este local.');
+            toast('A análise já está desligada para este local.');
         }
     } catch (e) { toast(e.message); }
     render();
 }
-// Ligar a análise diária aqui: um local seu desligado perto volta a ligar-se (o mesmo id: a última análise e as lições
+// Ligar a análise aqui: um local seu desligado perto volta a ligar-se (o mesmo id: a última análise e as lições
 // ficam); nos outros telemóveis (1 local cada) o seu local muda para aqui; senão regista-se um novo
 async function turnOn() {
     const { lat, lon } = cfg.loc, name = placeName();
     const off = myPlaces().find((p) => p.off && haversineKm(p.lat, p.lon, lat, lon) <= FAR_KM);
     if (off) {
         upsertPlace(await api.updatePlace(off.id, { on: true }));
-        toast(`Análise diária de ${off.name} ligada de novo. A próxima chega ${nextRun()}.`);
+        toast(`Análise de ${off.name} ligada de novo. A próxima chega ${nextRun()}.`);
         loadAnalysis(cfg.loc);
         return;
     }
@@ -1616,7 +1616,7 @@ async function turnOn() {
         const p = await api.addPlace(name, lat, lon);
         if (p.shared) st.places = st.places.filter((x) => x.id === p.id || !(x.shared || (!isOwner() && x.mine !== false && !x.off)));
         upsertPlace(p);
-        toast(p.shared || p.adopted ? `Ligada: usas a análise diária de ${p.name}, que já existia.` : `Ligada. A primeira análise chega ${nextRun()}.`);
+        toast(p.shared || p.adopted ? `Ligada: usas a análise de ${p.name}, que já existia.` : `Ligada. A primeira análise chega ${nextRun()}.`);
     } catch (e) {
         if (e.code !== 'limite' || !e.data?.place) throw e;
         upsertPlace(e.data.place); // já tinha um local (noutro sítio): muda-o para aqui
@@ -1630,9 +1630,9 @@ async function moveHere(p, name) {
     upsertPlace(await api.updatePlace(p.id, { lat: cfg.loc.lat, lon: cfg.loc.lon, name, on: true }));
     render();
     loadAnalysis(cfg.loc);
-    toast(from.off ? `Ligada. A primeira análise chega ${nextRun()}.` : `A tua análise diária passa de ${from.name} para este local. A próxima chega ${nextRun()}.`,
+    toast(from.off ? `Ligada. A primeira análise chega ${nextRun()}.` : `A tua análise passa de ${from.name} para este local. A próxima chega ${nextRun()}.`,
         () => api.updatePlace(p.id, { lat: from.lat, lon: from.lon, name: from.name, ...(from.off ? { on: false } : {}) })
-            .then((n) => { upsertPlace(n); render(); toast(`A análise diária voltou para ${from.name}.`); }).catch((e) => toast(e.message)));
+            .then((n) => { upsertPlace(n); render(); toast(`A análise voltou para ${from.name}.`); }).catch((e) => toast(e.message)));
 }
 // desligar só depois de confirmar (folha); o local fica guardado no conector (com a análise e as lições) e "Desfazer"
 // volta a ligá-lo, com o mesmo id
@@ -1645,19 +1645,19 @@ async function placeOff(id) {
         if (p.shared) { // sair da análise partilhada: deixa de aparecer aqui; «Desfazer» junta-se outra vez
             st.places = st.places.filter((x) => x.id !== p.id);
             render();
-            toast(`Deixaste de usar a análise diária de ${p.name}.`, () => api.addPlace(p.name, p.lat, p.lon).then((n) => { upsertPlace(n); render(); toast(`Voltaste a usar a análise de ${n.name}.`); }).catch((e) => toast(e.message)));
+            toast(`Deixaste de usar a análise de ${p.name}.`, () => api.addPlace(p.name, p.lat, p.lon).then((n) => { upsertPlace(n); render(); toast(`Voltaste a usar a análise de ${n.name}.`); }).catch((e) => toast(e.message)));
             return;
         }
         upsertPlace({ ...p, off: true, offBy: p.mine === false ? 'owner' : 'device' });
         render();
-        toast(`Análise diária desligada para ${p.name}.`, () => placeBack(p));
+        toast(`Análise desligada para ${p.name}.`, () => placeBack(p));
     } catch (e) { toast(e.message); }
 }
 async function placeBack(p) {
     try {
         upsertPlace(await api.updatePlace(p.id, { on: true }));
         render();
-        toast(`Análise diária de ${p.name} ligada de novo.`);
+        toast(`Análise de ${p.name} ligada de novo.`);
         if (cfg.loc) loadAnalysis(cfg.loc);
     } catch (e) { toast(e.message); }
 }
@@ -1676,7 +1676,7 @@ async function copyText(t) {
     ta.focus(); ta.select();
     try { return document.execCommand('copy'); } catch { return false; }
 }
-// só o dono: a análise diária do Claude nos outros telemóveis (ligada | só 1× por dia | desligada)
+// só o dono: a análise do Claude nos outros telemóveis (ligada | só 1× por dia | desligada)
 async function setOthers(mode) {
     if (!isOwner() || !OTHERS_UI.some(([v]) => v === mode) || mode === (st.usage?.others || othersMode())) return;
     try {
@@ -1693,7 +1693,7 @@ function ownerForget() {
     toast('Código do dono esquecido neste telemóvel.');
     loadStatus();
 }
-// "Mudar a análise diária para este ponto": o local registado passa para o ponto selecionado (mesmo id: a última
+// "Mudar a análise para este ponto": o local registado passa para o ponto selecionado (mesmo id: a última
 // análise e as lições ficam); "Desfazer" volta a pô-lo onde estava
 async function movePlaceHere() {
     const reg = analysedPoint()?.reg;
@@ -1701,8 +1701,8 @@ async function movePlaceHere() {
     const from = { lat: reg.lat, lon: reg.lon };
     try {
         const p = await moveTo(reg.id, cfg.loc.lat, cfg.loc.lon);
-        toast(`A análise diária de ${p.name} passa a ser para este ponto. A próxima chega ${nextRun()}.`, () => moveTo(reg.id, from.lat, from.lon)
-            .then(() => toast(`A análise diária de ${p.name} voltou ao ponto anterior.`)).catch((e) => toast(e.message)));
+        toast(`A análise de ${p.name} passa a ser para este ponto. A próxima chega ${nextRun()}.`, () => moveTo(reg.id, from.lat, from.lon)
+            .then(() => toast(`A análise de ${p.name} voltou ao ponto anterior.`)).catch((e) => toast(e.message)));
     } catch (e) { toast(e.message); }
 }
 async function moveTo(id, lat, lon) {
