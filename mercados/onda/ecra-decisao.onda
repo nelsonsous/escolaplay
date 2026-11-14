@@ -18,12 +18,12 @@
 # a recomendação dos analistas (o CONS_LBL do JS)
 : dv_cons i>i k ? eh k $"strong_buy" "Compra forte" ? eh k $"buy" "Comprar" ? eh k $"hold" "Manter"
   ? eh k $"underperform" "Abaixo do mercado" ? eh k $"sell" "Vender" "Venda forte"
-# as pontuações por prazo de um nó, das que há: "C48 · M88 · L81"
+# as pontuações por prazo de um nó, das que há: "curto 48 · médio 88 · longo 81"
 : dv_pz i>i x {
   = k 0
-  Se ln_fin x.short { `C{ _nu_ps _nu_round num x.short }` = k 1 }
-  Se ln_fin x.mid { Se k " · " `M{ _nu_ps _nu_round num x.mid }` = k 1 }
-  Se ln_fin x.long { Se k " · " `L{ _nu_ps _nu_round num x.long }` }
+  Se ln_fin x.short { `curto { _nu_ps _nu_round num x.short }` = k 1 }
+  Se ln_fin x.mid { Se k " · " `médio { _nu_ps _nu_round num x.mid }` = k 1 }
+  Se ln_fin x.long { Se k " · " `longo { _nu_ps _nu_round num x.long }` }
   0 }
 # uma percentagem inteira: −5%, 0%, 60% (com mais, +60%)
 : dv_pc fi>i x mais { = r _nu_round x Se && mais > r 0. P '+ Se < r 0. { P 226 P 136 P 146 } `{ _nu_ps Ab r }%` }
@@ -115,6 +115,10 @@
     `<div class="dec-p"><small>Média das fontes{ Se hz ` · prazo { ? == hz 1 "curto" ? == hz 2 "médio" "longo" }` }</small>{ an_barv @f + r 8 }</div>`
     `<div class="dec-voz">{ dv_voz r }</div>`
     `<ul class="dec-f">` L i @ r dv_fonte r i `</ul>`
+    # como se lê: a nota de cada fonte e o que quer dizer o lado de cada uma
+    `<p class="dec-leg">Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. `
+    `<b>Decide</b>: quem manda (o Claude, se analisou o ativo). <b>A favor</b> ou <b>contra</b>: diz o mesmo ou o contrário. `
+    `<b>Ao lado</b>: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.</p>`
     Se quantos es.lv {
       `<ul class="cl-lv">`
       = n pri es.lv

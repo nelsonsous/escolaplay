@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.25.0';
+    const VERSION = '4.25.1';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -645,7 +645,7 @@
             const bench = assets.find((a) => a.key === 'VWCE.DE');
             const bf = AO.benchFn(bench), acc = {}, per = [];
             // comissão: 1 € por ordem manual (ações e cripto) num valor típico de satélite; ETF por plano de poupança = 0
-            const ticket = Math.max(50, (+cfg.budget || 900) * Math.max(0.05, (+cfg.cryptoPct || 10) / 100));
+            const ticket = Math.max(50, (budgetOf() || 900) * Math.max(0.05, (+cfg.cryptoPct || 10) / 100));
             const cost = (k) => (REG[k] && REG[k].kind === 'fund' ? 0 : 1 / ticket);
             for (const a of assets) { per.push(AO.backtestAsset(a, bf, acc, { cost: cost(a.key) })); await sleep(0); }
             const byKind = {};
@@ -1135,17 +1135,22 @@
         return { v, cp: v > 0 ? vc / v : 0 };
     }
     // o «Por mês» do simulador é só dele (mexer nele não muda o plano dos Ajustes); sem valor próprio, segue o plano
-    const simBudget = () => (Number.isFinite(cfg.simBudget) ? cfg.simBudget : +cfg.budget || 0);
+    const simBudget = () => (Number.isFinite(cfg.simBudget) ? cfg.simBudget : budgetOf());
     function walletSnap() {
         const ch = carteiraHoje(), real = ch.v > 0 && !cfg.simStartManual;
-        const mexido = (ch.v > 0 && !!cfg.simStartManual) || (Number.isFinite(cfg.simBudget) && cfg.simBudget !== (+cfg.budget || 0));
+        const mexido = (ch.v > 0 && !!cfg.simStartManual) || (Number.isFinite(cfg.simBudget) && cfg.simBudget !== budgetOf());
         return { budget: simBudget(), mexido, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund),
             start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap() };
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
     const LH = {}, lhAt = {}, lhVai = new Set();
     // o valor por mês do plano de cada ativo, pela divisão dos Ajustes (o fundo núcleo e a cripto)
+    // quanto investe por mês: a soma do «€ por mês» de cada ativo na Carteira (é o que a TR executa); sem nenhum, o
+    // valor dos Ajustes (que então se divide pela estratégia)
+    function pmSum() { let s = 0; for (const L of Object.values(cfg.lots)) if (+L.pm > 0) s += +L.pm; return Math.round(s * 100) / 100; }
+    const budgetOf = () => pmSum() || +cfg.budget || 0;
     function pmDefault(k) {
+        if (pmSum() > 0) return 0; // com o valor de cada ativo na Carteira, o que não o tem não entra no plano
         const b = +cfg.budget || 0, cp = etfCrypto() ? (+cfg.cryptoPct || 0) / 100 : 0;
         if (k === cfg.coreFund) return Math.round(b * (1 - cp));
         if (k === 'c:BTC') return Math.round(b * cp * (cfg.cryptoMix === 'btceth' ? 0.7 : 1));
@@ -1224,7 +1229,7 @@
         return o;
     };
     // o plano dos Ajustes: quanto investe por mês e a parte da cripto (o Claude parte daqui, não de um valor fixo)
-    const planoEnvio = () => ({ budget: +cfg.budget || 0, cryptoPct: etfCrypto() ? +cfg.cryptoPct || 0 : 0 });
+    const planoEnvio = () => ({ budget: budgetOf(), cryptoPct: etfCrypto() ? +cfg.cryptoPct || 0 : 0 });
     // em que prazo tem o ativo (curto, médio ou longo; escolhe-se na Carteira): o que tem, por omissão, longo
     const HZ_OK = ['short', 'mid', 'long'];
     const hzOf = (k) => { const h = (cfg.lots[k] || {}).hz; return HZ_OK.includes(h) ? h : owns(k) ? 'long' : ''; };
@@ -1351,7 +1356,7 @@
         return {
             inv, horas: CL_LBL, claudeOn: claudeOn(), off: !!(CLAUDE && CLAUDE.off), vix, ind: ['^GSPC', '^IXIC', '^STOXX50E', 'PSI20.LS'].map((k) => Q[k] && Q[k].changePct),
             mood: inv.length ? A.marketMood({ spx: AN['^GSPC'], stoxx: AN['^STOXX50E'], btc: AN['c:BTC'], vix, breadth: inv.filter((k) => AN[k].score >= 58).length / inv.length }) : null,
-            profile: cfg.profile, strategy: cfg.strategy, budget: +cfg.budget, cryptoPct: +cfg.cryptoPct, cryptoMix: cfg.cryptoMix, coreFund: cfg.coreFund, saveDays: cfg.saveDays,
+            profile: cfg.profile, strategy: cfg.strategy, budget: budgetOf(), cryptoPct: +cfg.cryptoPct, cryptoMix: cfg.cryptoMix, coreFund: cfg.coreFund, saveDays: cfg.saveDays,
             ex: x.next ? { quando: x.next.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' }), dl: dm(x.dl.getTime()), exec: x.isExec, prazo: x.isDeadline } : null,
             agenda: agenda(14).slice(0, 7).map((e) => ({ k: e.k, txt: e.txt, quando: `${dm(e.ms)} · ${whenTxt(inDays(e.ms))}` })),
             when: c ? clAt() || c.date : undefined, old: !!(c && dueAt && (gen && !isNaN(gen) ? gen < dueAt : c.date < todayLocal())),
@@ -1510,7 +1515,8 @@
             act: manda && c.action && c.action.trim().toLowerCase() !== lbl.toLowerCase() ? c.action : '',
             // o porquê: o do Claude; sem ele, o da regra automática quando é ela que aponta para o mesmo lado
             why: manda ? c.why : alg && FAMS[alg.key] === dec.fam ? alg.text : '', plan: manda ? c.plan : '', algWhy: manda ? c.algWhy : '',
-            lv: manda ? [['entry', 'Entrada'], ['target', 'Alvo'], ['stop', 'Stop']].filter(([f]) => fin(clPx(k, q, c[f]))).map(([f, l]) => ({ f, l, px: fmtPx(clPx(k, q, c[f]), REG[k], q.currency), d: dist(c[f]) })) : [],
+            // no que já tem, a entrada é onde reforçar
+            lv: manda ? [['entry', owns(k) ? 'Reforçar' : 'Entrada'], ['target', 'Alvo'], ['stop', 'Stop']].filter(([f]) => fin(clPx(k, q, c[f]))).map(([f, l]) => ({ f, l, px: fmtPx(clPx(k, q, c[f]), REG[k], q.currency), d: dist(c[f]) })) : [],
             anD: cons && fin(cons.target) && fin(cons.price) && cons.price > 0 ? (cons.target / cons.price - 1) * 100 : null,
             nn: n && n.items ? Math.min(8, n.items.length) : 0,
             hoje: moverWhy(k), desce: fin(q.changePct) && q.changePct < 0,
@@ -1721,7 +1727,7 @@
         return {
             versao: VERSION, horas: CL_LBL, agora: now(),
             finnhub: cfg.finnhub, fh: st.fh, proxy: cfg.proxy, yErr: st.yahooErr, yAt: st.yahooAt, yAtTxt: st.yahooAt ? dtLbl(st.yahooAt) : '',
-            budget: +cfg.budget, strategy: cfg.strategy, funds: cfg.funds.map(nm), coreFund: cfg.coreFund, cryptoPct: +cfg.cryptoPct, cryptoMix: cfg.cryptoMix,
+            budget: +cfg.budget, pmSum: pmSum(), strategy: cfg.strategy, funds: cfg.funds.map(nm), coreFund: cfg.coreFund, cryptoPct: +cfg.cryptoPct, cryptoMix: cfg.cryptoMix,
             crypto: CRYPTO.map((c) => nm('c:' + c.id)), holdings: cfg.holdings, profile: cfg.profile, saveDays: cfg.saveDays, jid: cfg.jid,
             owner: cfg.owner, claude: cfg.claude, others: st.others, stats: STATS, runAt: r && r.at ? dtLbl(r.at) : '', share: shareLink(), meus: myList().map(nameOf),
             fs: cfg.fs, eur: cfg.eur, fiat: cfg.fiat, alertPct: +cfg.alertPct, alertScope: cfg.alertScope,
@@ -1748,7 +1754,7 @@
         <section class="sec"><div class="sec-h"><h2>O teu plano na Trade Republic</h2></div>
             <div class="form">
                 <div><label for="f-budget">Quanto investes por mês (€)</label>
-                    <input id="f-budget" class="inp" type="number" inputmode="decimal" min="0" step="50" data-cfg="budget" value="${+cfg.budget || ''}" placeholder="ex.: 900"></div>
+                    ${pmSum() > 0 ? `<div id="f-budget" class="inp ro num">${pmSum()} €</div><div class="hint">É a soma do «€ por mês» de cada ativo na Carteira (O que tens e as tuas compras): muda-se lá.</div>` : `<input id="f-budget" class="inp" type="number" inputmode="decimal" min="0" step="50" data-cfg="budget" value="${+cfg.budget || ''}" placeholder="ex.: 900">`}</div>
                 <div><label>Estratégia</label><div class="seg prof two"><button type="button" data-strat="etfcrypto" class="${etfCrypto() ? 'on' : ''}"><b>ETF + cripto</b><small>recomendado</small></button><button type="button" data-strat="mix" class="${etfCrypto() ? '' : 'on'}"><b>ETF + ações + cripto</b><small>com satélites</small></button></div>
                     <div class="hint">${etfCrypto() ? 'O plano do mês vai para o ETF núcleo e para a cripto, todos os meses. As ações e os outros ETF têm o veredicto do Claude em Análise e em cada ficha (compras fora do plano).' : 'O plano inclui ações como satélites, conforme os sinais.'}</div></div>
                 ${etfCrypto() ? `<div><label>Fundo núcleo</label><select class="inp" data-cfg="coreFund">${cfg.funds.map((f) => `<option value="${esc(f)}" ${cfg.coreFund === f ? 'selected' : ''}>${esc(nameOf(f))}</option>`).join('')}</select></div>
@@ -1760,7 +1766,7 @@
                 <div ${etfCrypto() ? 'hidden' : ''}><label>Perfil de risco</label><div class="seg prof">${Object.entries(PROFILES).map(([v, [n, c, s, cr]]) => `<button type="button" data-prof="${v}" class="${cfg.profile === v ? 'on' : ''}"><b>${n}</b><small>${Math.round(c * 100)}/${Math.round(s * 100)}/${Math.round(cr * 100)}</small></button>`).join('')}</div>
                     <div class="hint">Núcleo (ETF) / satélites (ações) / cripto. O Resumo do dia divide o valor do mês por estas partes, conforme os sinais de cada ativo.</div></div>
                 <div><label>Dias de execução dos planos na TR</label><div class="chips days">${[2, 9, 16, 23].map((d) => `<button type="button" data-sday="${d}" class="${cfg.saveDays.includes(d) ? 'on' : ''}">dia ${d}</button>`).join('')}</div>
-                    <div class="hint">A TR executa os planos de poupança nos dias 2, 9, 16 e 23 (sem custos; dá para alterar até à véspera). Com 2 dias, o valor do mês divide-se a meio${+cfg.budget ? ` (${fmtPx(+cfg.budget / cfg.saveDays.length, { decimals: 0 }, 'EUR')} por execução)` : ''}. Na véspera, o Resumo do dia diz quanto pôr em cada plano.</div></div>
+                    <div class="hint">A TR executa os planos de poupança nos dias 2, 9, 16 e 23 (sem custos; dá para alterar até à véspera). Com 2 dias, o valor do mês divide-se a meio${budgetOf() ? ` (${fmtPx(budgetOf() / cfg.saveDays.length, { decimals: 0 }, 'EUR')} por execução)` : ''}. Na véspera, o Resumo do dia diz quanto pôr em cada plano.</div></div>
                 <div><label>Diário das sugestões</label><div class="hint">Guardado no teu conector com o código <code class="sel">${esc(cfg.jid)}</code>. Se reinstalares a app, cola aqui o código para recuperar o histórico.${cfg.owner ? ' É também a chave da tua app de dono: não o mostres a ninguém.' : ''}</div>
                     <div class="inl" style="margin-top:6px"><input id="f-jid" class="inp" type="text" autocomplete="off" spellcheck="false" placeholder="código do diário"><button type="button" class="btn sm" data-act="jid">Usar</button></div></div>
             </div></section>
@@ -2547,7 +2553,7 @@
                 const k = t.dataset.k, d = +t.dataset.d || 0, rg = t.parentElement && t.parentElement.querySelector('.sim-rg'), mn = rg ? +rg.min : 0;
                 // o «Já tens» parte do valor da carteira; mexer nele passa a valor à mão
                 if (k === 'simStart' && !cfg.simStartManual) { cfg.simStart = Math.round(carteiraHoje().v) || +cfg.simStart || 0; cfg.simStartManual = true; }
-                if (k === 'simBudget' && !Number.isFinite(cfg.simBudget)) cfg.simBudget = +cfg.budget || 0;
+                if (k === 'simBudget' && !Number.isFinite(cfg.simBudget)) cfg.simBudget = budgetOf();
                 const v = (+cfg[k] || 0) + d;
                 cfg[k] = k === 'simYears' ? Math.min(60, Math.max(1, Math.round(v || 20))) : Math.max(mn, v);
                 saveCfg(); render(); break;

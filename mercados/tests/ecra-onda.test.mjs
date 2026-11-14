@@ -73,6 +73,8 @@ function correr({ de, ate, seed }) {
             set('finnhub', pick(['', '', 'chave', '<&>"\'', undefined, 0, 123]));
             set('budget', pick([0, 900, 900, 1234.5, 0.5, 2.5, 1e21, 2 ** 60, 2 ** 53, 2 ** 53 + 2, -100, -0.3, NaN, Infinity, -Infinity, 1 / 3, 0.1 + 0.2, 99999.5, 49999.5, '900', '', null, undefined, 1e-7, 123456789.49, 5e-324, 1.7976931348623157e308, 12345678901234567890, 7.5, 13.5, 30000, 19999.5]));
             set('strategy', pick(['etfcrypto', 'etfcrypto', 'mix', undefined, 'outra', '']));
+            // o «€ por mês» de cada ativo na Carteira (com ele, o valor por mês é a soma e os Ajustes só o mostram)
+            c.lots = pick([{}, {}, { 'VWCE.DE': { pm: 900 } }, { 'VWCE.DE': { pm: 810 }, 'c:BTC': { pm: 90.5 } }, { 'c:BTC': { pm: 0.1 }, 'c:ETH': { pm: 0.2 } }, { 'VWCE.DE': { pm: -5, qty: 1 } }]);
             const nf = pick([0, 1, 3, 7, 7, 10]);
             const funds = sub(FUNDS.concat(sim(0.3) ? SYMS : []), nf);
             c.funds = funds;
