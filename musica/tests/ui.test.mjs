@@ -1546,11 +1546,14 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         assert.ok(b2.top >= b1.bottom, 'um por baixo do outro');
         assert.ok(b1.h < 60 && b2.h < 60, `cada um numa linha (${b1.h}px, ${b2.h}px)`);
         assert.ok(b1.cabe && b2.cabe && b1.w === b2.w, 'o texto cabe; a mesma largura');
+        // os dois caminhos no escuro dos botões secundários (o branco cheio ficava pesado), com o texto claro
+        const cores = await page.$$eval('#mu-body .mu-duo .mu-duo-b', (bs) => bs.map((b) => [getComputedStyle(b).backgroundColor, getComputedStyle(b).color].join(' / ')));
+        assert.deepEqual(cores, ['rgb(44, 44, 46) / rgb(255, 255, 255)', 'rgb(44, 44, 46) / rgb(255, 255, 255)'], `as cores dos dois caminhos (${cores})`);
         // «Mudar» (as opções do pedido): a palavra cabe no botão e o botão não sai da linha
         const mudar = await page.$eval('#mu-body .mu-opcoes [data-onda="opcoes"]', (b) => { const r = b.getBoundingClientRect(), p = b.parentElement.getBoundingClientRect(), g = document.createRange(); g.selectNodeContents(b); const t = g.getBoundingClientRect(); return { cabe: t.left >= r.left - 0.5 && t.right <= r.right + 0.5, dentro: r.right <= p.right + 0.5, w: r.width, tw: t.width }; });
         assert.ok(mudar.cabe, `«Mudar»: a palavra cabe no botão (${mudar.tw}px em ${mudar.w}px)`);
         assert.ok(mudar.dentro, '«Mudar» não sai da linha das opções');
-        if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'pedir-dois-caminhos.png') });
+        if (SHOTS) { await page.waitForFunction(() => document.getElementById('mu-espreita')?.hidden !== false); await page.locator('#mu-body .mu-card', { has: page.locator('.mu-duo') }).screenshot({ path: path.join(SHOTS, 'pedir-dois-caminhos.png') }); }
         // num telemóvel estreito (320 px), o texto continua dentro dos botões e nenhum sai do ecrã
         await page.setViewportSize({ width: 320, height: 700 });
         const estreito = await page.$$eval('#mu-body .mu-duo .mu-duo-b, #mu-body .mu-opcoes [data-onda="opcoes"]', (bs) => bs.map((b) => { const r = b.getBoundingClientRect(), g = document.createRange(); g.selectNodeContents(b); const t = g.getBoundingClientRect(); return `${t.left >= r.left - 0.5 && t.right <= r.right + 0.5 && r.right <= document.documentElement.clientWidth + 0.5} ${Math.round(t.width)}/${Math.round(r.width)}`; }));
