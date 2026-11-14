@@ -37,7 +37,7 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 
 ## O que ficou por fazer
 
-As dez voltas estão feitas e publicadas (hoje: Música 2.41.0, conector 1.33.0). Fica isto, por ordem do que mais importa:
+As dez voltas estão feitas e publicadas (hoje: Música 2.42.0, conector 1.34.0). Fica isto, por ordem do que mais importa:
 
 | O quê | Porquê ficou | O que é preciso |
 |---|---|---|
@@ -75,8 +75,9 @@ confirma-as e a playlist nasce em segundos, com as parecidas delas. O Maestro re
 8 pedidos reais deu 31 de 32 músicas confirmadas; falha nos pedidos para crianças, que a revisão do Maestro corrige.
 Grátis até 10 000 «Neurons» por dia; passado isso, o pedido fica para o Maestro, como antes.
 Em «Pedir» escolhe-se «Criar já» (a IA e depois o Maestro) ou «Só o Maestro». A IA escolhe-se por pessoa, nos
-Ajustes: a Mistral da Cloudflare (por omissão; não treina) ou a Mistral avançada (Mistral Large), com a conta Mistral
-da própria pessoa: a chave cola-se uma vez na app, confirma-se na Mistral, fica no conector e nunca volta (quem montou
+Ajustes: a Mistral da Cloudflare (por omissão; não treina), a Mistral avançada (Mistral Large), com a conta Mistral
+da própria pessoa, ou o Gemini (3.8 Flash; o 3.5 Flash-Lite de reserva), com a conta Google dela (para quem está na
+UE, a Google segue as regras do plano pago: não usa os pedidos). Nas duas: a chave cola-se uma vez na app, confirma-se na Mistral, fica no conector e nunca volta (quem montou
 a app pode, em vez disso, pô-la no Cloudflare, `MISTRAL_API_KEY`). No plano grátis, a Mistral pode usar os pedidos para
 treinar os modelos dela: é uma escolha de cada um.
 

@@ -52,10 +52,27 @@ export function simulador() {
     // a API da Mistral (a conta do dono): guarda o que chegou; sim.mistral = { status, conteudo }
     sim.mistralPedidos = [];
     sim.mistral = { status: 200, conteudo: '{}' };
-    sim.fetch = async (u, init = {}) => mistralSimulada(sim, u, init) || maestroSimulado(sim, u, init) || pushSimulado(sim, u, init) || tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
+    // a API do Gemini (a conta Google de cada pessoa): sim.gemini = { status, conteudo, falha: { modelo: status } }
+    sim.geminiPedidos = [];
+    sim.gemini = { status: 200, conteudo: '{}', falha: {} };
+    sim.fetch = async (u, init = {}) => geminiSimulado(sim, u, init) || mistralSimulada(sim, u, init) || maestroSimulado(sim, u, init) || pushSimulado(sim, u, init) || tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
     return sim;
 }
 
+function geminiSimulado(sim, u, init) {
+    const h = String(u);
+    if (!h.startsWith('https://generativelanguage.googleapis.com/v1beta/models')) return null;
+    const chave = new Headers(init.headers).get('x-goog-api-key');
+    const resp = (corpo, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { 'content-type': 'application/json' } });
+    if (h === 'https://generativelanguage.googleapis.com/v1beta/models') return (sim.geminiBoas || []).includes(chave) ? resp({ models: [{ name: 'models/gemini-3.8-flash' }] }) : resp({ error: { message: 'API key not valid' } }, 400);
+    const m = /\/models\/([^:]+):generateContent$/.exec(h);
+    if (!m) return resp({ error: { message: 'not found' } }, 404);
+    sim.geminiPedidos.push({ modelo: m[1], chave, corpo: JSON.parse(init.body) });
+    const st = sim.gemini.falha?.[m[1]] || sim.gemini.status;
+    if (st !== 200) return resp({ error: { message: 'x' } }, st);
+    // (com uma parte de «pensamento» antes da resposta, como os modelos que pensam)
+    return resp({ candidates: [{ content: { role: 'model', parts: [{ text: 'a pensar…', thought: true }, { text: sim.gemini.conteudo }] } }] });
+}
 function mistralSimulada(sim, u, init) {
     // confirmar uma chave: as de sim.mistralBoas valem
     if (String(u) === 'https://api.mistral.ai/v1/models') {

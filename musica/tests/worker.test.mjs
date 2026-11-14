@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.33.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.34.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -804,7 +804,7 @@ test('a Mistral avançada: cada pessoa escolhe a IA; liga a conta Mistral dela (
     env.MISTRAL_API_KEY = 'mkDonoChave1234567890ab';
     assert.deepEqual([(await estado(chave)).mistralLigada, (await estado(chave)).iaMistral], [true, false]);
     assert.equal((await (await post('/api/pedidos', { texto: 'Jazz para o dono' }, chave)).json()).ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
-    assert.deepEqual(await (await post('/api/consentir', { mistral: true }, chave)).json(), { ok: true, mistral: true });
+    assert.deepEqual(await (await post('/api/consentir', { mistral: true }, chave)).json(), { ok: true, ia: 'mistral', mistral: true });
     assert.equal((await estado(chave)).iaMistral, true);
     const pd = await (await post('/api/pedidos', { texto: 'Mais jazz para o dono' }, chave)).json();
     assert.equal(pd.ia, 'mistral:mistral-large-latest');
@@ -828,7 +828,7 @@ test('a Mistral avançada: cada pessoa escolhe a IA; liga a conta Mistral dela (
     assert.equal((await (await post('/api/mistral', { chave: 'curta' }, ana)).json()).error, 'mistral_chave');
     const errada = await post('/api/mistral', { chave: 'mkErradaChave1234567890' }, ana);
     assert.deepEqual([errada.status, (await errada.json()).message], [400, 'A Mistral não aceitou esta chave. Confirma que a copiaste toda.']);
-    assert.deepEqual(await (await post('/api/mistral', { chave: 'mkAnaBoaChave1234567890' }, ana)).json(), { ok: true, iaMistral: true });
+    assert.deepEqual(await (await post('/api/mistral', { chave: 'mkAnaBoaChave1234567890' }, ana)).json(), { ok: true, ia: 'mistral' });
     const eAna = await estado(ana);
     assert.deepEqual([eAna.mistralLigada, eAna.iaMistral], [true, true]);
     assert.ok(!JSON.stringify(eAna).includes('mkAnaBoaChave'), 'a chave nunca volta nas respostas');
@@ -842,6 +842,51 @@ test('a Mistral avançada: cada pessoa escolhe a IA; liga a conta Mistral dela (
     assert.equal((await estado(ana)).mistralLigada, false);
     assert.equal((await post('/api/mistral', { chave: 'mkAnaBoaChave1234567890' }, agente)).status, 403, 'o Maestro não liga contas');
     delete env.AI; delete env.MISTRAL_API_KEY;
+});
+
+test('o Gemini: a terceira IA (3.8 Flash; o 3.5 Flash-Lite de reserva), com a conta Google da pessoa', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const estado = async () => (await get('/api/estado', chave)).json();
+    env.AI = { run: async () => ({ response: '{"nome": "Da Cloudflare", "musicas": [{"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }) };
+    sim.gemini = { status: 200, conteudo: '{"nome": "Do Gemini", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}]}', falha: {} };
+    sim.geminiBoas = ['AIzaBoaChaveDoGoogle1234567890'];
+    await post('/api/consentir', { cloudflare: true }, chave);
+    assert.deepEqual([(await estado()).iaEscolha, (await estado()).geminiLigada], ['cloudflare', false]);
+    // sem a conta ligada não se escolhe; uma IA que não existe também não
+    assert.equal((await (await post('/api/consentir', { ia: 'gemini' }, chave)).json()).error, 'sem_gemini');
+    assert.equal((await post('/api/consentir', { ia: 'outra' }, chave)).status, 400);
+    // ligar: a chave confirma-se na Google; errada, diz-se
+    const errada = await post('/api/gemini', { chave: 'AIzaErradaChave1234567890' }, chave);
+    assert.deepEqual([errada.status, (await errada.json()).message], [400, 'A Google não aceitou esta chave. Confirma que a copiaste toda.']);
+    assert.deepEqual(await (await post('/api/gemini', { chave: 'AIzaBoaChaveDoGoogle1234567890' }, chave)).json(), { ok: true, ia: 'gemini' });
+    const e = await estado();
+    assert.deepEqual([e.iaEscolha, e.geminiLigada, e.iaMistral], ['gemini', true, false]);
+    assert.ok(!JSON.stringify(e).includes('AIzaBoa'), 'a chave nunca volta');
+    // a playlist na hora com o Gemini 3.8 Flash: JSON pedido, as partes de «pensamento» não contam
+    const p = await (await post('/api/pedidos', { texto: 'Jazz modal' }, chave)).json();
+    assert.equal(p.ia, 'gemini:gemini-3.8-flash');
+    const pg = sim.geminiPedidos.at(-1);
+    assert.deepEqual([pg.modelo, pg.chave, pg.corpo.generationConfig.responseMimeType], ['gemini-3.8-flash', 'AIzaBoaChaveDoGoogle1234567890', 'application/json']);
+    assert.match(pg.corpo.systemInstruction.parts[0].text, /^És um curador de música/);
+    assert.equal(pg.corpo.contents[0].parts[0].text, 'Jazz modal');
+    // o 3.8 Flash falha: o 3.5 Flash-Lite; os dois falham: a IA da Cloudflare
+    sim.gemini.falha = { 'gemini-3.8-flash': 503 };
+    assert.equal((await (await post('/api/pedidos', { texto: 'Mais jazz' }, chave)).json()).ia, 'gemini:gemini-3.5-flash-lite');
+    sim.gemini.falha = { 'gemini-3.8-flash': 503, 'gemini-3.5-flash-lite': 429 };
+    assert.equal((await (await post('/api/pedidos', { texto: 'Ainda mais jazz' }, chave)).json()).ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    sim.gemini.falha = {};
+    // voltar à da Cloudflare (a conta fica ligada); voltar ao Gemini; desligar a conta: fica a da Cloudflare
+    assert.deepEqual(await (await post('/api/consentir', { ia: 'cloudflare' }, chave)).json(), { ok: true, ia: 'cloudflare', mistral: false });
+    assert.deepEqual([(await estado()).iaEscolha, (await estado()).geminiLigada], ['cloudflare', true]);
+    await post('/api/consentir', { ia: 'gemini' }, chave);
+    await call('/api/gemini', { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } });
+    assert.deepEqual([(await estado()).iaEscolha, (await estado()).geminiLigada], ['cloudflare', false]);
+    // quem montou a app pode ter a chave no Cloudflare (GEMINI_API_KEY)
+    env.GEMINI_API_KEY = 'AIzaBoaChaveDoGoogle1234567890';
+    assert.equal((await estado()).geminiLigada, true);
+    await post('/api/consentir', { ia: 'gemini' }, chave);
+    assert.equal((await (await post('/api/pedidos', { texto: 'Jazz do dono' }, chave)).json()).ia, 'gemini:gemini-3.8-flash');
+    delete env.AI; delete env.GEMINI_API_KEY;
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {

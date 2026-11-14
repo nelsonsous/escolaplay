@@ -1647,6 +1647,8 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
     await env.KV.delete('mistral:chave');
     env.AI = { run: async () => ({ response: '{"nome": "X", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}]}' }) };
     sim.mistralBoas = ['mkUiBoaChave1234567890ab'];
+    sim.geminiBoas = ['AIzaUiBoaChaveGoogle1234567890'];
+    await env.KV.delete('gemini:chave');
     await env.KV.put('codigo:ligacao', createHash('sha256').update('MISTRAL-1').digest('hex'));
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
     try {
@@ -1663,18 +1665,19 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         await nav(5);
         const esc = corpo.locator('.mu-ia-esc');
         await esc.waitFor();
-        assert.equal(await esc.getByRole('button', { name: 'Mistral da Cloudflare' }).getAttribute('aria-pressed'), 'true', 'por omissão, a da Cloudflare');
+        assert.equal(await esc.getByRole('button', { name: 'Cloudflare', exact: true }).getAttribute('aria-pressed'), 'true', 'por omissão, a da Cloudflare');
+        assert.deepEqual(await esc.locator('.mu-seg button').allInnerTexts(), ['Cloudflare', 'Mistral avançada', 'Gemini']);
         // a avançada, sem a conta ligada: aparece o «Liga a tua conta Mistral»
         await esc.getByRole('button', { name: 'Mistral avançada' }).click();
         const liga = corpo.locator('.mu-mistral');
         await liga.waitFor();
-        await liga.locator('[data-onda="mi-chave"]').fill('mkErradaChave1234567890');
+        await liga.locator('[data-onda="ia-chave"]').fill('mkErradaChave1234567890');
         await liga.getByRole('button', { name: 'Ligar' }).click();
         await page.locator('#mu-aviso').getByText('A Mistral não aceitou esta chave. Confirma que a copiaste toda.').waitFor();
-        await liga.locator('[data-onda="mi-chave"]').fill('mkUiBoaChave1234567890ab');
+        await liga.locator('[data-onda="ia-chave"]').fill('mkUiBoaChave1234567890ab');
         await liga.getByRole('button', { name: 'Ligar' }).click();
         await page.locator('#mu-aviso').getByText('Conta Mistral ligada: a playlist na hora passa a usá-la.').waitFor();
-        await page.waitForFunction(() => document.querySelector('#mu-body .mu-ia-esc [data-onda="ia_mi\t1"]')?.getAttribute('aria-pressed') === 'true');
+        await page.waitForFunction(() => document.querySelector('#mu-body .mu-ia-esc [data-onda="ia_esc\tmistral"]')?.getAttribute('aria-pressed') === 'true');
         await corpo.getByRole('button', { name: 'Desligar a conta Mistral' }).waitFor();
         assert.equal(await env.KV.get('mistral:chave'), 'mkUiBoaChave1234567890ab');
         assert.ok(!(await page.content()).includes('mkUiBoaChave'), 'a chave nunca volta à app');
@@ -1682,10 +1685,26 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         await nav(3);
         await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
         assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^«Criar já»: a IA \(Mistral avançada, a tua conta\)/);
-        // voltar à da Cloudflare (a conta fica ligada) e desligar a conta
+        // o Gemini: a conta Google, ligada da mesma maneira
         await nav(5);
-        await corpo.locator('.mu-ia-esc').getByRole('button', { name: 'Mistral da Cloudflare' }).click();
-        await page.locator('#mu-aviso').getByText('A playlist na hora passa a usar a Mistral da Cloudflare.').waitFor();
+        await corpo.locator('.mu-ia-esc').getByRole('button', { name: 'Gemini' }).click();
+        const ligaG = corpo.locator('.mu-mistral');
+        await ligaG.getByText('Liga a tua conta Google (Gemini)').waitFor();
+        await ligaG.locator('[data-onda="ia-chave"]').fill('AIzaUiBoaChaveGoogle1234567890');
+        await ligaG.getByRole('button', { name: 'Ligar' }).click();
+        await page.locator('#mu-aviso').getByText('Conta Google ligada: a playlist na hora passa a usar o Gemini.').waitFor();
+        await page.waitForFunction(() => document.querySelector('#mu-body .mu-ia-esc [data-onda="ia_esc\tgemini"]')?.getAttribute('aria-pressed') === 'true');
+        assert.equal(await env.KV.get('gemini:chave'), 'AIzaUiBoaChaveGoogle1234567890');
+        assert.ok(!(await page.content()).includes('AIzaUiBoa'), 'a chave nunca volta à app');
+        await nav(3);
+        await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
+        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^«Criar já»: a IA \(Gemini, a tua conta Google\)/);
+        await nav(5);
+        await corpo.getByRole('button', { name: 'Desligar a conta Google' }).click();
+        await page.locator('#mu-aviso').getByText('Conta Google desligada.').waitFor();
+        // voltar à da Cloudflare (a conta Mistral fica ligada) e desligar a conta Mistral
+        await corpo.locator('.mu-ia-esc').getByRole('button', { name: 'Cloudflare', exact: true }).click();
+        await page.locator('#mu-aviso').getByText('A playlist na hora passa a usar a IA da Cloudflare.').waitFor();
         await corpo.getByRole('button', { name: 'Desligar a conta Mistral' }).click();
         await page.locator('#mu-aviso').getByText('Conta Mistral desligada.').waitFor();
         await page.waitForFunction(() => ![...document.querySelectorAll('#mu-body button')].some((b) => b.innerText === 'Desligar a conta Mistral'));
