@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.38.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.38.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -635,6 +635,7 @@ test('o perfil: o questionário em toques, o que se aprende (o que se apagou, as
     try {
         await post('/api/pedidos/melhorar', { texto: 'jazz para jantar' }, chave);
         assert.match(msgs.at(-1)[1].content, /^jazz para jantar\n\nPerfil da pessoa \(usa-o para afinar o texto, sem o copiar\): O que a pessoa disse: ouve no carro/);
+        assert.ok(!/Nina Simone|Pedidos recentes|Artistas que ouve/.test(msgs.at(-1)[1].content), 'na sugestão do texto, o perfil vai sem nomes');
         await post('/api/pedidos', { texto: 'jazz para jantar' }, chave);
         assert.match(msgs.at(-1)[1].content, /\n- Perfil da pessoa: O que a pessoa disse: ouve no carro/);
         await post('/api/consentir', { gosto: false }, chave);
@@ -660,13 +661,21 @@ test('o perfil: o questionário em toques, o que se aprende (o que se apagou, as
     } finally { delete sim.geminiModelos; }
 });
 
-test('melhorar o pedido: a IA da playlist na hora reescreve o texto mais apurado; sem a autorização ou sem IA, diz porquê', async () => {
+test('melhorar o pedido: a IA da playlist na hora reescreve o texto mais apurado, sem nomes que a pessoa não escreveu; sem a autorização ou sem IA, diz porquê', async () => {
     const { chave } = await ligarPrimeiraVez();
     const texto = 'música para treinar ginástica';
+    const COM_NOMES = 'Música enérgica e alegre para treinar ginástica rítmica, ritmo constante: pop dançável, como Dua Lipa ou Bruno Mars.';
+    const SEM_NOMES = 'Música enérgica e alegre para treinar ginástica rítmica, com ritmo constante e pop dançável.';
     // sem a playlist na hora ligada (a autorização para a IA ler o texto): não manda nada à IA
-    let pedidosIA = 0;
-    env.AI = { run: async (modelo, entrada) => { pedidosIA++; assert.match(entrada.messages[0].content, /^És um curador de música\. Uma pessoa escreveu um pedido de playlist/); assert.equal(entrada.messages[1].content, texto);
-        return { response: '{"texto": "Música enérgica e alegre para treinar ginástica rítmica, ritmo constante (100–130 bpm): pop dançável, como Dua Lipa ou Bruno Mars.", "porque": "Juntei a energia, o ritmo e exemplos."}' }; } };
+    let pedidosIA = 0, sistemas = [];
+    env.AI = { run: async (modelo, entrada) => {
+        pedidosIA++; sistemas.push(entrada.messages[0].content);
+        assert.match(entrada.messages[0].content, /^És um curador de música\. Uma pessoa escreveu um pedido de playlist/);
+        assert.equal(entrada.messages[1].content, texto);
+        // à primeira traz nomes que a pessoa não escreveu; avisada, tira-os
+        const avisada = /Atenção: a sugestão anterior trazia nomes que a pessoa não escreveu \(Dua, Lipa, Bruno, Mars\)/.test(entrada.messages[0].content);
+        return { response: JSON.stringify({ texto: avisada ? SEM_NOMES : COM_NOMES, porque: 'Juntei a energia e o ritmo.' }) };
+    } };
     try {
         const sem = await post('/api/pedidos/melhorar', { texto }, chave);
         assert.equal(sem.status, 409);
@@ -676,10 +685,18 @@ test('melhorar o pedido: a IA da playlist na hora reescreve o texto mais apurado
         assert.equal((await post('/api/pedidos/melhorar', { texto: 'x' }, chave)).status, 400);
         const r = await post('/api/pedidos/melhorar', { texto }, chave);
         assert.equal(r.status, 200);
-        assert.deepEqual(await r.json(), { texto: 'Música enérgica e alegre para treinar ginástica rítmica, ritmo constante (100–130 bpm): pop dançável, como Dua Lipa ou Bruno Mars.',
-            porque: 'Juntei a energia, o ritmo e exemplos.', modelo: '@cf/mistralai/mistral-small-3.1-24b-instruct', por: 'Mistral Small' });
-        assert.equal(pedidosIA, 1);
+        assert.deepEqual(await r.json(), { texto: SEM_NOMES, porque: 'Juntei a energia e o ritmo.', modelo: '@cf/mistralai/mistral-small-3.1-24b-instruct', por: 'Mistral Small' });
+        assert.equal(pedidosIA, 2, 'a primeira trazia nomes: uma segunda vez, avisada');
+        assert.match(sistemas[0], /Não acrescentes nomes de artistas, bandas, compositores, músicas ou álbuns que a pessoa não escreveu/);
         assert.deepEqual(await (await get('/api/pedidos', chave)).json(), [], 'melhorar não faz pedido nenhum');
+        // se a pessoa escreveu um músico, ele fica (não é um nome novo)
+        env.AI = { run: async () => ({ response: JSON.stringify({ texto: 'Jazz calmo à volta de Miles Davis, para o fim do dia.', porque: 'x' }) }) };
+        assert.equal((await (await post('/api/pedidos/melhorar', { texto: 'jazz como o Miles Davis' }, chave)).json()).texto, 'Jazz calmo à volta de Miles Davis, para o fim do dia.');
+        // insiste nos nomes: fica o texto da pessoa (a app cria logo com ele)
+        env.AI = { run: async () => ({ response: JSON.stringify({ texto: COM_NOMES, porque: 'x' }) }) };
+        const n2 = await post('/api/pedidos/melhorar', { texto }, chave);
+        assert.equal(n2.status, 502);
+        assert.equal((await n2.json()).message, 'A IA só sugeria nomes que não escreveste: fica o teu texto.');
         // a IA não responde (ou responde mal): diz que tente outra vez
         env.AI = { run: async () => ({ response: 'não sei' }) };
         const f = await post('/api/pedidos/melhorar', { texto }, chave);
