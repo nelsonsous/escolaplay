@@ -171,8 +171,8 @@ button.mu-chip { cursor: pointer; }
 
 /* pedidos */
 .mu-opcoes { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 4px; color: var(--mut); font-size: 13.5px; }
-.mu-mais { flex: none; background: none; border: 0; padding: 6px 0; color: var(--fg); font-size: 14px; font-weight: 650; cursor: pointer; }
-.mu-mais:active { opacity: .6; }
+.mu-mudar { flex: none; background: none; border: 0; padding: 6px 0; color: var(--fg); font-size: 14px; font-weight: 650; cursor: pointer; }
+.mu-mudar:active { opacity: .6; }
 .mu-pedido { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--line); }
 .mu-pedido:first-of-type { border-top: 0; }
 .mu-pedido .tx { font-size: 14.5px; }
