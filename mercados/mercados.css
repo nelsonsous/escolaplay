@@ -732,6 +732,11 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 
 /* a decisão consolidada (4.21.0): o veredicto e a confiança, a média das fontes e cada fonte numa linha */
 .dec-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; }
+.dec-hz { display: flex; align-items: center; gap: 6px; margin: 8px 0 2px; }
+.dec-hz small { color: var(--muted); margin-right: 2px; }
+.dec-hz button { font: inherit; font-size: calc(.8rem * var(--k)); padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); }
+.dec-hz button.on { color: var(--text, #fff); border-color: currentColor; font-weight: 700; }
+.dec-irs { font-size: calc(.85rem * var(--k)); color: var(--muted); margin: 4px 0 8px; line-height: 1.4; }
 .dec-leg { font-size: calc(.76rem * var(--k)); color: var(--muted); line-height: 1.4; margin: 2px 0 10px; }
 .dec-leg summary { cursor: pointer; font-weight: 600; }
 .dec-leg p { margin: 6px 0 0; }

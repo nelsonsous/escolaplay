@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.25.2';
+    const VERSION = '4.26.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1226,7 +1226,9 @@
             const P = posOf(k); return [k, { ...L, qty: Math.round(P.q * 1e8) / 1e8, cost: Math.round(P.c * 100) / 100, ...(hz ? { hz } : {}) }];
         }));
         for (const k of cfg.holdings) if (!o[k] && REG[k]) o[k] = { plan: '', buys: [], hz: hzOf(k) };
-        return o;
+        // o que tem primeiro (o conector guarda 12 ativos)
+        const ks = Object.keys(o).sort((a, b) => (owns(b) ? 1 : 0) - (owns(a) ? 1 : 0));
+        return Object.fromEntries(ks.map((k) => [k, o[k]]));
     };
     // o plano dos Ajustes: quanto investe por mês e a parte da cripto (o Claude parte daqui, não de um valor fixo)
     const planoEnvio = () => ({ budget: budgetOf(), cryptoPct: etfCrypto() ? +cfg.cryptoPct || 0 : 0 });
@@ -1499,6 +1501,17 @@
     const decOf = (k) => (buyable(k) ? A.decisao(decIn(k)) : null);
     // o cartão «Decisão» da ficha (ecra-decisao.onda): as fontes e o que só o JS sabe (de quando é a análise, os
     // níveis já na moeda do ecrã, a agenda). dec é a decisão (decOf): diz quem manda e o veredicto
+    // o IRS no prazo escolhido (ou no que tem) e, com o alvo do Claude, o que fica de 1 000 € depois do imposto
+    function irsTxt(k, q, c, hz) {
+        const cr = REG[k] && REG[k].kind === 'crypto';
+        const regra = cr ? (hz === 'long' ? 'IRS: ao fim de 365 dias, o ganho fica isento.' : hz ? 'IRS: vender antes de 365 dias paga 28 % sobre o ganho.' : 'IRS: 28 % sobre o ganho antes de 365 dias; isento depois.')
+            : hz === 'long' ? 'IRS: 28 % até 2 anos, 25,2 % de 2 a 5, 22,4 % de 5 a 8 e 19,6 % com 8 anos ou mais.' : hz ? 'IRS: vender antes de 2 anos paga 28 % sobre o ganho.' : 'IRS: 28 % até 2 anos, a descer até 19,6 % com 8 anos ou mais.';
+        const tg = c && fin(c.target) ? clPx(k, q, c.target) : null;
+        if (!(fin(tg) && fin(q.price) && q.price > 0 && tg > q.price)) return regra;
+        const g = (tg / q.price - 1) * 1000, eur = (x) => `+${Math.round(x)} €`;
+        return `${regra} No alvo (${fmtPct((tg / q.price - 1) * 100)}), 1 000 € ganham ${eur(g)}`
+            + (cr && hz === 'long' ? ', sem imposto.' : !cr && hz === 'long' ? `: ${eur(g * 0.72)} a ${eur(g * 0.804)} depois do imposto, conforme os anos.` : `: ${eur(g * 0.72)} depois do imposto.`);
+    }
     function decSnap(k, q, dec) {
         const c = claudeFor(k), cons = CONS[k], n = NEWS[k], alg = AN[k] && AN[k].advice, manda = dec.manda === 'claude', lbl = rotulo(dec.key, owns(k));
         const de = c && c.date ? dmy(c.date).slice(0, 5) : '';
@@ -1510,7 +1523,7 @@
             d: decIn(k), own: owns(k),
             desde: iso ? (dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `${iso.slice(8, 10)}/${iso.slice(5, 7)}${iso.slice(0, 4) !== hj.slice(0, 4) ? '/' + iso.slice(0, 4) : ''}`) : '',
             dias, era: iso && typeof c.was === 'string' && Object.prototype.hasOwnProperty.call(FAMS, c.was) ? c.was : '',
-            cat: manda ? c.cat : '', risk: manda ? c.risk : '', nc: clNews(c),
+            cat: manda ? c.cat : '', risk: manda ? c.risk : '', nc: clNews(c), irs: irsTxt(k, q, manda ? c : null, hzOf(k)),
             src: manda ? (c.old ? `Análise do Claude de ${de} · último comentário a este ativo` : `Análise do Claude · ${clWhen()}`) : `Média das fontes · ${clDoc() ? 'o Claude não analisou este ativo' : claudeOn() ? 'ainda sem análise do Claude' : 'a análise do Claude liga-se em Ajustes'}`,
             act: manda && c.action && c.action.trim().toLowerCase() !== lbl.toLowerCase() ? c.action : '',
             // o porquê: o do Claude; sem ele, o da regra automática quando é ela que aponta para o mesmo lado
@@ -2386,7 +2399,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv],[data-hzset]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { irPara(d.tab); return; }
@@ -2414,6 +2427,9 @@
         if (d.hz) { cfg.hz = d.hz; saveCfg(); render(); return; }
         if (d.prof) { cfg.profile = d.prof; saveCfg(); render(); return; }
         if (d.strat) { cfg.strategy = d.strat; saveCfg(); postLotsSoon(); render(); return; }
+        // o prazo de um ativo, no cartão «Decisão»: no que tem, fica sempre um (por omissão, longo); no que não tem,
+        // tocar outra vez no mesmo tira-o
+        if (d.hzset && sheetKey && HZ_OK.includes(d.hzset)) { const k = sheetKey, L = { ...lotOf(k) }; L.hz = !owns(k) && L.hz === d.hzset ? undefined : d.hzset; setLots(k, L); return; }
         if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); postLotsSoon(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
