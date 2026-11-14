@@ -13,7 +13,7 @@ import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.9.0';
+const VERSION = '1.9.1';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -231,7 +231,7 @@ async function ownerCode(req, env) {
     return sameHash(await sha256(got), ownerHash.hash) ? 'ok' : 'errado';
 }
 const noDevice = (message = 'Este telemóvel não foi reconhecido pelo conector. Abre a app de novo.') => json({ error: 'dispositivo', message }, 403);
-// telemóvel ainda sem registo: o nome é obrigatório para ligar a análise diária, as notificações ou dar avisos
+// telemóvel ainda sem registo: o nome é obrigatório para ligar a análise, as notificações ou dar avisos
 const needName = () => json({ error: 'sem_nome', message: 'Escreve primeiro o teu nome (Ajustes → Este telemóvel): é assim que o dono da app sabe quem a usa.' }, 403);
 // Pedidos ao mesmo tempo do mesmo telemóvel leem o mesmo registo: neste isolate só o primeiro grava (durante 60 s, o
 // tempo que o KV pode levar a mostrar a gravação). A chave é o que se leu, por isso um registo diferente grava sempre.
@@ -319,15 +319,15 @@ function nearestOf(me, places, lat, lon, maxKm) {
     return places.filter((p) => !p.off && canSee(me, p)).map((p) => { const c = seenAt(me, p); return { p, d: distKm(lat, lon, c.lat, c.lon) }; })
         .filter((o) => o.d <= maxKm).sort((a, b) => a.d - b.d)[0] || null;
 }
-// O que impede outro telemóvel de ligar (ou voltar a ligar) a análise diária: a análise dos outros desligada pelo dono,
+// O que impede outro telemóvel de ligar (ou voltar a ligar) a análise: a análise dos outros desligada pelo dono,
 // um local desligado pelo dono, ou já haver 15 locais em análise (os do dono e os dos outros em uso).
 async function guestBlock(env, places, cur) {
-    if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise diária nos outros telemóveis.' }, 403);
-    if (cur?.off && cur.offBy === 'owner') return json({ error: 'desligado_pelo_dono', message: 'A análise diária deste telemóvel foi desligada pelo dono da app.' }, 403);
+    if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise nos outros telemóveis.' }, 403);
+    if (cur?.off && cur.offBy === 'owner') return json({ error: 'desligado_pelo_dono', message: 'A análise deste telemóvel foi desligada pelo dono da app.' }, 403);
     const rest = places.filter((p) => p.id !== cur?.id && !p.off);
     const seen = await lastSeenOf(env, rest.filter((p) => !isOwnerPlace(p)).flatMap((p) => [placeOwner(p), ...placeMembers(p)]));
     if (rest.filter((p) => placeStatus(p, lastSeenOfPlace(p, (id) => seen[id])) === 'active').length >= ANALYSED_MAX) {
-        return json({ error: 'cheio', message: `De momento não há vagas para a análise diária (máx. ${ANALYSED_MAX} locais). Tenta mais tarde.` }, 409);
+        return json({ error: 'cheio', message: `De momento não há vagas para a análise (máx. ${ANALYSED_MAX} locais). Tenta mais tarde.` }, 409);
     }
     return null;
 }
@@ -362,7 +362,7 @@ async function addPlace(req, env, url) {
     }
     const off = near.find((p) => p.off) || null;
     const nowIso = new Date().toISOString();
-    // O dono a ligar uma cidade onde outro telemóvel já tem análise diária (≤ 5 km): não se cria outra — o local passa a
+    // O dono a ligar uma cidade onde outro telemóvel já tem análise (≤ 5 km): não se cria outra — o local passa a
     // ser do dono (sem pausas nem limites) e quem o ligou junta-se a ele (continua a vê-lo, com a mesma análise e lições)
     if (me.owner && !off) {
         const dk = (p) => distKm(p.lat, p.lon, lat, lon);
@@ -373,14 +373,14 @@ async function addPlace(req, env, url) {
             return json(placeView(me, next, { adopted: true }), 200);
         }
     }
-    // Na mesma cidade (≤ 5 km) já há uma análise diária (de preferência a do dono): este telemóvel junta-se a ela em vez
+    // Na mesma cidade (≤ 5 km) já há uma análise (de preferência a do dono): este telemóvel junta-se a ela em vez
     // de criar outra. Acompanha só essa (sai de outra a que se tinha juntado; o seu local, se tiver, fica desligado).
     if (!me.owner) {
         const dk = (p) => distKm(p.lat, p.lon, lat, lon);
         const join = places.filter((p) => !p.off && !mine(me, p) && dk(p) <= SHARE_KM)
             .sort((a, b) => Number(isOwnerPlace(b)) - Number(isOwnerPlace(a)) || dk(a) - dk(b))[0];
         if (join) {
-            if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise diária nos outros telemóveis.' }, 403);
+            if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise nos outros telemóveis.' }, 403);
             const next = places.map((p) => (p.id === join.id ? { ...p, members: [...placeMembers(p).filter((x) => x !== me.id), me.id] }
                 : mine(me, p) && !p.off ? { ...leave(p, me.id), off: true, offAt: nowIso, offBy: 'device' } : leave(p, me.id)));
             if (JSON.stringify(next) !== JSON.stringify(places)) await savePlaces(env, next);
@@ -389,7 +389,7 @@ async function addPlace(req, env, url) {
     }
     if (!me.owner) {
         // 1 local por telemóvel: noutro sítio, a app muda-o (PATCH /api/places/<id>)
-        if (!off && own.length >= GUEST_MAX) return json({ error: 'limite', message: 'Cada pessoa tem 1 local com análise diária: muda-o para aqui.', place: placeView(me, own[0]) }, 409);
+        if (!off && own.length >= GUEST_MAX) return json({ error: 'limite', message: 'Cada pessoa tem 1 local com análise: muda-o para aqui.', place: placeView(me, own[0]) }, 409);
         const block = await guestBlock(env, places, off);
         if (block) return block;
     }
@@ -423,7 +423,7 @@ async function deletePlace(req, env, url, id) {
     return new Response(null, { status: 204 });
 }
 
-// Mudar um local para outro ponto ({ lat, lon, name? } — na app: "Mudar a análise diária para este ponto", ou ligar
+// Mudar um local para outro ponto ({ lat, lon, name? } — na app: "Mudar a análise para este ponto", ou ligar
 // noutro sítio o único local de um telemóvel) e/ou ligar/desligar ({ on }). O id fica o mesmo, por isso a última análise
 // (analysis:<id>) e as lições (lessons:<id>) continuam; a próxima análise já é do ponto novo. Só o telemóvel do local
 // (ou o dono, nos do dono) o muda de sítio; o dono pode ligar/desligar qualquer um.
@@ -451,7 +451,7 @@ async function updatePlace(req, env, url, id) {
         const name = b.name == null ? cur.name : String(b.name).trim().slice(0, 40);
         if (!name) return bad('Nome inválido.');
         const other = places.find((x) => x.id !== id && !x.off && mine(me, x) && distKm(x.lat, x.lon, lat, lon) < 0.5);
-        if (other) return json({ error: 'duplicado', message: `Já tens análise diária para este ponto (${other.name}).` }, 409);
+        if (other) return json({ error: 'duplicado', message: `Já tens análise para este ponto (${other.name}).` }, 409);
         next = { ...next, name, lat: r4(lat), lon: r4(lon), movedAt: new Date().toISOString() };
     }
     if (b.on === true && cur.off) {
@@ -621,7 +621,7 @@ async function getLearning(req, env, url) {
 // ---------- notificações do fim do dia (Web Push; cifra e VAPID em push.js) ----------
 // push:vapid = par de chaves (criado no primeiro uso); push:index = uma entrada por telemóvel:
 // { id, ep, k: { p256dh, auth }, time: 'HH:MM', tz, sunday, place, last: dia local da última enviada }.
-// A notificação traz a última análise do Claude do local escolhido (um local do próprio telemóvel, com a análise diária).
+// A notificação traz a última análise do Claude do local escolhido (um local do próprio telemóvel, com a análise).
 const PUSH_MAX = 300, PUSH_PER_RUN = 25;
 const appUrl = (env) => env.APP_URL || 'https://nelsonsous.github.io/escolaplay/meteo/';
 async function vapid(env) {
@@ -657,7 +657,7 @@ async function savePush(req, env, url) {
     const sub = validSubscription(b?.subscription), time = validTime(b?.time);
     if (!sub || !time) return bad('Notificação inválida.');
     const place = (await getPlaces(env)).find((p) => p.id === b?.place && !p.off && uses(me, p));
-    if (!place) return json({ error: 'sem_local', message: 'As notificações trazem a análise diária: liga-a primeiro para um local teu (Análise → Análise diária).' }, 409);
+    if (!place) return json({ error: 'sem_local', message: 'As notificações trazem a análise: liga-a primeiro para um local teu (Análise → Análise).' }, 409);
     const idx = await pushIndex(env), old = idx.find((e) => e.id === me.id), rest = idx.filter((e) => e.id !== me.id);
     if (rest.length >= PUSH_MAX) return json({ error: 'cheio', message: 'De momento não há vagas para mais notificações.' }, 409);
     const entry = { id: me.id, ep: sub.endpoint, k: sub.keys, time, tz: validTz(b?.tz) || 'Europe/Lisbon', sunday: b?.sunday !== false, place: place.id,
