@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.30.0';
+const VERSION = '1.31.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -101,7 +101,9 @@ async function route(req, env, url) {
         return json(await guardarIdeias(ue, await corpo(req)), 201);
     }
     if (p === '/api/avaliacoes' && m === 'GET') return json(await avaliacoes(ue));
-    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/trocar|\/afinar|\/previas)?$/.exec(p);
+    if (p === '/api/arrumar' && m === 'POST') return json(await arrumar(ue, await corpo(req)));
+    if (p === '/api/pastas/sugerir' && m === 'POST') return json(await sugerirPastas(ue));
+    const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/trocar|\/afinar|\/previas|\/pasta)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
     if (pl && pl[2] === '/tidal' && m === 'POST') return json(await enviar(ue, pl[1], await corpo(req)));
@@ -111,6 +113,7 @@ async function route(req, env, url) {
     if (pl && pl[2] === '/trocar' && m === 'POST') return json(await trocar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/afinar' && m === 'POST') return json(await comMaestro(ue, await afinarPedido(ue, pl[1], await corpo(req))), 201);
     if (pl && pl[2] === '/nome' && m === 'POST') return json(await renomear(ue, pl[1], await corpo(req)));
+    if (pl && pl[2] === '/pasta' && m === 'POST') return json(await pastaDe(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovar' && m === 'POST') return json(await renovar(ue, pl[1], await corpo(req)));
     if (pl && pl[2] === '/renovacoes' && m === 'POST') return json(await renovacao(ue, pl[1], await corpo(req)), 201);
     if (p === '/api/juntar' && m === 'POST') return json(await juntar(ue, await corpo(req), quem), 201);
@@ -684,9 +687,15 @@ async function juntar(env, c, quem) {
     for (const d of docs) for (const x of d.candidatas || []) { const id = x?.faixa?.id; if (id && !ja.has(id)) { ja.add(id); candidatas.push(x); } }
     const nomes = docs.map((d) => d.nome);
     const nome = nomes.join(' + ');
-    return guardar(env, { nome: nome.length > 60 ? nome.slice(0, 59) + '…' : nome, descricao: txt(`Junta ${nomes.map((n) => `«${n}»`).join(', ')}.`, 300),
+    const nova = await guardar(env, { nome: nome.length > 60 ? nome.slice(0, 59) + '…' : nome, descricao: txt(`Junta ${nomes.map((n) => `«${n}»`).join(', ')}.`, 300),
         resumo: 'Uma faixa de cada playlist, à vez, sem repetidas. Afina no telemóvel para mudar a ordem ou a escolha.', faixas, candidatas: candidatas.slice(0, 200),
         opcoes: { ...docs[0].opcoes, faixas: Math.min(faixas.length, 200) }, capas: docs.map((d) => d.capas?.[0]).filter(Boolean), origem: 'juntar', tidal: true }, quem);
+    // «Juntar e apagar as originais»: depois de a nova estar no Tidal, as originais saem (da app e do Tidal)
+    if (c.apagar === true) {
+        for (const d of docs) await apagar(env, d.id, true);
+        nova.apagadas = docs.length;
+    }
+    return nova;
 }
 // a lista do Tidal (as parecidas, pela ordem dele): o essencial de cada faixa, para a mostrar e ouvir depois de o Maestro
 // a rever (a playlist passa a ser a dele, no mesmo link; as candidatas também)
@@ -698,7 +707,7 @@ const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.
     duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null,
     ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}), ...(d.afinadaEm ? { afinadaEm: d.afinadaEm } : {}), ...(d.revistaEm ? { revistaEm: d.revistaEm } : {}),
     ...(d.rascunho ? { rascunho: true, grupo: d.grupo || '', variante: d.variante || '' } : {}),
-    ...(d.origem ? { origem: d.origem } : {}),
+    ...(d.origem ? { origem: d.origem } : {}), ...(d.ia ? { ia: true } : {}), ...(d.pasta ? { pasta: d.pasta } : {}),
     // para agrupar na app: o pedido (se houve) e o género que mais aparece
     ...(d.pedido ? { pedido: txt(d.pedido, 120) } : {}), ...(generoDe(d.faixas) ? { genero: generoDe(d.faixas) } : {}),
     ...(d.capas?.length ? { capas: d.capas } : {}),
@@ -1397,6 +1406,76 @@ async function iaConfirmar(env, musicas, limpa) {
         out.push({ ...m, tidal: f, ...(f ? { porArtista: true } : {}) });
     }
     return out;
+}
+
+// ---------- arrumar a lista: as pastas (só na app) e as propostas antigas ----------
+// As pastas do Tidal estão fechadas às apps de fora (a API marca-as como INTERNAL): as pastas são da app. A
+// playlist guarda o nome da pasta (e o índice também, para a lista se arrumar por pastas)
+async function pastaDe(env, id, c) {
+    const d = await obter(env, id);
+    const pasta = txt(c?.pasta, 24);
+    if (pasta) d.pasta = pasta; else delete d.pasta;
+    await env.KV.put('playlist:' + d.id, JSON.stringify(d));
+    await atualizarIndice(env, d);
+    return { ok: true, pasta: d.pasta || null };
+}
+// a IA da Cloudflare propõe as pastas (com a autorização da «playlist na hora»: lê os nomes e os pedidos) e arruma
+// nelas as playlists que ainda não têm pasta; as que já têm ficam onde estão
+const IA_PASTAS = `Organizas playlists de música em pastas. Recebes a lista (id | nome | pedido) e agrupas as playlists em 3 a 6 pastas com nomes curtos em português de Portugal (uma ou duas palavras, por exemplo Carro, Dormir, Família, Jantar, Descobrir), pelo uso ou pelo momento de cada uma. Cada playlist vai para uma só pasta.
+Responde só com JSON, sem mais nada:
+{"pastas": [{"nome": "...", "ids": ["..."]}]}`;
+async function sugerirPastas(env) {
+    if (!env.AI?.run) throw new Erro(409, 'sem_ia', 'A IA da Cloudflare não está ligada ao conector.');
+    if (!(await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) throw new Erro(409, 'ia_desligada', 'Liga a «playlist na hora» (em «Pedir» ou nos Ajustes) para a IA sugerir as pastas.');
+    const idx = ((await env.KV.get('playlists', 'json')) || []).filter((x) => !x.rascunho);
+    const sem = idx.filter((x) => !x.pasta);
+    if (!sem.length) return { pastas: [], arrumadas: 0 };
+    const lista = idx.slice(0, 80).map((x) => `${x.id} | ${txt(x.nome, 60)} | ${txt(x.pedido, 100)}`).join('\n');
+    let j = null;
+    for (const modelo of env.IA_MODELO ? [env.IA_MODELO] : IA_MODELOS) {
+        try {
+            const r = await env.AI.run(modelo, { messages: [{ role: 'system', content: IA_PASTAS }, { role: 'user', content: lista }], max_tokens: 900, temperature: 0.2 });
+            const out = r?.response ?? r?.choices?.[0]?.message?.content ?? '';
+            j = typeof out === 'object' ? out : JSON.parse((/\{[\s\S]*\}/.exec(String(out)) || ['null'])[0]);
+            if (Array.isArray(j?.pastas) && j.pastas.length) break;
+        } catch (e) { console.error('pastas', modelo, e?.message); }
+        j = null;
+    }
+    if (!j) throw new Erro(502, 'ia', 'A IA não conseguiu sugerir pastas. Tenta daqui a pouco.');
+    const livre = new Map(sem.map((x) => [x.id, x]));
+    const pastas = [];
+    for (const p of j.pastas.slice(0, 8)) {
+        const nome = txt(p?.nome, 24);
+        const ids = (Array.isArray(p?.ids) ? p.ids : []).map(String).filter((id) => livre.has(id));
+        if (!nome || !ids.length) continue;
+        for (const id of ids) {
+            livre.delete(id);
+            const d = await env.KV.get('playlist:' + id, 'json');
+            if (d) { d.pasta = nome; await env.KV.put('playlist:' + id, JSON.stringify(d)); }
+        }
+        pastas.push({ nome, ids });
+    }
+    const de = new Map(pastas.flatMap((p) => p.ids.map((id) => [id, p.nome])));
+    if (de.size) await env.KV.put('playlists', JSON.stringify(((await env.KV.get('playlists', 'json')) || []).map((x) => (de.has(x.id) ? { ...x, pasta: de.get(x.id) } : x))));
+    return { pastas: pastas.map((p) => ({ nome: p.nome, n: p.ids.length })), arrumadas: de.size };
+}
+// as propostas antigas (várias versões de um pedido, só na app): ficar com uma (vai para o Tidal; as outras do mesmo
+// pedido saem) ou apagar todas as desse pedido
+async function arrumar(env, c) {
+    const idx = (await env.KV.get('playlists', 'json')) || [];
+    if (c?.ficar) {
+        const x = idx.find((y) => y.id === String(c.ficar) && y.rascunho);
+        if (!x) throw new Erro(404, 'nao_encontrada', 'Essa proposta já não existe.');
+        const d = await enviar(env, x.id, {});
+        const outras = idx.filter((y) => y.rascunho && y.grupo === x.grupo && y.id !== x.id);
+        for (const y of outras) await apagar(env, y.id, false);
+        return { ok: true, ficou: { id: d.id, nome: d.nome, tidal: d.tidal?.url || null }, apagadas: outras.length };
+    }
+    const grupo = txt(c?.apagar, 40);
+    const todas = idx.filter((y) => y.rascunho && grupo && y.grupo === grupo);
+    if (!todas.length) throw new Erro(404, 'nao_encontrada', 'Essas propostas já não existem.');
+    for (const y of todas) await apagar(env, y.id, false);
+    return { ok: true, apagadas: todas.length };
 }
 
 // ---------- avisos no telemóvel (Web Push; a cifra e o VAPID estão em push.js, os mesmos da Meteo) ----------

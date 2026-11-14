@@ -745,21 +745,25 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
         await api7('/api/playlists', { nome: `Noite · ${v}`, pedido: 'Para conduzir à noite', faixas: bmw.faixas, candidatas: bmw.candidatas, opcoes: bmw.opcoes, rascunho: true, grupo: 'qgrupo1', variante: v, tidal: true });
     }
     await nav(1);
-    // as propostas à antiga (o Maestro já não as faz: cada pedido dá uma playlist, logo no Tidal) são playlists como as
-    // outras, com «só na app» no cartão e «Pôr no Tidal» na folha
-    const proposta = (v) => page.locator('#mu-body .mu-grp .mu-pl', { hasText: `Noite · ${v}` });
-    await proposta('Mais descoberta').locator('.mt').getByText(/ · só na app$/).waitFor();
-    await proposta('Mais conhecida').locator('.mt').getByText(/ · só na app$/).waitFor();
-    assert.equal(await page.getByRole('heading', { name: 'Propostas para escolher' }).count(), 0, 'já não há um grupo de propostas à parte');
-    await proposta('Mais descoberta').locator('.mu-pl-a').click();
-    await page.locator('.mu-folha').getByText('Só está na app. Põe-na no Tidal para a ouvires lá.').waitFor();
+    // as propostas à antiga (o Maestro já não as faz: cada pedido dá uma playlist, logo no Tidal) ficam juntas no cimo,
+    // em «Propostas por escolher», e não na lista: fica-se com uma (vai para o Tidal; as outras saem) ou apagam-se
+    const props = page.locator('#mu-body .mu-propostas');
+    await props.getByText('«Para conduzir à noite»').waitFor();
+    assert.deepEqual(await props.locator('li b').allInnerTexts(), ['Noite · Mais descoberta', 'Noite · Mais conhecida']);
+    assert.equal(await page.locator('#mu-body .mu-grp .mu-pl', { hasText: 'Noite · Mais' }).count(), 0, 'as propostas não estão na lista');
     const nCriadas = sim.criadas.length;
-    await page.getByRole('button', { name: 'Pôr no Tidal' }).click();
-    await page.locator('#mu-aviso').getByText('Criada no Tidal').waitFor();
+    await props.locator('li', { hasText: 'Noite · Mais descoberta' }).getByRole('button', { name: 'Ficar com esta' }).click();
+    await page.locator('#mu-aviso').getByText('«Noite · Mais descoberta» foi para o teu Tidal; as outras propostas saíram.').waitFor();
     assert.equal(sim.criadas.length, nCriadas + 1);
-    // posta no Tidal: a folha (a mesma) passa a ter «Ouvir no Tidal» e perde o aviso
+    await props.waitFor({ state: 'detached' });
+    const escolhida = page.locator('#mu-body .mu-grp .mu-pl', { hasText: 'Noite · Mais descoberta' });
+    await escolhida.waitFor();
+    assert.equal(await page.locator('#mu-body .mu-pl', { hasText: 'Noite · Mais conhecida' }).count(), 0, 'a outra proposta saiu');
+    assert.match(await escolhida.locator('.or').innerText(), /^O teu pedido: «Para conduzir à noite»$/);
+    await escolhida.locator('.mu-pl-a').click();
+    // no Tidal: a folha tem «Ouvir no Tidal» e não o aviso de «só na app»
     await page.locator('.mu-folha').getByRole('link', { name: 'Ouvir no Tidal', exact: true }).waitFor();
-    await page.locator('.mu-folha').getByText(/^Só está na app/).waitFor({ state: 'detached' });
+    assert.equal(await page.locator('.mu-folha').getByText(/^Só está na app/).count(), 0);
     await page.locator('.mu-folha .mu-xf li[data-esq]').first().waitFor();
     const nAntes = (await naFolha(page)).length;
     await page.locator('.mu-folha .mu-xf button.tx').first().click();
@@ -822,13 +826,16 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-folha .mu-hist').waitFor();
     await page.locator('.mu-folha .mu-fechar').click();
     await page.waitForFunction(() => !document.querySelector('.mu-folha'));
-    // a que foi para o Tidal já não diz «só na app»; a outra continua, à espera
-    await proposta('Mais conhecida').locator('.mt').getByText(/ · só na app$/).waitFor();
-    assert.equal(await proposta('Mais descoberta').locator('.mt').getByText(/só na app/).count(), 0);
-    assert.equal(await proposta('Mais conhecida').locator('.nm').textContent(), 'Noite · Mais conhecida', 'o nome já tem a variante: não se repete');
+    // a escolhida já não diz «só na app»
+    assert.equal(await escolhida.locator('.mt').getByText(/só na app/).count(), 0);
+    // uma playlist só na app (não é uma proposta), para arrastar e apagar
+    await api7('/api/playlists', { nome: 'Para apagar', pedido: 'Para conduzir à noite', faixas: bmw.faixas, opcoes: bmw.opcoes });
+    await nav(1);
+    const proposta = () => page.locator('#mu-body .mu-grp .mu-pl', { hasText: 'Para apagar' });
+    await proposta().locator('.mt').getByText(/ · só na app$/).waitFor();
     // arrastar o cartão para a esquerda: pouco volta ao sítio; mais de um terço pergunta se é para apagar
     const deslizar = (ate) => page.evaluate(async (ate) => {
-        const c = [...document.querySelectorAll('#mu-body .mu-grp .mu-pl')].find((x) => x.textContent.includes('Noite · Mais conhecida'));
+        const c = [...document.querySelectorAll('#mu-body .mu-grp .mu-pl')].find((x) => x.textContent.includes('Para apagar'));
         const toque = (x) => new Touch({ identifier: 2, target: c, clientX: x, clientY: c.getBoundingClientRect().top + 30 });
         c.dispatchEvent(new TouchEvent('touchstart', { touches: [toque(330)], bubbles: true, cancelable: true }));
         for (const x of [310, (330 + ate) / 2, ate]) c.dispatchEvent(new TouchEvent('touchmove', { touches: [toque(x)], bubbles: true, cancelable: true }));
@@ -844,20 +851,20 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-pl-apagar').getByText(/^Apagar «.*»\?$/).waitFor();
     await page.locator('.mu-pl-apagar').getByText('Sai da app.').waitFor();
     await page.getByRole('button', { name: 'Não', exact: true }).click();
-    await proposta('Mais conhecida').locator('.mu-pl-a').waitFor();
+    await proposta().locator('.mu-pl-a').waitFor();
     // se o apagar falhar (ex.: o Cloudflare sem gravações), diz porquê e o cartão volta ao normal
     env.KV.cheia = true;
     await deslizar(60);
     await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
     await page.locator('#mu-aviso').getByText(/gravações grátis do Cloudflare/).waitFor();
-    await proposta('Mais conhecida').locator('.mu-pl-a').waitFor();
+    await proposta().locator('.mu-pl-a').waitFor();
     assert.equal(await page.locator('.mu-pl-apagar').count(), 0, 'depois do erro, o cartão volta ao normal');
     env.KV.cheia = false;
     for (let i = erros.length - 1; i >= 0; i--) if (/status of 503/.test(erros[i])) erros.splice(i, 1); // (o 503 deste passo é o esperado)
     await deslizar(60);
     await page.locator('.mu-pl-apagar').getByRole('button', { name: 'Apagar' }).click();
     await page.locator('#mu-aviso').getByText('Apagada da app.').waitFor();
-    await proposta('Mais conhecida').waitFor({ state: 'detached' });
+    await proposta().waitFor({ state: 'detached' });
     // filtrar: «Todas» e um botão por valor que existe (Tidal, tipo, avaliação, género); tocar outra vez tira o filtro
     await page.getByRole('heading', { name: /^Esta semana/ }).waitFor();
     const nCartoes = () => page.locator('#mu-body .mu-grp .mu-pl').count();
@@ -873,10 +880,10 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await chip.click();
     await page.waitForFunction((n) => document.querySelectorAll('#mu-body .mu-grp .mu-pl').length === n, todas);
     // juntar: escolher 2 playlists; o conector junta-as numa nova, logo no Tidal
-    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar' }).click();
+    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar', exact: true }).click();
     const barra = page.locator('#mu-body .mu-juntar-barra');
     await barra.getByText('Escolhe 2 ou mais').waitFor();
-    assert.ok(await barra.getByRole('button', { name: 'Juntar' }).isDisabled());
+    assert.ok(await barra.getByRole('button', { name: 'Juntar', exact: true }).isDisabled());
     const esc = page.locator('#mu-body .mu-pl-esc');
     const nome1 = await esc.nth(0).locator('.nm').textContent();
     await esc.nth(0).click();
@@ -886,7 +893,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await foto('5b-juntar');
     assert.equal(await esc.nth(0).getAttribute('aria-pressed'), 'true');
     const nJuntar = sim.criadas.length;
-    await barra.getByRole('button', { name: 'Juntar' }).click();
+    await barra.getByRole('button', { name: 'Juntar', exact: true }).click();
     await page.locator('#mu-aviso').getByText(/^Juntas em «.+» — \d+ faixas, já no teu Tidal\.$/).waitFor();
     await page.locator('#mu-body .mu-pl-a .nm', { hasText: `${nome1} + ` }).first().waitFor();
     assert.equal(sim.criadas.length, nJuntar + 1, 'a juntada vai logo para o Tidal');
@@ -894,7 +901,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(await page.locator('#mu-body .mu-pl', { hasText: `${nome1} + ` }).first().locator('.mt').getByText(/só na app/).count(), 0);
     assert.equal(await page.locator('#mu-body .mu-juntar-barra').count(), 0, 'sai do modo de juntar');
     // cancelar também sai
-    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar' }).click();
+    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar', exact: true }).click();
     await barra.getByRole('button', { name: 'Cancelar' }).click();
     await page.locator('#mu-body .mu-pl-a').first().waitFor();
     assert.equal(await page.locator('#mu-body .mu-pl-esc').count(), 0);
@@ -1530,5 +1537,85 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         assert.equal(await corpo.locator('[data-onda="pedir"]').innerText(), 'Pedir ao Maestro');
         assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
         if (SHOTS) { await page.screenshot({ path: path.join(SHOTS, 'pedir-na-hora.png') }); }
+    } finally { await ctx.close(); delete env.AI; }
+});
+
+// Arrumar a lista: pôr uma playlist numa pasta (no «⋯»), a IA sugerir as pastas das outras, o guia para fazer o mesmo
+// no Tidal (à mão: o Tidal não deixa as apps de fora mexer nas pastas) e juntar apagando as originais
+test('pastas: pôr numa pasta, a IA sugere as outras, o guia para o Tidal; juntar e apagar as originais', { skip: !chromium && 'sem Playwright' }, async () => {
+    const t = JSON.parse(await env.KV.get('tidal:tokens'));
+    t.iaCfEm = new Date().toISOString();
+    await env.KV.put('tidal:tokens', JSON.stringify(t));
+    // a IA de faz-de-conta: as playlists alternadas entre «Carro» e «Dormir»
+    env.AI = { run: async (modelo, entrada) => {
+        const ids = entrada.messages[1].content.split('\n').map((l) => l.split(' | ')[0]);
+        return { response: JSON.stringify({ pastas: [{ nome: 'Carro', ids: ids.filter((x, i) => i % 2) }, { nome: 'Dormir', ids: ids.filter((x, i) => !(i % 2)) }] }) };
+    } };
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('PASTAS-1').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    try {
+        const page = await ctx.newPage();
+        const erros = [];
+        page.on('pageerror', (e) => erros.push(String(e)));
+        page.on('console', (m) => { if (m.type() === 'error') erros.push('consola: ' + m.text()); });
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('PASTAS-1');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        const corpo = page.locator('#mu-body');
+        await corpo.locator('.mu-grp .mu-pl').first().waitFor();
+        // cada cartão diz o que é
+        const origens = await corpo.locator('.mu-grp .mu-pl .or').allInnerTexts();
+        assert.ok(origens.length > 3 && origens.every((x) => x.length > 5), 'todos os cartões dizem de onde vêm');
+        // pôr a primeira numa pasta nova
+        const primeira = corpo.locator('.mu-grp .mu-pl').first();
+        const nome = (await primeira.locator('.nm').innerText()).trim();
+        await primeira.locator('.mu-pl-a').click();
+        await page.locator('.mu-folha [data-onda="menu"]').click();
+        await page.locator('.mu-folha').getByRole('button', { name: 'Pôr numa pasta' }).click();
+        await page.locator('.mu-folha [data-onda="pa-nome"]').fill('Carro');
+        await page.locator('.mu-folha').getByRole('button', { name: 'Criar e pôr aqui' }).click();
+        await page.locator('#mu-aviso').getByText('Na pasta «Carro».').waitFor();
+        await page.locator('.mu-folha .mu-fechar').click();
+        await page.waitForFunction(() => !document.querySelector('.mu-folha'));
+        // a lista arruma-se: as pastas primeiro; e há o filtro da pasta
+        await page.waitForFunction(() => /^Carro 1$/.test(document.querySelector('#mu-body .mu-grp h2')?.innerText || ''));
+        assert.equal((await corpo.locator('.mu-grp').first().locator('.mu-pl .nm').innerText()).trim(), nome);
+        assert.equal(await corpo.locator('.mu-filtros .mu-chip-f', { hasText: /^Carro 1$/ }).count(), 1);
+        // a IA sugere as pastas das outras (a que já tinha pasta fica onde estava)
+        await corpo.locator('.mu-lista-topo').getByRole('button', { name: 'Sugerir pastas' }).click();
+        await page.locator('#mu-aviso').getByText(/^Arrumei \d+ playlists em pastas\.$/).waitFor();
+        await page.waitForFunction(() => [...document.querySelectorAll('#mu-body .mu-grp h2')].every((h) => /^(Carro|Dormir) \d+$/.test(h.innerText)));
+        assert.equal(await corpo.locator('.mu-lista-topo').getByRole('button', { name: 'Sugerir pastas' }).count(), 0, 'já está tudo em pastas');
+        assert.equal(await corpo.locator('.mu-grp').first().locator('.mu-pl .nm').first().innerText(), nome, 'a que tinha pasta ficou em «Carro»');
+        // tudo arrumado: o guia para fazer o mesmo no Tidal (sem as que só estão na app)
+        const guia = corpo.locator('details.mu-tidal-pastas');
+        await guia.locator('summary').click();
+        assert.equal(await guia.locator('summary').innerText(), 'Fazer as mesmas pastas no Tidal');
+        const linhas = await guia.locator('li').allInnerTexts();
+        assert.deepEqual(linhas.map((l) => l.split(':')[0]).sort(), ['Carro', 'Dormir']);
+        assert.ok(linhas.find((l) => l.startsWith('Carro:')).includes(nome));
+        // tirar da pasta
+        await corpo.locator('.mu-grp').first().locator('.mu-pl-a').first().click();
+        await page.locator('.mu-folha [data-onda="menu"]').click();
+        await page.locator('.mu-folha').getByRole('button', { name: 'Pasta: Carro' }).click();
+        await page.locator('.mu-folha').getByRole('button', { name: 'Tirar da pasta' }).click();
+        await page.locator('#mu-aviso').getByText('Saiu da pasta.').waitFor();
+        await page.locator('.mu-folha .mu-fechar').click();
+        await page.waitForFunction(() => !document.querySelector('.mu-folha'));
+        // juntar e apagar as originais: a nova fica, as duas escolhidas saem
+        await corpo.locator('.mu-lista-topo').getByRole('button', { name: 'Juntar', exact: true }).click();
+        const esc = corpo.locator('.mu-pl-esc');
+        const n1 = (await esc.nth(0).locator('.nm').innerText()).trim(), n2 = (await esc.nth(1).locator('.nm').innerText()).trim();
+        const id1 = (await esc.nth(0).getAttribute('data-onda')).split('\t')[1], id2 = (await esc.nth(1).getAttribute('data-onda')).split('\t')[1];
+        await esc.nth(0).click();
+        await esc.nth(1).click();
+        await corpo.locator('.mu-juntar-barra').getByRole('button', { name: 'Juntar e apagar as originais' }).click();
+        await page.locator('#mu-aviso').getByText(/As originais foram apagadas\.$/).waitFor();
+        // (pelo id: pode haver outras com o mesmo nome)
+        await page.waitForFunction(([a, b]) => !document.querySelector(`#mu-body [data-onda="exp\t${a}"], #mu-body [data-onda="exp\t${b}"]`), [id1, id2]);
+        assert.equal(JSON.parse(await env.KV.get('playlists')).filter((x) => x.id === id1 || x.id === id2).length, 0, 'saíram da app');
+        assert.equal(await corpo.locator('.mu-pl .nm', { hasText: `${n1} + ${n2}`.slice(0, 40) }).count() >= 1, true, 'a nova está na lista');
+        assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
+        if (SHOTS) { await page.evaluate(() => window.scrollTo(0, 0)); await page.screenshot({ path: path.join(SHOTS, 'pastas.png') }); }
     } finally { await ctx.close(); delete env.AI; }
 });

@@ -157,6 +157,12 @@
   ? txt c.tidal `<button type="button" class="mu-btn perigo forte peq" data-onda="apagarl_t&#9;{ esct id }">{ ic 9 }No Tidal e na app</button><button type="button" class="mu-btn sec peq" data-onda="apagarl_s&#9;{ esct id }">Só na app</button>`
     `<button type="button" class="mu-btn perigo forte peq" data-onda="apagarl_s&#9;{ esct id }">{ ic 9 }Apagar</button>`
   `<button type="button" class="mu-btn sec peq" data-onda="apagarl_n">Não</button></div></div>` }
+# o que é cada playlist, numa linha: de onde veio (o pedido, «Mais como esta», a que se atualiza, a juntada, a do Maestro)
+: pl_origem i>i c { = pd txt c.pedido
+  ? == tipo c.renovar 3 "Atualiza-se todas as semanas"
+    ? mesmo txt c.origem $"juntar" "Juntou várias playlists"
+      ? _tx_len pd `O teu pedido: «{ esct pd }»{ Se mesmo txt c.origem $"parecidas" ? == tipo c.ia 3 " · começou pela IA" " · começou por uma música" }`
+        ? mesmo txt c.origem $"parecidas" "Mais como esta: as parecidas de uma faixa" "Escolha do Maestro" }
 : pl_cartao i>i c {
   = ab mesmo txt c.id @ 50
   `<div class="mu-pl{ Se ab " aberta" }{ Se txt c.tidal " tidal" }" data-chave="{ esct txt c.id }"{ ? ab 0 ` data-esq="apagarl&#9;{ esct txt c.id }" data-esq-rotulo="Apagar"` }>`
@@ -169,7 +175,7 @@
   Se ~ txt c.tidal " · só na app"
   # afinada (ou revista, as parecidas do Tidal) pelo Maestro nos últimos 7 dias: um selo, para se ver logo na lista
   = fa txt c.afinadaEm Se fa Se <= - / _an_agora 86400000 dias_de fa 7 ` · <span class="mu-afinada">✓ { ? mesmo fa txt c.revistaEm "revista" "afinada" } a { pdia fa }</span>`
-  `</div><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>`
+  `</div><div class="or">{ pl_origem c }</div><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>`
   Se txt c.tidal `<a class="mu-tocar" href="{ esct txt c.tidal }" target="_blank" rel="noopener" aria-label="Ouvir «{ esct txt c.nome }» no Tidal">{ ic 4 }</a>`
   Se ab folha c
   "</div>" }
@@ -203,8 +209,13 @@
       ? txt c.tidal `<p>Também está no teu Tidal.</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="apagar_tidal">{ ic 9 }Apagar no Tidal e na app</button><button type="button" class="mu-btn sec" data-onda="apagar_sim">Só na app</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="apagar_sim">{ ic 9 }Sim, apagar</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
       "</div>" }
+  # a pasta (@28 = 6): as que já há, ou uma nova (o nome em @46, como no «Mudar o nome»)
+  Se == @ 28 6 { = pa txt c.pasta = l @ 4
+      `<div class="mu-card mu-pasta"><h3>Pasta</h3><p class="mu-nota">As pastas são da app: o Tidal não deixa as apps de fora mexer nas dele.</p><div class="mu-pasta-l">`
+      = e pri l W e { = pe txt e.pasta Se && _tx_len pe pasta_prim l e `<button type="button" class="mu-chip-f" data-onda="pasta&#9;{ esct pe }" aria-pressed="{ ? mesmo pe pa "true" "false" }">{ esct pe }</button>` = e seg e }
+      `</div><label class="mu-campo"><span>Nova pasta</span><input data-onda="pa-nome" maxlength="24" placeholder="ex.: Carro, Dormir, Família" value="{ esct @ 46 }"></label><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pasta_nova">Criar e pôr aqui</button>{ Se _tx_len pa `<button type="button" class="mu-btn sec" data-onda="pasta_tirar">Tirar da pasta</button>` }<button type="button" class="mu-btn sec" data-onda="nao">Fechar</button></div></div>` }
   Se == @ 28 4 { = rv == tipo ? d d.renovar c.renovar 3
-      `<div class="mu-card mu-menu"><button type="button" class="mu-btn sec" data-onda="renomear">Mudar o nome</button>`
+      `<div class="mu-card mu-menu"><button type="button" class="mu-btn sec" data-onda="renomear">Mudar o nome</button><button type="button" class="mu-btn sec" data-onda="pasta_abrir">{ ? _tx_len txt c.pasta `Pasta: { esct txt c.pasta }` "Pôr numa pasta" }</button>`
       `<div class="mu-interruptor"><div><b>Atualizar sozinha</b><span class="mu-nota">Toda a semana o Maestro renova-a com o mesmo critério, no mesmo link do Tidal: ficam as que guardaste, saem as que tiraste.{ Se d Se txt d.renovadaEm ` Última: { pdia txt d.renovadaEm }.` }</span></div><button type="button" class="mu-btn sec peq" data-onda="renovar" aria-pressed="{ ? rv "true" "false" }">{ ? rv "Ligado" "Desligado" }</button></div>`
       `<button type="button" class="mu-btn perigo" data-onda="apagar">{ ic 9 }Apagar</button></div>` } }
 # os botões: ouvir no Tidal (ou pôr lá) e afinar; a afinar, dão lugar ao cartão do afinar
@@ -364,24 +375,25 @@
   = doe + - + * yoe 365 / yoe 4 / yoe 100 doy
   - + * era 146097 doe 719468 }
 : grpq ii>i c q {
+  ? == q 5 { = pa txt c.pasta ? _tx_len pa pa $"Sem pasta" }
   ? == q 1 { ? == tipo c.renovar 3 $"Atualizam-se sozinhas" ? mesmo txt c.por $"app" $"Feitas por ti" ? _tx_len txt c.pedido $"Dos teus pedidos" $"Do Maestro" }
   ? == q 2 { = g txt c.genero ? && g _tx_len g g $"Vários géneros" }
   ? == q 3 { ? txt c.tidal $"No Tidal" $"Só na app" }
   ? == q 4 { = e txt c.avaliacao.etiqueta ? || ~ e || mesmo e $"ainda cedo" mesmo e $"sem sinais" $"Ainda sem avaliação" ? mesmo e $"resultou" $"Resultaram" ? mesmo e $"boa" $"Boas" ? mesmo e $"morna" $"Mornas" $"Não resultaram" }
   { = t txt c.criadaEm = dd - / _an_agora 86400000 ? t dias_de t 0 ? <= dd 6 $"Esta semana" ? <= dd 30 $"Este mês" $"Mais antigas" } }
-: grp i>i c grpq c 0
+: grp i>i c { = pa txt c.pasta ? _tx_len pa pa grpq c 0 }
 # passa no filtro escolhido?
-: pl_vis i>i c ? @ 53 mesmo grpq c @ 53 @ 59 1
+: pl_vis i>i c && ~ pl_rasc c ? @ 53 mesmo grpq c @ 53 @ 59 1
 # c e a primeira do seu grupo (entre as que se veem)?
 : grp_primeiro ii>i d c { = e pri d = r 1 = k grp c W && e != e c { Se && pl_vis e mesmo grp e k = r 0 = e seg e } r }
 : grp_n ii>i d c { = e pri d = n 0 = k grp c W e { Se && pl_vis e mesmo grp e k = n + n 1 = e seg e } n }
-# os filtros: um botao por valor que existe (com quantas tem), por esta ordem: Tidal, tipo, avaliacao, genero
-: chip_prim iii>i d c q { = e pri d = r 1 = k grpq c q W && e != e c { Se mesmo grpq e q k = r 0 = e seg e } r }
-: chip_n iii>i d c q { = e pri d = n 0 = k grpq c q W e { Se mesmo grpq e q k = n + n 1 = e seg e } n }
+# os filtros: um botao por valor que existe (com quantas tem), por esta ordem: pasta, Tidal, tipo, avaliacao, genero
+: chip_prim iii>i d c q { = e pri d = r ~ pl_rasc c = k grpq c q W && e != e c { Se && ~ pl_rasc e mesmo grpq e q k = r 0 = e seg e } r }
+: chip_n iii>i d c q { = e pri d = n 0 = k grpq c q W e { Se && ~ pl_rasc e mesmo grpq e q k = n + n 1 = e seg e } n }
 : chips_pl ii>i d nf {
   `<div class="mu-filtros" role="toolbar" aria-label="Filtrar"><button type="button" class="mu-chip-f" data-onda="filtro&#9;0" aria-pressed="{ ? @ 53 "false" "true" }">Todas <span>{ N nf }</span></button>`
-  L i 4 {
-    = q ? == i 0 3 ? == i 1 1 ? == i 2 4 2
+  L i 5 {
+    = q ? == i 0 5 ? == i 1 3 ? == i 2 1 ? == i 3 4 2
     = c pri d
     W c {
       Se chip_prim d c q {
@@ -411,39 +423,74 @@
 : barra_juntar i>i d {
   = n n_esc d
   `<div class="mu-juntar-barra" role="region" aria-label="Juntar playlists"><span>{ ? n { N n ? > n 1 " escolhidas" " escolhida" } "Escolhe 2 ou mais" }</span>`
-  `<button type="button" class="mu-btn sec peq" data-onda="juntar_nao">Cancelar</button><button type="button" class="mu-btn peq" data-onda="juntar_sim"{ Se < n 2 " disabled" }>{ ic 12 }Juntar</button></div>` }
-: juntar_enviar >i ? ocupado 0 {
+  `<button type="button" class="mu-btn sec peq" data-onda="juntar_nao">Cancelar</button><button type="button" class="mu-btn peq" data-onda="juntar_sim"{ Se < n 2 " disabled" }>{ ic 12 }Juntar</button>`
+  `<button type="button" class="mu-btn sec perigo peq mu-juntar-ap" data-onda="juntar_sim_ap"{ Se < n 2 " disabled" }>Juntar e apagar as originais</button></div>` }
+: juntar_enviar i>i ap ? ocupado 0 {
     = d @ 4
     ? < n_esc d 2 { aviso $"Escolhe pelo menos 2 playlists." 0 } {
       = r _tx_abre 1200 `POST /api/juntar{ P 10 }\{"ids":[`
       = c pri d = k 0
       W c { = e txt c.id Se ttemid @ 58 e { Se k "," pjs e = k 1 } = c seg c }
-      `]\}`
+      `]{ Se ap `,"apagar":true` }\}`
       pede _tx_fecha r 19
       aviso $"A juntar…" 0 } }
 : pl_rasc i>i c == tipo c.rascunho 3
 : lista_pl i>i d {
   ? ~ quantos d `<div class="mu-card nada"><h3>Ainda não há playlists</h3><p>O Maestro cria a primeira «Onda da semana» na próxima manhã. Ou faz já um pedido.</p><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="ir&#9;3">{ ic 2 }Fazer um pedido</button></div></div>`
   {
-    = nf quantos d
-    `<div class="mu-lista-topo"><span>{ ? @ 56 "Escolhe as playlists a juntar" "As tuas playlists" }</span>`
-    `{ Se && ~ @ 56 >= nf 2 `<button type="button" class="mu-btn sec peq" data-onda="juntar_modo">{ ic 12 }Juntar</button>` }</div>`
+    = nf 0 = ns 0 = c pri d W c { Se ~ pl_rasc c { = nf + nf 1 Se ~ _tx_len txt c.pasta = ns + ns 1 } = c seg c }
+    `<div class="mu-lista-topo"><span>{ ? @ 56 "Escolhe as playlists a juntar" "As tuas playlists" }</span><span class="mu-topo-b">`
+    `{ Se && && ~ @ 56 >= nf 4 && >= ns 2 == tipo _ar_get @ 3 $"iaCfPode" 3 `<button type="button" class="mu-btn sec peq" data-onda="pastas_sug">Sugerir pastas</button>` }`
+    `{ Se && ~ @ 56 >= nf 2 `<button type="button" class="mu-btn sec peq" data-onda="juntar_modo">{ ic 12 }Juntar</button>` }</span></div>`
     Se > nf 1 chips_pl d nf
     = nv 0 = c pri d W c { Se pl_vis c = nv + nv 1 = c seg c }
     Se ~ nv `<p class="mu-nota">Nenhuma playlist com este filtro.</p>`
+    # (primeiro as pastas, depois as que não têm pasta, pelas datas)
+    L ps 2 {
+      = c pri d
+      W c {
+        Se && && pl_vis c ? ps ~ _tx_len txt c.pasta _tx_len txt c.pasta grp_primeiro d c {
+          `<section class="mu-grp" data-chave="g-{ esct grp c }"><h2 class="mu-sec">{ esct grp c } <span>{ N grp_n d c }</span></h2><div class="mu-lista-pl">`
+          = k grp c = e pri d W e { Se && pl_vis e mesmo grp e k pl_card e = e seg e }
+          "</div></section>" }
+        = c seg c } }
+    Se && ~ @ 56 < ns nf pastas_tidal d
+    Se @ 56 barra_juntar d } }
+# as mesmas pastas no Tidal: o Tidal não deixa as apps de fora mexer nas pastas dele, por isso fazem-se lá à mão
+: pasta_prim ii>i d c { = e pri d = r 1 = pa txt c.pasta W && e != e c { Se && ~ pl_rasc e mesmo txt e.pasta pa = r 0 = e seg e } r }
+: pastas_tidal i>i d {
+  `<details class="mu-tidal-pastas"><summary>Fazer as mesmas pastas no Tidal</summary><p class="mu-nota">O Tidal não deixa as apps de fora mexer nas pastas dele: fazes tu, uma vez, na app do Tidal. Cria estas pastas nas tuas playlists e põe em cada uma as que estão aqui (só as que já estão no Tidal):</p><ul>`
+  = c pri d
+  W c {
+    = pa txt c.pasta
+    Se && && ~ pl_rasc c _tx_len pa pasta_prim d c {
+      `<li><b>{ esct pa }</b>: ` = k 0 = e pri d
+      W e { Se && && ~ pl_rasc e mesmo txt e.pasta pa _tx_len txt e.tidal { Se k " · " esct txt e.nome = k 1 } = e seg e }
+      Se ~ k "nenhuma ainda no Tidal"
+      "</li>" }
+    = c seg c }
+  "</ul></details>" }
+# as propostas antigas (várias versões de um pedido, só na app): juntas, para ficar com uma (vai para o Tidal) ou apagá-las
+: rasc_prim ii>i d c { = e pri d = r 1 = g txt c.grupo W && e != e c { Se && pl_rasc e mesmo txt e.grupo g = r 0 = e seg e } r }
+: propostas i>i d {
+  = n 0 = c pri d W c { Se pl_rasc c = n + n 1 = c seg c }
+  Se n {
+    `<section class="mu-propostas"><h2 class="mu-sec">Propostas por escolher <span>{ N n }</span></h2><p class="mu-nota">De quando o Maestro fazia várias versões de um pedido. Fica com a que preferes (vai para o teu Tidal) ou apaga-as.</p>`
     = c pri d
     W c {
-      Se && pl_vis c grp_primeiro d c {
-        `<section class="mu-grp" data-chave="g-{ esct grp c }"><h2 class="mu-sec">{ esct grp c } <span>{ N grp_n d c }</span></h2><div class="mu-lista-pl">`
-        = k grp c = e pri d W e { Se && pl_vis e mesmo grp e k pl_card e = e seg e }
-        "</div></section>" }
+      Se && pl_rasc c rasc_prim d c {
+        = g txt c.grupo
+        `<div class="mu-card mu-prop" data-chave="pr-{ esct g }"><div class="mu-prop-q">{ ? _tx_len txt c.pedido `«{ esct txt c.pedido }»` "Sem pedido" }</div><ul>`
+        = e pri d
+        W e { Se && pl_rasc e mesmo txt e.grupo g `<li><span><b>{ esct txt e.nome }</b><i>{ N int e.faixas } faixas · { pmin int e.duracao }</i></span><button type="button" class="mu-btn peq" data-onda="arr_ficar&#9;{ esct txt e.id }">Ficar com esta</button></li>` = e seg e }
+        `</ul><button type="button" class="mu-btn sec perigo peq" data-onda="arr_apagar&#9;{ esct g }">{ ic 9 }Apagar todas</button></div>` }
       = c seg c }
-    Se @ 56 barra_juntar d } }
+    "</section>" } }
 : v_playlists >i {
   `<header class="mu-head"><div><h1>Música</h1><div class="sub">Playlists de qualidade para o teu Tidal</div></div>{ pill }</header>`
   ? ~ @ 3 carregar {
     ? ~ acesso boas_vindas {
-      Se ~ @ 56 espera @ 5
+      Se ~ @ 56 { espera @ 5 Se @ 4 propostas @ 4 }
       ? @ 4 lista_pl @ 4 carregar } }
   0 }
 
@@ -612,7 +659,8 @@
 # uma escrita: r é «MÉTODO caminho» (com corpo: nova linha e o JSON) e m o que se está a fazer — o lido_escrita trata
 # a resposta por ele (1 config, 2 ligar, 3 enviar, 4/9 guardar versão, 5/11 apagar, 6 pedir, 7 cancelar, 8 desligar,
 # 10 aparelho, 12 mais, 13 convite, 14 código de aparelho, 15 renovar, 16 renomear, 18 afinar, 19 juntar, 20 trocar,
-# 21 tirar, 22 desfazer, 23 acrescentar, 25 autorizar, 26 voltar a pôr uma das do Tidal, 27 desligar a playlist na hora)
+# 21 tirar, 22 desfazer, 23 acrescentar, 25 autorizar, 26 voltar a pôr uma das do Tidal, 27 desligar a playlist na hora,
+# 28 pasta, 29 arrumar as propostas, 30 sugerir pastas)
 : pede ii>i r m { ! 31 1 ! 34 m _an_buscar r $"lido_escrita" }
 # guardar o que o motor escolheu: a app manda só a decisão (a ordem, o porquê e os pontos, por índice das candidatas)
 # e o conector monta a playlist — na app e, se ela lá está, no Tidal (a mesma playlist, no mesmo link)
@@ -644,6 +692,8 @@
     pede _tx_fecha r 2 0 }
 # o que se diz antes de pedir a autorização (aqui diz-se quem é a IA: é a quem os dados vão)
 : txt_ia >i "O Maestro é uma inteligência artificial (o Claude, da Anthropic). Para escolher música para ti, lê as tuas favoritas, os artistas que segues, as tuas playlists e o teu nome de utilizador do Tidal. Para a playlist nascer logo, o texto dos teus pedidos passa também por uma IA da Cloudflare (onde a app já guarda os dados), que não o usa para treinar modelos."
+: pasta_enviar i>i t ? ocupado 0 { pede`POST /api/playlists/{ purl @ 30 }/pasta{ P 10 }\{"pasta":{ pjs t }\}` 28 0 }
+: arrumar_enviar ii>i b fica ? ocupado 0 { pede`POST /api/arrumar{ P 10 }\{"{ ? fica "ficar" "apagar" }":{ pjs b }\}` 29 0 }
 : consentir_enviar >i ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{\}` 25 0 }
 : iacf_enviar i>i on ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"cloudflare":{ ? on "true" "false" }\}` ? on 25 27 0 }
 : config_enviar >i ? ocupado 0 {
@@ -684,7 +734,7 @@
     # das faixas novas e o índice (a lista por baixo e a duração)
     ? && >= modo 20 <= modo 22 { ! 51 r ! 60 0 ! 61 0 refolha 9
       _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl" 0 }
-    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas, já no teu Tidal.` 0 }
+    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas, já no teu Tidal.{ Se int r.apagadas " As originais foram apagadas." }` 0 }
     ? == modo 18 { tvazio @ 49 Se != @ 6 2 ! 6 0 refolha 652
       # (os pedidos também: o cartão da playlist passa a dizer «afinação pedida»)
       _an_buscar $"/api/pedidos" $"lido_ped"
@@ -707,6 +757,9 @@
     ? == modo 8 { ir 5 aviso $"Tidal desligado." 0 }
     ? == modo 25 { _an_buscar $"/api/estado" $"lido_estado" aviso $"Autorização guardada." 0 }
     ? == modo 27 { _an_buscar $"/api/estado" $"lido_estado" aviso $"A playlist na hora ficou desligada." 0 }
+    ? == modo 28 { ! 28 0 refolha 2 _an_buscar $"/api/playlists" $"lido_pl" ? _tx_len txt r.pasta { aviso`Na pasta «{ crut txt r.pasta }».` 0 } { aviso $"Saiu da pasta." 0 } }
+    ? == modo 29 { _an_buscar $"/api/playlists" $"lido_pl" ? == tipo r.ficou 7 { aviso`«{ crut txt r.ficou.nome }» foi para o teu Tidal; as outras propostas saíram.` 0 } { aviso`Apagadas { N int r.apagadas } propostas.` 0 } }
+    ? == modo 30 { _an_buscar $"/api/playlists" $"lido_pl" ? int r.arrumadas { aviso`Arrumei { N int r.arrumadas } playlists em pastas.` 0 } { aviso $"Já estão todas em pastas." 0 } }
     ? == modo 24 { _an_gravar $"chave" 0 ! 28 0 ir 1 aviso $"Conta apagada: o conector já não guarda nada sobre ti." 0 }
     Se == modo 10 { = ch txt r.chave Se ch { _an_gravar $"chave" ch tvazio @ 38 ir 1 aviso $"Este aparelho fica com acesso." } } }
     { ! 28 0 ! 60 0 ! 61 0 tvazio @ 54
@@ -971,7 +1024,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.38.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.39.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
@@ -1103,7 +1156,15 @@
   ? mesmo a $"juntar_modo" { ! 56 1 tvazio @ 58 tvazio @ 50 ! 51 0 ! 52 0 tvazio @ 54 render 0 }
   ? mesmo a $"juntar_nao" { ! 56 0 tvazio @ 58 render 0 }
   ? mesmo a $"esc" { esc_alt b 0 }
-  ? mesmo a $"juntar_sim" { juntar_enviar 0 }
+  ? mesmo a $"juntar_sim" { juntar_enviar 0 0 }
+  ? mesmo a $"pasta_abrir" { tvazio @ 46 ! 28 6 refolha 2 0 }
+  ? mesmo a $"pasta" { pasta_enviar b 0 }
+  ? mesmo a $"pasta_nova" { ? < _tx_len @ 46 1 { aviso $"Escreve o nome da pasta." 0 } { pasta_enviar @ 46 0 } }
+  ? mesmo a $"pasta_tirar" { tvazio @ 46 pasta_enviar @ 46 0 }
+  ? mesmo a $"arr_ficar" { arrumar_enviar b 1 0 }
+  ? mesmo a $"arr_apagar" { arrumar_enviar b 0 0 }
+  ? mesmo a $"pastas_sug" { ? ocupado 0 { pede`POST /api/pastas/sugerir{ P 10 }\{\}` 30 aviso $"A IA está a arrumar as playlists…" 0 } }
+  ? mesmo a $"juntar_sim_ap" { juntar_enviar 1 0 }
   ? mesmo a $"afinar_pedir" { afinar_maestro 0 }
   ? mesmo a $"idea" { = c idx _ar_get @ 48 $"ideias" _tx_int b Se c { tcopia @ 20 txt c.texto 1990 = e txt c.estilo Se e ! 26 idx_estilo e = q txt c.arco Se q ! 27 idx_arco q render } }
   ? mesmo a $"pedir" { pedir_enviar 0 }
@@ -1134,6 +1195,7 @@
   ? mesmo a $"px" { tcopia @ 22 b 390 0 }
   ? mesmo a $"cod" { tcopia @ 38 b 90 0 }
   ? mesmo a $"rn-nome" { tcopia @ 46 b 250 0 }
+  ? mesmo a $"pa-nome" { tcopia @ 46 b 60 0 }
   ? mesmo a $"rn-desc" { tcopia @ 47 b 1250 0 }
   ? mesmo a $"af-tx" { tcopia @ 49 b 1990 0 }
   # o deslizador: o motor corre a cada passo; redesenha-se o gráfico, o guardar e a lista (o deslizador fica quieto)
