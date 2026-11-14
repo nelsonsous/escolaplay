@@ -31,7 +31,7 @@
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.9.0';
+const VERSION = '1.9.1';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -540,7 +540,9 @@ export function cleanPlano(p) {
 export function cleanLots(l) {
     if (!l || typeof l !== 'object' || Array.isArray(l)) return null;
     const out = {};
-    for (const k of Object.keys(l).slice(0, 12)) {
+    // até 60 ativos (1.9.1; eram 12, do tempo em que só se guardavam as compras da cripto): um prazo ou um valor por
+    // mês são poucos bytes, e o pedido inteiro já tem o teto de 40 KB
+    for (const k of Object.keys(l).slice(0, 60)) {
         // a cripto (c:BTC) e, desde a 1.6.0, os outros ativos da carteira (VWCE.DE): o que se tem, em quantidade e investido
         if (!/^(c:[A-Z0-9]{2,8}|[A-Z0-9][A-Z0-9.\-=^]{0,14})$/.test(k) || !l[k] || typeof l[k] !== 'object') continue;
         const buys = (k.startsWith('c:') && Array.isArray(l[k].buys) ? l[k].buys : []).slice(0, 400)
