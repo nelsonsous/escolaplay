@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.33.0';
+const VERSION = '1.34.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -91,7 +91,8 @@ async function route(req, env, url) {
         if (quem.tipo !== 'agente') throw new Erro(403, 'so_maestro', 'Ainda em experiência.');
         const c = await corpo(req), t0 = Date.now();
         const s = await iaSementes(/^@cf\/[\w./-]+$/.test(c?.modelo || '') ? { ...env, IA_MODELO: c.modelo } : env, txt(c?.texto, 500),
-            c?.mistral === true ? env.MISTRAL_API_KEY || null : await chaveMistral(ue));
+            c?.mistral === true && env.MISTRAL_API_KEY ? { prov: 'mistral', chave: env.MISTRAL_API_KEY }
+                : c?.gemini === true && env.GEMINI_API_KEY ? { prov: 'gemini', chave: env.GEMINI_API_KEY } : await contaIA(ue));
         return json({ ...s, ms: Date.now() - t0, musicas: s.musicas?.length ? await iaConfirmar(ue, s.musicas, c?.limpa === true) : [] });
     }
     if (p === '/api/playlists' && m === 'GET') return json((await ue.KV.get('playlists', 'json')) || []);
@@ -105,8 +106,9 @@ async function route(req, env, url) {
     if (p === '/api/arrumar' && m === 'POST') return json(await arrumar(ue, await corpo(req)));
     if (p === '/api/pastas/sugerir' && m === 'POST') return json(await sugerirPastas(ue));
     if (p === '/api/pastas' && m === 'POST') return json(await criarPasta(ue, await corpo(req)), 201);
-    if (p === '/api/mistral' && m === 'POST') return json(await ligarMistral(ue, await corpo(req), quem));
-    if (p === '/api/mistral' && m === 'DELETE') return json(await desligarMistral(ue));
+    const ct = /^\/api\/(mistral|gemini)$/.exec(p);
+    if (ct && m === 'POST') return json(await ligarConta(ue, ct[1], await corpo(req), quem));
+    if (ct && m === 'DELETE') return json(await desligarConta(ue, ct[1]));
     if (p === '/api/pastas' && m === 'DELETE') return json(await apagarPasta(ue, url.searchParams.get('nome')));
     const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/trocar|\/afinar|\/previas|\/pasta)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
@@ -240,8 +242,9 @@ async function estado(req, env, url) {
             ...(await (async () => {
                 // a playlist na hora: a IA da Cloudflare, ou a Mistral avançada (a conta Mistral de cada pessoa; a de quem
                 // montou a app pode estar no Cloudflare). A chave nunca vem nas respostas
-                const mi = await mistralLigada(ue, quem.uid);
-                return env.AI || mi ? { iaCfPode: true, iaCf: !!t?.iaCfEm, mistralLigada: mi, iaMistral: mi && !!t?.iaMistralEm } : {};
+                const mi = await contaLigada(ue, quem.uid, 'mistral'), ge = await contaLigada(ue, quem.uid, 'gemini');
+                const esc = escolhaIA(t), ef = esc === 'mistral' && !mi ? 'cloudflare' : esc === 'gemini' && !ge ? 'cloudflare' : esc;
+                return env.AI || mi || ge ? { iaCfPode: true, iaCf: !!t?.iaCfEm, mistralLigada: mi, geminiLigada: ge, iaEscolha: ef, iaMistral: ef === 'mistral' } : {};
             })()),
             pastas: (await ue.KV.get('pastas', 'json')) || [] });
     }
@@ -357,11 +360,14 @@ async function consentir(env, quem, c = {}) {
     const t = await env.KV.get('tidal:tokens', 'json');
     if (!t) throw new Erro(409, 'tidal_desligado', 'O Tidal não está ligado: liga-o na app.');
     const agora = new Date().toISOString();
-    if (c?.mistral === true || c?.mistral === false) {
-        if (c.mistral && !(await mistralLigada(env, quem.uid))) throw new Erro(409, 'sem_mistral', 'Liga primeiro a tua conta Mistral (nos Ajustes).');
-        if (c.mistral) t.iaMistralEm = agora; else delete t.iaMistralEm;
+    if (c?.ia !== undefined || c?.mistral === true || c?.mistral === false) {
+        const prov = c?.ia !== undefined ? String(c.ia) : c.mistral ? 'mistral' : 'cloudflare';
+        if (!['cloudflare', 'mistral', 'gemini'].includes(prov)) throw new Erro(400, 'ia_invalida', 'Escolhe a IA: cloudflare, mistral ou gemini.');
+        if (prov !== 'cloudflare' && !(await contaLigada(env, quem.uid, prov))) throw new Erro(409, `sem_${prov}`, `Liga primeiro a tua conta ${CONTAS_IA[prov].nome} (nos Ajustes).`);
+        if (prov === 'cloudflare') delete t.ia; else t.ia = prov;
+        delete t.iaMistralEm;
         await env.KV.put('tidal:tokens', JSON.stringify(t));
-        return { ok: true, mistral: !!t.iaMistralEm };
+        return { ok: true, ia: prov, mistral: prov === 'mistral' };
     }
     if (c?.cloudflare === false) delete t.iaCfEm;
     else {
@@ -1359,11 +1365,11 @@ async function pedir(env, c, quem) {
     }
     // sem ela, se a pessoa ligou a «playlist na hora»: a IA da Cloudflare escolhe as músicas de partida (o Tidal
     // confirma-as) e a playlist nasce já, com as parecidas delas; o Maestro revê-a. Se a IA falhar, fica como sempre
-    const mi = await chaveMistral(env);
-    if (c.so !== 'maestro' && (env.AI || mi) && (await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) {
+    const conta = await contaIA(env);
+    if (c.so !== 'maestro' && (env.AI || conta) && (await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) {
         const o = normalizarOpcoes(c.opcoes || {});
         const d = await (async () => {
-            const s = await iaSementes(env, texto, mi);
+            const s = await iaSementes(env, texto, conta);
             if (!s.musicas?.length) return null;
             const ok = (await iaConfirmar(env, s.musicas, !!o.limpa)).filter((x) => x.tidal).map((x) => x.tidal.id).slice(0, 4);
             return ok.length ? parecidasDe(env, ok, { limpa: !!o.limpa, opcoes: o, texto, nome: s.nome, ia: s.modelo }, quem) : null;
@@ -1391,11 +1397,14 @@ Se o pedido nomear artistas ou músicas, começa por eles.
 Prefere as gravações de estúdio mais conhecidas a versões ao vivo, remisturas ou versões de outros artistas.
 Responde só com JSON, sem mais nada:
 {"nome": "nome curto para a playlist, em português de Portugal", "musicas": [{"artista": "...", "titulo": "..."}]}`;
-// Pede JSON a uma IA. Primeiro à Mistral avançada, se a pessoa a escolheu (chaveMistral: a conta Mistral dela; a de
-// quem montou a app pode estar no Cloudflare, MISTRAL_API_KEY). No plano grátis, a Mistral pode usar os pedidos para
-// treinar os modelos dela: é uma escolha de cada pessoa, nos Ajustes. Depois, os modelos da Cloudflare, pela ordem.
+// Pede JSON a uma IA. Primeiro à da conta da pessoa, se a escolheu (contaIA: a Mistral avançada ou o Gemini, com a
+// conta dela; a de quem montou a app pode estar no Cloudflare). No plano grátis, a Mistral pode usar os pedidos para
+// treinar os modelos dela; a Google, para quem está na UE, segue as regras do plano pago (não os usa). É uma escolha
+// de cada pessoa, nos Ajustes. Depois, os modelos da Cloudflare, pela ordem.
 const MISTRAL = 'https://api.mistral.ai/v1/chat/completions';
-async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) => !!j, mistral = null } = {}) {
+const GEMINI = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_MODELOS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) => !!j, conta = null } = {}) {
     const erros = [];
     const tenta = async (nome, pede) => {
         try {
@@ -1407,10 +1416,23 @@ async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) 
         return null;
     };
     const msgs = [{ role: 'system', content: sistema }, { role: 'user', content: texto }];
-    if (mistral) {
+    if (conta?.prov === 'gemini') {
+        for (const modelo of env.GEMINI_MODELO ? [env.GEMINI_MODELO] : GEMINI_MODELOS) {
+            const j = await tenta(`gemini:${modelo}`, async () => {
+                const r = await fetch(`${GEMINI}/${modelo}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': conta.chave, 'content-type': 'application/json' },
+                    body: JSON.stringify({ systemInstruction: { parts: [{ text: sistema }] }, contents: [{ role: 'user', parts: [{ text: texto }] }],
+                        generationConfig: { temperature: temp, maxOutputTokens: Math.max(2048, max * 4), responseMimeType: 'application/json' } }) });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                // (as partes de «pensamento» não contam: só a resposta)
+                return ((await r.json())?.candidates?.[0]?.content?.parts || []).filter((x) => !x.thought).map((x) => x.text || '').join('');
+            });
+            if (j) return { j, modelo: `gemini:${modelo}`, erros };
+        }
+    }
+    if (conta?.prov === 'mistral') {
         const modelo = env.MISTRAL_MODELO || 'mistral-large-latest';
         const j = await tenta(`mistral:${modelo}`, async () => {
-            const r = await fetch(MISTRAL, { method: 'POST', headers: { authorization: `Bearer ${mistral}`, 'content-type': 'application/json' },
+            const r = await fetch(MISTRAL, { method: 'POST', headers: { authorization: `Bearer ${conta.chave}`, 'content-type': 'application/json' },
                 body: JSON.stringify({ model: modelo, messages: msgs, max_tokens: max, temperature: temp, response_format: { type: 'json_object' } }) });
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return (await r.json())?.choices?.[0]?.message?.content;
@@ -1428,11 +1450,11 @@ async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) 
     }
     return { j: null, erros };
 }
-async function iaSementes(env, texto, mistral = null) {
-    if (!env.AI?.run && !mistral) return { erro: 'A IA da Cloudflare não está ligada ao conector.' };
+async function iaSementes(env, texto, conta = null) {
+    if (!env.AI?.run && !conta) return { erro: 'A IA da Cloudflare não está ligada ao conector.' };
     if (texto.length < 3) return { erro: 'Pedido vazio.' };
     const lista = (j) => (Array.isArray(j?.musicas) ? j.musicas : []).map((x) => ({ artista: txt(x?.artista, 120), titulo: txt(x?.titulo, 160) })).filter((x) => x.artista && x.titulo).slice(0, 6);
-    const r = await iaJSON(env, IA_SISTEMA, texto, { serve: (j) => lista(j).length > 0, mistral });
+    const r = await iaJSON(env, IA_SISTEMA, texto, { serve: (j) => lista(j).length > 0, conta });
     if (!r.j) return { erro: 'A IA não respondeu.', erros: r.erros };
     return { modelo: r.modelo, nome: txt(r.j.nome, 60), musicas: lista(r.j), ...(r.erros.length ? { erros: r.erros } : {}) };
 }
@@ -1454,36 +1476,48 @@ async function iaConfirmar(env, musicas, limpa) {
     return out;
 }
 
-// ---------- a Mistral avançada: a conta Mistral de cada pessoa ----------
-// A Mistral não tem «entrar com a Mistral» para apps de fora: liga-se com uma chave da conta (console.mistral.ai →
-// API Keys), colada uma vez na app. Confirma-se na Mistral, fica no conector (como a ligação ao Tidal) e nunca volta
-// nas respostas. Quem montou a app pode, em vez disso, guardá-la no Cloudflare (o segredo MISTRAL_API_KEY).
-const MISTRAL_MODELOS = 'https://api.mistral.ai/v1/models';
-const mistralLigada = async (env, uid) => !!(await env.KV.get('mistral:chave')) || ((uid || DONO) === DONO && !!env.MISTRAL_API_KEY);
-// a chave a usar nos pedidos desta pessoa: só se ela escolheu a Mistral avançada
-async function chaveMistral(env) {
-    if (!(await env.KV.get('tidal:tokens', 'json'))?.iaMistralEm) return null;
-    return (await env.KV.get('mistral:chave')) || ((env.UID || DONO) === DONO ? env.MISTRAL_API_KEY || null : null);
+// ---------- a IA de cada pessoa: a da Cloudflare (por omissão), a Mistral avançada ou o Gemini, com a conta dela ----------
+// Nem a Mistral nem a Google têm «entrar com…» para apps de fora: liga-se com uma chave da conta (Mistral:
+// console.mistral.ai → API Keys; Google: aistudio.google.com → Get API key), colada uma vez na app. Confirma-se lá,
+// fica no conector (como a ligação ao Tidal) e nunca volta nas respostas. Quem montou a app pode, em vez disso,
+// guardá-las no Cloudflare (os segredos MISTRAL_API_KEY e GEMINI_API_KEY).
+const CONTAS_IA = {
+    mistral: { nome: 'Mistral', segredo: 'MISTRAL_API_KEY', onde: 'console.mistral.ai → API Keys',
+        confirma: (chave) => fetch('https://api.mistral.ai/v1/models', { headers: { authorization: `Bearer ${chave}` } }) },
+    gemini: { nome: 'Google', segredo: 'GEMINI_API_KEY', onde: 'aistudio.google.com → Get API key',
+        confirma: (chave) => fetch(GEMINI, { headers: { 'x-goog-api-key': chave } }) },
+};
+// a escolha da pessoa: 'cloudflare' (por omissão), 'mistral' ou 'gemini' (antes da 1.34.0, iaMistralEm era a Mistral)
+const escolhaIA = (t) => (t?.ia === 'mistral' || t?.ia === 'gemini' ? t.ia : t?.iaMistralEm ? 'mistral' : 'cloudflare');
+const contaLigada = async (env, uid, prov) => !!(await env.KV.get(`${prov}:chave`)) || ((uid || DONO) === DONO && !!env[CONTAS_IA[prov].segredo]);
+// a conta de IA a usar nos pedidos desta pessoa: a que ela escolheu, se estiver ligada (senão, a da Cloudflare)
+async function contaIA(env) {
+    const prov = escolhaIA(await env.KV.get('tidal:tokens', 'json'));
+    if (prov === 'cloudflare') return null;
+    const chave = (await env.KV.get(`${prov}:chave`)) || ((env.UID || DONO) === DONO ? env[CONTAS_IA[prov].segredo] || null : null);
+    return chave ? { prov, chave } : null;
 }
-async function ligarMistral(env, c, quem) {
+async function ligarConta(env, prov, c, quem) {
     if (quem.tipo === 'agente') throw new Erro(403, 'so_a_pessoa', 'Só a própria pessoa liga a conta dela, na app.');
+    const cfg = CONTAS_IA[prov];
     const chave = String(c?.chave || '').trim();
-    if (!/^[A-Za-z0-9_-]{16,128}$/.test(chave)) throw new Erro(400, 'mistral_chave', 'Isso não parece uma chave da Mistral: copia-a outra vez em console.mistral.ai → API Keys.');
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(chave)) throw new Erro(400, `${prov}_chave`, `Isso não parece uma chave da ${cfg.nome}: copia-a outra vez (${cfg.onde}).`);
     const t = await env.KV.get('tidal:tokens', 'json');
     if (!t) throw new Erro(409, 'tidal_desligado', 'O Tidal não está ligado: liga-o na app.');
-    const r = await fetch(MISTRAL_MODELOS, { headers: { authorization: `Bearer ${chave}` } }).catch(() => null);
-    if (r && (r.status === 401 || r.status === 403)) throw new Erro(400, 'mistral_chave', 'A Mistral não aceitou esta chave. Confirma que a copiaste toda.');
-    if (!r?.ok) throw new Erro(502, 'mistral', 'A Mistral não respondeu. Tenta daqui a pouco.');
-    await env.KV.put('mistral:chave', chave);
-    t.iaMistralEm = new Date().toISOString();
+    const r = await cfg.confirma(chave).catch(() => null);
+    if (r && [400, 401, 403].includes(r.status)) throw new Erro(400, `${prov}_chave`, `A ${cfg.nome} não aceitou esta chave. Confirma que a copiaste toda.`);
+    if (!r?.ok) throw new Erro(502, prov, `A ${cfg.nome} não respondeu. Tenta daqui a pouco.`);
+    await env.KV.put(`${prov}:chave`, chave);
+    t.ia = prov;
+    delete t.iaMistralEm;
     await env.KV.put('tidal:tokens', JSON.stringify(t));
-    return { ok: true, iaMistral: true };
+    return { ok: true, ia: prov };
 }
-async function desligarMistral(env) {
-    await env.KV.delete('mistral:chave');
+async function desligarConta(env, prov) {
+    await env.KV.delete(`${prov}:chave`);
     const t = await env.KV.get('tidal:tokens', 'json');
-    if (t?.iaMistralEm) { delete t.iaMistralEm; await env.KV.put('tidal:tokens', JSON.stringify(t)); }
-    return { ok: true };
+    if (t && escolhaIA(t) === prov) { delete t.ia; delete t.iaMistralEm; await env.KV.put('tidal:tokens', JSON.stringify(t)); }
+    return { ok: true, conta: prov };
 }
 
 // ---------- arrumar a lista: as pastas (só na app) e as propostas antigas ----------
@@ -1532,15 +1566,15 @@ const iaMinhasPastas = (l) => `Organizas playlists de música nas pastas que a p
 Responde só com JSON, sem mais nada:
 {"pastas": [{"nome": "...", "ids": ["..."]}]}`;
 async function sugerirPastas(env) {
-    const mi = await chaveMistral(env);
-    if (!env.AI?.run && !mi) throw new Erro(409, 'sem_ia', 'A IA da Cloudflare não está ligada ao conector.');
+    const conta = await contaIA(env);
+    if (!env.AI?.run && !conta) throw new Erro(409, 'sem_ia', 'A IA da Cloudflare não está ligada ao conector.');
     if (!(await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) throw new Erro(409, 'ia_desligada', 'Liga a «playlist na hora» (em «Pedir» ou nos Ajustes) para a IA sugerir as pastas.');
     const idx = ((await env.KV.get('playlists', 'json')) || []).filter((x) => !x.rascunho);
     const sem = idx.filter((x) => !x.pasta);
     if (!sem.length) return { pastas: [], arrumadas: 0 };
     const lista = idx.slice(0, 80).map((x) => `${x.id} | ${txt(x.nome, 60)} | ${txt(x.pedido, 100)} | ${txt(x.genero, 40)}`).join('\n');
     const minhas = await pastasDe(env);
-    const { j } = await iaJSON(env, minhas.length ? iaMinhasPastas(minhas) : IA_PASTAS, lista, { max: 900, temp: 0.2, serve: (x) => Array.isArray(x?.pastas) && x.pastas.length > 0, mistral: mi });
+    const { j } = await iaJSON(env, minhas.length ? iaMinhasPastas(minhas) : IA_PASTAS, lista, { max: 900, temp: 0.2, serve: (x) => Array.isArray(x?.pastas) && x.pastas.length > 0, conta });
     if (!j) throw new Erro(502, 'ia', 'A IA não conseguiu sugerir pastas. Tenta daqui a pouco.');
     const livre = new Map(sem.map((x) => [x.id, x]));
     const pastas = [];
