@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.29.0';
+const VERSION = '1.30.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -77,7 +77,7 @@ async function route(req, env, url) {
     if (p === '/api/aparelho/codigo' && m === 'POST') return json(await codigoAparelho(env, quem), 201);
     const ue = deUtilizador(env, quem.uid);
     if (p === '/api/conta' && m === 'DELETE') return json(await apagarConta(env, quem));
-    if (p === '/api/consentir' && m === 'POST') return json(await consentir(ue, quem));
+    if (p === '/api/consentir' && m === 'POST') return json(await consentir(ue, quem, await corpo(req).catch(() => ({}))));
     if (p === '/api/push/chave' && m === 'GET') return json({ chave: (await chavesPush(env)).publicKey });
     if (p === '/api/push' && m === 'POST') return json(await assinarPush(ue, await corpo(req)), 201);
     if (p === '/api/push' && m === 'DELETE') return json(await desassinarPush(ue, await corpo(req)));
@@ -227,7 +227,9 @@ async function estado(req, env, url) {
         const [pls, peds] = await Promise.all([ue.KV.get('playlists', 'json'), ue.KV.get('pedidos', 'json')]);
         Object.assign(out, { tu: quem.tipo, dono: quem.uid === DONO, utilizador: t?.utilizador || null, pais: t?.pais || null, ligadoEm: t?.ligadoEm || null,
             playlists: (pls || []).length, pedidos: (peds || []).filter((x) => x.estado === 'pendente').length,
-            ia: !!t?.iaConsentidaEm, ...(naHora(env) ? { naHora: true } : {}) });
+            ia: !!t?.iaConsentidaEm, ...(naHora(env) ? { naHora: true } : {}),
+            // a «playlist na hora» (a IA da Cloudflare): se o conector a tem, e se a pessoa a ligou
+            ...(env.AI ? { iaCfPode: true, iaCf: !!t?.iaCfEm } : {}) });
     }
     return out;
 }
@@ -310,8 +312,12 @@ async function retorno(env, url) {
     }
     const ue = deUtilizador(env, uid);
     // a autorização para o Maestro (uma IA de terceiros) ler o perfil de gosto: dada no botão de ligar, ou já de antes
-    const ia = est.consente ? t.ligadoEm : (await ue.KV.get('tidal:tokens', 'json'))?.iaConsentidaEm;
+    const antes = await ue.KV.get('tidal:tokens', 'json');
+    const ia = est.consente ? t.ligadoEm : antes?.iaConsentidaEm;
     if (ia) t.iaConsentidaEm = ia;
+    // (e a IA da Cloudflare, para a «playlist na hora»: o texto do botão fala dela)
+    const cf = est.consente ? t.ligadoEm : antes?.iaCfEm;
+    if (cf) t.iaCfEm = cf;
     await ue.KV.put('tidal:tokens', JSON.stringify(t));
     await ue.KV.delete('perfil');
     if (est.convite) {
@@ -330,12 +336,20 @@ async function retorno(env, url) {
 
 // ---------- o Maestro é uma IA de terceiros: a pessoa autoriza que leia o seu perfil de gosto ----------
 // Quem liga o Tidal pela app autoriza no botão («Concordo e ligar»); quem já estava ligado de antes autoriza nos Ajustes.
-async function consentir(env, quem) {
+// «Concordo» (o texto fala do Maestro e da IA da Cloudflare) autoriza as duas; { cloudflare: true | false } liga ou
+// desliga só a «playlist na hora» (a IA da Cloudflare a ler o texto dos pedidos), nos Ajustes ou em «Pedir»
+async function consentir(env, quem, c = {}) {
     if (quem.tipo === 'agente') throw new Erro(403, 'so_a_pessoa', 'Só a própria pessoa autoriza, na app.');
     const t = await env.KV.get('tidal:tokens', 'json');
     if (!t) throw new Erro(409, 'tidal_desligado', 'O Tidal não está ligado: liga-o na app.');
-    if (!t.iaConsentidaEm) { t.iaConsentidaEm = new Date().toISOString(); await env.KV.put('tidal:tokens', JSON.stringify(t)); }
-    return { ok: true, em: t.iaConsentidaEm };
+    const agora = new Date().toISOString();
+    if (c?.cloudflare === false) delete t.iaCfEm;
+    else {
+        if (c?.cloudflare !== true && !t.iaConsentidaEm) t.iaConsentidaEm = agora;
+        if (!t.iaCfEm) t.iaCfEm = agora;
+    }
+    await env.KV.put('tidal:tokens', JSON.stringify(t));
+    return { ok: true, em: t.iaConsentidaEm || null, cloudflare: t.iaCfEm || null };
 }
 
 // ---------- o Maestro na hora ----------
@@ -1175,32 +1189,48 @@ async function maisComoEsta(env, c, quem) {
 }
 // as parecidas de uma faixa (as do Tidal, pela ordem dele), numa playlist logo no Tidal, e o pedido de revisão ao
 // Maestro. Com «texto» (um pedido feito em «Pedir» com música de partida), o Maestro revê-a para responder a esse
-// pedido, com as opções dele, e dá-lhe um nome seu; sem texto («Mais como esta»), revê-a à volta da faixa
-async function parecidasDe(env, id, { limpa = false, opcoes = null, texto = '' } = {}, quem) {
-    if (!/^\d+$/.test(id)) throw new Erro(400, 'faixa_invalida', 'Indica "faixa": o id do Tidal.');
+// pedido, com as opções dele, e dá-lhe um nome seu; sem texto («Mais como esta»), revê-a à volta da faixa. Com várias
+// músicas de partida (as que a IA sugeriu para o pedido), as parecidas de cada uma entram à vez
+async function parecidasDe(env, id, { limpa = false, opcoes = null, texto = '', nome = '', ia = '' } = {}, quem) {
+    const sementes = [...new Set((Array.isArray(id) ? id : [id]).map(String))];
+    if (!sementes.length || !sementes.every((x) => /^\d+$/.test(x))) throw new Erro(400, 'faixa_invalida', 'Indica "faixa": o id do Tidal.');
     const t = await acesso(env);
     const pais = t.pais || 'PT';
-    const doc = await tidal(env, `/tracks/${id}/relationships/similarTracks`, { query: { countryCode: pais } });
-    let ids = idsDe(doc);
-    const cursor = doc?.links?.meta?.nextCursor;
-    if (ids.length < 29 && cursor) ids.push(...idsDe(await tidal(env, `/tracks/${id}/relationships/similarTracks`, { query: { countryCode: pais, 'page[cursor]': cursor } }).catch(() => null)));
-    ids = [id, ...new Set(ids.filter((x) => x !== id))].slice(0, 30);
+    const listas = [];
+    for (const sid of sementes) {
+        const doc = await tidal(env, `/tracks/${sid}/relationships/similarTracks`, { query: { countryCode: pais } });
+        const l = idsDe(doc);
+        const cursor = doc?.links?.meta?.nextCursor;
+        if (sementes.length === 1 && l.length < 29 && cursor) l.push(...idsDe(await tidal(env, `/tracks/${sid}/relationships/similarTracks`, { query: { countryCode: pais, 'page[cursor]': cursor } }).catch(() => null)));
+        listas.push(l);
+    }
+    const max = sementes.length > 1 ? Math.min(60, Math.max(30, opcoes?.faixas || 30)) : 30;
+    const vem = new Map(sementes.map((x) => [x, null])); // id → a música de partida de que é parecida
+    for (let i = 0; vem.size < max && listas.some((l) => i < l.length); i++) {
+        for (const [k, l] of listas.entries()) if (l[i] && !vem.has(l[i]) && vem.size < max) vem.set(l[i], sementes[k]);
+    }
+    const ids = [...vem.keys()];
     const det = await porIds(env, ids, pais);
-    const semente = det.get(id);
+    const semente = det.get(sementes[0]);
     if (!semente) throw new Erro(404, 'nao_encontrada', 'Essa faixa já não está no Tidal.');
     const g = perfilGosto((await env.KV.get('perfil', 'json')) || {});
-    const candidatas = ids.map((x, i) => {
-        const f = det.get(x);
-        if (!f || (limpa && i && f.explicita)) return null;
-        const p = { artista: f.artistas[0] || '', titulo: f.titulo, motivo: i ? `Parecida com «${semente.titulo}».` : texto ? 'A música de partida.' : 'A faixa de partida.', fixa: !i };
+    const candidatas = ids.map((x) => {
+        const f = det.get(x), de = vem.get(x);
+        if (!f || (limpa && de && f.explicita)) return null;
+        const p = { artista: f.artistas[0] || '', titulo: f.titulo, motivo: de ? `Parecida com «${det.get(de)?.titulo || semente.titulo}».`
+            : ia ? 'Sugerida pela IA para o teu pedido.' : texto ? 'A música de partida.' : 'A faixa de partida.', fixa: !de };
         return { ...p, faixa: f, sinais: sinais(p, f, g) };
     }).filter(Boolean);
     const faixas = candidatas.map((x) => ({ ...x.faixa, genero: x.sinais?.genero || '', motivo: x.motivo }));
     const de = `«${semente.titulo}»${semente.artistas[0] ? `, de ${semente.artistas[0]}` : ''}`;
-    const d = await guardar(env, { nome: txt(`Parecidas com ${semente.titulo}`, 60), descricao: txt(`Faixas parecidas com «${semente.titulo}», de ${semente.artistas[0] || 'vários'}.`, 300),
-        resumo: texto ? `Começou pelas faixas parecidas com ${de}: as do Tidal, pela ordem dele. O Maestro revê-a com o teu pedido na próxima corrida, aqui e no mesmo link do Tidal.`
-            : `Pedi ao Tidal as faixas parecidas com «${semente.titulo}»: são as dele, pela ordem dele. O Maestro revê-a na próxima corrida (às 07:44 ou às 18:44), aqui e no mesmo link do Tidal.`,
+    const partidas = sementes.map((x) => det.get(x)).filter(Boolean).map((f) => `«${f.titulo}»`).join(', ');
+    const d = await guardar(env, { nome: txt(nome || `Parecidas com ${semente.titulo}`, 60),
+        descricao: txt(ia ? `Começou com ${partidas} e as parecidas do Tidal.` : `Faixas parecidas com «${semente.titulo}», de ${semente.artistas[0] || 'vários'}.`, 300),
+        resumo: ia ? `A IA da Cloudflare escolheu as músicas de partida (${partidas}) e o Tidal juntou as parecidas. O Maestro revê-a com o teu pedido na próxima corrida, aqui e no mesmo link do Tidal.`
+            : texto ? `Começou pelas faixas parecidas com ${de}: as do Tidal, pela ordem dele. O Maestro revê-a com o teu pedido na próxima corrida, aqui e no mesmo link do Tidal.`
+                : `Pedi ao Tidal as faixas parecidas com «${semente.titulo}»: são as dele, pela ordem dele. O Maestro revê-a na próxima corrida (às 07:44 ou às 18:44), aqui e no mesmo link do Tidal.`,
         pedido: texto, faixas, candidatas, opcoes: opcoes || { faixas: Math.max(5, faixas.length), maxArtista: 3, limpa }, origem: 'parecidas', tidal: true }, quem);
+    if (ia) d.ia = { modelo: ia, sementes: sementes.filter((x) => det.has(x)) };
     const lista = (await env.KV.get('pedidos', 'json')) || [];
     if (lista.filter((x) => x.estado === 'pendente').length < MAX_PEDIDOS) {
         const p = { id: novoId('q'), texto: texto || txt(`Mais como ${de}`, 500), opcoes: d.opcoes, estado: 'pendente', criadoEm: d.criadaEm,
@@ -1208,8 +1238,8 @@ async function parecidasDe(env, id, { limpa = false, opcoes = null, texto = '' }
         lista.unshift(p);
         await env.KV.put('pedidos', JSON.stringify(lista.slice(0, 60)));
         d.afinacoes = [{ pedido: p.id, texto: 'Rever as parecidas do Tidal', rejeitadas: 0, em: p.criadoEm, rever: true }];
-        await env.KV.put('playlist:' + d.id, JSON.stringify(d));
     }
+    if (ia || d.afinacoes) await env.KV.put('playlist:' + d.id, JSON.stringify(d));
     return d;
 }
 
@@ -1295,11 +1325,23 @@ async function pedir(env, c, quem) {
     const lista = (await env.KV.get('pedidos', 'json')) || [];
     if (lista.filter((x) => x.estado === 'pendente').length >= MAX_PEDIDOS) throw new Erro(429, 'demasiados', `Já há ${MAX_PEDIDOS} pedidos à espera.`);
     // com uma música de partida: a playlist nasce já, com as parecidas dela; o pedido fica para o Maestro a rever
+    const criada = async (d) => ({ ...((await env.KV.get('pedidos', 'json')) || []).find((x) => x.afinar?.playlist === d.id),
+        criada: { id: d.id, nome: d.nome, tidal: d.tidal?.url || null }, ...(d.ia ? { ia: d.ia.modelo } : {}) });
     if (c.partida != null) {
         const o = normalizarOpcoes(c.opcoes || {});
-        const d = await parecidasDe(env, String(c.partida), { limpa: !!o.limpa, opcoes: o, texto }, quem);
-        const ped = ((await env.KV.get('pedidos', 'json')) || []).find((x) => x.afinar?.playlist === d.id);
-        return { ...ped, criada: { id: d.id, nome: d.nome, tidal: d.tidal?.url || null } };
+        return criada(await parecidasDe(env, String(c.partida), { limpa: !!o.limpa, opcoes: o, texto }, quem));
+    }
+    // sem ela, se a pessoa ligou a «playlist na hora»: a IA da Cloudflare escolhe as músicas de partida (o Tidal
+    // confirma-as) e a playlist nasce já, com as parecidas delas; o Maestro revê-a. Se a IA falhar, fica como sempre
+    if (env.AI && (await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) {
+        const o = normalizarOpcoes(c.opcoes || {});
+        const d = await (async () => {
+            const s = await iaSementes(env, texto);
+            if (!s.musicas?.length) return null;
+            const ok = (await iaConfirmar(env, s.musicas, !!o.limpa)).filter((x) => x.tidal).map((x) => x.tidal.id).slice(0, 4);
+            return ok.length ? parecidasDe(env, ok, { limpa: !!o.limpa, opcoes: o, texto, nome: s.nome, ia: s.modelo }, quem) : null;
+        })().catch((e) => { console.error('ia', e); return null; });
+        if (d) return criada(d);
     }
     const p = { id: novoId('q'), texto, opcoes: normalizarOpcoes(c.opcoes || {}), estado: 'pendente', criadoEm: new Date().toISOString() };
     lista.unshift(p);
@@ -1313,7 +1355,9 @@ async function pedir(env, c, quem) {
 // que lá passa para treinar modelos. O plano gratuito dá 10 000 «Neurons» por dia (um pedido gasta poucas dezenas);
 // passado isso a IA recusa e o pedido fica para o Maestro, como antes. O catálogo de modelos muda: tenta-se pela ordem
 // (IA_MODELO, nas variáveis do Worker, escolhe um).
-const IA_MODELOS = ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/mistralai/mistral-small-3.1-24b-instruct', '@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.1-8b-instruct'];
+// (com os 8 pedidos reais: Mistral Small 3.1 31/32 confirmadas em 2,1 s, o mais variado; Llama 3.3 70B 32/32 em 1,6 s mas
+// repete-se; Llama 4 Scout 29/32 em 3,6 s)
+const IA_MODELOS = ['@cf/mistralai/mistral-small-3.1-24b-instruct', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.1-8b-instruct'];
 const IA_SISTEMA = `És um curador de música. Recebes o pedido de uma pessoa para uma playlist, escrito em português.
 Escolhe 4 músicas que sejam o melhor ponto de partida para essa playlist: gravações reais, de artistas reais, que existam no serviço de streaming TIDAL, e que respondam ao género, à época, ao ambiente, ao momento e à idade de quem vai ouvir.
 Se o pedido nomear artistas ou músicas, começa por eles.

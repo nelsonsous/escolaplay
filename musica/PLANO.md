@@ -37,7 +37,7 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 
 ## O que ficou por fazer
 
-As dez voltas estão feitas e publicadas (hoje: Música 2.37.0, conector 1.27.0). Fica isto, por ordem do que mais importa:
+As dez voltas estão feitas e publicadas (hoje: Música 2.38.0, conector 1.30.0). Fica isto, por ordem do que mais importa:
 
 | O quê | Porquê ficou | O que é preciso |
 |---|---|---|
@@ -67,6 +67,12 @@ Uma playlist que a pessoa faça com a IA **na app do Tidal** fica na conta dela 
 («Conector 1.24.0 (por experimentar…)»), se um dia o Tidal abrir este nível.
 
 ## Agilidade: três degraus
+
+**Já ligado (2.38.0): a playlist na hora.** Com autorização da pessoa, a IA grátis da Cloudflare (Workers AI, no
+conector; Mistral Small 3.1, com outros modelos de reserva) lê o pedido e sugere as músicas de partida; o Tidal
+confirma-as e a playlist nasce em segundos, com as parecidas delas. O Maestro revê-a depois (e dá-lhe nome). Com os
+8 pedidos reais deu 31 de 32 músicas confirmadas; falha nos pedidos para crianças, que a revisão do Maestro corrige.
+Grátis até 10 000 «Neurons» por dia; passado isso, o pedido fica para o Maestro, como antes.
 
 O Maestro é uma tarefa agendada do Claude. Um pedido pode ser tratado de três maneiras, da mais simples à mais rápida:
 

@@ -1474,3 +1474,61 @@ test('pedir com música de partida: procurar, escolher, criar já no Tidal; o Ma
         if (SHOTS) { await nav(3); await corpo.locator('details.mu-partida-d > summary').click(); await page.screenshot({ path: path.join(SHOTS, 'pedir-partida.png') }); }
     } finally { await ctx.close(); }
 });
+
+// A playlist na hora: a IA da Cloudflare escolhe as músicas de partida e a playlist nasce já. Liga-se em «Pedir» (ou nos
+// Ajustes, onde também se desliga); sem ela, «Pedir» fica como era
+test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, desligar nos Ajustes', { skip: !chromium && 'sem Playwright' }, async () => {
+    const t = JSON.parse(await env.KV.get('tidal:tokens'));
+    delete t.iaCfEm;
+    await env.KV.put('tidal:tokens', JSON.stringify(t));
+    let pedidosIA = 0;
+    env.AI = { run: async () => { pedidosIA++; return { response: '{"nome": "Modal ao fim do dia", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}, {"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }; } };
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('NAHORA-1').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    try {
+        const page = await ctx.newPage();
+        const erros = [];
+        page.on('pageerror', (e) => erros.push(String(e)));
+        page.on('console', (m) => { if (m.type() === 'error') erros.push('consola: ' + m.text()); });
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('NAHORA-1');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        await page.locator('#mu-body .mu-pl').first().waitFor();
+        const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
+        const corpo = page.locator('#mu-body');
+        await nav(3);
+        const texto = 'Jazz modal para o fim do dia';
+        await corpo.locator('[data-onda="ptx"]').fill(texto);
+        assert.equal(await corpo.locator('[data-onda="pedir"]').innerText(), 'Pedir ao Maestro');
+        // ligar em «Pedir»
+        await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).click();
+        await page.locator('#mu-aviso').getByText('Autorização guardada.').waitFor();
+        await page.waitForFunction(() => document.querySelector('#mu-body [data-onda="pedir"]')?.innerText === 'Criar já no Tidal');
+        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^A IA da Cloudflare escolhe as músicas de partida e a playlist nasce já no teu Tidal\./);
+        assert.equal(await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).count(), 0);
+        assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), texto, 'o texto fica');
+        assert.ok(JSON.parse(await env.KV.get('tidal:tokens')).iaCfEm, 'a autorização fica registada');
+        // criar já: a playlist está no cimo da lista, com o nome que a IA deu, à espera da revisão do Maestro
+        await corpo.locator('[data-onda="pedir"]').click();
+        await page.locator('#mu-aviso').getByText(/^Já está no teu Tidal\. O Maestro/).waitFor();
+        assert.equal(pedidosIA, 1);
+        const ped = JSON.parse(await env.KV.get('pedidos')).find((x) => x.texto === texto);
+        const cartao = page.locator('#mu-body .mu-pl', { has: page.locator(`[data-onda="exp\t${ped.afinar.playlist}"]`) });
+        await cartao.waitFor();
+        assert.match(await cartao.innerText(), /Modal ao fim do dia[\s\S]*o Maestro vai revê-la/);
+        // desligar nos Ajustes
+        await nav(5);
+        const linha = corpo.locator('.mu-iacf');
+        await linha.waitFor();
+        assert.match(await linha.innerText(), /^Playlist na hora: ligada/);
+        await linha.getByRole('button', { name: 'Desligar' }).click();
+        await page.locator('#mu-aviso').getByText('A playlist na hora ficou desligada.').waitFor();
+        await page.waitForFunction(() => /^Playlist na hora: desligada/.test(document.querySelector('#mu-body .mu-iacf')?.innerText || ''));
+        assert.equal(JSON.parse(await env.KV.get('tidal:tokens')).iaCfEm, undefined);
+        // desligada: «Pedir» volta a ser como era
+        await nav(3);
+        assert.equal(await corpo.locator('[data-onda="pedir"]').innerText(), 'Pedir ao Maestro');
+        assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
+        if (SHOTS) { await page.screenshot({ path: path.join(SHOTS, 'pedir-na-hora.png') }); }
+    } finally { await ctx.close(); delete env.AI; }
+});
