@@ -535,3 +535,11 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-check > span:last-child { display: flex; flex-direction: column; gap: 2px; }
 .mu-check b { font-size: 14.5px; font-weight: 650; }
 .mu-check i { font-style: normal; color: var(--mut); font-size: 12.5px; }
+
+/* 2.46.0 — o teu perfil musical (questionário em toques) */
+.mu-perfil { margin-top: 12px; }
+.mu-perfil .mu-nota { margin: 10px 0 4px; }
+.mu-perg { margin-top: 14px; }
+.mu-perg > p { margin: 0 0 8px; font-size: 14px; font-weight: 650; }
+.mu-chips-r { display: flex; flex-wrap: wrap; gap: 8px; }
+.mu-convite-perfil { display: block; margin: 0 2px 12px; text-align: left; }

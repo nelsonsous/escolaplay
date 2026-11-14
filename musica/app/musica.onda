@@ -160,7 +160,7 @@
 # o que é cada playlist, numa linha: de onde veio (o pedido, «Mais como esta», a que se atualiza, a juntada, a do Maestro)
 : pl_origem i>i c { = pd txt c.pedido
   ? == tipo c.renovar 3 "Atualiza-se todas as semanas"
-    ? mesmo txt c.origem $"juntar" "Juntou várias playlists"
+    ? mesmo txt c.origem $"juntar" "Agrupou várias playlists"
       ? _tx_len pd `O teu pedido: «{ esct pd }»{ Se mesmo txt c.origem $"parecidas" ? == tipo c.ia 3 " · começou pela IA" " · começou por uma música" }`
         ? mesmo txt c.origem $"parecidas" "Mais como esta: as parecidas de uma faixa" "Escolha do Maestro" }
 : pl_cartao i>i c {
@@ -446,9 +446,9 @@
   `<span class="mu-esc-v" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></button>` }
 : barra_juntar i>i d {
   = n n_esc d
-  `<div class="mu-juntar-barra" role="region" aria-label="Juntar playlists"><span>{ ? n { N n ? > n 1 " escolhidas" " escolhida" } "Escolhe 2 ou mais" }</span>`
-  `<button type="button" class="mu-btn sec peq" data-onda="juntar_nao">Cancelar</button><button type="button" class="mu-btn peq" data-onda="juntar_sim"{ Se < n 2 " disabled" }>{ ic 12 }Juntar</button>`
-  `<button type="button" class="mu-btn sec perigo peq mu-juntar-ap" data-onda="juntar_sim_ap"{ Se < n 2 " disabled" }>Juntar e apagar as originais</button></div>` }
+  `<div class="mu-juntar-barra" role="region" aria-label="Agrupar playlists"><span>{ ? n { N n ? > n 1 " escolhidas" " escolhida" } "Escolhe 2 ou mais" }</span>`
+  `<button type="button" class="mu-btn sec peq" data-onda="juntar_nao">Cancelar</button><button type="button" class="mu-btn peq" data-onda="juntar_sim"{ Se < n 2 " disabled" }>{ ic 12 }Agrupar</button>`
+  `<button type="button" class="mu-btn sec perigo peq mu-juntar-ap" data-onda="juntar_sim_ap"{ Se < n 2 " disabled" }>Agrupar e apagar as originais</button></div>` }
 : juntar_enviar i>i ap ? ocupado 0 {
     = d @ 4
     ? < n_esc d 2 { aviso $"Escolhe pelo menos 2 playlists." 0 } {
@@ -457,14 +457,14 @@
       W c { = e txt c.id Se ttemid @ 58 e { Se k "," pjs e = k 1 } = c seg c }
       `]{ Se ap `,"apagar":true` }\}`
       pede _tx_fecha r 19
-      aviso $"A juntar…" 0 } }
+      aviso $"A agrupar…" 0 } }
 : pl_rasc i>i c == tipo c.rascunho 3
 : lista_pl i>i d {
   ? ~ quantos d `<div class="mu-card nada"><h3>Ainda não há playlists</h3><p>O Maestro cria a primeira «Onda da semana» na próxima manhã. Ou faz já um pedido.</p><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="ir&#9;3">{ ic 2 }Fazer um pedido</button></div></div>`
   {
     = nf 0 = ns 0 = c pri d W c { Se ~ pl_rasc c { = nf + nf 1 Se ~ _tx_len txt c.pasta = ns + ns 1 } = c seg c }
-    `<div class="mu-lista-topo"><span>{ ? @ 56 "Escolhe as playlists a juntar" "As tuas playlists" }</span><span class="mu-topo-b">`
-    `{ Se && ~ @ 56 >= nf 2 `<button type="button" class="mu-btn sec peq" data-onda="juntar_modo">{ ic 12 }Juntar</button>` }</span></div>`
+    `<div class="mu-lista-topo"><span>{ ? @ 56 "Escolhe as playlists a agrupar" "As tuas playlists" }</span><span class="mu-topo-b">`
+    `{ Se && ~ @ 56 >= nf 2 `<button type="button" class="mu-btn sec peq" data-onda="juntar_modo">{ ic 12 }Agrupar</button>` }</span></div>`
     Se > nf 1 chips_pl d nf
     Se && ~ @ 56 >= nf 2 pastas_ed d ns
     = nv 0 = c pri d W c { Se pl_vis c = nv + nv 1 = c seg c }
@@ -780,7 +780,7 @@
     # das faixas novas e o índice (a lista por baixo e a duração)
     ? && >= modo 20 <= modo 22 { ! 51 r ! 60 0 ! 61 0 refolha 9
       _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl" 0 }
-    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas, já no teu Tidal.{ Se int r.apagadas " As originais foram apagadas." }` 0 }
+    ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Agrupadas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas, já no teu Tidal.{ Se int r.apagadas " As originais foram apagadas." }` 0 }
     ? == modo 18 { tvazio @ 49 Se != @ 6 2 ! 6 0 refolha 652
       # (os pedidos também: o cartão da playlist passa a dizer «afinação pedida»)
       _an_buscar $"/api/pedidos" $"lido_ped"
@@ -799,6 +799,8 @@
       aviso ? cr $"Já está no teu Tidal e aberta aqui. Se quiseres, o Claude revê-a: «Rever com o Claude»."
         ? nh $"Pedido feito — o Maestro já foi chamado: costuma demorar uns minutos." $"Pedido feito — o Maestro trata dele quando estiver ligado." 0 }
     # a sugestão da IA para o pedido: fica à vista, por baixo do texto, até se usar ou não
+    ? == modo 39 { _an_esquecer _an_buscar $"/api/estado" $"lido_estado" 0 }
+    ? == modo 40 { _an_buscar $"/api/estado" $"lido_estado" aviso ? == tipo r.qualidade 3 $"Prioridade: qualidade — o melhor modelo da tua conta." $"Prioridade: rapidez — responde em segundos." 0 }
     ? == modo 38 { _an_buscar $"/api/estado" $"lido_estado" aviso ? == tipo r.gosto 3 $"A IA passa a ver os artistas que ouves." $"A IA deixa de ver os artistas que ouves." 0 }
     ? == modo 37 { = x texto`S{ ? sug_mm "M" "J" }{ P 9 }{ crut txt r.texto }{ P 9 }{ crut txt r.porque }{ P 9 }{ crut txt r.por }` tcopia @ 47 x 1250 render 0 }
     ? == modo 36 { _an_buscar $"/api/pedidos" $"lido_ped" Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp"
@@ -878,6 +880,7 @@
 : v_pedir >i {
   `<header class="mu-head"><div><h1>Pedir</h1><div class="sub">Ao Maestro, que pesquisa e cria no teu Tidal</div></div>{ pill }</header>`
   Se && @ 3 ~ acesso boas_vindas
+  Se && acesso ~ r_total _ar_get @ 3 $"respostas" `<button type="button" class="mu-ligacao mu-convite-perfil" data-onda="ir_perfil">✦ Conta-nos de ti em poucos toques: a IA e o Claude passam a acertar mais</button>`
   `<div class="mu-card"><h3>O que te apetece ouvir?</h3><label class="mu-campo"><span class="sr">Texto do pedido</span><textarea data-onda="ptx" maxlength="500" placeholder="Ex.: jazz dos anos 60 bem gravado para a viagem de sábado">{ esct @ 20 }</textarea></label>`
   # o botao logo a seguir ao texto: com o teclado aberto (iPhone) fica a vista
   = pt pd_tem @ 19 = nh == tipo _ar_get @ 3 $"naHora" 3 = ia == tipo _ar_get @ 3 $"iaCf" 3 = iap == tipo _ar_get @ 3 $"iaCfPode" 3
@@ -930,6 +933,26 @@
 : gosto_alternar >i { ! 18 ~ @ 18 Se && @ 18 ~ @ 4 { _an_buscam $"/api/perfil" $"lido_perfil" 300000 _an_buscam $"/api/tendencias" $"lido_tend" 300000 } render }
 # o teu gosto (era um separador): um cartão dos Ajustes, fechado até se querer ver — só aí se pedem o perfil e as
 # tendências ao conector. Aberto, mostra por baixo o que o separador mostrava. @18 aberto, @4 o perfil, @11 as tendências
+# o teu perfil musical: um questionário só de toques (cada toque guarda logo, no conector). A IA da playlist na hora e o
+# Claude usam-no com o que se aprende do uso. Aberto ou fechado fica no aparelho («perfil_aberto»); sem respostas, aberto
+: r_tem iii>i rs k v { = l _ar_get rs k = r 0 = e pri l W && e ~ r { Se mesmo txt e v = r 1 = e seg e } r }
+: r_chip iiii>i rs k v rot `<button type="button" class="mu-chip-f" data-onda="pr&#9;{ esct k }&#9;{ esct v }" aria-pressed="{ ? r_tem rs k v "true" "false" }">{ esct rot }</button>`
+: r_total i>i rs + + + + + + + quantos _ar_get rs $"para" quantos _ar_get rs $"onde" quantos _ar_get rs $"casa" quantos _ar_get rs $"criancas" quantos _ar_get rs $"idades" quantos _ar_get rs $"momentos" quantos _ar_get rs $"generos" quantos _ar_get rs $"novo"
+: cartao_perfil >i {
+  = rs _ar_get @ 3 $"respostas" = n r_total rs = ap _an_ler $"perfil_aberto"
+  = ab ? ap mesmo ap $"1" ~ n
+  `<section class="mu-perfil"><div class="mu-card"><button type="button" class="mu-gosto-a" data-onda="perfil_abrir" aria-expanded="{ ? ab "true" "false" }"><span class="tx"><b>O teu perfil musical</b><span>{ ? n `{ N n } respostas · a IA e o Claude usam-no nos pedidos` "Uns toques e a IA passa a acertar mais" }</span></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>`
+  Se ab {
+    `<p class="mu-nota">Sem escrever nada: toca no que se aplica (cada toque fica guardado). A IA da playlist na hora e o Claude usam estas respostas com o que vais pedindo, apagando e ouvindo — o mais recente pesa mais.</p>`
+    `<div class="mu-perg"><p>Para quem é a música?</p><div class="mu-chips-r">{ r_chip rs $"para" $"para mim" $"Para mim" }{ r_chip rs $"para" $"para a família" $"Para a família" }{ r_chip rs $"para" $"para os filhos" $"Para os filhos" }{ r_chip rs $"para" $"a dois" $"A dois" }</div></div>`
+    `<div class="mu-perg"><p>Onde ouves?</p><div class="mu-chips-r">{ r_chip rs $"onde" $"em casa" $"Em casa" }{ r_chip rs $"onde" $"no carro" $"No carro" }{ r_chip rs $"onde" $"no trabalho" $"No trabalho" }{ r_chip rs $"onde" $"a treinar" $"A treinar" }{ r_chip rs $"onde" $"em viagem" $"Em viagem" }</div></div>`
+    Se r_tem rs $"onde" $"em casa" `<div class="mu-perg"><p>Em casa, onde?</p><div class="mu-chips-r">{ r_chip rs $"casa" $"na sala" $"Na sala" }{ r_chip rs $"casa" $"na cozinha" $"Na cozinha" }{ r_chip rs $"casa" $"no escritório" $"No escritório" }{ r_chip rs $"casa" $"no quarto" $"No quarto" }{ r_chip rs $"casa" $"no jardim" $"No jardim" }</div></div>`
+    `<div class="mu-perg"><p>Ouves com crianças?</p><div class="mu-chips-r">{ r_chip rs $"criancas" $"nunca" $"Nunca" }{ r_chip rs $"criancas" $"às vezes" $"Às vezes" }{ r_chip rs $"criancas" $"muitas vezes" $"Muitas vezes" }</div></div>`
+    Se || r_tem rs $"criancas" $"às vezes" r_tem rs $"criancas" $"muitas vezes" `<div class="mu-perg"><p>De que idades?</p><div class="mu-chips-r">{ r_chip rs $"idades" $"até 5 anos" $"Até 5 anos" }{ r_chip rs $"idades" $"6 a 9 anos" $"6 a 9" }{ r_chip rs $"idades" $"10 a 13 anos" $"10 a 13" }{ r_chip rs $"idades" $"14 a 17 anos" $"14 a 17" }</div></div>`
+    `<div class="mu-perg"><p>Para que momentos?</p><div class="mu-chips-r">{ r_chip rs $"momentos" $"jantares românticos" $"Jantares românticos" }{ r_chip rs $"momentos" $"jantares com amigos" $"Jantares com amigos" }{ r_chip rs $"momentos" $"concentração" $"Concentração" }{ r_chip rs $"momentos" $"relaxar" $"Relaxar" }{ r_chip rs $"momentos" $"treino" $"Treino" }{ r_chip rs $"momentos" $"festa" $"Festa" }{ r_chip rs $"momentos" $"adormecer" $"Adormecer" }{ r_chip rs $"momentos" $"viagens" $"Viagens" }</div></div>`
+    `<div class="mu-perg"><p>Que géneros te agradam?</p><div class="mu-chips-r">{ r_chip rs $"generos" $"jazz" $"Jazz" }{ r_chip rs $"generos" $"clássica" $"Clássica" }{ r_chip rs $"generos" $"pop" $"Pop" }{ r_chip rs $"generos" $"rock" $"Rock" }{ r_chip rs $"generos" $"eletrónica" $"Eletrónica" }{ r_chip rs $"generos" $"hip hop" $"Hip hop" }{ r_chip rs $"generos" $"soul e R&B" $"Soul e R&B" }{ r_chip rs $"generos" $"fado e música portuguesa" $"Fado e música portuguesa" }{ r_chip rs $"generos" $"indie" $"Indie" }{ r_chip rs $"generos" $"lo-fi" $"Lo-fi" }{ r_chip rs $"generos" $"bandas sonoras" $"Bandas sonoras" }{ r_chip rs $"generos" $"k-pop" $"K-pop" }{ r_chip rs $"generos" $"world" $"World" }</div></div>`
+    `<div class="mu-perg"><p>Novidade ou o que já conheces?</p><div class="mu-chips-r">{ r_chip rs $"novo" $"descobrir coisas novas" $"Descobrir coisas novas" }{ r_chip rs $"novo" $"equilibrado" $"Equilibrado" }{ r_chip rs $"novo" $"o que já conheço" $"O que já conheço" }</div></div>` }
+  "</div></section>" }
 : cartao_gosto >i {
   = p @ 4 = ab @ 18
   `<section class="mu-gosto"><div class="mu-card"><button type="button" class="mu-gosto-a" data-onda="gosto" aria-expanded="{ ? ab "true" "false" }"><span class="tx"><b>O teu gosto</b><span>{ ? p { `{ N quantos p.favoritas } favoritas · atualizado { pdia txt p.geradoEm }` 0 } "As tuas favoritas, o que se está a ouvir e as tuas playlists no Tidal" }</span></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>`
@@ -1088,7 +1111,7 @@
   `<header class="mu-head"><div><h1>Ajustes</h1></div>{ pill }</header>`
   = e @ 3
   ? ~ e carregar {
-    Se acesso cartao_gosto
+    Se acesso { cartao_gosto cartao_perfil }
     `<div class="mu-card"><h3>Tidal</h3>`
     ? ligado `<dl class="mu-kv"><dt>Conta</dt><dd>{ esct txt e.utilizador } ({ esct txt e.pais })</dd><dt>Desde</dt><dd>{ pdia txt e.ligadoEm }</dd><dt>Biblioteca</dt><dd>{ N int e.playlists } playlists · { N int e.pedidos } pedidos à espera</dd></dl>` "<p>Não está ligado.</p>"
     `<div class="mu-acoes">`
@@ -1127,7 +1150,9 @@
           `<div class="mu-campo mu-ia-esc"><span>IA da playlist na hora</span><div class="mu-seg"><button type="button" data-onda="ia_esc&#9;cloudflare" aria-pressed="{ ? || em eg "false" "true" }">Cloudflare</button><button type="button" data-onda="ia_esc&#9;mistral" aria-pressed="{ ? em "true" "false" }">Mistral avançada</button><button type="button" data-onda="ia_esc&#9;gemini" aria-pressed="{ ? eg "true" "false" }">Gemini</button></div></div>`
           `<p class="mu-nota">{ ? em "A Mistral avançada usa a tua conta Mistral (no plano grátis, a Mistral pode usar os teus pedidos para treinar os modelos dela)." ? eg "O Gemini (3.5 Flash-Lite, que responde em segundos; o 3.8 Flash de reserva) usa a tua conta Google. Para quem está na União Europeia, a Google não usa os pedidos para melhorar os produtos dela." "A da Cloudflare (Mistral pequeno) não usa os teus pedidos para treinar modelos. A Mistral avançada e o Gemini são maiores e usam a tua conta." }</p>`
           = gs == tipo e.iaGosto 3
-          `<div class="mu-interruptor mu-ia-gosto"><div><b>A IA vê os artistas que ouves</b><span class="mu-nota">Até 12, das tuas favoritas e dos que segues: as escolhas ficam mais à tua medida. { ? gs "Ligado." "Desligado: a IA só vê o pedido e as opções." }</span></div><button type="button" class="mu-btn sec peq" data-onda="ia_gosto&#9;{ ? gs "0" "1" }">{ ? gs "Desligar" "Ligar" }</button></div>`
+          Se eg { = qd == tipo e.iaQualidade 3
+            `<div class="mu-campo mu-ia-qual"><span>Prioridade do Gemini</span><div class="mu-seg"><button type="button" data-onda="ia_qual&#9;0" aria-pressed="{ ? qd "false" "true" }">⚡ Rapidez</button><button type="button" data-onda="ia_qual&#9;1" aria-pressed="{ ? qd "true" "false" }">✦ Qualidade</button></div></div><p class="mu-nota">{ ? qd "Qualidade: o melhor modelo da tua conta Google (o Pro mais recente, se houver). Pode levar mais tempo." "Rapidez: o Gemini Flash-Lite responde em segundos." }</p>` }
+          `<div class="mu-interruptor mu-ia-gosto"><div><b>A IA vê o teu perfil</b><span class="mu-nota">O que respondeste em «O teu perfil musical», o que se aprendeu com o uso e até 12 artistas que ouves: as escolhas ficam mais à tua medida. { ? gs "Ligado." "Desligado: a IA só vê o pedido e as opções." }</span></div><button type="button" class="mu-btn sec peq" data-onda="ia_gosto&#9;{ ? gs "0" "1" }">{ ? gs "Desligar" "Ligar" }</button></div>`
           # ligar a conta: @28 = 7 a Mistral, 8 a Google (Gemini); a chave em @46
           ? && == @ 28 7 ~ ml { liga_ia 0 0 }
             { ? && == @ 28 8 ~ gl { liga_ia 1 0 }
@@ -1136,7 +1161,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.45.2 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.46.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»
@@ -1267,6 +1292,10 @@
   ? mesmo a $"rever" { rever_pedir 0 }
   ? mesmo a $"ia_gosto" { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"gosto":{ ? mesmo b $"1" "true" "false" }\}` 38 0 } }
   # a sugestão: criar com ela; ajustá-la (vai para o texto; o toque seguinte cria); manter o meu (cria com ele)
+  ? mesmo a $"pr" { Se ~ @ 31 { = r _tx_abre 300 `POST /api/perfil/respostas{ P 10 }\{"campo":{ pjs b },"valor":{ pjs _tx_campo t 2 9 }\}` pede _tx_fecha r 39 } 0 }
+  ? mesmo a $"perfil_abrir" { = ap _an_ler $"perfil_aberto" = ab ? ap mesmo ap $"1" ~ r_total _ar_get @ 3 $"respostas" _an_gravar $"perfil_aberto" ? ab $"0" $"1" render 0 }
+  ? mesmo a $"ir_perfil" { _an_gravar $"perfil_aberto" $"1" ir 5 = fica 1 0 }
+  ? mesmo a $"ia_qual" { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"qualidade":{ ? mesmo b $"1" "true" "false" }\}` 40 0 } }
   ? mesmo a $"sug_auto" { ? sug_on { _an_gravar $"sugerir" $"0" 0 } { _an_gravar $"sugerir" 0 0 } render 0 }
   ? mesmo a $"sug_usar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 }
   ? mesmo a $"sug_ajustar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 ? mm $"RM" $"RJ" 10 render aviso $"Ajusta o texto e toca outra vez em criar." 0 }

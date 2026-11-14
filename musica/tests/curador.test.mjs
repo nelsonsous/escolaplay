@@ -181,6 +181,7 @@ test('paridade: o dados.md da versão Onda é o da versão em JavaScript, ao byt
         assert.equal(md(a), md(b), `dados.md com MUSICA_AGORA=${agora}`);
         assert.match(md(a), /» · .* · \*\*rever a playlist «Parecidas com [^»]+» \(`p[a-z0-9]+`\)\*\* — são as faixas parecidas do Tidal, por rever$/m);
         assert.match(md(a), /\*\*afinar a playlist «/);
+        assert.match(md(a), /^\*\*O perfil desta pessoa\*\* \(tem-no em conta em tudo o que fizeres para ela\) — .*Pedidos recentes: «/m, 'o Maestro vê o perfil');
         assert.equal(onda.stdout.replaceAll(a, '<dir>'), js.stdout.replaceAll(b, '<dir>'));
         // o perfil.json é o que o Worker deu (tirando a hora em que o gerou)
         const pj = (f) => { const x = JSON.parse(readFileSync(f, 'utf8')); delete x.geradoEm; return x; };

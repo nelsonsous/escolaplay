@@ -891,10 +891,10 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await chip.click();
     await page.waitForFunction((n) => document.querySelectorAll('#mu-body .mu-grp .mu-pl').length === n, todas);
     // juntar: escolher 2 playlists; o conector junta-as numa nova, logo no Tidal
-    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar', exact: true }).click();
+    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Agrupar', exact: true }).click();
     const barra = page.locator('#mu-body .mu-juntar-barra');
     await barra.getByText('Escolhe 2 ou mais').waitFor();
-    assert.ok(await barra.getByRole('button', { name: 'Juntar', exact: true }).isDisabled());
+    assert.ok(await barra.getByRole('button', { name: 'Agrupar', exact: true }).isDisabled());
     const esc = page.locator('#mu-body .mu-pl-esc');
     const nome1 = await esc.nth(0).locator('.nm').textContent();
     await esc.nth(0).click();
@@ -904,15 +904,15 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await foto('5b-juntar');
     assert.equal(await esc.nth(0).getAttribute('aria-pressed'), 'true');
     const nJuntar = sim.criadas.length;
-    await barra.getByRole('button', { name: 'Juntar', exact: true }).click();
-    await page.locator('#mu-aviso').getByText(/^Juntas em «.+» — \d+ faixas, já no teu Tidal\.$/).waitFor();
+    await barra.getByRole('button', { name: 'Agrupar', exact: true }).click();
+    await page.locator('#mu-aviso').getByText(/^Agrupadas em «.+» — \d+ faixas, já no teu Tidal\.$/).waitFor();
     await page.locator('#mu-body .mu-pl-a .nm', { hasText: `${nome1} + ` }).first().waitFor();
     assert.equal(sim.criadas.length, nJuntar + 1, 'a juntada vai logo para o Tidal');
     assert.match(sim.criadas.at(-1).name, / \+ /);
     assert.equal(await page.locator('#mu-body .mu-pl', { hasText: `${nome1} + ` }).first().locator('.mt').getByText(/só na app/).count(), 0);
     assert.equal(await page.locator('#mu-body .mu-juntar-barra').count(), 0, 'sai do modo de juntar');
     // cancelar também sai
-    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Juntar', exact: true }).click();
+    await page.locator('#mu-body .mu-lista-topo').getByRole('button', { name: 'Agrupar', exact: true }).click();
     await barra.getByRole('button', { name: 'Cancelar' }).click();
     await page.locator('#mu-body .mu-pl-a').first().waitFor();
     assert.equal(await page.locator('#mu-body .mu-pl-esc').count(), 0);
@@ -1734,13 +1734,13 @@ test('pastas: pôr numa pasta, a IA sugere as outras, o guia para o Tidal; junta
         await page.locator('#mu-aviso').getByText('Pasta apagada; as playlists dela ficaram sem pasta.').waitFor();
         await page.waitForFunction(() => ![...document.querySelectorAll('#mu-body .mu-grp h2')].some((h) => /^Dormir /.test(h.innerText.trim())));
         // juntar e apagar as originais: a nova fica, as duas escolhidas saem
-        await corpo.locator('.mu-lista-topo').getByRole('button', { name: 'Juntar', exact: true }).click();
+        await corpo.locator('.mu-lista-topo').getByRole('button', { name: 'Agrupar', exact: true }).click();
         const esc = corpo.locator('.mu-pl-esc');
         const n1 = (await esc.nth(0).locator('.nm').innerText()).trim(), n2 = (await esc.nth(1).locator('.nm').innerText()).trim();
         const id1 = (await esc.nth(0).getAttribute('data-onda')).split('\t')[1], id2 = (await esc.nth(1).getAttribute('data-onda')).split('\t')[1];
         await esc.nth(0).click();
         await esc.nth(1).click();
-        await corpo.locator('.mu-juntar-barra').getByRole('button', { name: 'Juntar e apagar as originais' }).click();
+        await corpo.locator('.mu-juntar-barra').getByRole('button', { name: 'Agrupar e apagar as originais' }).click();
         await page.locator('#mu-aviso').getByText(/As originais foram apagadas\.$/).waitFor();
         // (pelo id: pode haver outras com o mesmo nome)
         await page.waitForFunction(([a, b]) => !document.querySelector(`#mu-body [data-onda="exp\t${a}"], #mu-body [data-onda="exp\t${b}"]`), [id1, id2]);
@@ -1834,6 +1834,16 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
         assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Gemini escolhe 4 músicas de partida/);
         await nav(5);
+        // com o Gemini: a prioridade — rapidez (por omissão) ou qualidade (o melhor modelo da conta)
+        const qual = corpo.locator('.mu-ia-qual');
+        assert.equal(await qual.getByRole('button', { name: '⚡ Rapidez' }).getAttribute('aria-pressed'), 'true');
+        await qual.getByRole('button', { name: '✦ Qualidade' }).click();
+        await page.locator('#mu-aviso').getByText('Prioridade: qualidade — o melhor modelo da tua conta.').waitFor();
+        await page.waitForFunction(() => document.querySelector('#mu-body .mu-ia-qual [data-onda="ia_qual\t1"]')?.getAttribute('aria-pressed') === 'true');
+        assert.equal(JSON.parse(await env.KV.get('tidal:tokens')).iaQualidade, true);
+        await corpo.locator('.mu-ia-qual').getByRole('button', { name: '⚡ Rapidez' }).click();
+        await page.locator('#mu-aviso').getByText('Prioridade: rapidez — responde em segundos.').waitFor();
+        assert.equal(JSON.parse(await env.KV.get('tidal:tokens')).iaQualidade, undefined);
         await corpo.getByRole('button', { name: 'Desligar a conta Google' }).click();
         await page.locator('#mu-aviso').getByText('Conta Google desligada.').waitFor();
         // voltar à da Cloudflare (a conta Mistral fica ligada) e desligar a conta Mistral
@@ -1846,4 +1856,61 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         for (let i = erros.length - 1; i >= 0; i--) if (/status of 400/.test(erros[i])) erros.splice(i, 1); // (o 400 da chave errada é o esperado)
         assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
     } finally { await ctx.close(); delete env.AI; }
+});
+
+// O teu perfil musical: um questionário só de toques nos Ajustes (cada toque guarda logo); as perguntas que dependem de
+// outras só aparecem quando fazem sentido; em «Pedir», enquanto não há respostas, um convite para o preencher
+test('o teu perfil musical: o convite em «Pedir», os toques que guardam, as perguntas que aparecem, o resumo', { skip: !chromium && 'sem Playwright' }, async () => {
+    await env.KV.delete('perfil:respostas');
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('PERFIL-1').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    try {
+        const page = await ctx.newPage();
+        const erros = [];
+        page.on('pageerror', (e) => erros.push(String(e)));
+        page.on('console', (m) => { if (m.type() === 'error') erros.push('consola: ' + m.text()); });
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('PERFIL-1');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        await page.locator('#mu-body .mu-pl').first().waitFor();
+        const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
+        const corpo = page.locator('#mu-body');
+        // o convite em «Pedir» leva ao cartão, aberto
+        await nav(3);
+        await corpo.locator('.mu-convite-perfil').click();
+        const perfil = corpo.locator('.mu-perfil');
+        await perfil.getByText('Para quem é a música?').waitFor();
+        assert.equal(await perfil.getByText('Em casa, onde?').count(), 0, 'só aparece com «Em casa»');
+        assert.equal(await perfil.getByText('De que idades?').count(), 0, 'só aparece com crianças');
+        const toca = async (pergunta, rotulo) => {
+            const b = perfil.locator('.mu-perg', { hasText: pergunta }).getByRole('button', { name: rotulo, exact: true });
+            await b.click();
+            await page.waitForFunction(([q, r]) => [...document.querySelectorAll('#mu-body .mu-perfil .mu-perg')].find((x) => x.querySelector('p')?.innerText === q)
+                ?.querySelector(`[aria-pressed="true"]`) && [...document.querySelectorAll('#mu-body .mu-perfil .mu-perg button')].some((x) => x.innerText === r && x.getAttribute('aria-pressed') === 'true'), [pergunta, rotulo]);
+        };
+        await toca('Onde ouves?', 'No carro');
+        await toca('Onde ouves?', 'Em casa');
+        await toca('Em casa, onde?', 'Na sala');
+        await toca('Ouves com crianças?', 'Às vezes');
+        await toca('De que idades?', '10 a 13');
+        await toca('Para que momentos?', 'Jantares românticos');
+        await toca('Que géneros te agradam?', 'Jazz');
+        const r = JSON.parse(await env.KV.get('perfil:respostas'));
+        assert.deepEqual([r.onde, r.casa, r.criancas, r.idades, r.momentos, r.generos], [['no carro', 'em casa'], ['na sala'], ['às vezes'], ['10 a 13 anos'], ['jantares românticos'], ['jazz']]);
+        assert.ok(JSON.parse(await env.KV.get('tidal:tokens')).iaGostoEm, 'responder é usar o perfil');
+        // tocar outra vez desliga; nas de uma escolha, outra opção troca
+        await perfil.locator('.mu-perg', { hasText: 'Que géneros te agradam?' }).getByRole('button', { name: 'Jazz', exact: true }).click();
+        await page.waitForFunction(() => ![...document.querySelectorAll('#mu-body .mu-perfil .mu-perg button')].some((x) => x.innerText === 'Jazz' && x.getAttribute('aria-pressed') === 'true'));
+        await toca('Ouves com crianças?', 'Muitas vezes');
+        assert.deepEqual(JSON.parse(await env.KV.get('perfil:respostas')).criancas, ['muitas vezes']);
+        // fechado, o cartão diz quantas respostas há; o convite em «Pedir» sai
+        await perfil.locator('[data-onda="perfil_abrir"]').click();
+        await page.waitForFunction(() => !document.querySelector('#mu-body .mu-perfil .mu-perg'));
+        assert.match(await perfil.locator('.mu-gosto-a').innerText(), /6 respostas · a IA e o Claude usam-no nos pedidos/);
+        await nav(3);
+        await corpo.locator('[data-onda="ptx"]').waitFor();
+        assert.equal(await corpo.locator('.mu-convite-perfil').count(), 0);
+        assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
+        if (SHOTS) { await nav(5); await page.screenshot({ path: path.join(SHOTS, 'perfil.png') }); }
+    } finally { await ctx.close(); }
 });

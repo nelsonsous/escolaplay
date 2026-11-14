@@ -64,7 +64,10 @@ function geminiSimulado(sim, u, init) {
     if (!h.startsWith('https://generativelanguage.googleapis.com/v1beta/models')) return null;
     const chave = new Headers(init.headers).get('x-goog-api-key');
     const resp = (corpo, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { 'content-type': 'application/json' } });
-    if (h === 'https://generativelanguage.googleapis.com/v1beta/models') return (sim.geminiBoas || []).includes(chave) ? resp({ models: [{ name: 'models/gemini-3.8-flash' }] }) : resp({ error: { message: 'API key not valid' } }, 400);
+    // a lista dos modelos (confirma a chave; com «?pageSize», para escolher o melhor): sim.geminiModelos, se houver
+    if (h === 'https://generativelanguage.googleapis.com/v1beta/models' || h.startsWith('https://generativelanguage.googleapis.com/v1beta/models?')) {
+        return (sim.geminiBoas || []).includes(chave) ? resp({ models: sim.geminiModelos || [{ name: 'models/gemini-3.8-flash', supportedGenerationMethods: ['generateContent'] }] }) : resp({ error: { message: 'API key not valid' } }, 400);
+    }
     const m = /\/models\/([^:]+):generateContent$/.exec(h);
     if (!m) return resp({ error: { message: 'not found' } }, 404);
     sim.geminiPedidos.push({ modelo: m[1], chave, corpo: JSON.parse(init.body) });

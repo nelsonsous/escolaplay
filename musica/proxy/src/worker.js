@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.37.0';
+const VERSION = '1.38.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -83,7 +83,8 @@ async function route(req, env, url) {
     if (p === '/api/push' && m === 'DELETE') return json(await desassinarPush(ue, await corpo(req)));
     if (p === '/api/push/teste' && m === 'POST') return json(await testarPush(ue));
     if (p === '/api/desligar' && m === 'POST') { await ue.KV.delete('tidal:tokens'); await ue.KV.delete('perfil'); return json({ ok: true }); }
-    if (p === '/api/perfil' && m === 'GET') return json(await perfil(ue, url.searchParams.has('fresco')));
+    if (p === '/api/perfil' && m === 'GET') return json({ ...(await perfil(ue, url.searchParams.has('fresco'))), contexto: await perfilContexto(ue, { artistas: false }) });
+    if (p === '/api/perfil/respostas' && m === 'POST') return json(await responder(ue, quem, await corpo(req)));
     if (p === '/api/resolver' && m === 'POST') return json(await resolver(ue, await corpo(req)));
     if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(ue, url.searchParams.get('q'), url.searchParams.has('unicas')));
     // (em experiência, só para o Maestro: o que a IA da Cloudflare sugere para um pedido, e o que o Tidal confirma)
@@ -247,11 +248,84 @@ async function estado(req, env, url) {
                 // montou a app pode estar no Cloudflare). A chave nunca vem nas respostas
                 const mi = await contaLigada(ue, quem.uid, 'mistral'), ge = await contaLigada(ue, quem.uid, 'gemini');
                 const esc = escolhaIA(t), ef = esc === 'mistral' && !mi ? 'cloudflare' : esc === 'gemini' && !ge ? 'cloudflare' : esc;
-                return env.AI || mi || ge ? { iaCfPode: true, iaCf: !!t?.iaCfEm, iaGosto: !!t?.iaGostoEm, mistralLigada: mi, geminiLigada: ge, iaEscolha: ef, iaMistral: ef === 'mistral' } : {};
+                return env.AI || mi || ge ? { iaCfPode: true, iaCf: !!t?.iaCfEm, iaGosto: !!t?.iaGostoEm, iaQualidade: !!t?.iaQualidade, mistralLigada: mi, geminiLigada: ge, iaEscolha: ef, iaMistral: ef === 'mistral' } : {};
             })()),
+            respostas: (await ue.KV.get('perfil:respostas', 'json')) || {},
             pastas: (await ue.KV.get('pastas', 'json')) || [] });
     }
     return out;
+}
+
+// ---------- o perfil de cada pessoa: o que ela diz (um questionário só de toques) e o que se aprende com o uso ----------
+// As respostas: para quem é a música, onde se ouve, as crianças e as idades, os momentos, os géneros e a novidade. Cada
+// toque guarda logo (liga ou desliga uma opção). Responder é autorizar a IA a usar o perfil (o texto da app di-lo;
+// desliga-se nos Ajustes). O que se aprende: as playlists que resultaram (pela nota), as que se apagaram e as faixas
+// tiradas (o que evitar), e os pedidos recentes — os mais recentes pesam mais (vêm primeiro e só os últimos contam).
+const PERGUNTAS = {
+    para: { op: ['para mim', 'para a família', 'para os filhos', 'a dois'] },
+    onde: { op: ['em casa', 'no carro', 'no trabalho', 'a treinar', 'em viagem'] },
+    casa: { op: ['na sala', 'na cozinha', 'no escritório', 'no quarto', 'no jardim'] },
+    criancas: { op: ['nunca', 'às vezes', 'muitas vezes'], um: true },
+    idades: { op: ['até 5 anos', '6 a 9 anos', '10 a 13 anos', '14 a 17 anos'] },
+    momentos: { op: ['jantares românticos', 'jantares com amigos', 'concentração', 'relaxar', 'treino', 'festa', 'adormecer', 'viagens'] },
+    generos: { op: ['jazz', 'clássica', 'pop', 'rock', 'eletrónica', 'hip hop', 'soul e R&B', 'fado e música portuguesa', 'indie', 'lo-fi', 'bandas sonoras', 'k-pop', 'world'] },
+    novo: { op: ['descobrir coisas novas', 'equilibrado', 'o que já conheço'], um: true },
+};
+async function responder(env, quem, c) {
+    if (quem.tipo === 'agente') throw new Erro(403, 'so_a_pessoa', 'Só a própria pessoa responde, na app.');
+    const q = PERGUNTAS[c?.campo];
+    if (!q || !q.op.includes(c?.valor)) throw new Erro(400, 'resposta_invalida', 'Essa resposta não existe.');
+    const r = (await env.KV.get('perfil:respostas', 'json')) || {};
+    const ja = Array.isArray(r[c.campo]) ? r[c.campo] : [];
+    r[c.campo] = q.um ? (ja.includes(c.valor) ? [] : [c.valor]) : ja.includes(c.valor) ? ja.filter((x) => x !== c.valor) : [...ja, c.valor];
+    r.em = new Date().toISOString();
+    await env.KV.put('perfil:respostas', JSON.stringify(r));
+    // responder é usar o perfil nos pedidos: a IA passa a vê-lo (desliga-se nos Ajustes)
+    const t = await env.KV.get('tidal:tokens', 'json');
+    if (t && !t.iaGostoEm) { t.iaGostoEm = r.em; await env.KV.put('tidal:tokens', JSON.stringify(t)); }
+    return { ok: true, respostas: r };
+}
+// um sinal para o perfil (o mais recente primeiro; só os últimos contam)
+async function sinal(env, chave, item, max = 30) {
+    const l = (await env.KV.get(chave, 'json')) || [];
+    await env.KV.put(chave, JSON.stringify([{ ...item, em: new Date().toISOString() }, ...l].slice(0, max)));
+}
+const contagem = (l, n) => [...l.reduce((m, x) => m.set(x, (m.get(x) || 0) + 1), new Map()).entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map((x) => x[0]);
+async function perfilContexto(env, { artistas = false, notas = false } = {}) {
+    const r = (await env.KV.get('perfil:respostas', 'json')) || {};
+    const lst = (k) => (Array.isArray(r[k]) ? r[k] : []);
+    const partes = [];
+    const dito = [
+        lst('para').length ? lst('para').join(', ') : '',
+        lst('onde').length ? `ouve ${lst('onde').join(', ')}${lst('casa').length && lst('onde').includes('em casa') ? ` (em casa: ${lst('casa').join(', ')})` : ''}` : '',
+        lst('criancas').length && lst('criancas')[0] !== 'nunca' ? `com crianças ${lst('criancas')[0]}${lst('idades').length ? ` (${lst('idades').join(', ')})` : ''}` : '',
+        lst('momentos').length ? `momentos: ${lst('momentos').join(', ')}` : '',
+        lst('generos').length ? `gosta de ${lst('generos').join(', ')}` : '',
+        lst('novo').length ? `prefere ${lst('novo')[0]}` : '',
+    ].filter(Boolean);
+    if (dito.length) partes.push(`O que a pessoa disse: ${dito.join('; ')}.`);
+    // o que se aprendeu: as que resultaram (pela nota) e as que não resultaram — só para a IA da playlist na hora (o
+    // Maestro vê as notas no dados.md) —, as apagadas e as faixas tiradas
+    const idx = (await env.KV.get('playlists', 'json')) || [];
+    const boas = notas ? idx.filter((x) => ['resultou', 'boa'].includes(x.avaliacao?.etiqueta) && x.genero).sort((a, b) => (b.avaliacao.nota || 0) - (a.avaliacao.nota || 0)) : [];
+    const mas = [...(notas ? idx.filter((x) => x.avaliacao?.etiqueta === 'não resultou' && x.genero).map((x) => x.genero) : []),
+        ...((await env.KV.get('perfil:apagadas', 'json')) || []).map((x) => x.genero).filter(Boolean)];
+    const tiradas = ((await env.KV.get('perfil:tiradas', 'json')) || []).map((x) => x.artista).filter(Boolean);
+    const aprendido = [
+        boas.length ? `resultaram bem: ${[...new Set(boas.map((x) => x.genero))].slice(0, 4).join(', ')}` : '',
+        mas.length ? `não resultaram ou foram apagadas: ${contagem(mas, 4).join(', ')}` : '',
+        tiradas.length ? `faixas que tirou, de: ${contagem(tiradas, 6).join(', ')}` : '',
+    ].filter(Boolean);
+    if (aprendido.length) partes.push(`O que se aprendeu com o uso: ${aprendido.join('; ')}.`);
+    const pedidos = [...((await env.KV.get('pedidos', 'json')) || []).filter((x) => !x.afinar).map((x) => x.texto), ...idx.filter((x) => x.pedido).map((x) => x.pedido)];
+    const recentes = [...new Set(pedidos.map((x) => txt(x, 100)).filter(Boolean))].slice(0, 5);
+    if (recentes.length) partes.push(`Pedidos recentes: ${recentes.map((x) => `«${x}»`).join(', ')}.`);
+    if (artistas) {
+        const p = (await env.KV.get('perfil', 'json')) || {};
+        const a = [...new Set([...(p.favoritas || []).map((f) => f?.artistas?.[0]), ...(p.artistas || []).map((x) => x?.nome || x)].map((x) => txt(x, 60)).filter(Boolean))].slice(0, 12);
+        if (a.length) partes.push(`Artistas que ouve: ${a.join(', ')}.`);
+    }
+    return partes.join(' ');
 }
 
 // convites: só o dono (ou o Maestro) convida; o código serve uma vez e dura 14 dias
@@ -363,7 +437,14 @@ async function consentir(env, quem, c = {}) {
     const t = await env.KV.get('tidal:tokens', 'json');
     if (!t) throw new Erro(409, 'tidal_desligado', 'O Tidal não está ligado: liga-o na app.');
     const agora = new Date().toISOString();
-    // {gosto}: a IA da playlist na hora pode (ou deixa de poder) ver os artistas que a pessoa ouve
+    // {qualidade}: a IA da playlist na hora usa o melhor modelo (mais lento) ou o mais rápido
+    if (c?.qualidade === true || c?.qualidade === false) {
+        if (c.qualidade) t.iaQualidade = true; else delete t.iaQualidade;
+        await env.KV.put('tidal:tokens', JSON.stringify(t));
+        return { ok: true, qualidade: c.qualidade };
+    }
+    // {gosto}: a IA da playlist na hora pode (ou deixa de poder) ver o perfil da pessoa (o que disse, o que se aprendeu,
+    // os artistas que ouve)
     if (c?.gosto === true || c?.gosto === false) {
         if (c.gosto) t.iaGostoEm = agora; else delete t.iaGostoEm;
         await env.KV.put('tidal:tokens', JSON.stringify(t));
@@ -732,13 +813,18 @@ const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.
     ...(d.capas?.length ? { capas: d.capas } : {}),
     ...(d.avaliacao ? { avaliacao: { nota: d.avaliacao.nota, etiqueta: d.avaliacao.etiqueta, guardadas: d.avaliacao.guardadas.length, tiradas: d.avaliacao.tiradas.length } } : {}) });
 // quem a fez, para se ver na lista: o Maestro (Claude), a IA da playlist na hora (qual), o Tidal (as parecidas) ou a pessoa
-const IA_NOMES = [[/gemini-3\.8-flash/, 'Gemini 3.8 Flash'], [/gemini-3\.5-flash-lite/, 'Gemini 3.5 Flash-Lite'], [/^gemini:/, 'Gemini'],
-    [/^mistral:/, 'Mistral Large'], [/mistral-small/, 'Mistral Small'], [/mistral/, 'Mistral'], [/llama-3\.3/, 'Llama 3.3'], [/llama-4/, 'Llama 4'],
-    [/llama/, 'Llama'], [/gemma/, 'Gemma']];
+// o nome do modelo, para se ler (Gemini 3.5 Flash-Lite, Gemini 3.8 Pro, Mistral Small, Llama 3.3…)
+function nomeModelo(m) {
+    const g = /gemini-(\d+(?:\.\d+)?)-(pro|flash)(-lite)?/.exec(m);
+    if (g) return `Gemini ${g[1]} ${g[2] === 'pro' ? 'Pro' : 'Flash'}${g[3] ? '-Lite' : ''}`;
+    const r = [[/^mistral:mistral-large/, 'Mistral Large'], [/mistral-small/, 'Mistral Small'], [/^mistral:/, 'Mistral Large'], [/mistral/, 'Mistral'],
+        [/^gemini:/, 'Gemini'], [/llama-3\.3/, 'Llama 3.3'], [/llama-4/, 'Llama 4'], [/llama/, 'Llama'], [/gemma/, 'Gemma']].find(([x]) => x.test(m));
+    return r ? r[1] : '';
+}
 function feitaPor(d) {
     if (d?.por === 'curador') return 'Claude';
-    const m = typeof d?.ia?.modelo === 'string' ? IA_NOMES.find(([r]) => r.test(d.ia.modelo)) : null;
-    if (m) return m[1];
+    const n = typeof d?.ia?.modelo === 'string' ? nomeModelo(d.ia.modelo) : '';
+    if (n) return n;
     if (d?.ia) return 'IA';
     if (d?.origem === 'parecidas') return 'Tidal';
     return d?.origem === 'juntar' ? '' : 'Tu';
@@ -767,6 +853,8 @@ async function obter(env, id) {
 
 // com noTidal, apaga também a playlist no Tidal (se lá já não existir, segue)
 async function apagar(env, id, noTidal) {
+    const doc = await env.KV.get('playlist:' + id, 'json');
+    if (doc?.faixas?.length) await sinal(env, 'perfil:apagadas', { genero: generoDe(doc.faixas), artistas: contagem(doc.faixas.map((f) => f.artistas?.[0]).filter(Boolean), 3) });
     if (noTidal) {
         const tid = (await env.KV.get('playlist:' + id, 'json'))?.tidal?.id;
         if (tid) await tidal(env, `/playlists/${encodeURIComponent(tid)}`, { method: 'DELETE' }).catch((e) => { if (e.status !== 404) throw e; });
@@ -1149,6 +1237,7 @@ async function trocar(env, id, c) {
     if (!sai && !entra) throw new Erro(400, 'troca_invalida', 'Indica "sai", "entra" ou as duas.');
     const p = sai ? d.faixas.findIndex((x) => String(x.id) === sai) : -1;
     if (sai && p < 0) throw new Erro(400, 'faixa_invalida', 'Essa faixa não está na playlist.');
+    if (sai && d.faixas[p]?.artistas?.[0]) await sinal(env, 'perfil:tiradas', { artista: txt(d.faixas[p].artistas[0], 60) }, 60);
     if (entra && !/^\d+$/.test(entra)) throw new Erro(400, 'faixa_invalida', '"entra" tem de ser um id do Tidal.');
     const na = new Set(d.faixas.map((x) => String(x.id)));
     if (entra && na.has(entra)) throw new Erro(409, 'ja_esta', 'Essa faixa já está na playlist.');
@@ -1442,12 +1531,14 @@ async function melhorarPedido(env, c) {
     if (texto.length < 3) throw new Erro(400, 'texto_curto', 'Escreve primeiro o que queres ouvir.');
     const conta = await contaIA(env);
     if (!(env.AI || conta) || !(await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) throw new Erro(409, 'sem_ia', 'Liga a playlist na hora (em «Pedir» ou nos Ajustes) para a IA poder melhorar o pedido.');
-    const r = await iaJSON(env, IA_MELHORAR, texto, { max: 300, temp: 0.4, conta, serve: (j) => typeof j?.texto === 'string' && txt(j.texto, 500).length >= 10 });
+    const tk = await env.KV.get('tidal:tokens', 'json');
+    const pf = tk?.iaGostoEm ? await perfilContexto(env, { artistas: true, notas: true }) : '';
+    const r = await iaJSON(env, IA_MELHORAR, pf ? `${texto}\n\nPerfil da pessoa (usa-o para afinar o texto, sem o copiar): ${pf}` : texto, { max: 300, temp: 0.4, conta, serve: (j) => typeof j?.texto === 'string' && txt(j.texto, 500).length >= 10 });
     if (!r?.j) throw new Erro(502, 'ia_falhou', 'A IA não respondeu agora. Tenta outra vez daqui a pouco.');
     return { texto: txt(r.j.texto, 500), porque: txt(r.j.porque, 160), modelo: r.modelo, por: feitaPor({ ia: { modelo: r.modelo } }) };
 }
 // cada IA de fora tem um limite de tempo (um modelo sobrecarregado não deixa a pessoa à espera: passa-se ao seguinte)
-const limite = (env) => AbortSignal.timeout(Number(env.IA_TEMPO_MS ?? 15000));
+const limite = (env, ms = 15000) => AbortSignal.timeout(Number(env.IA_TEMPO_MS ?? ms));
 async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) => !!j, conta = null } = {}) {
     const erros = [];
     const tenta = async (nome, pede) => {
@@ -1461,9 +1552,10 @@ async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) 
     };
     const msgs = [{ role: 'system', content: sistema }, { role: 'user', content: texto }];
     if (conta?.prov === 'gemini') {
-        for (const modelo of env.GEMINI_MODELO ? [env.GEMINI_MODELO] : GEMINI_MODELOS) {
+        const modelos = env.GEMINI_MODELO ? [env.GEMINI_MODELO] : conta.qualidade ? [...new Set([await melhorGemini(env, conta.chave), 'gemini-3.8-flash', 'gemini-3.5-flash-lite'])] : GEMINI_MODELOS;
+        for (const modelo of modelos) {
             const j = await tenta(`gemini:${modelo}`, async () => {
-                const r = await fetch(`${GEMINI}/${modelo}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': conta.chave, 'content-type': 'application/json' }, signal: limite(env),
+                const r = await fetch(`${GEMINI}/${modelo}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': conta.chave, 'content-type': 'application/json' }, signal: limite(env, conta.qualidade ? 30000 : 15000),
                     body: JSON.stringify({ systemInstruction: { parts: [{ text: sistema }] }, contents: [{ role: 'user', parts: [{ text: texto }] }],
                         generationConfig: { temperature: temp, maxOutputTokens: Math.max(2048, max * 4), responseMimeType: 'application/json' } }) });
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -1476,7 +1568,7 @@ async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) 
     if (conta?.prov === 'mistral') {
         const modelo = env.MISTRAL_MODELO || 'mistral-large-latest';
         const j = await tenta(`mistral:${modelo}`, async () => {
-            const r = await fetch(MISTRAL, { method: 'POST', headers: { authorization: `Bearer ${conta.chave}`, 'content-type': 'application/json' }, signal: limite(env),
+            const r = await fetch(MISTRAL, { method: 'POST', headers: { authorization: `Bearer ${conta.chave}`, 'content-type': 'application/json' }, signal: limite(env, conta.qualidade ? 30000 : 15000),
                 body: JSON.stringify({ model: modelo, messages: msgs, max_tokens: max, temperature: temp, response_format: { type: 'json_object' } }) });
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             return (await r.json())?.choices?.[0]?.message?.content;
@@ -1506,12 +1598,8 @@ async function iaSementes(env, texto, conta = null, contexto = '') {
 // artistas que ouve (das favoritas e dos que segue; no máximo 12)
 async function contextoIA(env, o, t) {
     const op = [`${o.faixas} faixas`, `no máximo ${o.maxArtista} por artista`, `estilo ${o.estilo}`, `energia em ${o.arco}`, ...(o.limpa ? ['sem letras explícitas'] : [])];
-    let a = [];
-    if (t?.iaGostoEm) {
-        const p = (await env.KV.get('perfil', 'json')) || {};
-        a = [...new Set([...(p.favoritas || []).map((f) => f?.artistas?.[0]), ...(p.artistas || []).map((x) => x?.nome || x)].map((x) => txt(x, 60)).filter(Boolean))].slice(0, 12);
-    }
-    return `Contexto (o pedido manda):\n- Opções: ${op.join(', ')}.${a.length ? `\n- Artistas que a pessoa ouve: ${a.join(', ')}.` : ''}`;
+    const pf = t?.iaGostoEm ? await perfilContexto(env, { artistas: true, notas: true }) : '';
+    return `Contexto (o pedido manda):\n- Opções: ${op.join(', ')}.${pf ? `\n- Perfil da pessoa: ${pf}` : ''}`;
 }
 // o Tidal confirma as músicas sugeridas. A IA às vezes inventa o título (o artista está certo): então fica a canção mais
 // ouvida desse artista que o Tidal tenha (a versão de estúdio), sem repetir
@@ -1547,10 +1635,27 @@ const escolhaIA = (t) => (t?.ia === 'mistral' || t?.ia === 'gemini' ? t.ia : t?.
 const contaLigada = async (env, uid, prov) => !!(await env.KV.get(`${prov}:chave`)) || ((uid || DONO) === DONO && !!env[CONTAS_IA[prov].segredo]);
 // a conta de IA a usar nos pedidos desta pessoa: a que ela escolheu, se estiver ligada (senão, a da Cloudflare)
 async function contaIA(env) {
-    const prov = escolhaIA(await env.KV.get('tidal:tokens', 'json'));
+    const t = await env.KV.get('tidal:tokens', 'json');
+    const prov = escolhaIA(t);
     if (prov === 'cloudflare') return null;
     const chave = (await env.KV.get(`${prov}:chave`)) || ((env.UID || DONO) === DONO ? env[CONTAS_IA[prov].segredo] || null : null);
-    return chave ? { prov, chave } : null;
+    return chave ? { prov, chave, qualidade: !!t?.iaQualidade } : null;
+}
+// o melhor Gemini que a conta pode usar (o de versão mais alta; Pro antes de Flash), visto na lista da Google e guardado
+// por um dia; sem lista, o 3.8 Flash
+async function melhorGemini(env, chave) {
+    const ja = await env.KV.get('gemini:melhor');
+    if (ja) return ja;
+    let melhor = 'gemini-3.8-flash';
+    try {
+        const r = await fetch(`${GEMINI}?pageSize=200`, { headers: { 'x-goog-api-key': chave }, signal: AbortSignal.timeout(5000) });
+        const l = r.ok ? (await r.json())?.models || [] : [];
+        const nota = (n) => { const m = /^models\/gemini-(\d+(?:\.\d+)?)-(pro|flash)$/.exec(n || ''); return m ? Number(m[1]) * 10 + (m[2] === 'pro' ? 2 : 1) : 0; };
+        const top = l.filter((x) => (x.supportedGenerationMethods || []).includes('generateContent')).map((x) => [x.name, nota(x.name)]).filter((x) => x[1]).sort((a, b) => b[1] - a[1])[0];
+        if (top) melhor = top[0].replace(/^models\//, '');
+    } catch { /* fica o 3.8 Flash */ }
+    await env.KV.put('gemini:melhor', melhor, { expirationTtl: 86400 });
+    return melhor;
 }
 async function ligarConta(env, prov, c, quem) {
     if (quem.tipo === 'agente') throw new Erro(403, 'so_a_pessoa', 'Só a própria pessoa liga a conta dela, na app.');

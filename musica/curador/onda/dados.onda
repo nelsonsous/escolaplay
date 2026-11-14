@@ -360,6 +360,8 @@
   "# Pessoa: " ? jv jg pf k_utilizador pv jg pf k_utilizador ? jv jg @ 6 k_nome pv jg @ 6 k_nome tpor @ 26 " (`" tpor @ 26 "`)" P 10 P 10
   "Conta Tidal: **" ? jv jg pf k_utilizador pv jg pf k_utilizador "?" "** (" pv jg pf k_pais ") · " N jn jg pf k_favoritas " favoritas lidas (as mais recentes) · "
   N jn jg pf k_artistas " artistas seguidos · " N jn jg pf k_playlists " playlists tuas." P 10 P 10
+  # o perfil (o que a pessoa disse, o que se aprendeu, os pedidos recentes): o conector já o escreve
+  = cx jg pf $"contexto" ? jv cx { "**O perfil desta pessoa** (tem-no em conta em tudo o que fizeres para ela) — " pv cx P 10 P 10 0 } 0
   # pedidos a espera
   = np 0 = c jprim @ 11 W c { ? tigual jgt c k_estado k_pendente { = np + np 1 0 } 0 = c jprox c }
   "## Pedidos à espera (" N np ")" P 10
