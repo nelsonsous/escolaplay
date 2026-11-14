@@ -1551,6 +1551,11 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         assert.ok(mudar.cabe, `«Mudar»: a palavra cabe no botão (${mudar.tw}px em ${mudar.w}px)`);
         assert.ok(mudar.dentro, '«Mudar» não sai da linha das opções');
         if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'pedir-dois-caminhos.png') });
+        // num telemóvel estreito (320 px), o texto continua dentro dos botões e nenhum sai do ecrã
+        await page.setViewportSize({ width: 320, height: 700 });
+        const estreito = await page.$$eval('#mu-body .mu-duo .mu-duo-b, #mu-body .mu-opcoes [data-onda="opcoes"]', (bs) => bs.map((b) => { const r = b.getBoundingClientRect(), g = document.createRange(); g.selectNodeContents(b); const t = g.getBoundingClientRect(); return `${t.left >= r.left - 0.5 && t.right <= r.right + 0.5 && r.right <= document.documentElement.clientWidth + 0.5} ${Math.round(t.width)}/${Math.round(r.width)}`; }));
+        assert.ok(estreito.every((x) => x.startsWith('true')), `a 320 px, o texto cabe nos botões (${estreito.join(', ')})`);
+        await page.setViewportSize({ width: 390, height: 844 });
         assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Mistral Small escolhe 4 músicas de partida e o Tidal junta as parecidas: fica no teu Tidal em segundos\. Depois, se quiseres, o Claude revê-a\.\n✦ Com o Claude — o Maestro \(Claude\) pesquisa e escolhe todas as faixas, com critério \(quando estiver ligado\)\.$/);
         assert.equal(await corpo.locator('.mu-duo [data-onda="pedir_m"]').count(), 1, 'e dá para escolher o Claude');
         assert.equal(await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).count(), 0);
