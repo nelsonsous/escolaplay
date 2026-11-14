@@ -429,6 +429,16 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-prop li .mu-btn { flex: none; }
 /* as pastas (da app) e o guia para as fazer no Tidal */
 .mu-pasta-l { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+/* as tuas pastas: um painel que abre por baixo dos filtros */
+.mu-pastas-ed { margin: 10px 2px 4px; }
+.mu-pastas-ed > summary { cursor: pointer; font-size: 14px; font-weight: 650; padding: 8px 0; }
+.mu-pastas-ed > summary span { color: var(--mut); font-weight: 400; }
+.mu-pasta-x { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px; border-radius: 999px; background: var(--panel2); font-size: 14px; }
+.mu-pasta-x i { font-style: normal; color: var(--mut); font-size: 12.5px; }
+.mu-pasta-x button { width: 28px; height: 28px; border: 0; border-radius: 50%; background: none; color: var(--mut); font-size: 18px; line-height: 1; cursor: pointer; }
+.mu-pasta-nova { display: flex; align-items: center; gap: 8px; }
+.mu-pasta-nova .mu-campo { flex: 1; margin: 0; }
+.mu-pastas-ed > .mu-nota { margin: 8px 0 0; font-size: 13px; }
 .mu-tidal-pastas { margin: 18px 2px 0; }
 .mu-tidal-pastas > summary { cursor: pointer; font-size: 14px; font-weight: 650; color: var(--mut); padding: 8px 0; }
 .mu-tidal-pastas ul { margin: 6px 0 0; padding-left: 18px; }

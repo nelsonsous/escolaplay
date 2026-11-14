@@ -1511,7 +1511,8 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).click();
         await page.locator('#mu-aviso').getByText('Autorização guardada.').waitFor();
         await page.waitForFunction(() => document.querySelector('#mu-body [data-onda="pedir"]')?.innerText === 'Criar já no Tidal');
-        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^A IA da Cloudflare escolhe as músicas de partida e a playlist nasce já no teu Tidal\./);
+        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^«Criar já»: a IA \(Mistral, na Cloudflare\) escolhe as músicas de partida e a playlist nasce já no teu Tidal; o Maestro \(Claude\) revê-a/);
+        assert.equal(await corpo.getByRole('button', { name: 'Só o Maestro' }).count(), 1, 'e dá para escolher só o Maestro');
         assert.equal(await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).count(), 0);
         assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), texto, 'o texto fica');
         assert.ok(JSON.parse(await env.KV.get('tidal:tokens')).iaCfEm, 'a autorização fica registada');
@@ -1566,14 +1567,24 @@ test('pastas: pôr numa pasta, a IA sugere as outras, o guia para o Tidal; junta
         // cada cartão diz o que é
         const origens = await corpo.locator('.mu-grp .mu-pl .or').allInnerTexts();
         assert.ok(origens.length > 3 && origens.every((x) => x.length > 5), 'todos os cartões dizem de onde vêm');
-        // pôr a primeira numa pasta nova
+        // as tuas pastas: criam-se no painel, mesmo vazias
+        const painel = corpo.locator('details.mu-pastas-ed');
+        await painel.locator('summary').click();
+        for (const p of ['Carro', 'Dormir']) {
+            await painel.locator('[data-onda="pa-nome"]').fill(p);
+            await painel.getByRole('button', { name: 'Criar', exact: true }).click();
+            await page.locator('#mu-aviso').getByText(`Pasta «${p}» criada.`).waitFor();
+        }
+        await page.waitForFunction(() => document.querySelectorAll('#mu-body .mu-pastas-ed .mu-pasta-x').length === 2);
+        assert.deepEqual((await painel.locator('.mu-pasta-x').allInnerTexts()).map((x) => x.replace(/\s+/g, ' ').trim()), ['Carro 0 ×', 'Dormir 0 ×'], 'as duas, vazias');
+        // pôr a primeira numa delas (no «⋯»: as tuas pastas)
         const primeira = corpo.locator('.mu-grp .mu-pl').first();
         const nome = (await primeira.locator('.nm').innerText()).trim();
         await primeira.locator('.mu-pl-a').click();
         await page.locator('.mu-folha [data-onda="menu"]').click();
         await page.locator('.mu-folha').getByRole('button', { name: 'Pôr numa pasta' }).click();
-        await page.locator('.mu-folha [data-onda="pa-nome"]').fill('Carro');
-        await page.locator('.mu-folha').getByRole('button', { name: 'Criar e pôr aqui' }).click();
+        assert.deepEqual(await page.locator('.mu-folha .mu-pasta-l .mu-chip-f').allInnerTexts(), ['Carro', 'Dormir']);
+        await page.locator('.mu-folha .mu-pasta-l').getByRole('button', { name: 'Carro' }).click();
         await page.locator('#mu-aviso').getByText('Na pasta «Carro».').waitFor();
         await page.locator('.mu-folha .mu-fechar').click();
         await page.waitForFunction(() => !document.querySelector('.mu-folha'));
@@ -1581,11 +1592,12 @@ test('pastas: pôr numa pasta, a IA sugere as outras, o guia para o Tidal; junta
         await page.waitForFunction(() => /^Carro 1$/.test(document.querySelector('#mu-body .mu-grp h2')?.innerText || ''));
         assert.equal((await corpo.locator('.mu-grp').first().locator('.mu-pl .nm').innerText()).trim(), nome);
         assert.equal(await corpo.locator('.mu-filtros .mu-chip-f', { hasText: /^Carro 1$/ }).count(), 1);
-        // a IA sugere as pastas das outras (a que já tinha pasta fica onde estava)
-        await corpo.locator('.mu-lista-topo').getByRole('button', { name: 'Sugerir pastas' }).click();
+        // a IA arruma as outras nas minhas pastas (a que já tinha pasta fica onde estava)
+        if (!(await painel.evaluate((d) => d.open))) await painel.locator('summary').click();
+        await painel.getByRole('button', { name: 'Arrumar nas minhas pastas' }).click();
         await page.locator('#mu-aviso').getByText(/^Arrumei \d+ playlists em pastas\.$/).waitFor();
         await page.waitForFunction(() => [...document.querySelectorAll('#mu-body .mu-grp h2')].every((h) => /^(Carro|Dormir) \d+$/.test(h.innerText)));
-        assert.equal(await corpo.locator('.mu-lista-topo').getByRole('button', { name: 'Sugerir pastas' }).count(), 0, 'já está tudo em pastas');
+        assert.equal(await painel.getByRole('button', { name: 'Arrumar nas minhas pastas' }).count(), 0, 'já está tudo em pastas');
         assert.equal(await corpo.locator('.mu-grp').first().locator('.mu-pl .nm').first().innerText(), nome, 'a que tinha pasta ficou em «Carro»');
         // tudo arrumado: o guia para fazer o mesmo no Tidal (sem as que só estão na app)
         const guia = corpo.locator('details.mu-tidal-pastas');
@@ -1602,6 +1614,11 @@ test('pastas: pôr numa pasta, a IA sugere as outras, o guia para o Tidal; junta
         await page.locator('#mu-aviso').getByText('Saiu da pasta.').waitFor();
         await page.locator('.mu-folha .mu-fechar').click();
         await page.waitForFunction(() => !document.querySelector('.mu-folha'));
+        // apagar uma pasta (no painel): as playlists dela ficam sem pasta
+        if (!(await painel.evaluate((d) => d.open))) await painel.locator('summary').click();
+        await painel.getByRole('button', { name: 'Apagar a pasta «Dormir»' }).click();
+        await page.locator('#mu-aviso').getByText('Pasta apagada; as playlists dela ficaram sem pasta.').waitFor();
+        await page.waitForFunction(() => ![...document.querySelectorAll('#mu-body .mu-grp h2')].some((h) => /^Dormir /.test(h.innerText)));
         // juntar e apagar as originais: a nova fica, as duas escolhidas saem
         await corpo.locator('.mu-lista-topo').getByRole('button', { name: 'Juntar', exact: true }).click();
         const esc = corpo.locator('.mu-pl-esc');

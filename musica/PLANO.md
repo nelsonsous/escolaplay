@@ -37,7 +37,7 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 
 ## O que ficou por fazer
 
-As dez voltas estão feitas e publicadas (hoje: Música 2.39.0, conector 1.31.0). Fica isto, por ordem do que mais importa:
+As dez voltas estão feitas e publicadas (hoje: Música 2.40.0, conector 1.32.0). Fica isto, por ordem do que mais importa:
 
 | O quê | Porquê ficou | O que é preciso |
 |---|---|---|
@@ -74,6 +74,9 @@ conector; Mistral Small 3.1, com outros modelos de reserva) lê o pedido e suger
 confirma-as e a playlist nasce em segundos, com as parecidas delas. O Maestro revê-a depois (e dá-lhe nome). Com os
 8 pedidos reais deu 31 de 32 músicas confirmadas; falha nos pedidos para crianças, que a revisão do Maestro corrige.
 Grátis até 10 000 «Neurons» por dia; passado isso, o pedido fica para o Maestro, como antes.
+Em «Pedir» escolhe-se «Criar já» (a IA e depois o Maestro) ou «Só o Maestro». Quem montou a app pode ligar a conta
+Mistral dele (o segredo `MISTRAL_API_KEY` no Cloudflare; Mistral Large): passa a ser a primeira IA nos pedidos dele,
+e só nos dele (no plano grátis, a Mistral pode usar os pedidos para treinar os modelos dela).
 
 O Maestro é uma tarefa agendada do Claude. Um pedido pode ser tratado de três maneiras, da mais simples à mais rápida:
 

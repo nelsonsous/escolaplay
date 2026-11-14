@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.31.0';
+const VERSION = '1.32.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -103,6 +103,8 @@ async function route(req, env, url) {
     if (p === '/api/avaliacoes' && m === 'GET') return json(await avaliacoes(ue));
     if (p === '/api/arrumar' && m === 'POST') return json(await arrumar(ue, await corpo(req)));
     if (p === '/api/pastas/sugerir' && m === 'POST') return json(await sugerirPastas(ue));
+    if (p === '/api/pastas' && m === 'POST') return json(await criarPasta(ue, await corpo(req)), 201);
+    if (p === '/api/pastas' && m === 'DELETE') return json(await apagarPasta(ue, url.searchParams.get('nome')));
     const pl = /^\/api\/playlists\/([a-z0-9_-]{4,40})(\/tidal|\/versoes|\/renovar|\/renovacoes|\/nome|\/rejeitar|\/trocar|\/afinar|\/previas|\/pasta)?$/.exec(p);
     if (pl && !pl[2] && m === 'GET') return json(await obter(ue, pl[1]));
     if (pl && !pl[2] && m === 'DELETE') return json(await apagar(ue, pl[1], url.searchParams.get('tidal') === '1'));
@@ -232,7 +234,9 @@ async function estado(req, env, url) {
             playlists: (pls || []).length, pedidos: (peds || []).filter((x) => x.estado === 'pendente').length,
             ia: !!t?.iaConsentidaEm, ...(naHora(env) ? { naHora: true } : {}),
             // a «playlist na hora» (a IA da Cloudflare): se o conector a tem, e se a pessoa a ligou
-            ...(env.AI ? { iaCfPode: true, iaCf: !!t?.iaCfEm } : {}) });
+            ...(env.AI || env.MISTRAL_API_KEY ? { iaCfPode: true, iaCf: !!t?.iaCfEm } : {}),
+            ...(env.MISTRAL_API_KEY && quem.uid === DONO ? { iaMistral: true } : {}),
+            pastas: (await ue.KV.get('pastas', 'json')) || [] });
     }
     return out;
 }
@@ -1342,7 +1346,7 @@ async function pedir(env, c, quem) {
     }
     // sem ela, se a pessoa ligou a «playlist na hora»: a IA da Cloudflare escolhe as músicas de partida (o Tidal
     // confirma-as) e a playlist nasce já, com as parecidas delas; o Maestro revê-a. Se a IA falhar, fica como sempre
-    if (env.AI && (await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) {
+    if (c.so !== 'maestro' && (env.AI || env.MISTRAL_API_KEY) && (await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) {
         const o = normalizarOpcoes(c.opcoes || {});
         const d = await (async () => {
             const s = await iaSementes(env, texto);
@@ -1373,22 +1377,50 @@ Se o pedido nomear artistas ou músicas, começa por eles.
 Prefere as gravações de estúdio mais conhecidas a versões ao vivo, remisturas ou versões de outros artistas.
 Responde só com JSON, sem mais nada:
 {"nome": "nome curto para a playlist, em português de Portugal", "musicas": [{"artista": "...", "titulo": "..."}]}`;
-async function iaSementes(env, texto) {
-    if (!env.AI?.run) return { erro: 'A IA da Cloudflare não está ligada ao conector.' };
-    if (texto.length < 3) return { erro: 'Pedido vazio.' };
+// Pede JSON a uma IA. Primeiro à conta Mistral de quem montou a app, se a ligou (o segredo MISTRAL_API_KEY no
+// Cloudflare) e só para os pedidos dele: no plano grátis, a Mistral pode usá-los para treinar os modelos dela, e isso
+// é uma escolha de cada um (os convidados ficam com a da Cloudflare). Depois, os modelos da Cloudflare, pela ordem.
+const MISTRAL = 'https://api.mistral.ai/v1/chat/completions';
+async function iaJSON(env, sistema, texto, { max = 400, temp = 0.3, serve = (j) => !!j } = {}) {
     const erros = [];
-    for (const modelo of env.IA_MODELO ? [env.IA_MODELO] : IA_MODELOS) {
-        let r;
+    const tenta = async (nome, pede) => {
         try {
-            r = await env.AI.run(modelo, { messages: [{ role: 'system', content: IA_SISTEMA }, { role: 'user', content: texto }], max_tokens: 400, temperature: 0.3 });
-        } catch (e) { erros.push(`${modelo}: ${txt(e?.message, 120)}`); continue; }
-        const out = r?.response ?? r?.choices?.[0]?.message?.content ?? r?.result?.response ?? '';
-        const j = typeof out === 'object' ? out : (() => { try { return JSON.parse((/\{[\s\S]*\}/.exec(String(out)) || ['null'])[0]); } catch { return null; } })();
-        const musicas = (Array.isArray(j?.musicas) ? j.musicas : []).map((x) => ({ artista: txt(x?.artista, 120), titulo: txt(x?.titulo, 160) })).filter((x) => x.artista && x.titulo).slice(0, 6);
-        if (!musicas.length) { erros.push(`${modelo}: a resposta não trouxe músicas`); continue; }
-        return { modelo, nome: txt(j.nome, 60), musicas, ...(erros.length ? { erros } : {}) };
+            const out = await pede();
+            const j = out && typeof out === 'object' ? out : JSON.parse((/\{[\s\S]*\}/.exec(String(out ?? '')) || ['null'])[0]);
+            if (serve(j)) return j;
+            erros.push(`${nome}: a resposta não serve`);
+        } catch (e) { erros.push(`${nome}: ${txt(e?.message, 120)}`); }
+        return null;
+    };
+    const msgs = [{ role: 'system', content: sistema }, { role: 'user', content: texto }];
+    if (env.MISTRAL_API_KEY && (env.UID || DONO) === DONO) {
+        const modelo = env.MISTRAL_MODELO || 'mistral-large-latest';
+        const j = await tenta(`mistral:${modelo}`, async () => {
+            const r = await fetch(MISTRAL, { method: 'POST', headers: { authorization: `Bearer ${env.MISTRAL_API_KEY}`, 'content-type': 'application/json' },
+                body: JSON.stringify({ model: modelo, messages: msgs, max_tokens: max, temperature: temp, response_format: { type: 'json_object' } }) });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return (await r.json())?.choices?.[0]?.message?.content;
+        });
+        if (j) return { j, modelo: `mistral:${modelo}`, erros };
     }
-    return { erro: 'A IA não respondeu.', erros };
+    if (env.AI?.run) {
+        for (const modelo of env.IA_MODELO ? [env.IA_MODELO] : IA_MODELOS) {
+            const j = await tenta(modelo, async () => {
+                const r = await env.AI.run(modelo, { messages: msgs, max_tokens: max, temperature: temp });
+                return r?.response ?? r?.choices?.[0]?.message?.content ?? r?.result?.response ?? '';
+            });
+            if (j) return { j, modelo, erros };
+        }
+    }
+    return { j: null, erros };
+}
+async function iaSementes(env, texto) {
+    if (!env.AI?.run && !env.MISTRAL_API_KEY) return { erro: 'A IA da Cloudflare não está ligada ao conector.' };
+    if (texto.length < 3) return { erro: 'Pedido vazio.' };
+    const lista = (j) => (Array.isArray(j?.musicas) ? j.musicas : []).map((x) => ({ artista: txt(x?.artista, 120), titulo: txt(x?.titulo, 160) })).filter((x) => x.artista && x.titulo).slice(0, 6);
+    const r = await iaJSON(env, IA_SISTEMA, texto, { serve: (j) => lista(j).length > 0 });
+    if (!r.j) return { erro: 'A IA não respondeu.', erros: r.erros };
+    return { modelo: r.modelo, nome: txt(r.j.nome, 60), musicas: lista(r.j), ...(r.erros.length ? { erros: r.erros } : {}) };
 }
 // o Tidal confirma as músicas sugeridas. A IA às vezes inventa o título (o artista está certo): então fica a canção mais
 // ouvida desse artista que o Tidal tenha (a versão de estúdio), sem repetir
@@ -1411,41 +1443,64 @@ async function iaConfirmar(env, musicas, limpa) {
 // ---------- arrumar a lista: as pastas (só na app) e as propostas antigas ----------
 // As pastas do Tidal estão fechadas às apps de fora (a API marca-as como INTERNAL): as pastas são da app. A
 // playlist guarda o nome da pasta (e o índice também, para a lista se arrumar por pastas)
+const pastasDe = async (env) => (await env.KV.get('pastas', 'json')) || [];
+async function juntarPastas(env, nomes) {
+    const l = await pastasDe(env), novas = nomes.filter((x) => x && !l.includes(x));
+    if (novas.length) await env.KV.put('pastas', JSON.stringify([...l, ...novas].slice(0, 30)));
+}
+async function criarPasta(env, c) {
+    const nome = txt(c?.nome, 24);
+    if (!nome) throw new Erro(400, 'sem_nome', 'Escreve o nome da pasta.');
+    await juntarPastas(env, [nome]);
+    return { ok: true, nome, pastas: await pastasDe(env) };
+}
+// apagar uma pasta: sai da lista, e as playlists dela ficam sem pasta
+async function apagarPasta(env, nome) {
+    nome = txt(nome, 24);
+    const l = (await pastasDe(env)).filter((x) => x !== nome);
+    await env.KV.put('pastas', JSON.stringify(l));
+    const idx = (await env.KV.get('playlists', 'json')) || [];
+    const dela = idx.filter((x) => x.pasta === nome);
+    for (const x of dela) {
+        const d = await env.KV.get('playlist:' + x.id, 'json');
+        if (d) { delete d.pasta; await env.KV.put('playlist:' + d.id, JSON.stringify(d)); }
+    }
+    if (dela.length) await env.KV.put('playlists', JSON.stringify(idx.map((x) => (x.pasta === nome ? (({ pasta, ...resto }) => resto)(x) : x))));
+    return { ok: true, pastas: l, soltas: dela.length };
+}
 async function pastaDe(env, id, c) {
     const d = await obter(env, id);
     const pasta = txt(c?.pasta, 24);
-    if (pasta) d.pasta = pasta; else delete d.pasta;
+    if (pasta) { d.pasta = pasta; await juntarPastas(env, [pasta]); } else delete d.pasta;
     await env.KV.put('playlist:' + d.id, JSON.stringify(d));
     await atualizarIndice(env, d);
     return { ok: true, pasta: d.pasta || null };
 }
 // a IA da Cloudflare propõe as pastas (com a autorização da «playlist na hora»: lê os nomes e os pedidos) e arruma
 // nelas as playlists que ainda não têm pasta; as que já têm ficam onde estão
-const IA_PASTAS = `Organizas playlists de música em pastas. Recebes a lista (id | nome | pedido) e agrupas as playlists em 3 a 6 pastas com nomes curtos em português de Portugal (uma ou duas palavras, por exemplo Carro, Dormir, Família, Jantar, Descobrir), pelo uso ou pelo momento de cada uma. Cada playlist vai para uma só pasta.
+const IA_PASTAS = `Organizas playlists de música em pastas. Recebes a lista (id | nome | pedido | género) e agrupas as playlists em 3 a 6 pastas com nomes curtos em português de Portugal (uma ou duas palavras, por exemplo Carro, Dormir, Família, Jantar, Descobrir), pelo uso ou pelo momento de cada uma. Cada playlist vai para uma só pasta.
+Responde só com JSON, sem mais nada:
+{"pastas": [{"nome": "...", "ids": ["..."]}]}`;
+// com as pastas que a pessoa criou: a IA põe cada playlist numa delas (e só nelas); as que não servem ficam de fora
+const iaMinhasPastas = (l) => `Organizas playlists de música nas pastas que a pessoa criou: ${l.map((x) => `«${x}»`).join(', ')}. Recebes a lista (id | nome | pedido | género) e pões cada playlist na pasta que melhor lhe serve, pelo uso ou pelo momento. Se nenhuma servir, deixa-a de fora. Usa só estas pastas, com estes nomes.
 Responde só com JSON, sem mais nada:
 {"pastas": [{"nome": "...", "ids": ["..."]}]}`;
 async function sugerirPastas(env) {
-    if (!env.AI?.run) throw new Erro(409, 'sem_ia', 'A IA da Cloudflare não está ligada ao conector.');
+    if (!env.AI?.run && !env.MISTRAL_API_KEY) throw new Erro(409, 'sem_ia', 'A IA da Cloudflare não está ligada ao conector.');
     if (!(await env.KV.get('tidal:tokens', 'json'))?.iaCfEm) throw new Erro(409, 'ia_desligada', 'Liga a «playlist na hora» (em «Pedir» ou nos Ajustes) para a IA sugerir as pastas.');
     const idx = ((await env.KV.get('playlists', 'json')) || []).filter((x) => !x.rascunho);
     const sem = idx.filter((x) => !x.pasta);
     if (!sem.length) return { pastas: [], arrumadas: 0 };
-    const lista = idx.slice(0, 80).map((x) => `${x.id} | ${txt(x.nome, 60)} | ${txt(x.pedido, 100)}`).join('\n');
-    let j = null;
-    for (const modelo of env.IA_MODELO ? [env.IA_MODELO] : IA_MODELOS) {
-        try {
-            const r = await env.AI.run(modelo, { messages: [{ role: 'system', content: IA_PASTAS }, { role: 'user', content: lista }], max_tokens: 900, temperature: 0.2 });
-            const out = r?.response ?? r?.choices?.[0]?.message?.content ?? '';
-            j = typeof out === 'object' ? out : JSON.parse((/\{[\s\S]*\}/.exec(String(out)) || ['null'])[0]);
-            if (Array.isArray(j?.pastas) && j.pastas.length) break;
-        } catch (e) { console.error('pastas', modelo, e?.message); }
-        j = null;
-    }
+    const lista = idx.slice(0, 80).map((x) => `${x.id} | ${txt(x.nome, 60)} | ${txt(x.pedido, 100)} | ${txt(x.genero, 40)}`).join('\n');
+    const minhas = await pastasDe(env);
+    const { j } = await iaJSON(env, minhas.length ? iaMinhasPastas(minhas) : IA_PASTAS, lista, { max: 900, temp: 0.2, serve: (x) => Array.isArray(x?.pastas) && x.pastas.length > 0 });
     if (!j) throw new Erro(502, 'ia', 'A IA não conseguiu sugerir pastas. Tenta daqui a pouco.');
     const livre = new Map(sem.map((x) => [x.id, x]));
     const pastas = [];
+    // (com as pastas da pessoa, só valem essas: o nome que a IA der volta ao da pessoa, sem ligar a maiúsculas)
+    const da = new Map(minhas.map((x) => [x.toLowerCase(), x]));
     for (const p of j.pastas.slice(0, 8)) {
-        const nome = txt(p?.nome, 24);
+        const nome = minhas.length ? da.get(txt(p?.nome, 24).toLowerCase()) || '' : txt(p?.nome, 24);
         const ids = (Array.isArray(p?.ids) ? p.ids : []).map(String).filter((id) => livre.has(id));
         if (!nome || !ids.length) continue;
         for (const id of ids) {
@@ -1456,6 +1511,7 @@ async function sugerirPastas(env) {
         pastas.push({ nome, ids });
     }
     const de = new Map(pastas.flatMap((p) => p.ids.map((id) => [id, p.nome])));
+    await juntarPastas(env, pastas.map((p) => p.nome));
     if (de.size) await env.KV.put('playlists', JSON.stringify(((await env.KV.get('playlists', 'json')) || []).map((x) => (de.has(x.id) ? { ...x, pasta: de.get(x.id) } : x))));
     return { pastas: pastas.map((p) => ({ nome: p.nome, n: p.ids.length })), arrumadas: de.size };
 }
