@@ -43,9 +43,10 @@
   cs_rkvget k
   = d ? @ g_err { `{ _an_abre 0 }diário { _js_ps k }` = w _an_fecha cs_aviso w 2 } @ g_res
   Se && _js_v d _js_v _js_get d $"days" {
-      = j _js_obj 5 = ks _js_str k
+      = j _js_obj 6 = ks _js_str k
       _js_oset j $"id" _tx_s16 ks 2 Mx 2 _tx_l16 ks
       _js_oset j $"days" _js_get d $"days" _js_oset j $"lots" _js_get d $"lots" _js_oset j $"saveDays" _js_get d $"saveDays" _js_oset j $"my" _js_get d $"my"
+      _js_oset j $"plano" _js_get d $"plano"
       _js_push @ g_journals j }
   ! g_i + @ g_i 1 ! g_ph 3 1 }
 # pickAssets: listas da app, o que o investidor juntou (último dia do diário e a lista "my") e a referência
@@ -206,8 +207,8 @@
 : da_pc1 i>i v ? _js_fin v _js_num / _nu_round * _js_f v 1000. 10. 2
 # o voto das fontes que não são o Claude — o fontesDe do JS e o motor da decisão (mercados/onda/decisao.onda, o mesmo da
 # app): { p, fam, f: [[nome, p]] }, ou null se nenhuma fala. c é o consenso do ativo (ou null) e r a análise técnica
-: da_voto iii>i c r kind {
-  = o _js_obj 4
+: da_voto iiii>i c r kind hzp {
+  = o _js_obj 5
   = an ? && && _js_ehobj c ~ _js_v _js_oget c $"none" _js_ehtxt _js_oget c $"key" c 2
   ? _js_ehobj an {
       = rv _js_oget an $"rev" = rv ? _js_ehobj rv rv 2
@@ -227,7 +228,7 @@
   = se 2
   ? _js_eht kind $"crypto" { Se _js_ehnum @ g_fg { = se _js_obj 1 _js_oset se $"fg" @ g_fg } 0 }
     { Se _js_ehnum @ g_vix { = se _js_obj 1 _js_oset se $"vix" @ g_vix } 0 }
-  _js_oset o $"sent" se
+  _js_oset o $"sent" se _js_oset o $"hz" hzp
   # a entrada vai em JSON para a árvore que o motor lê
   _an_abre 0 _js_pj o 0 0 = tx _an_fecha
   = d dc_calc _ar_json tx
@@ -369,7 +370,9 @@
         Se _js_ehobj c { = ks _js_chaves c = cr _js_obj + _js_len ks 1 L j _js_len ks { = kk _js_it ks j Se ~ mesmo kk $"symbol" _js_oset cr kk _js_oget c kk } }
         _js_oset o $"cons" cr
         _js_oset o $"fg" ? && ~ ref _js_eht kind $"crypto" @ g_fg 2
-        _js_oset o $"fontes" ? ref 2 da_voto c r kind
+        = hz ? ref 2 da_hzde k
+        _js_oset o $"fontes" ? ref 2 da_voto c r kind hz
+        _js_oset o $"hz" hz
         _js_push rows o 0 } }
     = i + i 1 }
   ! g_rows rows 0 }
@@ -584,7 +587,8 @@
 : da_modelo >i {
   = last ? _js_len @ g_advs _js_it @ g_advs - _js_len @ g_advs 1 2
   = lp ? _js_v last _js_get last $"plan" 1
-  = plan ? && _js_v last && _js_ehlst lp _js_len lp lp cs_c $"PLAN0"
+  = pa da_planapp da_plano ? _js_len @ g_journals _js_it @ g_journals 0 2
+  = plan ? && _js_v pa _js_len pa pa ? && _js_v last && _js_ehlst lp _js_len lp lp cs_c $"PLAN0"
   = m _js_obj 12
   _js_oset m $"headline" _tx_novo 0
   _js_oset m $"tldr" _js_fatia cs_c $"TLDR0" 0 3
@@ -675,6 +679,7 @@
   " | S " = l _js_get r $"sup" ? _js_len l da_pjoin l 1 "—"
   " | R " = l _js_get r $"res" ? _js_len l da_pjoin l 1 "—"
   = ra _js_get r $"ruleAction" Se _js_v ra ` | regra { _js_pu ra }`
+ = hz _js_get r $"hz" Se da_hzok hz ` | prazo { da_hzpt hz }`
   Se _js_v pv {
       " | antes " = a _js_get pv $"action" _js_pu ? _js_v a a _js_get pv $"key"
       = hz cs_c $"HZ"
@@ -776,10 +781,67 @@
       = nt _js_get t $"next" ? _js_v nt { `; próxima isenta a { _js_pu _js_get nt $"free" } (faltam { _js_pu _js_get nt $"days" } dias)` } "; todas isentas" }
     = j + j 1 }
   da_pos
+  da_plmd
   `{ da_nl }## Lições guardadas`
   = le @ g_lessons Se ~ _js_ehlst le cs_lanca $"TypeError" $"lessons.map is not a function"
   = j 0 W < j _js_len le { `{ da_nl }- { _js_pu _js_it le j }` = j + j 1 }
   = w @ g_warn Se _js_len w { `{ da_nl }## Avisos` = j 0 W < j _js_len w { `{ da_nl }- { _js_pu _js_it w j }` = j + j 1 } } }
+# o prazo em que tem o ativo (hzDe, HZ_PT): curto, médio, longo; da_hzde k o do primeiro diário que o diga, ou null
+: da_hzok i>i h || || _js_eht h $"short" _js_eht h $"mid" _js_eht h $"long"
+: da_hzpt i>i h ? _js_eht h $"short" "curto" ? _js_eht h $"mid" "médio" "longo"
+: da_hzde i>i k {
+  = r 2 = jss @ g_journals = i 0
+  W && == r 2 < i _js_len jss {
+    = lots _js_get _js_it jss i $"lots"
+    Se _js_ehobj lots { = lt _js_oget lots k Se _js_ehobj lt { = h _js_oget lt $"hz" Se da_hzok h = r h } }
+    = i + i 1 }
+  r }
+# planoDe(j): [ o valor dos Ajustes, a parte da cripto, [[k, € por mês]], [[k, prazo]] ] (o plano dele na app)
+: da_plano i>i j {
+  = lots ? _js_v j _js_get j $"lots" 2 = lots ? _js_ehobj lots lots _js_obj 0
+  = pl ? _js_v j _js_get j $"plano" 2
+  = b 0. = c 0.
+  Se _js_ehobj pl {
+      = v _js_oget pl $"budget" Se && _js_fin v > _js_f v 0. = b _js_f v
+      = v2 _js_oget pl $"cryptoPct" Se _js_fin v2 = c _js_f v2 }
+  = pm _js_lst 8 = hz _js_lst 8
+  = ord _js_ordem lots = j2 0
+  W < j2 _js_on lots {
+    = p _js_pos ord j2 = k _js_ok lots p = lt _js_ov lots p
+    Se _js_ehobj lt {
+        = v _js_oget lt $"pm" Se && _js_fin v > _js_f v 0. { = par _js_lst 2 _js_push par k _js_push par v _js_push pm par }
+        = h _js_oget lt $"hz" Se da_hzok h { = par2 _js_lst 2 _js_push par2 k _js_push par2 h _js_push hz par2 } }
+    = j2 + j2 1 }
+  = r _js_lst 4 _js_push r _js_num b _js_push r _js_num c _js_push r pm _js_push r hz }
+# planApp(pq): o plano de partida do modelo, ou null
+: da_eurt f>i v { `{ _an_abre 0 }{ _nu_ps v } €` _an_fecha }
+: da_plobj ii>i s a { = o _js_obj 2 _js_oset o $"s" s _js_oset o $"amount" a o }
+: da_planapp i>i pq {
+  = b _js_f _js_it pq 0 = c _js_f _js_it pq 1 = pm _js_it pq 2
+  ? _js_len pm {
+      = l _js_lst _js_len pm L j _js_len pm { = x _js_it pm j _js_push l da_plobj _js_it x 0 da_eurt _nu_round _js_f _js_it x 1 } l }
+    { ? == b 0. 2 {
+        = cr _nu_round / * b c 100.
+        = l _js_lst 2 _js_push l da_plobj $"VWCE.DE" da_eurt - _nu_round b cr
+        Se > cr 0. _js_push l da_plobj $"c:BTC" da_eurt cr
+        l } } }
+# a secção do plano no dados.md
+: da_plmd >i {
+  = pq da_plano ? _js_len @ g_journals _js_it @ g_journals 0 2
+  = b _js_f _js_it pq 0 = c _js_f _js_it pq 1 = pm _js_it pq 2 = hz _js_it pq 3
+  `{ da_nl }## O teu plano mensal (Ajustes e Carteira da app)`
+  ? > b 0. { `{ da_nl }- Valor por mês nos Ajustes: { _nu_ps _nu_round b } €` Se > c 0. ` ({ _nu_ps c }% em cripto)` 0 }
+    `{ da_nl }- Valor por mês nos Ajustes: por indicar`
+  ? _js_len pm {
+      `{ da_nl }- Por ativo (Carteira): ` = s 0.
+      L j _js_len pm { = x _js_it pm j Se j " · " `{ _js_pu _js_it x 0 } { _nu_ps _nu_round _js_f _js_it x 1 } €` = s + s _js_f _js_it x 1 }
+      ` (soma { _nu_ps _nu_round s } €)` 0 }
+    `{ da_nl }- Por ativo (Carteira): por indicar (a app divide o valor dos Ajustes pela parte da cripto)`
+  ? _js_len hz {
+      `{ da_nl }- Prazos (Carteira): `
+      L j _js_len hz { = x _js_it hz j Se j " · " `{ _js_pu _js_it x 0 } { da_hzpt _js_it x 1 }` } 0 }
+    `{ da_nl }- Prazos (Carteira): por indicar (o que ele tem conta como longo prazo)`
+  0 }
 # o que tem, com as quantidades e o investido que ele pôs na Carteira da app: o peso de cada um no total
 # (a referência: o pos de js/dados.mjs). Uma lista [chave, quantidade, investido, valor] por posição
 : da_pos >i {

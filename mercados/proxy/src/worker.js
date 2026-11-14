@@ -18,7 +18,8 @@
 //   GET /cryptoglobal                         → mercado cripto: capitalização, dominância BTC, volume, medo e ganância
 //   GET /fuel/municipios?distrito=13          → concelhos de um distrito (DGEG); /fuel?municipio=… filtra por concelho
 //   GET  /journal?id=…                        → diário de sugestões (KV)
-//   POST /journal  { id, date, items, lots }  → guardar as sugestões do dia e as datas de compra de cripto
+//   POST /journal  { id, date, items, lots, plano }  → guardar as sugestões do dia, o que se tem (com o valor por mês e o
+//                  prazo de cada ativo, desde a 1.9.0) e o valor do plano mensal
 //   GET  /advice?id=…[&date=AAAA-MM-DD]       → análise do Claude (KV, só leitura; a tarefa agendada escreve-a
 //                                               pela API da Cloudflare): a completa só para o dono, as outras
 //                                               apps recebem a sua (a dos seus ativos), se a ligarem
@@ -30,7 +31,7 @@
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.8.0';
+const VERSION = '1.9.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -528,6 +529,14 @@ export function upsertJournal(doc, date, items) {
 const SYM = /^(c:[A-Z0-9]{2,10}|[A-Z0-9^][A-Z0-9.=^-]{0,19})$/;
 export const cleanSyms = (a) => (Array.isArray(a) ? [...new Set(a.map(String).filter((s) => SYM.test(s)))].slice(0, 20) : null);
 // compras de cripto (para a isenção de 365 dias): { 'c:BTC': { plan: 'AAAA-MM-DD', buys: [{ d, e }] } }
+const HZS = ['short', 'mid', 'long'];
+// o plano mensal dos Ajustes da app (1.9.0): quanto investe por mês e a parte da cripto
+export function cleanPlano(p) {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+    const b = +p.budget, c = +p.cryptoPct;
+    if (!(Number.isFinite(b) && b >= 0 && b < 1e6)) return null;
+    return { budget: Math.round(b * 100) / 100, ...(Number.isFinite(c) && c >= 0 && c <= 100 ? { cryptoPct: Math.round(c * 10) / 10 } : {}) };
+}
 export function cleanLots(l) {
     if (!l || typeof l !== 'object' || Array.isArray(l)) return null;
     const out = {};
@@ -539,7 +548,9 @@ export function cleanLots(l) {
         const plan = JDATE.test(l[k].plan || '') ? l[k].plan : '';
         const num = (v) => (Number.isFinite(+v) && +v > 0 && +v < 1e12 ? Math.round(+v * 1e8) / 1e8 : 0);
         const qty = num(l[k].qty), cost = num(l[k].cost), qd = JDATE.test(l[k].qd || '') ? l[k].qd : '';
-        if (buys.length || plan || (qty && cost)) out[k] = { plan, buys, ...(qty && cost ? { qty, cost, ...(qd ? { qd } : {}) } : {}) };
+        // 1.9.0: o valor por mês do plano deste ativo e o prazo em que ele o tem (curto, médio ou longo)
+        const pm = +l[k].pm > 0 && +l[k].pm < 1e6 ? Math.round(+l[k].pm * 100) / 100 : 0, hz = HZS.includes(l[k].hz) ? l[k].hz : '';
+        if (buys.length || plan || (qty && cost) || pm || hz) out[k] = { plan, buys, ...(qty && cost ? { qty, cost, ...(qd ? { qd } : {}) } : {}), ...(pm ? { pm } : {}), ...(hz ? { hz } : {}) };
     }
     return out;
 }
@@ -564,12 +575,14 @@ async function journal(request, url, env) {
     try { b = JSON.parse(text); } catch { return { status: 400, body: { error: 'JSON inválido' } }; }
     const items = cleanItems(b && b.items);
     const lots = cleanLots(b && b.lots);
+    const plano = cleanPlano(b && b.plano);
     const hasItems = items && items.length && JDATE.test((b && b.date) || '');
     const hasClaude = b && typeof b.claude === 'boolean';
-    if (!b || !JID.test(b.id || '') || (!hasItems && !lots && !hasClaude)) return { status: 400, body: { error: 'dados inválidos' } };
+    if (!b || !JID.test(b.id || '') || (!hasItems && !lots && !hasClaude && !plano)) return { status: 400, body: { error: 'dados inválidos' } };
     const old = await env.JOURNAL.get('j:' + b.id, 'json');
     const doc = upsertJournal(old, hasItems ? b.date : null, hasItems ? items : null);
     if (lots) doc.lots = lots;
+    if (plano) doc.plano = plano;
     if (Array.isArray(b.saveDays)) doc.saveDays = b.saveDays.map(Number).filter((d) => [2, 9, 16, 23].includes(d)).slice(0, 4);
     if (hasClaude) { if (b.claude) doc.claude = true; else delete doc.claude; }
     const my = cleanSyms(b.my);

@@ -116,6 +116,13 @@ test('publicar: o que mudou — desde quando mantém a família do veredicto e o
     assert.deepEqual([ref('up'), ref('down')], [[undefined, true], ['up', false]]);
 });
 
+test('publicar: num ativo de longo prazo (Carteira) não há stop', () => {
+    const com = (hz, patch = {}) => { const a = analise(); Object.assign(a.actions.find((x) => x.s === 'NVDA'), patch); return buildAdvice(a, { rows: DADOS.rows.map((r) => (r.s === 'NVDA' ? { ...r, hz } : r)) }).errs; };
+    assert.deepEqual(com('long'), ['actions[1] NVDA: é de longo prazo (Carteira): tira o stop — vende-se se a tese mudar, não por uma queda; diz em risk o que a muda']);
+    assert.deepEqual(com('long', { stop: null }), [], 'sem stop passa');
+    assert.deepEqual([com('mid'), com('short'), com(undefined)], [[], [], []], 'no curto e no médio prazo o stop fica');
+});
+
 test('publicar: ir contra a média das outras fontes pede algWhy', () => {
     const com = (fontes, patch = {}, rule) => {
         const dados = { rows: DADOS.rows.map((r) => (r.s === 'NVDA' ? { ...r, fontes, ...(rule ? { rule } : {}) } : r)) };

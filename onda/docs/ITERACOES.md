@@ -3039,3 +3039,26 @@ faixa e atualizar a lista não as refazem — só a linha que mudou é nova.
 
 **Na Música.** A página e os pedaços da folha desenham-se com `_ht_muda`; uma vista nova desenha-se de raiz (começa
 limpa). A chave de uma linha é a faixa que se vê.
+
+## Iteração (Mercados 4.25.0, conector 1.9.0): o prazo de cada ativo e o plano que está na app
+
+**O problema (dito por ele).** O Painel dizia «1600 €/mês» e o Claude «810 + 90»: o valor dos Ajustes nunca chegava ao
+Claude, que seguia um plano fixo escrito nas regras. E num investimento de longo prazo a análise mandava vender quando
+o preço caía (stops, «vender a parte de hoje»).
+
+**O que mudou.**
+- **Carteira**: cada ativo tem um prazo (longo, médio, curto); o que ele tem conta como longo até escolher outro.
+- **Decisão** (`decisao.onda`): o prazo pesa as convicções (longo 5/25/70, médio 15/60/25, curto 60/30/10, sem prazo
+  25/35/40) e, no médio e no longo, a técnica fica do lado da sua pontuação e não do sinal de dias. O cartão diz
+  «Média das fontes · prazo longo».
+- **Conector 1.9.0**: o diário guarda o valor por mês e o prazo de cada ativo e o valor do plano dos Ajustes.
+- **Conselheiro**: `dados.md` ganha «O teu plano mensal» (Ajustes, por ativo, prazos) e «| prazo …» em cada linha; o
+  plano de partida do `modelo.json` sai da app (por ativo; sem ele, o valor dos Ajustes pela parte da cripto); a média
+  das fontes usa o prazo; o `publicar` recusa stop num ativo de longo prazo. As regras deixam de ter um valor fixo:
+  no longo prazo vende-se pela tese, nunca por uma queda.
+
+**Verificado.** Motor: a referência em JS com o prazo (20 000 casos e um caso lido à mão). Conselheiro: 75 cenários
+iguais em JS e Onda (seis novos: o plano e os prazos certos, estranhos e em falta; o stop no longo prazo). Conector:
+o valor por mês, o prazo e o plano guardados e limpos. Interface: o prazo escolhido na Carteira chega à decisão e ao
+conector, com o valor do plano.
+

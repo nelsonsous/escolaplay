@@ -127,7 +127,7 @@ test('carteira: o rendimento real dá as contas certas', async () => {
     const hF = sem((i) => 100 * (1 + 0.0012 * i) + 3 * Math.sin(i / 5)), hC = sem((i) => 30000 * (1 + 0.006 * i) + 6000 * Math.sin(i / 7));
     const mensal = (desde, e) => { const out = []; for (let t = desde; t <= T; t += 30.4 * DIA) out.push([Math.round(t), e]); return out; };
     const fundo = { k: 'VWCE.DE', name: 'FTSE All-World', px: hF[hF.length - 1][1] * 1.01, h: hF, b: mensal(T - 2.5 * 365 * DIA, 810), plan: '2024-05-02', pm: 0, pmDef: 810 };
-    const cripto = { k: 'c:BTC', name: 'Bitcoin', px: hC[hC.length - 1][1], h: hC, b: mensal(T - 200 * DIA, 90).concat([[T - 40 * DIA, 500]]), plan: '2026-04-24', pm: 90, pmDef: 90 };
+    const cripto = { k: 'c:BTC', name: 'Bitcoin', px: hC[hC.length - 1][1], h: hC, b: mensal(T - 200 * DIA, 90).concat([[T - 40 * DIA, 500]]), plan: '2026-04-24', pm: 90, pmDef: 90, hz: 'mid' };
     const vazio = { k: 'c:ETH', name: 'Ether', px: 3000, h: [], b: [], plan: '', pm: 0, pmDef: 0 };
     const real = { now: T, desde: '02/05/2024', loading: false, bench: { name: 'FTSE All-World', px: fundo.px, h: hF }, ativos: [fundo, cripto, vazio] };
     const br = await chromium.launch(), pg = await br.newPage();
@@ -137,7 +137,7 @@ test('carteira: o rendimento real dá as contas certas', async () => {
             const r = document.querySelector('.real'), t = (e) => (e ? e.textContent.trim() : null);
             return { big: t(r.querySelector('.sim-big b')), rng: t(r.querySelector('.sim-rng')), sub: t(r.querySelector('.sec-h .sub')),
                 st: [...r.querySelectorAll('.sim-st b')].map((b) => b.textContent), rows: [...r.querySelectorAll('.real-l .row')].map((x) => [x.dataset.open, t(x.querySelector('.px')), t(x.querySelector('.chg')), t(x.querySelector('.r-sub'))]),
-                hits: r.querySelectorAll('.sim-hit').length, ult: (r.querySelectorAll('.sim-hit')[59] || {}).dataset, ed: [...r.querySelectorAll('[data-lot="pm"]')].map((i) => [i.dataset.k, i.value, i.placeholder]),
+                hits: r.querySelectorAll('.sim-hit').length, ult: (r.querySelectorAll('.sim-hit')[59] || {}).dataset, ed: [...r.querySelectorAll('[data-lot="pm"]')].map((i) => [i.dataset.k, i.value, i.placeholder]), hz: [...r.querySelectorAll('select[data-lot="hz"]')].map((i) => [i.dataset.k, i.value]),
                 sim: !!document.querySelector('.sim .sim-big') };
         });
         const as = [fundo, cripto];
@@ -155,6 +155,7 @@ test('carteira: o rendimento real dá as contas certas', async () => {
         assert.equal(d.hits, 60, 'o dedo: 60 pontos');
         assert.ok(d.ult.tx.startsWith(`Hoje: ${eur(V)} · investido ${eur(E)}`), d.ult.tx);
         assert.deepEqual(d.ed, [['VWCE.DE', '', '810'], ['c:BTC', '90', '90'], ['c:ETH', '', '']], 'o editor com todos os ativos');
+        assert.deepEqual(d.hz, [['VWCE.DE', 'long'], ['c:BTC', 'mid'], ['c:ETH', 'long']], 'o prazo de cada ativo (por omissão, longo)');
         assert.ok(d.sim, 'o simulador continua por baixo');
         // o que tem hoje (quantidade e investido, como na TR): o Ether sem data, o Bitcoin com data
         {

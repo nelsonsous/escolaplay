@@ -111,7 +111,8 @@
     `<span class="dec-conf c{N c}">confiança { ? == c 2 "alta" ? == c 1 "média" "baixa" }</span></div>`
     Se ha es.act `<div class="adv-nu">{ esc es.act }</div>`
     dv_desde
-    `<div class="dec-p"><small>Média das fontes</small>{ an_barv @f + r 8 }</div>`
+    = hz dc_hz es.d.hz
+    `<div class="dec-p"><small>Média das fontes{ Se hz ` · prazo { ? == hz 1 "curto" ? == hz 2 "médio" "longo" }` }</small>{ an_barv @f + r 8 }</div>`
     `<div class="dec-voz">{ dv_voz r }</div>`
     `<ul class="dec-f">` L i @ r dv_fonte r i `</ul>`
     Se quantos es.lv {
