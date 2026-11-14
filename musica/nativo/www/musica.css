@@ -549,3 +549,6 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-duo-b { flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 12px; min-height: 52px; padding: 12px 18px; border-radius: 16px; text-align: left; }
 .mu-duo-b b { white-space: nowrap; }
 .mu-duo-b span { white-space: nowrap; text-align: right; }
+
+/* 2.46.3 — o perfil: cada pergunta diz se dá para escolher várias ou só uma */
+.mu-perg > p span { margin-left: 4px; color: var(--dim); font-weight: 500; font-size: 13px; }

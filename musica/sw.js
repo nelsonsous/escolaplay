@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay, a Mercados e a Meteo (/escolaplay/): este SW só mexe nas
 // caches "musica-*" e só trata pedidos dentro da sua pasta (/escolaplay/musica/) e o anfitrião das apps Onda.
 // O conector e o Tidal (outros domínios) nunca passam por aqui.
-const CACHE = 'musica-v71'; // 2.46.2 — «Mudar» (as opções do pedido) cabe no botão; os dois caminhos de «Pedir» cabem também num ecrã estreito
+const CACHE = 'musica-v72'; // 2.46.3 — o perfil: responder não fecha o cartão; cada pergunta diz se dá para escolher várias
 const ASSETS = [
     './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js', '../onda/rt/gestos-onda.js',
     './privacidade.html', './apoio.html',
