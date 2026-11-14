@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.24.0';
+    const VERSION = '4.25.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -534,7 +534,7 @@
         const keys = Object.keys(AN).filter((k) => investable(k) && AN[k].advice && fin(qv(k).price));
         if (keys.length < 5) return;
         const items = keys.map((k) => { const r = AN[k]; return { s: k, p: +qv(k).price.toPrecision(8), a: r.advice.key, l: r.horizons.long ? r.horizons.long.score : null, m: r.horizons.mid.score, sh: r.horizons.short.score, o: r.discount && r.discount.opp ? 1 : 0 }; });
-        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: lotsEnvio(), saveDays: cfg.saveDays, claude: !!cfg.claude, my: myList() }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
+        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: lotsEnvio(), plano: planoEnvio(), saveDays: cfg.saveDays, claude: !!cfg.claude, my: myList() }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
     }
     // ---------- datas de compra de cripto (isenção de IRS aos 365 dias) ----------
     const lotOf = (k) => cfg.lots[k] || { plan: '', buys: [] };
@@ -552,10 +552,10 @@
     let lotsT = 0;
     function postLotsSoon() {
         clearTimeout(lotsT);
-        lotsT = setTimeout(() => { if (cfg.proxy && cfg.jid) pxPost('/journal', { id: cfg.jid, lots: lotsEnvio(), saveDays: cfg.saveDays }).catch(() => {}); }, 4000);
+        lotsT = setTimeout(() => { if (cfg.proxy && cfg.jid) pxPost('/journal', { id: cfg.jid, lots: lotsEnvio(), plano: planoEnvio(), saveDays: cfg.saveDays }).catch(() => {}); }, 4000);
     }
     function setLots(k, L) {
-        if (!L.plan && !(L.buys || []).length && !(+L.pm > 0) && !(+L.qty > 0) && !(+L.cost > 0) && !(+L.avg > 0) && !L.qd) delete cfg.lots[k]; else cfg.lots[k] = L;
+        if (!L.plan && !(L.buys || []).length && !(+L.pm > 0) && !(+L.qty > 0) && !(+L.cost > 0) && !(+L.avg > 0) && !L.qd && !L.hz) delete cfg.lots[k]; else cfg.lots[k] = L;
         saveCfg();
         postLotsSoon();
         if (sheetKey === k) renderSheet();
@@ -1212,10 +1212,22 @@
         return { q, c, avg: q > 0 ? c / q : 0 };
     }
     // o que vai para o conector (e daí para a análise do Claude): a posição de hoje
-    const lotsEnvio = () => Object.fromEntries(Object.entries(cfg.lots).map(([k, L]) => {
-        if (!REG[k] || !temHoje(L)) return [k, L];
-        const P = posOf(k); return [k, { ...L, qty: Math.round(P.q * 1e8) / 1e8, cost: Math.round(P.c * 100) / 100 }];
-    }));
+    // o que vai para o conector: as compras, o que se tem, o valor por mês e o prazo de cada ativo (o que tem e não
+    // mexeu na Carteira vai com o prazo por omissão, longo, para o Claude saber)
+    const lotsEnvio = () => {
+        const o = Object.fromEntries(Object.entries(cfg.lots).map(([k, L]) => {
+            const hz = owns(k) || L.hz ? hzOf(k) : undefined;
+            if (!REG[k] || !temHoje(L)) return [k, { ...L, ...(hz ? { hz } : {}) }];
+            const P = posOf(k); return [k, { ...L, qty: Math.round(P.q * 1e8) / 1e8, cost: Math.round(P.c * 100) / 100, ...(hz ? { hz } : {}) }];
+        }));
+        for (const k of cfg.holdings) if (!o[k] && REG[k]) o[k] = { plan: '', buys: [], hz: hzOf(k) };
+        return o;
+    };
+    // o plano dos Ajustes: quanto investe por mês e a parte da cripto (o Claude parte daqui, não de um valor fixo)
+    const planoEnvio = () => ({ budget: +cfg.budget || 0, cryptoPct: etfCrypto() ? +cfg.cryptoPct || 0 : 0 });
+    // em que prazo tem o ativo (curto, médio ou longo; escolhe-se na Carteira): o que tem, por omissão, longo
+    const HZ_OK = ['short', 'mid', 'long'];
+    const hzOf = (k) => { const h = (cfg.lots[k] || {}).hz; return HZ_OK.includes(h) ? h : owns(k) ? 'long' : ''; };
     const fmtQ = (x) => x.toLocaleString('pt-PT', { maximumFractionDigits: 6 });
     function buysOf(k) {
         const L = lotOf(k);
@@ -1256,7 +1268,7 @@
             bench: { name: nameOf(cfg.coreFund), px: pxEur(cfg.coreFund), h: histOf(cfg.coreFund) },
             ativos: keys.map((k) => {
                 const L = lotOf(k), P = posOf(k), mais = extrasOf(k).length > 0;
-                return { k, name: nameOf(k), px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), q: P.q, cost: P.c,
+                return { k, name: nameOf(k), px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), hz: hzOf(k), q: P.q, cost: P.c,
                     avg: mais ? Math.round(P.avg * 1e4) / 1e4 : +L.avg || (+L.qty > 0 && +L.cost > 0 ? Math.round((+L.cost / +L.qty) * 1e4) / 1e4 : 0), qd: L.qd || '' };
             }),
             reg: regSnap(),
@@ -1475,6 +1487,8 @@
             // as notícias: o tom que o Claude leu na análise de agora (news, 0–100); sem ele, o dos títulos
             news: clNews(cl) ? (cl.news - 50) / 50 : n ? tomNoticias(n) : null,
             sent: REG[k] && REG[k].kind === 'crypto' ? (fin(fg) ? { fg } : null) : fin(vix) ? { vix } : null,
+            // o prazo em que tem o ativo pesa as convicções por prazo (no longo prazo, uma queda de dias quase não conta)
+            hz: hzOf(k) || null,
         };
     }
     const decOf = (k) => (buyable(k) ? A.decisao(decIn(k)) : null);
@@ -2393,8 +2407,8 @@
         if (d.eur) { cfg.eur = d.eur === '1'; saveCfg(); render(); return; }
         if (d.hz) { cfg.hz = d.hz; saveCfg(); render(); return; }
         if (d.prof) { cfg.profile = d.prof; saveCfg(); render(); return; }
-        if (d.strat) { cfg.strategy = d.strat; saveCfg(); render(); return; }
-        if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); render(); return; }
+        if (d.strat) { cfg.strategy = d.strat; saveCfg(); postLotsSoon(); render(); return; }
+        if (d.cpct != null) { cfg.cryptoPct = +d.cpct; saveCfg(); postLotsSoon(); render(); return; }
         if (d.cmix) { cfg.cryptoMix = d.cmix; saveCfg(); render(); return; }
         if (d.lotrm != null && sheetKey) { const L = lotOf(sheetKey); setLots(sheetKey, { plan: L.plan || '', buys: (L.buys || []).filter((_, i) => i !== +d.lotrm) }); toast('Compra apagada'); return; }
         if (d.mv) {
@@ -2566,7 +2580,8 @@
                 if (extrasOf(k).length) { const P = posOf(k); L.qty = P.q; L.cost = Math.round(P.c * 100) / 100; L.avg = Math.round(P.avg * 1e4) / 1e4; }
                 L.at = todayLocal(); L.compras = [];
             }
-            if (t.dataset.lot === 'plan') L.plan = data;
+            if (t.dataset.lot === 'hz') L.hz = HZ_OK.includes(t.value) ? t.value : undefined;
+            else if (t.dataset.lot === 'plan') L.plan = data;
             else if (t.dataset.lot === 'qd') L.qd = data || undefined;
             // o teclado do iPhone em português escreve a vírgula: 0,0412 → 0.0412 (e tira os espaços dos milhares)
             else L[t.dataset.lot === 'pm' ? 'pm' : t.dataset.lot === 'qty' ? 'qty' : t.dataset.lot === 'avg' ? 'avg' : 'cost'] = Math.max(0, +String(t.value).replace(/\s/g, '').replace(',', '.') || 0) || undefined;
@@ -2576,6 +2591,7 @@
         }
         if (t.dataset && t.dataset.cfg) {
             if (t.dataset.cfg === 'simStart') cfg.simStartManual = true; // mexeu à mão: deixa de seguir a carteira
+            if (['budget', 'cryptoPct'].includes(t.dataset.cfg)) postLotsSoon(); // o Claude parte do valor do plano
             cfg[t.dataset.cfg] = ['alertPct', 'budget', 'simBudget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
             saveCfg();
             if (t.dataset.cfg === 'distrito') { cfg.municipio = ''; saveCfg(); FUEL = null; loadFuel(); render(); }

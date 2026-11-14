@@ -40,29 +40,36 @@ export function lineOf(r) {
     const eur = r.cur && r.cur !== 'EUR' && r.priceEur != null ? ` (≈${r.priceEur}€)` : '';
     const day = r.day == null ? '—' : (r.day > 0 ? '+' : '') + r.day.toFixed(1) + '%';
     const was = r.prev && typeof r.prev.was === 'string' ? r.prev.was : null;
+    const hz = r.hz && Object.hasOwn(HZ_PT, r.hz) ? ` | prazo ${HZ_PT[r.hz]}` : '';
     const prev = r.prev ? ` | antes ${r.prev.action || r.prev.key}${HZ.every((h) => Number.isFinite(r.prev[h])) ? ' ' + HZ.map((h) => r.prev[h]).join('/') : ''}`
         + `${r.prev.since ? ` desde ${r.prev.since}` : ''}${was ? ` (era ${Object.hasOwn(ACTION_LABEL, was) ? ACTION_LABEL[was] : was})` : ''}` : '';
     return `- ${r.s} ${r.name} [${KIND_PT[r.kind] || r.kind}] ${r.price ?? '—'}${r.cur ? ' ' + r.cur : ''}${eur} | dia ${day} · 1M ${pc(r.r1m)} · 3M ${pc(r.r3m)} · 1A ${pc(r.r1y)}`
         + ` | alg C${n0(r.short)} M${n0(r.mid)} L${n0(r.long)} · RSI ${n0(r.rsi)} · vol ${r.vol == null ? '—' : Math.round(r.vol * 100) + '%'}`
         + ` | máx ${pc(r.dd)}${r.ma200 != null ? ` · MM200 ${pc(r.ma200)}${r.longUp === true ? '↑' : r.longUp === false ? '↓' : ''}` : ''}`
         + ` | S ${r.sup.length ? r.sup.join(' · ') : '—'} | R ${r.res.length ? r.res.join(' · ') : '—'}`
-        + `${r.ruleAction ? ' | regra ' + r.ruleAction : ''}${prev}${r.events && r.events.length ? ' | AGENDA ' + r.events.join(', ') : ''}${fontesTxt(r)}`;
+        + `${r.ruleAction ? ' | regra ' + r.ruleAction : ''}${hz}${prev}${r.events && r.events.length ? ' | AGENDA ' + r.events.join(', ') : ''}${fontesTxt(r)}`;
 }
 
 // ---------- 2b) as outras fontes da decisão (o /consensus e o /cryptoglobal do conector) ----------
 const fin = Number.isFinite;
 const obj = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : null);
 const FAM_PT = { 1: 'entrar', 0: 'ficar', '-1': 'sair' };
+// o prazo em que o investidor tem cada ativo (Carteira da app) e o plano mensal (Ajustes): do primeiro diário que o diga
+const HZ_PT = { short: 'curto', mid: 'médio', long: 'longo' };
+export const hzDe = (journals, k) => {
+    for (const j of journals) { const L = obj(obj(j.lots) && j.lots[k]); if (L && Object.hasOwn(HZ_PT, L.hz)) return L.hz; }
+    return null;
+};
 const FONTE_PT = { analistas: 'analistas', fundamentos: 'fundamentos', tecnica: 'técnica', sentimento: 'sentimento' };
 // a entrada do motor da decisão (mercados/onda/decisao.onda) com as fontes que não são o Claude: os analistas (com as
 // revisões das estimativas), os fundamentos (as percentagens com uma casa, como na app), a técnica e o sentimento
-export function fontesDe(c, tec, sent) {
+export function fontesDe(c, tec, sent, hz = null) {
     const o = obj(c), an = o && !o.none && typeof o.key === 'string' ? o : null, rv = an ? obj(o.rev) : null, fu = o ? obj(o.f) : null;
     const n = (x) => (fin(x) ? x : null), p1 = (x) => (fin(x) ? Math.round(x * 1000) / 10 : null);
     return {
         an: an ? { key: an.key, mean: n(an.mean), n: n(an.n), target: n(an.target), price: n(an.price), up: rv ? n(rv.up) : null, down: rv ? n(rv.down) : null } : null,
         fun: fu ? { pe: n(fu.pe), cr: p1(fu.cr), mg: p1(fu.mg) } : null,
-        tec, sent,
+        tec, sent, hz,
     };
 }
 // o que as outras fontes dizem de um ativo, no fim da linha dele: os analistas, os fundamentos, o fundo por dentro, o
@@ -167,8 +174,31 @@ export function lastVerdicts(advices) {
 }
 
 // ---------- 4) esqueleto da análise: todos os ativos, com o último veredicto para partir dele ----------
-export function modelOf(rows, prev, { last = null, lessons = [], movers = [] } = {}) {
-    const plan = last && Array.isArray(last.plan) && last.plan.length ? last.plan : [{ s: 'VWCE.DE', amount: '810 €' }, { s: 'c:BTC', amount: '90 €' }];
+// o plano do investidor na app (do primeiro diário): o valor por mês dos Ajustes, a parte da cripto, o valor por mês de
+// cada ativo e o prazo em que o tem (Carteira)
+export function planoDe(j) {
+    const lots = obj(j && j.lots) || {}, pl = obj(j && j.plano);
+    const bud = pl && fin(pl.budget) && pl.budget > 0 ? pl.budget : 0, cp = pl && fin(pl.cryptoPct) ? pl.cryptoPct : 0;
+    const pm = [], hz = [];
+    for (const [k, L0] of Object.entries(lots)) {
+        const L = obj(L0);
+        if (!L) continue;
+        if (fin(L.pm) && L.pm > 0) pm.push([k, L.pm]);
+        if (Object.hasOwn(HZ_PT, L.hz)) hz.push([k, L.hz]);
+    }
+    return { bud, cp, pm, hz };
+}
+// o plano de partida do modelo: o valor por mês de cada ativo; sem ele, o dos Ajustes dividido pela parte da cripto
+export function planApp(P) {
+    if (P.pm.length) return P.pm.map(([s, v]) => ({ s, amount: `${Math.round(v)} €` }));
+    if (!P.bud) return null;
+    const c = Math.round(P.bud * P.cp / 100);
+    return [{ s: 'VWCE.DE', amount: `${Math.round(P.bud) - c} €` }].concat(c > 0 ? [{ s: 'c:BTC', amount: `${c} €` }] : []);
+}
+
+export function modelOf(rows, prev, { last = null, lessons = [], movers = [], plano = null } = {}) {
+    // o plano de partida: o da app (Ajustes e Carteira); sem ele, o da última análise; sem nada, o de sempre
+    const plan = plano && plano.length ? plano : last && Array.isArray(last.plan) && last.plan.length ? last.plan : [{ s: 'VWCE.DE', amount: '810 €' }, { s: 'c:BTC', amount: '90 €' }];
     return {
         headline: '', tldr: ['Mercado: ', 'Hoje: ', 'Atenção: '], market: '',
         planNote: (last && last.planNote) || '', plan: plan.map((x) => ({ s: x.s, amount: x.amount, why: '' })),
@@ -206,7 +236,7 @@ async function main() {
     const owner = await tryOr(() => kvGet('cfg:owner'), null, 'dono');
     const jKeys = owner ? ['j:' + owner] : await tryOr(() => kvKeys('j:'), [], 'diário (lista)');
     const journals = [];
-    for (const k of jKeys) { const d = await tryOr(() => kvGet(k), null, 'diário ' + k); if (d && d.days) journals.push({ id: k.slice(2), days: d.days, lots: d.lots, saveDays: d.saveDays, my: d.my }); }
+    for (const k of jKeys) { const d = await tryOr(() => kvGet(k), null, 'diário ' + k); if (d && d.days) journals.push({ id: k.slice(2), days: d.days, lots: d.lots, saveDays: d.saveDays, my: d.my, plano: d.plano }); }
     const { keys, extra, groups } = pickAssets(journals);
 
     // preços de hoje, 1 ano de fechos e câmbios para euros
@@ -274,8 +304,9 @@ async function main() {
         const c = ref ? null : cons.get(k) || null;
         let consRow = null;
         if (c) { consRow = {}; for (const [kk, v] of Object.entries(c)) if (kk !== 'symbol') consRow[kk] = v; }
+        const hz = ref ? null : hzDe(journals, k);
         const voto = ref ? null : AO.decisao(fontesDe(c, { key: r.advice.key, short: r.horizons.short.score, mid: r.horizons.mid.score, long: r.horizons.long ? r.horizons.long.score : null },
-            kind === 'crypto' ? (fg != null ? { fg } : null) : vix != null ? { vix } : null));
+            kind === 'crypto' ? (fg != null ? { fg } : null) : vix != null ? { vix } : null, hz));
         rows.push({
             s: k, name: nameOf(k) !== k ? nameOf(k) : cut((t && (t.longName || t.name)) || d.name || k, 40), kind, group: groups[k], cur,
             price: r2(price), priceEur: ref ? null : r2(toEur(price, cur)), day: r2(t && t.changePct),
@@ -287,6 +318,7 @@ async function main() {
             events: upcoming(k), prev: prev[k] || null,
             cons: consRow, fg: !ref && kind === 'crypto' ? fg : null,
             fontes: voto ? { p: voto.p, fam: voto.fam, f: voto.f.map((x) => [FONTE_PT[x.f] || x.f, x.p]) } : null,
+            hz,
         });
     }
 
@@ -340,7 +372,7 @@ async function main() {
     const data = { date: today, generatedAt: new Date().toISOString(), rows, movers: movers.map((m) => m.s), news, past, ruleEval, lessons, cryptoTax, extra, prefs: journals.map((j) => j.id), warnings: warn };
     writeFileSync(path.join(OUT, 'dados.json'), JSON.stringify(data, null, 1));
     const last = advices.length ? advices[advices.length - 1] : null;
-    writeFileSync(path.join(OUT, 'modelo.json'), JSON.stringify(modelOf(rows, prev, { last, lessons, movers }), null, 1));
+    writeFileSync(path.join(OUT, 'modelo.json'), JSON.stringify(modelOf(rows, prev, { last, lessons, movers, plano: planApp(planoDe(journals[0] || null)) }), null, 1));
 
     // resumo para ler (dados.md)
     const L = [];
@@ -381,6 +413,13 @@ async function main() {
         pos.forEach(([k, q, c], i) => { const g = (val[i] / c - 1) * 100; L.push(`- ${k}: ${q} unidades · investido ${Math.round(c)} € · vale ${Math.round(val[i])} € (${((val[i] / tot) * 100).toFixed(1)}% do total) · ${g >= 0 ? '+' : ''}${g.toFixed(1)}%`); });
         L.push(`- Total: ${Math.round(tot)} € (investido ${Math.round(pos.reduce((a, x) => a + x[2], 0))} €)`);
     }
+    // o plano dele na app: é daqui que parte o plano do mês (não de um valor fixo)
+    const P = planoDe(journals[0] || null);
+    L.push('## O teu plano mensal (Ajustes e Carteira da app)');
+    L.push(P.bud ? `- Valor por mês nos Ajustes: ${Math.round(P.bud)} €${P.cp > 0 ? ` (${P.cp}% em cripto)` : ''}` : '- Valor por mês nos Ajustes: por indicar');
+    L.push(P.pm.length ? `- Por ativo (Carteira): ${P.pm.map(([k, v]) => `${k} ${Math.round(v)} €`).join(' · ')} (soma ${Math.round(P.pm.reduce((a, x) => a + x[1], 0))} €)`
+        : '- Por ativo (Carteira): por indicar (a app divide o valor dos Ajustes pela parte da cripto)');
+    L.push(P.hz.length ? `- Prazos (Carteira): ${P.hz.map(([k, h]) => `${k} ${HZ_PT[h]}`).join(' · ')}` : '- Prazos (Carteira): por indicar (o que ele tem conta como longo prazo)');
     L.push('## Lições guardadas', ...lessons.map((l) => `- ${l}`));
     if (warn.length) L.push('## Avisos', ...warn.map((w) => `- ${w}`));
     writeFileSync(path.join(OUT, 'dados.md'), L.join('\n'));

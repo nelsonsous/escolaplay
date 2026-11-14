@@ -57,10 +57,10 @@ Na ficha de cada ativo que se compra há um só cartão, **Decisão**: o veredic
 
 | Fonte | Pontuação (0–100) | Peso |
 |---|---|---|
-| Claude | a convicção por prazo (25 % curto, 35 % médio, 40 % longo) | 3 (1,5 se a análise não é a última) |
+| Claude | a convicção por prazo (25 % curto, 35 % médio, 40 % longo; no prazo que escolheste na Carteira, esse pesa mais: longo 5/25/70, médio 15/60/25, curto 60/30/10) | 3 (1,5 se a análise não é a última) |
 | Analistas (Yahoo) | 100 − 25 × (nota − 1); metade do caminho até 50 se o preço já passou o alvo; mais até 10 pontos pelas revisões das estimativas de lucro em 30 dias (quem as sobe puxa para cima) | 2 com 10 analistas ou mais |
 | Fundamentos (Yahoo) | a média do P/E esperado, do crescimento das vendas e da margem de lucro, cada um numa tabela (pelo menos dois) | 1 |
-| Técnica | a pontuação por prazo, com os mesmos pesos | 1,5 |
+| Técnica | a pontuação por prazo, com os mesmos pesos; num ativo de médio ou longo prazo, o lado sai dessa pontuação e não do sinal de dias | 1,5 |
 | Notícias | o tom que o Claude leu na análise de agora (`news`, 0–100); sem ele, 50 + 50 × tom dos títulos | 0,75 |
 | Sentimento | ao contrário (com medo compra-se melhor): na cripto o Fear & Greed, 50 + 0,6 × (50 − índice); nas ações e fundos o VIX, numa tabela | 0,75 |
 

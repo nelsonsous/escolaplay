@@ -89,6 +89,10 @@
         = fk 0 Se _js_ehtxt vk { = fv _js_oget cs_c $"FAM" vk Se != fv 1 = fk I _js_f fv }
         Se && && ~ ref fk _tx_branco rs
             `{ cs_eini }{ crut p }: mandas { ? > fk 0 "entrar" "sair" } ({ _js_ps _js_get v $"action" }): diz em risk o que faria esta decisão estar errada (até 140 caracteres){ cs_efim }`
+        # um ativo que ele tem a longo prazo (Carteira) não leva stop: vende-se se a tese mudar, não por uma queda de preço
+        = rh ? != r 1 _js_get r $"hz" 1
+        Se && _js_eht rh $"long" _js_fin _js_oget v $"stop"
+            `{ cs_eini }{ crut p }: é de longo prazo (Carteira): tira o stop — vende-se se a tese mudar, não por uma queda; diz em risk o que a muda{ cs_efim }`
         # a segunda opinião: a regra automática e a média das outras fontes (fontes.fam do dados.json)
         = ru ? != r 1 _js_get r $"rule" 1
         = cr && && != r 1 _js_v ru && != pu_fam ru 1 != pu_fam vk 1

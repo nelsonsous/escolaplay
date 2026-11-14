@@ -80,7 +80,7 @@ function cartao(s) {
         + `<div class="dec-top"><div class="adv-act ${t}-t">${rot(d.fam, own, d.key === 'reduce')}${d.forte ? ' <small class="adv-forte">forte</small>' : ''}</div>`
         + `<span class="dec-conf c${d.conf}">confiança ${['baixa', 'média', 'alta'][d.conf]}</span></div>`
         + (s.act ? `<div class="adv-nu">${esc(s.act)}</div>` : '') + desde(s)
-        + `<div class="dec-p"><small>Média das fontes</small>${barra(d.p)}</div><div class="dec-voz">${voz(d)}</div>`
+        + `<div class="dec-p"><small>Média das fontes${{ short: ' · prazo curto', mid: ' · prazo médio', long: ' · prazo longo' }[ob(s.d).hz] || ''}</small>${barra(d.p)}</div><div class="dec-voz">${voz(d)}</div>`
         + `<ul class="dec-f">${d.f.map((x, i) => fonte(s, d, x, i)).join('')}</ul>`
         + (arr(s.lv).length ? `<ul class="cl-lv">${arr(s.lv).map((l) => { const o = ob(l); return `<li class="${esc(o.f)}"><small>${esc(o.l)}</small><b class="num">${esc(o.px)}</b><span class="num">${esc(o.d)}</span></li>`; }).join('')}</ul>` : '')
         + (s.hoje ? `<div class="adv-why"><b>Porquê ${s.desce ? 'desce' : 'sobe'} hoje:</b> ${esc(s.hoje)}</div>` : '')
@@ -118,6 +118,7 @@ function caso(r) {
     if (r() < 0.8) d.tec = pz({ key: r() < 0.93 ? um(KEYS.slice(0, 6).concat('avoid')) : um(['x', null]) });
     if (r() < 0.6) d.news = r() < 0.08 ? um([NaN, null, 'x']) : r() * 2 - 1;
     if (r() < 0.4) d.fun = { ...(r() < 0.85 ? { pe: r() < 0.1 ? um([0, -4, null, NaN]) : um([8, 12.5, 15, 22, 28, 28.44, 61]) } : {}), ...(r() < 0.85 ? { cr: r() < 0.08 ? null : Math.round((r() * 70 - 20) * 10) / 10 } : {}), ...(r() < 0.85 ? { mg: r() < 0.08 ? 'x' : Math.round((r() * 60 - 12) * 10) / 10 } : {}) };
+    if (r() < 0.5) d.hz = um(['short', 'mid', 'long', 'long', '', 'x', 3, null]);
     if (r() < 0.45) d.sent = r() < 0.5 ? { fg: r() < 0.08 ? null : Math.round(r() * 100) } : { vix: r() < 0.08 ? um([0, null]) : Math.round((9 + r() * 35) * 10) / 10 };
     return {
         d: r() < 0.02 ? um([null, undefined, 4]) : d, own: um([true, false, false, 1, 0, null, undefined, 'sim']),

@@ -64,6 +64,8 @@ export function buildAdvice(a, dados, uniRows = []) {
         if (risk.trim()) o.risk = risk;
         const fk = typeof o.key === 'string' && Object.hasOwn(FAM, o.key) ? FAM[o.key] : 0;
         if (!ref && fk && !risk.trim()) errs.push(`${p}: mandas ${fk > 0 ? 'entrar' : 'sair'} (${o.action}): diz em risk o que faria esta decisão estar errada (até 140 caracteres)`);
+        // um ativo que ele tem a longo prazo (Carteira) não leva stop: vende-se se a tese mudar, não por uma queda de preço
+        if (r && r.hz === 'long' && Number.isFinite(o.stop)) errs.push(`${p}: é de longo prazo (Carteira): tira o stop — vende-se se a tese mudar, não por uma queda; diz em risk o que a muda`);
         // segunda opinião: o sinal automático (regra) do mesmo ativo; se o veredicto for de outra família
         // (entrar / ficar / sair), o Claude explica porquê discorda. O mesmo se for o contrário da média das outras
         // fontes (fontes.fam do dados.json: os analistas, os fundamentos, a técnica e o sentimento, sem o voto dele)

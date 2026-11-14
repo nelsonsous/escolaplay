@@ -17,8 +17,11 @@
 #   sentimento   o medo do mercado, ao contrário (com medo compra-se melhor)                             peso 0,75
 #                fg   o Fear & Greed da cripto (0 medo … 100 ganância): p = 50 + 0,6 × (50 − fg)
 #                vix  o VIX, nas ações e nos fundos: 12 ou menos 45, 20 → 50, 28 → 65, 35 ou mais 75
-# Nos prazos pesa mais o longo: 25 % o curto, 35 % o médio e 40 % o longo (do que houver). Entre dois pontos de uma
-# tabela vai-se em linha reta. Nos fundamentos e no sentimento a família sai de p: ≥ 58 entrar, ≤ 42 sair.
+# Nos prazos pesa mais o longo: 25 % o curto, 35 % o médio e 40 % o longo (do que houver). Se o investidor diz em que
+# prazo tem o ativo (hz), pesa esse: curto 60/30/10, médio 15/60/25, longo 5/25/70 — no longo prazo, uma queda de
+# dias quase não conta. Entre dois pontos de uma tabela vai-se em linha reta. Nos fundamentos e no sentimento a família
+# sai de p: ≥ 58 entrar, ≤ 42 sair; na técnica, a do sinal automático (que olha para dias e semanas), mas num ativo de
+# médio ou longo prazo sai também de p, com os pesos desse prazo.
 #
 # A DECISÃO: P é a média das pontuações pelos pesos. Manda o Claude, se falou do ativo (a família e o veredicto são
 # os dele; se a análise é de um dia anterior, pesa metade e a confiança desce com isso); sem ele manda o voto:
@@ -29,7 +32,8 @@
 #              média: o resto. As fontes ao lado não contam para a confiança.
 #
 # A ENTRADA (um nó da árvore): { cl: { key, short, mid, long, old }, an: { key, mean, n, target, price, up, down },
-#   fun: { pe, cr, mg }, tec: { key, short, mid, long }, news: tom, sent: { fg } ou { vix } } — o que falta, ou não é
+#   fun: { pe, cr, mg }, tec: { key, short, mid, long }, news: tom, sent: { fg } ou { vix }, hz: "short" | "mid" |
+#   "long" } — o que falta, ou não é
 #   do tipo certo, não conta.
 # O RESULTADO (dc_calc d → r; 0 se nenhuma fonte fala):
 #   r+0 quantas fontes   r+1 família   r+2 forte   r+3 confiança (0 baixa, 1 média, 2 alta)   r+4 manda o Claude
@@ -55,12 +59,18 @@
 : dc_nota i>f k ? eh k $"strong_buy" 1.25 ? eh k $"buy" 2. ? eh k $"hold" 3. ? eh k $"underperform" 4.
   ? eh k $"sell" 4.5 ? eh k $"strong_sell" 5. 0.
 # a pontuação de um nó com short, mid e long (0–100 cada): 25 %, 35 % e 40 % do que houver; -1. se não há nenhuma
-: dc_pz i>f x {
+: dc_pz ii>f x h {
+  # os pesos dos prazos: h 0 sem prazo dito, 1 curto, 2 médio, 3 longo
+  = ws ? == h 1 0.6 ? == h 2 0.15 ? == h 3 0.05 0.25
+  = wm ? == h 1 0.3 ? == h 2 0.6 ? == h 3 0.25 0.35
+  = wl ? == h 1 0.1 ? == h 2 0.25 ? == h 3 0.7 0.4
   = a 0. = w 0.
-  Se dc_e x.short { = a + a * 0.25 dc_c num x.short = w + w 0.25 }
-  Se dc_e x.mid { = a + a * 0.35 dc_c num x.mid = w + w 0.35 }
-  Se dc_e x.long { = a + a * 0.4 dc_c num x.long = w + w 0.4 }
+  Se dc_e x.short { = a + a * ws dc_c num x.short = w + w ws }
+  Se dc_e x.mid { = a + a * wm dc_c num x.mid = w + w wm }
+  Se dc_e x.long { = a + a * wl dc_c num x.long = w + w wl }
   ? > w 0. / a w -1. }
+# o prazo em que o investidor tem o ativo: 1 curto, 2 médio, 3 longo, 0 se não diz
+: dc_hz i>i k ? eh k $"short" 1 ? eh k $"mid" 2 ? eh k $"long" 3 0
 # as tabelas dos fundamentos e do VIX
 : dc_ppe f>f x ? <= x 15. dc_reta x 10. 85. 15. 70. ? <= x 22. dc_reta x 15. 70. 22. 50.
   ? <= x 35. dc_reta x 22. 50. 35. 30. dc_reta x 35. 30. 60. 15.
@@ -75,10 +85,10 @@
 
 # ---------- as fontes ----------
 # o Claude; vale 1 se falou (é ele quem manda)
-: dc_claude ii>i r c {
+: dc_claude iii>i r c h {
   = f dc_fam c.key
   ? == f 9 0 {
-    = p dc_pz c
+    = p dc_pz c h
     dc_poe r 0 f txt c.key ? < p 0. + 50. * 20. F f p ? ha c.old 1.5 3.
     1 } }
 : dc_analistas ii>i r c {
@@ -98,8 +108,9 @@
   Se dc_e c.cr { = a + a dc_pcr num c.cr = n + n 1 }
   Se dc_e c.mg { = a + a dc_pmg num c.mg = n + n 1 }
   Se >= n 2 { = p _nu_round / a F n dc_poe r 4 dc_fp p 0 p 1. } }
-: dc_tecnica ii>i r c {
-  = f dc_fam c.key = p dc_pz c
+: dc_tecnica iii>i r c h {
+  = f dc_fam c.key = p dc_pz c h
+  Se && && != f 9 >= p 0. >= h 2 = f dc_fp p
   Se && != f 9 >= p 0. dc_poe r 2 f txt c.key p 1.5 }
 : dc_noticias ii>i r c
   Se dc_e c {
@@ -114,8 +125,9 @@
 # ---------- a decisão ----------
 : dc_calc i>i d {
   = r A 46
-  = cl dc_claude r d.cl
-  dc_analistas r d.an dc_fund r d.fun dc_tecnica r d.tec dc_noticias r d.news dc_sent r d.sent
+  = h dc_hz d.hz
+  = cl dc_claude r d.cl h
+  dc_analistas r d.an dc_fund r d.fun dc_tecnica r d.tec h dc_noticias r d.news dc_sent r d.sent
   = n @ r
   ? == n 0 0 {
     = sw 0. = sp 0.

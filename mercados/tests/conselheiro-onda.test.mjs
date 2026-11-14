@@ -87,6 +87,16 @@ export function cenarios() {
         ...conselho('2026-11-04', { actions: AC({ NVDA: 'scale', 'c:BTC': 'buy', 'VWCE.DE': 'neutral', TSLA: 7, 'BZ=F': 'flat', MSFT: 'avoid' }) }),
         ...conselho('2026-11-05', { actions: AC({ NVDA: 'buy', 'c:BTC': 'scale', 'VWCE.DE': 'hold', TSLA: 'sell', 'BZ=F': 'up', AAPL: 'buy', MSFT: 'reduce', META: 'talvez' },
             { NVDA: { since: '2026-10-01', was: 'wait' }, 'c:BTC': { since: '2026-11-09', was: 'sell' }, 'VWCE.DE': { since: 20261001 }, 'BZ=F': { since: '2026-11-05', was: '' }, AAPL: { since: '2026-1-05' }, MSFT: { since: '2026-11-05\n' }, META: { since: '2026-11-01', was: 3 } }) }) } });
+    // o plano dele na app (Ajustes e Carteira) e o prazo de cada ativo: certos, estranhos e em falta
+    d('plano: valor por mês e prazo de cada ativo, e o valor dos Ajustes', { semente: 41, kv: { ...dono('p-0001'), ...diario('p-0001', { days: DIAS,
+        lots: { 'VWCE.DE': { plan: '2025-11-02', buys: [], qty: 5.5, cost: 930, pm: 810, hz: 'long' }, 'c:BTC': { plan: '2025-11-02', buys: [], pm: 90.5, hz: 'mid' }, NVDA: { hz: 'short' }, 'c:SOL': { qty: 2, cost: 300 } },
+        plano: { budget: 1600, cryptoPct: 7.5 } }) } });
+    d('plano: só o valor dos Ajustes (o modelo divide-o pela cripto) e prazos estranhos', { semente: 42, kv: { ...dono('p-0002'), ...diario('p-0002', { days: DIAS,
+        lots: { 'VWCE.DE': { hz: 'sempre', pm: -3 }, 'c:BTC': { hz: 3, pm: '90' }, 'c:ETH': 'x', 1234: { hz: 'long' }, NVDA: null },
+        plano: { budget: 1234.56, cryptoPct: 10 } }) } });
+    d('plano: Ajustes sem cripto, a zero, e tipos que não são números', { semente: 43, kv: { ...dono('p-0003'), ...diario('p-0003', { days: DIAS,
+        lots: { 'c:BTC': { hz: 'long' } }, plano: { budget: '900', cryptoPct: null } }) } });
+    d('plano: o valor dos Ajustes sem a parte da cripto', { semente: 44, kv: { ...dono('p-0004'), ...diario('p-0004', { days: DIAS, plano: { budget: 900 } }) } });
     d('títulos com emoji no corte e um nome cortado a meio de um par (URIError nas notícias)', {
         semente: 15, titulosEstranhos: true,
         kv: { ...dono('e-0001'), ...diario('e-0001', { days: { '2026-11-06': [{ s: 'EMOJ.DE', p: 1, a: 'buy' }] }, my: ['EMOJ.DE'] }) },
@@ -186,6 +196,11 @@ export function cenarios() {
     p('contra a média das fontes: sem o porquê (com a regra a favor e sem regra)', analise((v) => { v['c:BTC'] = { ...v['c:BTC'], key: 'buy', short: 60, mid: 60, long: 70, risk: 'perde os 60 000 €', algWhy: ' ' }; v['SEMR.DE'] = { ...SEMR }; v[1234] = { ...v[1234], key: 'reduce', short: 40, mid: 40, long: 40, risk: 'r', algWhy: 'x'.repeat(301) }; }), { dados: comFontes(FT) });
     p('contra a média das fontes: com o porquê (publica, sem alg onde não há regra)', analise((v) => { v['c:BTC'] = { ...v['c:BTC'], key: 'buy', short: 60, mid: 60, long: 70, risk: 'perde os 60 000 €', algWhy: 'As fontes veem a queda; eu vejo o suporte.' }; v['SEMR.DE'] = { ...SEMR, algWhy: 'Veem a dívida; não veem a venda da filial; concordo abaixo de 9 €.' }; }), { dados: comFontes(FT) });
     p('contra a média das fontes: fontes com tipos estranhos não pedem nada', analise((v) => { v['SEMR.DE'] = { ...SEMR, algWhy: 'fica de fora: não há com quem discordar' }; }), { dados: comFontes({ 'VWCE.DE': 'x', NVDA: [1], 'c:BTC': { fam: '1' }, 'BZ=F': { fam: 2 }, 1234: null, 'SEMR.DE': { fam: 0 } }) });
+    // longo prazo (Carteira): sem stop; no curto e no médio, e sem prazo, o stop fica
+    const comHz = (H) => ({ ...DADOS, rows: DADOS.rows.map((r) => ({ ...r, hz: H[r.s] })) });
+    p('longo prazo: o stop é recusado; curto, médio e prazos estranhos aceitam-no', analise((v) => { v['c:BTC'] = { ...v['c:BTC'], entry: 70000, stop: 60000 }; v[1234].stop = 5; }),
+        { dados: comHz({ NVDA: 'long', 'c:BTC': 'mid', 'VWCE.DE': 'long', 1234: 'LONG' }) });
+    p('longo prazo sem stop publica', analise((v) => { delete v.NVDA.stop; }), { dados: comHz({ NVDA: 'long', 'VWCE.DE': 'long', 'c:BTC': 'short' }) });
     p('classificação com erros', analise((v) => v, { rank: { mid: ['VWCE.DE', 'NVDA', 'NVDA', 'BZ=F', 'ZZZ', 7], long: 'x', short: [] } }));
     p('plano, resumo e título em falta', analise((v) => v, { plan: [], tldr: [], headline: '', market: '' }));
     p('a análise não é um objeto', null);
@@ -275,6 +290,15 @@ test('conselheiro em Onda: o mesmo que o JS em todos os cenários (ficheiros, pe
         'talvez desde 2026-11-01']);                   // a série gravada vale mesmo com uma chave desconhecida
     const pq = JSON.parse(dq.b.ficheiros['dados.json']).rows.find((x) => x.s === 'NVDA').prev;
     assert.deepEqual([Object.keys(pq).join(), pq.since, pq.was], ['date,key,action,since,mid,was', '2026-10-01', 'wait']);
+    // o plano dele na app: a secção do dados.md, o prazo nas linhas e o plano de partida do modelo
+    const plq = (re) => { const r = res.find((x) => re.test(x.cena.nome)); return [String(r.b.ficheiros['dados.md']), JSON.parse(r.b.ficheiros['modelo.json']).plan.map((x) => x.s + ' ' + x.amount)]; };
+    const [mdP, plP] = plq(/plano: valor por mês e prazo/);
+    assert.ok(mdP.includes('\n## O teu plano mensal (Ajustes e Carteira da app)\n- Valor por mês nos Ajustes: 1600 € (7.5% em cripto)\n- Por ativo (Carteira): VWCE.DE 810 € · c:BTC 91 € (soma 901 €)\n- Prazos (Carteira): VWCE.DE longo · c:BTC médio · NVDA curto\n## Lições'), mdP.slice(mdP.indexOf('## O teu plano')));
+    assert.match(linha(mdP, 'VWCE.DE'), / \| prazo longo /);
+    assert.match(linha(mdP, 'NVDA'), / \| prazo curto /);
+    assert.deepEqual(plP, ['VWCE.DE 810 €', 'c:BTC 91 €'], 'o plano de partida: o valor por mês de cada ativo');
+    assert.deepEqual(plq(/só o valor dos Ajustes/)[1], ['VWCE.DE 1112 €', 'c:BTC 123 €'], 'sem valor por ativo: o dos Ajustes pela parte da cripto');
+    assert.deepEqual(plq(/sem a parte da cripto/)[1], ['VWCE.DE 900 €']);
     const mal = res.filter((r) => r.d.length);
     for (const r of mal) console.log(`✗ ${r.cena.nome}\n  ${r.d.join('\n  ')}`);
     assert.equal(mal.length, 0, `${mal.length} de ${C.length} cenários diferem`);

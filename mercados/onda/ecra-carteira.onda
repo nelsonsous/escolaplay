@@ -236,7 +236,13 @@
     `<small class="real-gt">O plano mensal</small><div class="real-g2">`
     `<label><small>Desde</small>{ cr_data c k $"plan" }</label>`
     `<label><small>€ por mês</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" min="0" step="10" data-lot="pm" data-k="{ esc k }" value="{ cr_campo c $"pm" 0 }`
-    `" placeholder="` = pd num c.pmDef `{ Se && fin pd > pd 0.0 _nu_ps pd }"></label></div></div>`
+    `" placeholder="` = pd num c.pmDef `{ Se && fin pd > pd 0.0 _nu_ps pd }"></label></div>`
+    # o prazo em que o tem: é dele que partem a decisão e o conselho do Claude (no longo prazo não se vende por uma queda)
+    = h c.hz
+    `<label class="real-hz"><small>Prazo</small><select class="inp" data-lot="hz" data-k="{ esc k }">`
+    `<option value="long"{ Se || eh h $"long" ~ ha h " selected" }>Longo (anos)</option>`
+    `<option value="mid"{ Se eh h $"mid" " selected" }>Médio (semanas a meses)</option>`
+    `<option value="short"{ Se eh h $"short" " selected" }>Curto (dias a semanas)</option></select></label></div>`
     = c seg c }
   `<p class="note">Copia da Trade Republic, na posição de cada ativo, os «Ativos» (a quantidade) e o «Preço médio de compra»: a app calcula o investido. Com eles, conta o que tens hoje (a TR já inclui as compras do plano); a data, se a puseres, entra no gráfico e no rendimento por ano. Sem eles, conta o plano: nos dias de execução dos Ajustes, com o valor do mês dividido por eles, mais as compras avulsas da cripto (na ficha).</p></details>` }
 

@@ -149,11 +149,11 @@ function proxyBody(u) {
 
     const JDOC = { v: 1, days: { '2026-10-01': [{ s: 'NVDA', p: 150, a: 'buy' }, { s: 'TSLA', p: 500, a: 'avoid' }, { s: 'VWCE.DE', p: 150, a: 'buy' }] } };
     let jPosts = 0;
-    const lotPosts = [], claudePosts = [], ownerPosts = [];
+    const lotPosts = [], claudePosts = [], ownerPosts = [], planoPosts = [];
     await ctx.route(/proxy\.test/, (route) => {
         const u = new URL(route.request().url());
         if (u.pathname === '/journal') {
-            if (route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); if ('claude' in b) claudePosts.push(b); if (b.date && b.items) { JDOC.days[b.date] = b.items; jPosts++; } if (b.lots) lotPosts.push(b.lots); return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
+            if (route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); if ('claude' in b) claudePosts.push(b); if (b.date && b.items) { JDOC.days[b.date] = b.items; jPosts++; } if (b.lots) lotPosts.push(b.lots); if (b.plano) planoPosts.push(b.plano); return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
             return route.fulfill({ json: JDOC, headers: { 'Access-Control-Allow-Origin': '*' } });
         }
         if (u.pathname === '/owner' && route.request().method() === 'POST') { const b = JSON.parse(route.request().postData()); ownerPosts.push(b); ME.others = b.others; return route.fulfill({ json: { ok: true }, headers: { 'Access-Control-Allow-Origin': '*' } }); }
@@ -370,7 +370,17 @@ function proxyBody(u) {
     assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.lots['c:ETH'].qty, window.__mk.cfg.lots['c:ETH'].cost]), [0.5, 1200], 'a vírgula e o espaço do teclado do iPhone; o investido = quantidade × preço médio');
     await page.waitForSelector('.real .real-l .row[data-open="c:ETH"]');
     assert.equal(await page.locator('.real svg').count(), 0, 'sem data no Ether: sem gráfico');
+    // o prazo de cada ativo (4.25): por omissão longo no que tem; muda a decisão e vai para o conector (para o Claude)
+    assert.equal(await page.locator('select[data-lot="hz"][data-k="c:ETH"]').inputValue(), 'long');
+    const n0 = lotPosts.length;
+    await lot('c:ETH', 'hz', 'short');
+    assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.lots['c:ETH'].hz, window.__mk.decIn('c:ETH').hz, window.__mk.decIn('VWCE.DE').hz]), ['short', 'short', 'long']);
+    for (let i = 0; i < 40 && !(lotPosts.length > n0 && lotPosts.at(-1)['c:ETH'] && lotPosts.at(-1)['c:ETH'].hz === 'short'); i++) await page.waitForTimeout(250);
+    assert.equal(lotPosts.at(-1)['c:ETH'].hz, 'short', 'o prazo vai para o conector');
+    assert.equal(lotPosts.at(-1)['VWCE.DE'].hz, 'long', 'o que tem e não mudou vai como longo');
+    assert.ok(planoPosts.length && Number.isFinite(planoPosts.at(-1).budget), 'o valor do plano (Ajustes) vai com as compras');
     if (SHOTS) { await page.locator('.real-ed').evaluate((d) => { d.open = true; }); await page.locator('.real-ed').screenshot({ path: path.join(SHOTS, '8e-carteira-editor.png') }); }
+    await lot('c:ETH', 'hz', 'long');
     await lot('c:ETH', 'qd', isoAtras(500));
     await page.waitForSelector('.real svg');
     if (SHOTS) await page.locator('.real').screenshot({ path: path.join(SHOTS, '8c-carteira-real.png') });

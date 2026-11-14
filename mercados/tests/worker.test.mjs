@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, parseCryptoGlobal, cleanSyms } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, cleanPlano, parseCryptoGlobal, cleanSyms } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -370,11 +370,20 @@ test('/journal guarda as compras de cripto sem apagar o diário', async () => {
     await post({ id, lots: { ...lotsAgora, 'c:ETH': { plan: '2025-02-02', buys: [] } } });
     assert.equal(puts, 1, 'com mudanças grava');
     env.JOURNAL.put = put0;
+    // 1.9.0: o valor do plano mensal (Ajustes) também se guarda sozinho, sem apagar o resto
+    assert.equal((await post({ id, plano: { budget: 1600, cryptoPct: 10 } })).status, 200);
+    const d2 = JSON.parse(store.get('j:' + id));
+    assert.deepEqual([d2.plano, Object.keys(d2.days).length, !!d2.lots['c:BTC']], [{ budget: 1600, cryptoPct: 10 }, 2, true]);
     assert.equal((await post({ id })).status, 400);
     assert.equal(cleanLots([]), null);
     // 1.6.0: o que se tem (quantidade e investido) também para os fundos; as compras avulsas só na cripto
     assert.deepEqual(cleanLots({ 'VWCE.DE': { qty: '25.31', cost: 4200, qd: '2024-05-02', buys: [{ d: '2025-01-01', e: 9 }] }, 'c:BTC': { qty: 0.0412, cost: 3800.555 }, 'mau key!': { qty: 1, cost: 1 }, 'c:ETH': { qty: 1 } }),
         { 'VWCE.DE': { plan: '', buys: [], qty: 25.31, cost: 4200, qd: '2024-05-02' }, 'c:BTC': { plan: '', buys: [], qty: 0.0412, cost: 3800.555 } });
+    // 1.9.0: o valor por mês e o prazo de cada ativo; só um deles já chega para guardar o ativo
+    assert.deepEqual(cleanLots({ 'VWCE.DE': { qty: 5, cost: 900, pm: '810', hz: 'long' }, 'c:BTC': { pm: 90.456 }, 'c:SOL': { hz: 'short' }, NVDA: { hz: 'sempre', pm: -5 }, AAPL: { pm: 2e6 } }),
+        { 'VWCE.DE': { plan: '', buys: [], qty: 5, cost: 900, pm: 810, hz: 'long' }, 'c:BTC': { plan: '', buys: [], pm: 90.46 }, 'c:SOL': { plan: '', buys: [], hz: 'short' } });
+    assert.deepEqual([cleanPlano({ budget: '1600', cryptoPct: 10 }), cleanPlano({ budget: 900, cryptoPct: 140 }), cleanPlano({ budget: -1 }), cleanPlano('x'), cleanPlano(null)],
+        [{ budget: 1600, cryptoPct: 10 }, { budget: 900 }, null, null, null]);
 });
 
 test('/fuel/municipios e /fuel?municipio=… (concelho)', async () => {

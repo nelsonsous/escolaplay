@@ -19,11 +19,14 @@ const e = Number.isFinite;
 const obj = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : {});
 const de = (t, k) => (typeof k === 'string' && Object.hasOwn(t, k) ? t[k] : null);
 const c100 = (x) => Math.max(0, Math.min(100, x));
-function prazos(x) {
+// os pesos dos prazos: sem prazo dito 25/35/40; se o investidor diz em que prazo tem o ativo, pesa esse
+const PESOS = { '': [0.25, 0.35, 0.4], short: [0.6, 0.3, 0.1], mid: [0.15, 0.6, 0.25], long: [0.05, 0.25, 0.7] };
+function prazos(x, hz = '') {
+    const [ws, wm, wl] = PESOS[hz];
     let a = 0, w = 0;
-    if (e(x.short)) { a += 0.25 * c100(x.short); w += 0.25; }
-    if (e(x.mid)) { a += 0.35 * c100(x.mid); w += 0.35; }
-    if (e(x.long)) { a += 0.4 * c100(x.long); w += 0.4; }
+    if (e(x.short)) { a += ws * c100(x.short); w += ws; }
+    if (e(x.mid)) { a += wm * c100(x.mid); w += wm; }
+    if (e(x.long)) { a += wl * c100(x.long); w += wl; }
     return w > 0 ? a / w : -1;
 }
 const reta = (x, x0, y0, x1, y1) => (x <= x0 ? y0 : x >= x1 ? y1 : y0 + (x - x0) * (y1 - y0) / (x1 - x0));
@@ -34,9 +37,10 @@ const famP = (p) => (p >= 58 ? 1 : p <= 42 ? -1 : 0);
 const fonte = (f, fam, key, p, w) => ({ f, p: Math.round(c100(p)), fam, w, ...(key === null ? {} : { key }) });
 function decide(d0) {
     const d = obj(d0), fs = [];
+    const hz = ['short', 'mid', 'long'].includes(d.hz) ? d.hz : '';
     let manda = false;
     const cl = obj(d.cl), fc = de(FAM, cl.key);
-    if (fc !== null) { const p = prazos(cl); fs.push(fonte('claude', fc, cl.key, p < 0 ? 50 + 20 * fc : p, cl.old ? 1.5 : 3)); manda = true; }
+    if (fc !== null) { const p = prazos(cl, hz); fs.push(fonte('claude', fc, cl.key, p < 0 ? 50 + 20 * fc : p, cl.old ? 1.5 : 3)); manda = true; }
     const an = obj(d.an), nota = de(NOTA, an.key);
     if (nota !== null && e(an.n) && an.n > 0) {
         const f = nota <= 2 ? 1 : nota >= 4 ? -1 : 0, m = e(an.mean) ? Math.max(1, Math.min(5, an.mean)) : nota;
@@ -52,8 +56,9 @@ function decide(d0) {
     if (e(fun.cr)) { soma += P_CR(fun.cr); quantos++; }
     if (e(fun.mg)) { soma += P_MG(fun.mg); quantos++; }
     if (quantos >= 2) { const p = Math.round(soma / quantos); fs.push(fonte('fundamentos', famP(p), null, p, 1)); }
-    const tec = obj(d.tec), ft = de(FAM, tec.key), pt = prazos(tec);
-    if (ft !== null && pt >= 0) fs.push(fonte('tecnica', ft, tec.key, pt, 1.5));
+    // a técnica: a família do sinal automático; num ativo de médio ou longo prazo, a da pontuação com os pesos desse prazo
+    const tec = obj(d.tec), ft = de(FAM, tec.key), pt = prazos(tec, hz);
+    if (ft !== null && pt >= 0) fs.push(fonte('tecnica', hz === 'mid' || hz === 'long' ? famP(pt) : ft, tec.key, pt, 1.5));
     if (e(d.news)) { const t = Math.max(-1, Math.min(1, d.news)); fs.push(fonte('noticias', t > 0.15 ? 1 : t < -0.15 ? -1 : 0, null, 50 + 50 * t, 0.75)); }
     const sent = obj(d.sent);
     let ps = -1;
@@ -119,6 +124,7 @@ function caso(r) {
     if (r() < 0.45) d.sent = r() < 0.04 ? um([null, 'x', 3]) : r() < 0.5 ? { fg: r() < 0.1 ? um(MAUS) : r() < 0.4 ? um([0, 10, 25, 36, 37, 50, 63, 64, 75, 100, 140, -5]) : Math.round(r() * 100), ...(r() < 0.2 ? { vix: 30 } : {}) }
         : { vix: r() < 0.1 ? um(MAUS.concat(0, -3)) : r() < 0.4 ? um([9, 12, 20, 24, 25, 28, 35, 80]) : 9 + r() * 40 };
     if (r() < 0.6) d.news = r() < 0.1 ? um(MAUS) : r() < 0.4 ? um([0, 0.15, -0.15, 0.16, -0.16, 1, -1, 2, -3, 0.5, -0.5]) : r() * 2 - 1;
+    if (r() < 0.5) d.hz = um(['short', 'mid', 'long', 'long', 'long', '', 'LONG', 3, null]);
     return r() < 0.01 ? um([null, undefined, 3, 'x', []]) : d;
 }
 
@@ -208,4 +214,18 @@ test('as propriedades que contam', () => {
         assert.ok(Number.isInteger(x.p) && x.p >= 0 && x.p <= 100);
     });
     assert.ok(comClaude > 500 && subiu > 300, `${comClaude} ${subiu}`);
+});
+
+test('o prazo do investidor: no longo prazo uma queda de dias não manda vender', () => {
+    // a técnica diz evitar (o sinal olha para dias e semanas), mas a pontuação longa é boa
+    const d = { cl: { key: 'hold', short: 30, mid: 55, long: 80 }, tec: { key: 'avoid', short: 20, mid: 60, long: 80 } };
+    const sem = O.decisao(d), longo = O.decisao({ ...d, hz: 'long' }), curto = O.decisao({ ...d, hz: 'short' });
+    const tec = (x) => x.f.find((y) => y.f === 'tecnica');
+    assert.deepEqual([tec(sem).fam, tec(sem).p], [-1, 58], 'sem prazo: a família do sinal');
+    assert.deepEqual([tec(longo).fam, tec(longo).p], [1, 72], 'longo: 5/25/70, e a família sai da pontuação');
+    assert.deepEqual([tec(curto).fam, tec(curto).p], [-1, 38], 'curto: 60/30/10, a família do sinal');
+    assert.deepEqual([sem.f[0].p, longo.f[0].p, curto.f[0].p], [59, 71, 43], 'a convicção do Claude pesa o mesmo prazo');
+    // o Claude diz reforçar: sem prazo a técnica fica contra; no longo prazo fica a favor
+    const r2 = (hz) => O.decisao({ cl: { key: 'buy', short: 60, mid: 70, long: 80 }, tec: d.tec, hz });
+    assert.deepEqual([r2().contra, r2('long').contra, r2('long').favor], [1, 0, 2], 'no longo prazo a técnica deixa de estar contra');
 });
