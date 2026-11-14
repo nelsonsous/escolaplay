@@ -524,3 +524,14 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-espera-ia p { margin: 0; color: var(--mut); font-size: 14px; line-height: 1.45; }
 @keyframes mu-roda { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mu-espera-ia .roda { animation-duration: 3s; } }
+
+/* 2.45.2 — o texto do pedido cabe todo; o visto «A IA melhora o texto» */
+.mu-campo textarea[data-onda="ptx"] { field-sizing: content; min-height: 96px; max-height: 60vh; resize: none; overflow-y: auto; }
+.mu-check { display: flex; align-items: flex-start; gap: 10px; width: 100%; margin: 10px 0 0; padding: 8px 2px; background: none; border: 0;
+    color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mu-check .cx { flex: none; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-top: 1px;
+    border-radius: 7px; box-shadow: inset 0 0 0 2px var(--line2); font-size: 14px; font-weight: 800; }
+.mu-check[aria-checked="true"] .cx { background: var(--fg); color: var(--bg); box-shadow: none; }
+.mu-check > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.mu-check b { font-size: 14.5px; font-weight: 650; }
+.mu-check i { font-style: normal; color: var(--mut); font-size: 12.5px; }

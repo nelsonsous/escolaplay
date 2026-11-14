@@ -1510,13 +1510,13 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
     const t = JSON.parse(await env.KV.get('tidal:tokens'));
     delete t.iaCfEm;
     await env.KV.put('tidal:tokens', JSON.stringify(t));
-    let pedidosIA = 0, falhaMelhorar = false, atraso = 0;
+    let pedidosIA = 0, falhaMelhorar = false, atraso = 0, nomeIA = '';
     const MELHORADO = 'Jazz modal calmo para o fim do dia, energia baixa: Miles Davis, John Coltrane e Bill Evans.';
     env.AI = { run: async (modelo, entrada) => {
         pedidosIA++;
         if (atraso) await new Promise((ok) => setTimeout(ok, atraso));
         if (/^És um curador de música\. Uma pessoa escreveu/.test(entrada.messages[0].content)) return { response: falhaMelhorar ? 'não sei' : JSON.stringify({ texto: MELHORADO, porque: 'Juntei a energia e três exemplos.' }) };
-        return { response: JSON.stringify({ nome: falhaMelhorar ? 'Fado ao jantar' : 'Modal ao fim do dia', musicas: [{ artista: 'Miles Davis', titulo: 'So What' }, { artista: 'Nina Simone', titulo: 'Feeling Good' }] }) };
+        return { response: JSON.stringify({ nome: nomeIA || (falhaMelhorar ? 'Fado ao jantar' : 'Modal ao fim do dia'), musicas: [{ artista: 'Miles Davis', titulo: 'So What' }, { artista: 'Nina Simone', titulo: 'Feeling Good' }] }) };
     } };
     await env.KV.put('codigo:ligacao', createHash('sha256').update('NAHORA-1').digest('hex'));
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
@@ -1551,7 +1551,7 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         const ja = corpo.locator('.mu-duo [data-onda="pedir"]');
         await ja.click();
         await sug.waitFor();
-        assert.equal(await sug.locator('.mu-sug-q').innerText(), 'Antes de criar, o Mistral Small sugere:');
+        assert.equal(await sug.locator('.mu-sug-q').innerText(), 'O teu texto, mais apurado pelo Mistral Small:');
         assert.equal(await sug.locator('.mu-sug-t').innerText(), MELHORADO);
         assert.equal(await sug.locator('.mu-nota').innerText(), 'Juntei a energia e três exemplos.');
         await sug.getByRole('button', { name: 'Ajustar' }).click();
@@ -1605,6 +1605,30 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         await page.locator('.mu-folha').waitFor({ state: 'detached' });
         falhaMelhorar = false;
         for (let i = erros.length - 1; i >= 0; i--) if (/status of 502/.test(erros[i])) erros.splice(i, 1); // (o 502 deste passo é o esperado)
+        // o texto do pedido cabe todo: a caixa cresce com ele
+        await nav(3);
+        const caixa = corpo.locator('[data-onda="ptx"]');
+        await caixa.fill('Playlist instrumental e calma para estudar, energia baixa, lo-fi e piano acústico, focada na concentração, '.repeat(4));
+        assert.ok(await caixa.evaluate((e) => e.scrollHeight <= e.clientHeight + 4), 'sem texto escondido');
+        // o visto «A IA melhora o texto do pedido antes de criar»: ligado por omissão; desligado, cria logo, sem sugestão
+        const visto = corpo.locator('[data-onda="sug_auto"]');
+        assert.equal(await visto.getAttribute('aria-checked'), 'true', 'ligado por omissão');
+        assert.match(await visto.innerText(), /^✓\s*A IA melhora o texto do pedido antes de criar/);
+        await visto.click();
+        await page.waitForFunction(() => document.querySelector('#mu-body [data-onda="sug_auto"]')?.getAttribute('aria-checked') === 'false');
+        await caixa.fill('Bossa nova ao domingo');
+        nomeIA = 'Bossa ao domingo';
+        const n0 = pedidosIA;
+        await corpo.locator('.mu-duo [data-onda="pedir"]').click();
+        await page.locator('.mu-folha .mu-feita').waitFor();
+        assert.equal(pedidosIA, n0 + 1, 'só a IA que escolhe as músicas: sem sugestão');
+        await page.keyboard.press('Escape');
+        await page.locator('.mu-folha').waitFor({ state: 'detached' });
+        nomeIA = '';
+        await nav(3);
+        assert.equal(await corpo.locator('[data-onda="sug_auto"]').getAttribute('aria-checked'), 'false', 'o aparelho lembra-se');
+        await corpo.locator('[data-onda="sug_auto"]').click(); // (volta a ligar)
+        await page.waitForFunction(() => document.querySelector('#mu-body [data-onda="sug_auto"]')?.getAttribute('aria-checked') === 'true');
         // desligar nos Ajustes
         await nav(5);
         const linha = corpo.locator('.mu-iacf');

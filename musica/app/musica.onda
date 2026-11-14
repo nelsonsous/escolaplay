@@ -850,17 +850,20 @@
 # pedido; a pessoa escolhe: criar com ela, ajustá-la (vai para o texto) ou manter o seu. Em @47: vazio (ainda não
 # houve sugestão); «PJ»/«PM» à espera dela (J: já, com a IA; M: com o Claude); «S?», tab, texto, tab, porquê, tab,
 # quem a fez (a sugestão à vista); «RJ»/«RM» (já vista: o toque seguinte cria). Mudar de vista esquece tudo.
+: sug_on >i { = v _an_ler $"sugerir" ~ && v mesmo v $"0" }
+: sug_visto >i { = on sug_on
+  `<button type="button" class="mu-check" role="switch" aria-checked="{ ? on "true" "false" }" data-onda="sug_auto"><span class="cx" aria-hidden="true">{ Se on "✓" }</span><span><b>A IA melhora o texto do pedido antes de criar</b><i>Mostra-te a sugestão: usas, ajustas ou manténs o teu.</i></span></button>` }
 : sug_bloco >i {
   Se == _tx_b @ 47 0 83 {
       = qm _tx_campo @ 47 3 9 = pq _tx_campo @ 47 2 9
-      `<div class="mu-sugestao"><p class="mu-sug-q">Antes de criar{ Se _tx_len qm `, o { esct qm } sugere` }:</p><p class="mu-sug-t">{ esct _tx_campo @ 47 1 9 }</p>{ Se _tx_len pq `<p class="mu-nota">{ esct pq }</p>` }`
+      `<div class="mu-sugestao"><p class="mu-sug-q">O teu texto, mais apurado{ Se _tx_len qm ` pelo { esct qm }` }:</p><p class="mu-sug-t">{ esct _tx_campo @ 47 1 9 }</p>{ Se _tx_len pq `<p class="mu-nota">{ esct pq }</p>` }`
       `<div class="mu-acoes"><button type="button" class="mu-btn peq" data-onda="sug_usar">Criar com esta</button><button type="button" class="mu-btn sec peq" data-onda="sug_ajustar">Ajustar</button><button type="button" class="mu-btn sec peq" data-onda="sug_manter">Manter o meu</button></div></div>` } }
 : melhorar_enviar >i ? ocupado 0 {
     = r _tx_abre + 200 * 7 _tx_len @ 20 `POST /api/pedidos/melhorar{ P 10 }\{"texto":{ pjs @ 20 }\}`
     pede _tx_fecha r 37 render 0 }
 # tocar em criar: com a playlist na hora ligada e sem sugestão vista, primeiro a sugestão; senão, cria logo
 : pedir_tocar i>i mm {
-  ? && && == tipo _ar_get @ 3 $"iaCf" 3 ~ _tx_len @ 47 >= _tx_len @ 20 3 { tcopia @ 47 ? mm $"PM" $"PJ" 10 melhorar_enviar 0 }
+  ? && && && == tipo _ar_get @ 3 $"iaCf" 3 sug_on ~ _tx_len @ 47 >= _tx_len @ 20 3 { tcopia @ 47 ? mm $"PM" $"PJ" 10 melhorar_enviar 0 }
     { tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 } }
 # o caminho guardado com a sugestão (M: com o Claude)
 : sug_mm >i == _tx_b @ 47 1 77
@@ -875,11 +878,11 @@
 : v_pedir >i {
   `<header class="mu-head"><div><h1>Pedir</h1><div class="sub">Ao Maestro, que pesquisa e cria no teu Tidal</div></div>{ pill }</header>`
   Se && @ 3 ~ acesso boas_vindas
-  `<div class="mu-card"><h3>O que te apetece ouvir?</h3><label class="mu-campo"><span class="sr">Pedido</span><textarea data-onda="ptx" maxlength="500" placeholder="Ex.: jazz dos anos 60 bem gravado para a viagem de sábado">{ esct @ 20 }</textarea></label>`
+  `<div class="mu-card"><h3>O que te apetece ouvir?</h3><label class="mu-campo"><span class="sr">Texto do pedido</span><textarea data-onda="ptx" maxlength="500" placeholder="Ex.: jazz dos anos 60 bem gravado para a viagem de sábado">{ esct @ 20 }</textarea></label>`
   # o botao logo a seguir ao texto: com o teclado aberto (iPhone) fica a vista
   = pt pd_tem @ 19 = nh == tipo _ar_get @ 3 $"naHora" 3 = ia == tipo _ar_get @ 3 $"iaCf" 3 = iap == tipo _ar_get @ 3 $"iaCfPode" 3
   = ac && @ 31 == @ 34 6 = am && @ 31 == @ 34 37
-  Se ia sug_bloco
+  Se ia { sug_visto sug_bloco }
   = ianm ? mesmo txt _ar_get @ 3 $"iaEscolha" $"gemini" $"Gemini" ? mesmo txt _ar_get @ 3 $"iaEscolha" $"mistral" $"Mistral Large" $"Mistral Small"
   ? && ia ~ pt {
       `<div class="mu-duo"><button type="button" class="mu-btn mu-duo-b" data-onda="pedir"{ ? && acesso ~ || ac am 0 " disabled" }><b>⚡ Já, com o { esct ianm }</b><span>{ ? ac "a criar no Tidal…" ? am "a ler o pedido…" "em segundos" }</span></button><button type="button" class="mu-btn mu-duo-b" data-onda="pedir_m"{ ? && acesso ~ || ac am 0 " disabled" }><b>✦ Com o Claude</b><span>em minutos · mais apurada</span></button></div>` 0 }
@@ -1133,7 +1136,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.45.1 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.45.2 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»
@@ -1264,6 +1267,7 @@
   ? mesmo a $"rever" { rever_pedir 0 }
   ? mesmo a $"ia_gosto" { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"gosto":{ ? mesmo b $"1" "true" "false" }\}` 38 0 } }
   # a sugestão: criar com ela; ajustá-la (vai para o texto; o toque seguinte cria); manter o meu (cria com ele)
+  ? mesmo a $"sug_auto" { ? sug_on { _an_gravar $"sugerir" $"0" 0 } { _an_gravar $"sugerir" 0 0 } render 0 }
   ? mesmo a $"sug_usar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 }
   ? mesmo a $"sug_ajustar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 ? mm $"RM" $"RJ" 10 render aviso $"Ajusta o texto e toca outra vez em criar." 0 }
   ? mesmo a $"sug_manter" { = mm sug_mm tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 }
