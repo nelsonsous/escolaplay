@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Música",
   "short_name": "Música",
-  "description": "Playlists de qualidade para o Tidal: o Claude analisa o que ouves e o que está a dar, e o motor de curadoria escrito na Onda escolhe e ordena.",
+  "description": "Playlists de qualidade para o Tidal: uma IA analisa o que ouves e o que está a dar, e o motor de curadoria escrito na Onda escolhe e ordena.",
   "lang": "pt-PT",
   "start_url": "./",
   "scope": "./",

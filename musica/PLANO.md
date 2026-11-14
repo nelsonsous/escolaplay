@@ -33,7 +33,20 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 | **7** ✔ | **Três separadores: Música · Pedir · Ajustes.** «O teu gosto» é o primeiro cartão dos Ajustes, fechado até se querer ver: aberto, mostra o mesmo que o separador mostrava (o que se está a ouvir, artistas, décadas, géneros, qualidade, favoritas, as tuas playlists no Tidal e «Atualizar do Tidal»). | Sai a vista 4 como separador (`cartao_gosto`); o perfil e as tendências só se pedem ao conector quando o cartão se abre; a barra e os gestos passam a três. |
 | **8** ✔ | App Store (1): a app nativa leva a app lá dentro (abre sem rede, não depende do site) e o login do Tidal volta a ela. Nos Ajustes, **«A tua conta»**: o que se guarda e **«Apagar a minha conta»** (pergunta primeiro; as playlists do Tidal ficam). Páginas de **privacidade** e de **apoio**. Os textos dizem «uma IA» em vez de marcas de terceiros. | `nativo/montar.mjs` monta a app em `www/` e no projeto iOS (o «npm run onda» chama-o; os testes conferem que está em dia e que a app montada abre sozinha). Worker 1.22.0: `DELETE /api/conta` e o regresso do login à app (`capacitor://localhost`). Não foi experimentado num iPhone. |
 | **9** ✔ | **O Maestro na hora**: com o gatilho da tarefa agendada ligado ao conector, um pedido chama-o logo e a playlist fica pronta em minutos; a app diz «uns minutos» e vai ver sozinha se já acabou. **Autorização para a IA** antes de ligar o Tidal («Concordo e ligar»). **O que a loja pede** está em [`loja/LEIA.md`](loja/LEIA.md): textos, formulário de privacidade, notas para a revisão, ecrãs. Os **avisos nativos não foram feitos** (precisam do programa pago e de um Mac). | Worker 1.23.0: chama o gatilho «API» da tarefa (segredos `MAESTRO_FIRE_URL` e `MAESTRO_TOKEN`), sem corridas a dobrar; `POST /api/consentir`. Os scripts recusam um pedido já tratado. O caminho para a API está em «Agilidade», mais abaixo. |
-| **10** | Nada à vista: limpeza. | Os scripts do Maestro na Onda fluida e na biblioteca nova (sai o `lib/app.onda`), o que ficou sem uso fora, documentação e auditoria. |
+| **10** ✔ | Nada à vista: auditoria e limpeza. | Sem funções por usar na app (conferido pelo código, não pelo texto); saíram um ícone e cinco regras de estilo sem uso; os textos da app e do manifesto deixaram de nomear marcas onde não é preciso; a documentação foi conferida com o que a app faz. **Não foi feito:** passar os scripts do Maestro para a Onda fluida e a biblioteca nova (ver «O que ficou por fazer»). |
+
+## O que ficou por fazer
+
+As dez voltas estão feitas e publicadas (Música 2.34.1, conector 1.23.0). Fica isto, por ordem do que mais importa:
+
+| O quê | Porquê ficou | O que é preciso |
+|---|---|---|
+| **Experimentar a app nativa** no simulador e num iPhone | aqui não há Mac nem Xcode: o projeto iOS foi montado e conferido só por testes | abrir `nativo/ios/App/App.xcodeproj` no Xcode e experimentar «Ligar ao Tidal» |
+| **Ligar o Maestro na hora** | o token do gatilho só tu o podes criar | os três passos de «Agilidade», mais abaixo |
+| **Confirmar os termos do TIDAL** para uma app pública | é uma decisão e uma leitura tuas | developer.tidal.com (primeiro ponto de [`loja/LEIA.md`](loja/LEIA.md)) |
+| **Avisos nativos** (dentro da app do iPhone) | precisam do programa pago da Apple e de mexer no projeto no Xcode | um plugin de notificações no projeto e uma chave da Apple guardada no conector |
+| **Os scripts do Maestro na biblioteca nova da Onda** (`curador/onda/`, 1200 linhas) | é uma reescrita grande, com as suas próprias funções de JSON e de texto, e a ferramenta de conversão não conhece tudo o que eles usam; feita à pressa punha em risco as playlists de todos os dias | uma sessão só para isso, com os testes de paridade (a versão em JavaScript) como juiz |
+| **Testar com o Tidal a sério** o que só correu no simulador: trocar, juntar, «Mais como esta» com revisão, apagar a conta | os testes usam um Tidal simulado | usar a app uns dias e dizer o que falhar |
 
 ## Agilidade: três degraus
 
