@@ -128,6 +128,9 @@ Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.j
 | 113 / 114 / 115 | chave t / chave ms / – | memória da sessão: guarda t / o texto guardado há menos de ms (ou 0) / esquece tudo |
 | 117 | "url⇥ms" fn | o `fetch` da 102 com memória: uma resposta 200 desse url guardada há menos de ms é dada logo a `fn` (vale 1); senão vai à rede e guarda a que chegar |
 | 118 | sel | rola a página até ao elemento `sel` (vale 1 se existe); com 0, até ao topo (uma vista nova abre no topo) |
+| 119 | sel txt | como a 100, mas mexe só no que mudou: um nó que continua igual é o mesmo nó (as imagens não piscam, uma animação a meio continua, um campo não perde o cursor); os filhos com `data-chave` (ou `id`) emparelham-se pela chave |
+
+Depois de desenhar (100 e 119), o elemento recebe o evento `onda-desenho`, que sobe pela página: é o sinal de «a app desenhou» para a casca (com a 119 pode não mudar nó nenhum). Quem o ouve não chama a app de dentro dele.
 
 - **Scripts (Node):** `rt/anfitriao-node.js` corre um módulo como um programa de linha de comando, com as portas do runtime, as 103/104/108/109 de cima e estas (as mesmas regras: o `main` corre uma vez e cada resposta chama uma função da Onda):
 
@@ -167,7 +170,7 @@ cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala
 | `ordenar` | `_or_` | o `sort` do V8, comparação a comparação: o PowerSort do Chromium e o TimSort do Node 22, com o comparador num código |
 | `html` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
 | `grafico` | `_gr_` | gráficos em SVG: o caminho (`d`) de uma série de inteiros, em linha (`_gr_linha`) ou em curva suave (`_gr_curva`), à escala de uma caixa; só inteiros, igual ao byte à mesma conta em JS |
-| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–118` e `Y 200–214`) com nomes |
+| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–119` e `Y 200–214`) com nomes |
 | `fala` | (sem `_`) | a fala das apps, opcional: nomes curtos para ler um nó (`ha`, `eh`, `num`, `int`, `txt`, `pri`, `seg`…), escrever (`esc`, `cru`, `plural`), o texto de um molde (`` texto`…` ``), números pt-PT (`casas`, `ate`, `inteiro`, `moeda`) e ações dos botões (`acao`, `arg`, `eacao`). Com os moldes e o ponto: `` `<b>{ esc c.nome }</b>` `` |
 
 - **Nomes:** `_` + o prefixo do módulo + `_` + o nome. As apps não começam nomes por `_` e o runtime não usa um segundo `_`: não

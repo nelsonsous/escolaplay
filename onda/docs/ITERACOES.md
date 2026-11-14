@@ -3012,3 +3012,30 @@ ou de fixada. O motor de curadoria corre no telemóvel e o juiz dos testes confe
 O contexto do motor passou a ser um só (`ctx_cands`) para o afinar e para a troca de uma faixa. A vista 2 da app
 desapareceu.
 
+
+## Iteração 157: mudar só o que mudou (porta 119, `_ht_muda`) — a Música sem imagens a piscar (2.30.1)
+
+**O problema.** Desenhar era `innerHTML`: a cada toque (ouvir, trocar uma faixa) a app escrevia a lista outra vez e
+o browser fazia todos os nós de novo. As capas piscavam, uma animação a meio recomeçava e perdia-se a fluidez.
+
+**A porta.** `Y 119 sel txt` (`_an_muda`; na biblioteca, `_ht_muda sel t` ao lado do `_ht_poe`) recebe o mesmo HTML,
+mas o anfitrião compara-o com o que está no ecrã e mexe só no que é diferente. Os filhos emparelham-se pela ordem e
+pelo nome; os que têm `data-chave` (ou `id`), pela chave — numa lista, tirar, trocar ou mudar um item de sítio não
+toca nos outros. Um nó que continua igual é o mesmo nó. Duas regras para o que é de quem usa a página: o valor de um
+campo é o que a app escreveu (uma app que acompanha o `input` fica com o texto e o cursor; limpar na app limpa no
+ecrã), e o `open` de um `<details>` não sai só porque o HTML novo não o traz. A app continua a escrever o ecrã
+inteiro num molde, sem saber o que lá estava: quem compara é o anfitrião.
+
+**O sinal.** Com a 119 pode não mudar nó nenhum, e uma casca que esperava por uma mudança no DOM ficava à espera.
+Depois de desenhar (100 e 119) o elemento recebe o evento `onda-desenho`.
+
+**A meio de uma atualização.** Um telemóvel pode ficar um momento com a app nova e o anfitrião antigo (sem a 119).
+O `_ht_muda` cai então no `_ht_poe`: desenha como dantes, em vez de deixar o ecrã em branco.
+
+**Os testes.** `test/mudar.test.js` (num browser a sério): o resultado é igual ao do `innerHTML` em 400 árvores ao
+acaso e nos casos difíceis (chaves repetidas, listas sem chave, SVG, campos, `<details>`), e os nós que ficam são os
+mesmos. Na Música, os testes de interface marcam as capas e as linhas e conferem que tocar no ▶, trocar e tirar uma
+faixa e atualizar a lista não as refazem — só a linha que mudou é nova.
+
+**Na Música.** A página e os pedaços da folha desenham-se com `_ht_muda`; uma vista nova desenha-se de raiz (começa
+limpa). A chave de uma linha é a faixa que se vê.

@@ -38,8 +38,9 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   Só aceita pedidos com a **chave do aparelho** (criada quando ligas o Tidal) ou a **chave do agente** (o Maestro).
 - **App em Onda** ([`app/musica.onda`](app/musica.onda)) — na Onda fluida (moldes, o ponto, a fala e moldes com
   nome), monta-se com a biblioteca da Onda (`onda/lib`) e o motor (`node musica/onda/compilar.mjs`, que tira da fonte
-  as funções que o anfitrião chama) e corre no anfitrião das apps Onda. O plano da revisão em dez voltas está em
-  [`PLANO.md`](PLANO.md). Os ecrãs:
+  as funções que o anfitrião chama) e corre no anfitrião das apps Onda. O ecrã desenha-se com `_ht_muda`: a app
+  escreve o HTML e o anfitrião mexe só no que é diferente (as capas não piscam, a lista não salta). O plano da
+  revisão em dez voltas está em [`PLANO.md`](PLANO.md). Os ecrãs:
   Playlists (cada uma abre numa **folha** que é o único sítio onde se mexe nela: ouvir 30 s, **⇄ trocar uma faixa**
   por outra — vê-se logo e fica gravada no Tidal —, arrastar para a esquerda para a tirar, «Desfazer», o «⋯» para
   mudar o nome, atualizar sozinha e apagar, «Sobre esta playlist» com o porquê e a mistura, tocar no título de uma

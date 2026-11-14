@@ -50,6 +50,9 @@ node --test onda/test/molde.test.js     # abre a app num Chromium e usa-a
 - **Desenhar é escrever HTML para um lugar.** `= h _ht_ini n … _ht_poe $"#lista" h`: tudo o que se escreve pelo meio
   vai para esse elemento. Cada pedaço do ecrã tem a sua função (`dlista`, `dfiltros`, `dabas`, `dfolha`); um evento
   redesenha só o que mudou (escrever na procura só refaz a lista, por isso o campo não perde o cursor).
+  Com `_ht_muda` em vez de `_ht_poe`, o anfitrião compara o HTML novo com o que lá está e mexe só no que é
+  diferente: as imagens não piscam e a lista não salta. Os itens de uma lista levam `data-chave` (o id), para
+  tirar ou trocar um não mexer nos outros.
 - **O que vem de fora é sempre escapado** (`esc` para um nó, `esct` para um texto). O exemplo tem um `<` e um `&` nos dados para o teste o provar.
 - **Números e datas como o utilizador os lê:** `inteiro x` e `casas x d` são o `Intl.NumberFormat('pt-PT')`, igual ao bit.
 - **A rede pode falhar:** `lido` recebe o estado HTTP; o ecrã diz «Sem ligação» e deixa tentar outra vez.

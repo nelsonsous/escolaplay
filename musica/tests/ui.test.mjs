@@ -91,6 +91,12 @@ async function esperado(doc, op, { tiradas = new Set(), fixas = new Set(), junta
 }
 const naFolha = (page) => page.$$eval('.mu-folha .mu-xf li[data-esq]', (ls) => ls.map((l) => l.dataset.esq.split('\t')[1]));
 const heap = (page) => page.evaluate(() => Number(new BigInt64Array(window.app.exports.memory.buffer, 15 * 8, 1)[0]));
+// as imagens não piscam: marca os nós <img> que estão no ecrã e, depois de uma ação, conta os que são os mesmos nós
+const marcarImgs = (page, sel = '.mu-folha img') => page.evaluate((sel) => { const l = document.querySelectorAll(sel); for (const i of l) i.__marca = 1; return l.length; }, sel);
+const mesmasImgs = (page, sel = '.mu-folha img') => page.evaluate((sel) => { const l = [...document.querySelectorAll(sel)]; return [l.length, l.filter((i) => i.__marca).length]; }, sel);
+// o mesmo para as linhas das faixas: a Onda só mexe na linha que mudou (as outras são os mesmos nós)
+const marcarLinhas = (page) => page.$$eval('.mu-folha .mu-xf li[data-esq]', (ls) => { for (const l of ls) l.__no = 1; return ls.length; });
+const mesmasLinhas = (page) => page.$$eval('.mu-folha .mu-xf li[data-esq]', (ls) => ls.map((l) => l.__no === 1));
 
 test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, enviar, gosto, ajustes e pedir', { skip: !chromium && 'sem Playwright' }, async () => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1, serviceWorkers: 'block' });
@@ -172,14 +178,19 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const previa = (await page.locator('.mu-pl.aberta [data-onda^="ouvir"]').first().getAttribute('data-onda')).split('\t')[1];
     assert.match(previa, /^https:\/\/(audio|cdn\.deezer)\.example\//);
     await page.evaluate(() => { window.musicaLeitor.play = () => Promise.resolve(); }); // (sem ir à rede no teste)
+    // as imagens não piscam: a Onda muda só o que mudou (porta 119), as capas ficam as mesmas (não voltam a carregar)
+    const nImg = await marcarImgs(page);
+    assert.ok(nImg > 4, `há capas na folha (${nImg})`);
     await page.locator('.mu-pl.aberta [data-onda^="ouvir"]').first().click();
     assert.equal(await page.evaluate(() => window.musicaLeitor.src), previa, 'toca a pré-escuta (o leitor do anfitrião da Onda)');
     // a Onda sabe o que está a tocar: o ▶ dessa faixa fica marcado
     await page.locator('.mu-pl.aberta .mu-ouvir.a-tocar[aria-pressed="true"]').waitFor();
     assert.equal(await page.locator('.mu-pl.aberta .mu-ouvir.a-tocar').count(), 1);
+    assert.deepEqual(await mesmasImgs(page), [nImg, nImg], 'tocar no ▶ não mexe nas imagens');
     // quando o som acaba, a Onda sabe-o (porta 112) e o ▶ desmarca-se
     await page.evaluate(() => window.musicaLeitor.dispatchEvent(new Event('ended')));
     await page.locator('.mu-pl.aberta .mu-ouvir.a-tocar').waitFor({ state: 'detached' });
+    assert.deepEqual(await mesmasImgs(page), [nImg, nImg], 'nem quando o som acaba');
     // as capas dos álbuns nas faixas: do Tidal, e do Deezer quando o Tidal não tem (as outras ficam com o quadrado cinzento)
     const srcs = await page.locator('.mu-pl.aberta .mu-xf .cp img').evaluateAll((l) => l.map((i) => i.getAttribute('src')));
     assert.ok(srcs.some((u) => /^https:\/\/resources\.tidal\.com\/images\/[0-9a-f/]+\/160x160\.jpg$/.test(u)), 'capas do Tidal');
@@ -345,14 +356,14 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('.mu-folha .mu-xf li.af.fixa').first().waitFor();
     await juiz('com uma fixada');
     // o deslizador (eventos "input"): o motor corre a cada passo, o deslizador não é redesenhado e o monte não cresce
-    await page.locator('[data-onda="af-n"]').evaluate((e) => { e.dataset.marca = '1'; });
+    await page.locator('[data-onda="af-n"]').evaluate((e) => { e.__marca = 1; });
     const h0 = await heap(page);
     for (let i = 0; i < 60; i++) await page.evaluate((v) => { const e = document.querySelector('[data-onda="af-n"]'); e.value = String(v); e.dispatchEvent(new Event('input', { bubbles: true })); }, 6 - (i % 2));
     await page.evaluate(() => { const e = document.querySelector('[data-onda="af-n"]'); e.value = '5'; e.dispatchEvent(new Event('input', { bubbles: true })); });
     op.faixas = 5;
     await juiz('5 faixas pelo deslizador');
     assert.equal(await page.locator('#af-nv').textContent(), '5');
-    assert.equal(await page.locator('[data-onda="af-n"]').getAttribute('data-marca'), '1', 'o deslizador é o mesmo (não se perde o dedo)');
+    assert.equal(await page.locator('[data-onda="af-n"]').evaluate((e) => e.__marca), 1, 'o deslizador é o mesmo (não se perde o dedo)');
     assert.ok((await heap(page)) - h0 < 200, `o monte cresceu ${(await heap(page)) - h0} palavras em 61 eventos`);
     await foto('2-afinar');
 
@@ -416,7 +427,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.getByRole('heading', { name: 'Como correu' }).waitFor();
     await page.getByText('Ainda é cedo.').waitFor();
     // o «⋯» da folha: atualizar sozinha, mudar o nome e apagar — a folha fica onde estava (não volta a subir)
-    await page.locator('.mu-folha').evaluate((f) => { f.scrollTop = 120; f.dataset.marca = '1'; });
+    await page.locator('.mu-folha').evaluate((f) => { f.scrollTop = 120; f.__marca = 1; });
     assert.equal(await page.getByRole('button', { name: 'Mudar o nome' }).count(), 0, 'o menu começa fechado');
     await page.getByRole('button', { name: 'Mais opções' }).click();
     await page.getByRole('button', { name: 'Desligado' }).waitFor();
@@ -438,7 +449,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     const renomeada = JSON.parse(await env.KV.get('playlist:' + JSON.parse(await env.KV.get('playlists'))[0].id));
     assert.deepEqual([renomeada.nome, renomeada.descricao], ['Som do BMW', 'Para testar o carro.']);
     if (renomeada.tidal) assert.equal(sim.renomeadas.at(-1).name, 'Som do BMW');
-    assert.deepEqual(await page.locator('.mu-folha').evaluate((f) => [f.dataset.marca, f.scrollTop > 0]), ['1', true], 'a folha é a mesma e ficou onde estava');
+    assert.deepEqual(await page.locator('.mu-folha').evaluate((f) => [f.__marca, f.scrollTop > 0]), [1, true], 'a folha é a mesma e ficou onde estava');
     // apagar pergunta primeiro; «Não» volta atrás
     await page.getByRole('button', { name: 'Mais opções' }).click();
     await page.locator('.mu-menu').getByRole('button', { name: 'Apagar' }).click();
@@ -599,6 +610,8 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(JSON.parse(await env.KV.get('pedidos')).some((x) => x.id === pedido.id), false, 'o pedido foi cancelado');
     // no topo da página, puxar para baixo atualiza (o motor de gestos decide; a Onda volta a pedir os dados)
     await page.waitForLoadState('networkidle');
+    const nLista = await marcarImgs(page, '#mu-body .mu-pl, #mu-body .mu-pl img');
+    assert.ok(nLista > 2, `há cartões com capa na lista (${nLista})`);
     const atualizou = page.waitForRequest((r) => r.url().includes('/api/pedidos'));
     await page.evaluate(async () => {
         const el = document.querySelector('#mu-body h1');
@@ -609,8 +622,11 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
         el.dispatchEvent(new TouchEvent('touchend', { touches: [], bubbles: true, cancelable: true }));
     });
     assert.equal(await page.locator('#mu-ptr').textContent(), 'A atualizar…');
+    const tAtu = Date.now();
     await atualizou;
     await page.waitForFunction(() => document.querySelector('#mu-ptr').textContent === '');
+    assert.ok(Date.now() - tAtu < 2500, `o «A atualizar…» acaba quando a app volta a desenhar, mesmo que nada tenha mudado (${Date.now() - tAtu} ms)`);
+    assert.deepEqual(await mesmasImgs(page, '#mu-body .mu-pl, #mu-body .mu-pl img'), [nLista, nLista], 'atualizar não mexe nos cartões nem nas capas da lista (não piscam)');
 
     // 7) as ideias do Maestro (as do momento), as propostas para escolher, «não esta» e afinar com o Maestro
     const agente7 = await env.KV.get('agente:chave');
@@ -849,8 +865,12 @@ test('trocar uma faixa (⇄): o motor escolhe a substituta no telemóvel, vê-se
     const sai1 = d0.faixas[q];
     let segurar; const espera = new Promise((ok) => { segurar = ok; });
     await page.route('**/api/playlists/*/trocar', async (r) => { await espera; await r.continue(); }); // (as seguintes passam logo)
+    const outras = (await naFolha(page)).map((_, i) => i !== q);
+    assert.equal(await marcarLinhas(page), d0.faixas.length);
+    const nImgT = await marcarImgs(page);
     await linhas.nth(q).locator('.mu-trocar').click();
     await page.locator('.mu-folha .mu-xf li.a-trocar').waitFor();
+    assert.deepEqual(await mesmasLinhas(page), outras, 'só a linha trocada é nova: as outras não se mexem (não piscam)');
     const mostra1 = await linhas.nth(q).locator('.tx b').textContent();
     assert.notEqual(mostra1, sai1.titulo, 'a linha já mostra a que entra');
     assert.deepEqual((await kvDoc()).faixas.map((f) => f.id), d0.faixas.map((f) => f.id), 'ainda não foi gravada');
@@ -864,6 +884,9 @@ test('trocar uma faixa (⇄): o motor escolhe a substituta no telemóvel, vê-se
     assert.deepEqual(noTidal(), d1.faixas.map((f) => f.id), 'o Tidal fica igual, na mesma playlist');
     assert.deepEqual(d1.rejeitadas, [sai1.id]);
     assert.deepEqual(await naFolha(page), d1.faixas.map((f) => f.id));
+    assert.deepEqual(await mesmasLinhas(page), outras, 'depois de gravada, também');
+    const [tImg, mImg] = await mesmasImgs(page);
+    assert.ok(nImgT >= 5 && mImg >= nImgT - 1 && tImg - mImg <= 1, `só a capa da faixa que entrou é nova (${nImgT} antes; ${tImg} agora, ${mImg} as mesmas)`);
     assert.equal(await page.locator('.mu-folha .mu-xf-nota').textContent(), `Trocaste «${sai1.titulo}» por «${entra1.titulo}». Desfazer`);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '6-trocada.png') });
     // 2) outra vez na mesma: vem a outra candidata livre (a que saiu não volta)
@@ -895,14 +918,17 @@ test('trocar uma faixa (⇄): o motor escolhe a substituta no telemóvel, vê-se
     assert.equal(d4.trocas.length, 2);
     assert.deepEqual(noTidal(), d4.faixas.map((f) => f.id));
     // 5) tirar (na linha aberta) e repor
+    await marcarLinhas(page);
     await linhas.nth(o).locator('button.tx').click();
     await page.locator('.mu-folha .mu-xf-mais').getByRole('button', { name: 'Tirar' }).click();
     await page.locator('.mu-folha .mu-xf-nota').getByText(`Tiraste «${d4.faixas[o].titulo}».`).waitFor();
     assert.deepEqual(noTidal(), d4.faixas.filter((_, i) => i !== o).map((f) => f.id));
     assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), /^3 faixas · /);
+    assert.deepEqual(await mesmasLinhas(page), [true, true, true], 'tirar uma faixa não mexe nas outras linhas');
     await page.locator('.mu-folha .mu-xf-nota').getByRole('button', { name: 'Repor' }).click();
     await page.locator('.mu-folha .mu-xf-nota').getByText(/^Trocaste «/).waitFor();
     assert.deepEqual(noTidal(), d4.faixas.map((f) => f.id), 'reposta no mesmo sítio');
+    assert.deepEqual(await mesmasLinhas(page), d4.faixas.map((_, i) => i !== o), 'nem repô-la: só entra a linha dela');
     assert.equal(await page.evaluate(() => window.__folhas), 0, 'nada disto fez a folha subir outra vez');
     // 5b) no lugar de outro artista as candidatas livres não cabem (uma por artista): vem logo uma parecida do Tidal
     const d4b = await kvDoc();

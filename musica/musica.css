@@ -339,6 +339,7 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-trocar { width: 34px; height: 34px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; background: none; color: var(--mut); cursor: pointer; }
 .mu-trocar svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .mu-trocar:active { background: var(--panel3); color: var(--fg); }
+.mu-xf li .tx, .mu-xf li .cp { transition: opacity .25s; } /* (a que entra acende quando a troca fica gravada: a linha é a mesma) */
 .mu-xf li.a-trocar .tx, .mu-xf li.a-trocar .cp { opacity: .55; }
 .mu-xf li.a-trocar .mu-trocar { color: var(--fg); }
 .mu-xf li.a-trocar .mu-trocar svg { animation: mu-rodar .9s linear infinite; }
