@@ -402,10 +402,10 @@ body:has(.mu-folha) { overflow: hidden; }
 /* os pedidos de uma playlist: o original e as afinações (à espera a tracejado) */
 .mu-hist { margin: 16px 0 4px; }
 .mu-hist h3 { margin: 0 0 8px; font-size: 13px; font-weight: 650; color: var(--mut); text-transform: none; }
-.mu-hist ol { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--line2); display: flex; flex-direction: column; gap: 12px; }
-.mu-hist li { position: relative; display: flex; flex-direction: column; gap: 2px; }
-.mu-hist li::before { content: ""; position: absolute; left: -20px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--fg); }
-.mu-hist li.espera::before { background: var(--panel); box-shadow: inset 0 0 0 2px var(--mut); }
+.mu-hist > ol { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--line2); display: flex; flex-direction: column; gap: 12px; }
+.mu-hist > ol > li { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.mu-hist > ol > li::before { content: ""; position: absolute; left: -20px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--fg); }
+.mu-hist > ol > li.espera::before { background: var(--panel); box-shadow: inset 0 0 0 2px var(--mut); }
 .mu-hist .q { font-size: 14.5px; line-height: 1.35; }
 .mu-hist .m { font-size: 12.5px; color: var(--mut); }
 .mu-afinada { color: var(--green); font-weight: 650; }
@@ -416,3 +416,11 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-pedida { color: var(--amber); font-weight: 650; }
 .mu-ligacao { border: 0; background: none; padding: 2px 0; color: var(--fg); font: inherit; font-weight: 650; text-decoration: underline; cursor: pointer; }
 .mu-hist .mu-mudou { font-size: 13px; color: var(--fg); opacity: .85; }
+/* Tidal × Maestro: na revisão de uma lista do Tidal, as que saíram (ouvir e voltar a pôr) */
+.mu-hist .mu-cmp-n { font-weight: 650; opacity: 1; }
+.mu-cmp { margin-top: 2px; }
+.mu-cmp > summary { display: flex; align-items: center; gap: 6px; list-style: none; cursor: pointer; padding: 6px 0; font-size: 13.5px; font-weight: 650; }
+.mu-cmp > summary::-webkit-details-marker { display: none; }
+.mu-cmp > summary .chev { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--mut); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
+.mu-cmp[open] > summary .chev { transform: rotate(180deg); }
+.mu-cmp > .mu-nota { margin: 6px 0 0; font-size: 12.5px; }

@@ -246,6 +246,29 @@
     { ? n `<div class="mu-folha-capa">{ cx_img a }</div>`
       { = ci c.capas = nc quantos ci
         `<div class="mu-folha-capa{ Se >= nc 4 " m4" }">` = f pri ci = q 0 W && f < q 4 { `<img src="{ esct txt f }" alt="" decoding="async">` = f seg f = q + q 1 } "</div>" } } }
+# Tidal × Maestro: no «Mais como esta», o Tidal faz a lista (as parecidas) e o Maestro revê-a. Depois da revisão, a
+# história diz quantas das do Tidal ficaram e quantas entraram, o que guardaste nas favoritas de cada lado, e deixa
+# ouvir as do Tidal que saíram e voltar a pô-las (entram no fim, também no Tidal)
+: do_tidal ii>i d id { = r 0 = f pri d.doTidal.faixas W && f ~ r { = r mesmo txt f.id id = f seg f } r }
+: tem_cmp i>i d ? d && quantos d.doTidal.faixas _tx_len txt d.revistaEm 0
+: cmp_tidal i>i d {
+  = dt d.doTidal.faixas = nt quantos dt = fic 0
+  = f pri dt W f { Se na_doc d txt f.id = fic + fic 1 = f seg f }
+  = nov - quantos d.faixas fic = ns - nt fic
+  `<span class="mu-mudou mu-cmp-n">Das { N nt } do Tidal { ? == fic 0 "não ficou nenhuma" ? == fic 1 "ficou 1" `ficaram { N fic }` } · { ? == nov 0 "sem novas" ? == nov 1 "entrou 1 nova" `entraram { N nov } novas` }</span>`
+  = a d.avaliacao
+  Se a { = gt 0 = gn 0 = g pri a.guardadas
+    W g { ? do_tidal d txt g.id { = gt + gt 1 0 } { = gn + gn 1 0 } = g seg g }
+    Se + gt gn `<span class="mu-mudou">Guardaste nas favoritas: { N gt } do Tidal · { N gn } das novas</span>` }
+  Se ns {
+    `<details class="mu-cmp"><summary>Ouvir { ? == ns 1 "a do Tidal que saiu" `as { N ns } do Tidal que saíram` }<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><ol class="mu-xf">`
+    = f pri dt W f { Se ~ na_doc d txt f.id cmp_linha f = f seg f }
+    `</ol><p class="mu-nota">«+» volta a pôr a faixa no fim da playlist, também no Tidal.</p></details>` } }
+: cmp_linha i>i f {
+  = id txt f.id = cv txt _ar_get _ar_get @ 52 $"capas" id = u txt _ar_get _ar_get @ 52 $"previas" id
+  `<li data-chave="t{ esct id }"><span class="cp">{ Se cv `<img src="{ esct cv }" alt="" loading="lazy" decoding="async">` }</span><div class="tx"><b>{ esct txt f.titulo }</b><span>{ partistas f.artistas }</span></div>`
+  ? u { = tc mesmo u @ 55 `<button type="button" class="mu-ouvir{ Se tc " a-tocar" }" data-onda="ouvir&#9;{ esct u }" aria-pressed="{ ? tc "true" "false" }" aria-label="{ ? tc "Parar" "Ouvir 30 segundos de" } «{ esct txt f.titulo }»">{ ic 4 }</button>` } `<span class="mu-ouvir vazio"></span>`
+  `<button type="button" class="mu-trocar" data-onda="repor_t&#9;{ esct id }" aria-label="Voltar a pôr «{ esct txt f.titulo }»">{ ic 12 }</button></li>` }
 # o pedido que fez a playlist e as afinações pedidas depois (à espera ou feitas), por ordem
 : hist_pl i>i d {
   = af d.afinacoes = na quantos af
@@ -258,10 +281,12 @@
       `<li{ ? _tx_len txt c.feitoEm 0 ` class="espera"` }><span class="q">{ ? rv "Rever as parecidas do Tidal" ? _tx_len txt c.texto `«{ esct txt c.texto }»` `Sem { N nr }{ ? > nr 1 " faixas que tiraste" " faixa que tiraste" }` }</span><span class="m">{ ? rv "Revisão" "Afinação" } · `
       ? _tx_len txt c.feitoEm { `feita a { pdia txt c.feitoEm }` 0 } "à espera do Maestro"
       `{ Se && nr _tx_len txt c.texto ` · sem { N nr } que tiraste` }{ Se && ~ _tx_len txt c.feitoEm _tx_len txt c.pedido ` · <button type="button" class="mu-ligacao" data-onda="cancelar&#9;{ esct txt c.pedido }">Cancelar</button>` }</span>`
-      # o que mudou com a afinacao: quantas entraram e sairam, e as primeiras novas
+      # a revisão de uma lista do Tidal: a comparação Tidal × Maestro; nas outras, o que mudou (quantas entraram e
+      # saíram, e as primeiras novas)
+      ? && && rv _tx_len txt c.feitoEm quantos d.doTidal.faixas { cmp_tidal d 0 } {
       Se c.entraram { = ne int c.entraram = ns int c.sairam
           `<span class="mu-mudou">{ ? || ne ns { N ne ? == ne 1 " nova, " " novas, " N ns ? == ns 1 " saiu" " saíram" } "Sem faixas novas" }`
-          = nv c.novas `{ Se quantos nv { ": " = e pri nv W e { esct txt e = e seg e Se e " · " } } }</span>` }
+          = nv c.novas `{ Se quantos nv { ": " = e pri nv W e { esct txt e = e seg e Se e " · " } } }</span>` } 0 }
       "</li>"
       = c seg c }
     "</ol></div>" } }
@@ -580,7 +605,7 @@
 # uma escrita: r é «MÉTODO caminho» (com corpo: nova linha e o JSON) e m o que se está a fazer — o lido_escrita trata
 # a resposta por ele (1 config, 2 ligar, 3 enviar, 4/9 guardar versão, 5/11 apagar, 6 pedir, 7 cancelar, 8 desligar,
 # 10 aparelho, 12 mais, 13 convite, 14 código de aparelho, 15 renovar, 16 renomear, 18 afinar, 19 juntar, 20 trocar,
-# 21 tirar, 22 desfazer, 23 acrescentar)
+# 21 tirar, 22 desfazer, 23 acrescentar, 26 voltar a pôr uma das do Tidal)
 : pede ii>i r m { ! 31 1 ! 34 m _an_buscar r $"lido_escrita" }
 # guardar o que o motor escolheu: a app manda só a decisão (a ordem, o porquê e os pontos, por índice das candidatas)
 # e o conector monta a playlist — na app e, se ela lá está, no Tidal (a mesma playlist, no mesmo link)
@@ -636,6 +661,10 @@
     ? || == modo 4 == modo 9 { ! 51 r ! 6 0 refolha 159
       _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl"
       aviso ? == modo 9 $"Guardada no Tidal." $"Guardada." 0 }
+    # voltar a pôr uma das do Tidal (26): entra no fim; sai da lista das que saíram
+    ? == modo 26 { ! 51 r refolha 25
+      _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl"
+      aviso $"Voltou a entrar, no fim da playlist." 0 }
     # acrescentar uma faixa (23): entra no fim; a procura fecha
     ? == modo 23 { ! 51 r ! 19 0 ! 62 0 tvazio @ 23 refolha 521
       _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl"
@@ -779,6 +808,7 @@
     refolha 8
     ? x pede`POST /api/playlists/{ purl @ 30 }/trocar{ P 10 }\{"sai":{ pjs txt f.id },"entra":{ pjs txt x.faixa.id }\}` 20
       pede`POST /api/playlists/{ purl @ 30 }/trocar{ P 10 }\{"sai":{ pjs txt f.id },"parecida":true\}` 20 } }
+: repor_tidal i>i b ? ocupado 0 { pede`POST /api/playlists/{ purl @ 30 }/trocar{ P 10 }\{"entra":{ pjs b }\}` 26 0 }
 : tirar_faixa i>i b ? ocupado 0 { ! 40 0 pede`POST /api/playlists/{ purl @ 30 }/trocar{ P 10 }\{"sai":{ pjs b }\}` 21 0 }
 # desfazer a última: fica tudo como estava antes dela (a faixa que saiu volta ao sítio)
 : desfazer >i ? ocupado 0 { pede`POST /api/playlists/{ purl @ 30 }/trocar{ P 10 }\{"desfazer":true\}` 22 0 }
@@ -798,9 +828,9 @@
 # depois de mexer no «⋯» (@28): na folha redesenha-se só esse pedaço; nos Ajustes, a vista
 : redes >i ? && == @ 1 1 _tx_len @ 50 refolha 2 render
 # ouvir 30 s: um só leitor (o do anfitrião); tocar outra vez a que está a tocar pára-a
-: ouvir i>i u { ? _an_som u { tcopia @ 55 u 900 0 } { tvazio @ 55 0 } Se _tx_len @ 50 refolha 8 0 }
+: ouvir i>i u { ? _an_som u { tcopia @ 55 u 900 0 } { tvazio @ 55 0 } Se _tx_len @ 50 refolha ? tem_cmp @ 51 24 8 0 }
 # o som parou sem ser pela app (acabou, erro): a app volta a saber o que está a tocar
-: som_fim i>i z { = a _an_atocar ? a { tcopia @ 55 a 900 0 } { tvazio @ 55 0 } Se _tx_len @ 50 refolha 8 0 }
+: som_fim i>i z { = a _an_atocar ? a { tcopia @ 55 a 900 0 } { tvazio @ 55 0 } Se _tx_len @ 50 refolha ? tem_cmp @ 51 24 8 0 }
 : afinar_maestro >i ? ocupado 0 { = r _tx_abre + 400 * 7 _tx_len @ 49 `POST /api/playlists/{ purl @ 30 }/afinar{ P 10 }\{"texto":{ pjs @ 49 }\}` pede _tx_fecha r 18 0 }
 : renomear_enviar >i ? ocupado 0 {
     ? < _tx_len @ 46 1 { aviso $"Escreve um nome para a playlist." 0 } {
@@ -900,7 +930,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.34.2 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.35.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
@@ -965,7 +995,7 @@
 # (se o perfil não vier — o Tidal desligado, sem rede —, o cartão fecha-se em vez de ficar «A carregar…»)
 : lido_perfil ii>i t s Se == @ 1 5 ? == s 200 { ! 4 _ar_json t render 0 } { Se ~ @ 4 { ! 18 0 render } erro_ped t s 0 }
 : exp_doc ii>i t mem { = d _ar_json t Se mesmo txt d.id @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }` t } ! 51 d refolha 575 } }
-: exp_prev ii>i t mem Se mesmo @ 57 @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }/previas` t } ! 52 _ar_json t refolha 40 }
+: exp_prev ii>i t mem Se mesmo @ 57 @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }/previas` t } ! 52 _ar_json t refolha ? tem_cmp @ 51 56 40 }
 : lido_exp ii>i t s Se && == @ 1 1 == s 200 exp_doc t 0
 : lido_prev ii>i t s Se && == @ 1 1 == s 200 exp_prev t 0
 : lido_ideias ii>i t s Se && == @ 1 3 == s 200 { ! 48 _ar_json t render }
@@ -1010,6 +1040,7 @@
   ? mesmo a $"renomear_sim" { renomear_enviar 0 }
   ? mesmo a $"trocar" { trocar_faixa _tx_int b 0 }
   ? mesmo a $"tirarf" { tirar_faixa b 0 }
+  ? mesmo a $"repor_t" { repor_tidal b 0 }
   ? mesmo a $"desfazer" { desfazer 0 }
   ? mesmo a $"exp" { tvazio @ 54 exp_alternar b 0 }
   ? mesmo a $"ouvir" { ouvir b 0 }
