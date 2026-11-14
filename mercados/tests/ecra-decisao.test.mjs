@@ -80,12 +80,14 @@ function cartao(s) {
         + `<div class="dec-top"><div class="adv-act ${t}-t">${rot(d.fam, own, d.key === 'reduce')}${d.forte ? ' <small class="adv-forte">forte</small>' : ''}</div>`
         + `<span class="dec-conf c${d.conf}">confiança ${['baixa', 'média', 'alta'][d.conf]}</span></div>`
         + (s.act ? `<div class="adv-nu">${esc(s.act)}</div>` : '') + desde(s)
-        + `<div class="dec-p"><small>Média das fontes${{ short: ' · prazo curto', mid: ' · prazo médio', long: ' · prazo longo' }[ob(s.d).hz] || ''}</small>${barra(d.p)}</div><div class="dec-voz">${voz(d)}</div>`
+        + `<div class="dec-hz" role="group" aria-label="Prazo"><small>Prazo</small>${[['short', 'curto'], ['mid', 'médio'], ['long', 'longo']].map(([h, l]) => `<button type="button" data-hzset="${h}"${ob(s.d).hz === h ? ' class="on"' : ''}>${l}</button>`).join('')}</div>`
+        + `<div class="dec-p"><small>Média das fontes</small>${barra(d.p)}</div><div class="dec-voz">${voz(d)}</div>`
         + `<ul class="dec-f">${d.f.map((x, i) => fonte(s, d, x, i)).join('')}</ul>`
         + '<details class="dec-leg"><summary>Como ler este cartão</summary><p>Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. '
         + '<b>Decide</b>: quem manda (o Claude, se analisou o ativo). <b>A favor</b> ou <b>contra</b>: diz o mesmo ou o contrário. '
         + '<b>Ao lado</b>: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.</p></details>'
         + (arr(s.lv).length ? `<ul class="cl-lv">${arr(s.lv).map((l) => { const o = ob(l); return `<li class="${esc(o.f)}"><small>${esc(o.l)}</small><b class="num">${esc(o.px)}</b><span class="num">${esc(o.d)}</span></li>`; }).join('')}</ul>` : '')
+        + (s.irs ? `<div class="dec-irs">${esc(s.irs)}</div>` : '')
         + (s.hoje ? `<div class="adv-why"><b>Porquê ${s.desce ? 'desce' : 'sobe'} hoje:</b> ${esc(s.hoje)}</div>` : '')
         + (s.why ? `<div class="adv-txt">${esc(s.why)}</div>` : '')
         + (s.plan ? `<div class="adv-txt"><b>Plano:</b> ${esc(s.plan)}</div>` : '')
@@ -130,7 +132,7 @@ function caso(r) {
         anD: r() < 0.7 ? Math.round((r() * 150 - 60) * 100) / 100 : um([null, undefined, NaN, '5']),
         nn: r() < 0.85 ? 1 + Math.floor(r() * 8) : um([null, undefined, NaN]), nc: um([true, false, false, undefined, null, 1, 0]),
         ...(r() < 0.5 ? { desde: um(['hoje', 'ontem', '05/11', '28/12/2025', '', null, '<u>', 0]), dias: um([0, 1, 2, 3, 8, 120, null, undefined, NaN, '4', 1.9, -1]), era: um(['', '', null, undefined, ...KEYS, 'up', 'down', 'flat', 'outra', 7]) } : {}),
-        cat: r() < 0.4 ? um(TXT) : '', risk: r() < 0.4 ? um(TXT) : undefined,
+        cat: r() < 0.4 ? um(TXT) : '', risk: r() < 0.4 ? um(TXT) : undefined, irs: r() < 0.5 ? um(TXT) : '',
         ev: r() < 0.3 ? Array.from({ length: 1 + Math.floor(r() * 2) }, () => ({ t: um(['earnings', 'dividend']), q: um(['hoje', 'daqui a 5 dias', '<u>']), d: um(['18/11', '02/12']) })) : um([undefined, []]),
     };
 }
@@ -171,7 +173,7 @@ test('casos lidos à mão', () => {
         lv: [{ f: 'entry', l: 'Entrada', px: '164,93 €', d: '−3,06%' }], ev: [{ t: 'earnings', q: 'daqui a 5 dias', d: '18/11' }],
     });
     const txt = h.replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
-    assert.equal(txt, '|Decisão|Análise do Claude · feita às 07:16|Comprar|confiança alta|Comprar aos poucos|Média das fontes|69|3 de 6 a favor · ao lado: a técnica, as notícias e o sentimento'
+    assert.equal(txt, '|Decisão|Análise do Claude · feita às 07:16|Comprar|confiança alta|Comprar aos poucos|Prazo|curto|médio|longo|Média das fontes|69|3 de 6 a favor · ao lado: a técnica, as notícias e o sentimento'
         + '|Claude|Comprar|decide|75|curto 48 · médio 88 · longo 81|Analistas|Compra forte|a favor|90|58 analistas · alvo +17,60%|Fundamentos|fortes|a favor|65|P/E 28 · vendas +60% · margem 55%'
         + '|Técnica|Aguardar|ao lado|51|curto 52 · médio 68 · longo 36|Notícias|neutras|ao lado|50|6 títulos recentes|Sentimento|calmo|ao lado|48|VIX 17'
         + '|' + LEG.slice(0, -1)
@@ -189,7 +191,7 @@ test('casos lidos à mão', () => {
     const base = { d: { cl: { key: 'buy', short: 60, mid: 70, long: 80 }, news: 0.4 }, own: false, why: 'Porquê.', plan: 'Plano.', nn: 5 };
     const linhas = (x) => O.ecra.decisao({ ...base, ...x }).replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
     assert.equal(linhas({ desde: 'hoje', dias: 0, era: 'wait', cat: 'Resultados a 19/11', risk: 'Fecho abaixo de 150 €', nc: true }),
-        '|Decisão|Comprar |forte|confiança média|Mudou hoje · antes: Aguardar|Média das fontes|72|As 2 fontes de acordo.|Claude|Comprar|decide|72|curto 60 · médio 70 · longo 80'
+        '|Decisão|Comprar |forte|confiança média|Mudou hoje · antes: Aguardar|Prazo|curto|médio|longo|Média das fontes|72|As 2 fontes de acordo.|Claude|Comprar|decide|72|curto 60 · médio 70 · longo 80'
         + '|Notícias|positivas|a favor|70|lidas pelo Claude|' + LEG + 'Porquê.|Plano:| Plano.|Catalisador:| Resultados a 19/11|Risco:| Fecho abaixo de 150 €|');
     assert.match(O.ecra.decisao({ ...base, desde: 'hoje', dias: 0, era: 'wait' }), /<div class="dec-desde novo">Mudou hoje · antes: Aguardar<\/div>/);
     assert.match(O.ecra.decisao({ ...base, own: true, desde: 'ontem', dias: 1, era: 'sell' }), /<div class="dec-desde novo">Mudou ontem · antes: Vender<\/div>/);

@@ -7,6 +7,7 @@
 #   act: a frase do Claude (se diz mais do que o rótulo), why, plan, algWhy (porque discorda das outras fontes),
 #   lv: [{ f, l, px, d }] (os níveis, já na moeda do ecrã), anD (o alvo dos analistas face a hoje, em %),
 #   nn (os títulos que contam para o tom), nc (o tom das notícias é o que o Claude leu), hoje (porque mexe hoje), desce,
+#   irs (o imposto no prazo escolhido e, com o alvo, o que fica depois dele),
 #   desde ("hoje", "ontem" ou o dia), dias (há quantos) e era (o veredicto de antes): desde quando o Claude mantém a
 #   decisão; cat (o catalisador), risk (o que faria a decisão estar errada), ev: [{ t, q, d }] (a agenda) }
 # Precisa do decisao.onda, do ecra.onda (es, ln_fin, ln_rot, ln_sht, fm_pct) e do ecra-analise.onda (an_barv).
@@ -111,8 +112,13 @@
     `<span class="dec-conf c{N c}">confiança { ? == c 2 "alta" ? == c 1 "média" "baixa" }</span></div>`
     Se ha es.act `<div class="adv-nu">{ esc es.act }</div>`
     dv_desde
+    # o prazo em que o tem (ou em que pensa comprar): muda os pesos da decisão e o IRS
     = hz dc_hz es.d.hz
-    `<div class="dec-p"><small>Média das fontes{ Se hz ` · prazo { ? == hz 1 "curto" ? == hz 2 "médio" "longo" }` }</small>{ an_barv @f + r 8 }</div>`
+    `<div class="dec-hz" role="group" aria-label="Prazo"><small>Prazo</small>`
+    `<button type="button" data-hzset="short"{ Se == hz 1 ` class="on"` }>curto</button>`
+    `<button type="button" data-hzset="mid"{ Se == hz 2 ` class="on"` }>médio</button>`
+    `<button type="button" data-hzset="long"{ Se == hz 3 ` class="on"` }>longo</button></div>`
+    `<div class="dec-p"><small>Média das fontes</small>{ an_barv @f + r 8 }</div>`
     `<div class="dec-voz">{ dv_voz r }</div>`
     `<ul class="dec-f">` L i @ r dv_fonte r i `</ul>`
     # como se lê: a nota de cada fonte e o que quer dizer o lado de cada uma (fechado; abre-se quando é preciso)
@@ -124,6 +130,7 @@
       = n pri es.lv
       W n { `<li class="{ esc n.f }"><small>{ esc n.l }</small><b class="num">{ esc n.px }</b><span class="num">{ esc n.d }</span></li>` = n seg n }
       `</ul>` }
+    Se ha es.irs `<div class="dec-irs">{ esc es.irs }</div>`
     Se ha es.hoje `<div class="adv-why"><b>Porquê { ? ha es.desce "desce" "sobe" } hoje:</b> { esc es.hoje }</div>`
     Se ha es.why `<div class="adv-txt">{ esc es.why }</div>`
     Se ha es.plan `<div class="adv-txt"><b>Plano:</b> { esc es.plan }</div>`

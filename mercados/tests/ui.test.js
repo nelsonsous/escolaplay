@@ -709,6 +709,20 @@ function proxyBody(u) {
     const tecD = dec.d.f.find((x) => x.f === 'tecnica').d;
     assert.equal(await page.locator(adv + ' .adv-alg').count(), dec.d.contra > 0 || tecD === 0 ? 1 : 0);
     if (dec.d.contra === 0 && tecD === 0) assert.equal(await page.locator(adv + ' .adv-alg').textContent(), 'Porque discorda da técnica: A regra vê L36 e o preço abaixo da MM200; não vê os resultados de 17/11; concordo se perder 149 €.');
+    // o prazo também no que não tem (4.26): escolhe-se no cartão, muda a decisão e o IRS; tocar outra vez tira-o
+    assert.equal(await page.locator(adv + ' .dec-hz button.on').count(), 0, 'a Nvidia não é dele: sem prazo');
+    assert.match(await page.locator(adv + ' .dec-irs').textContent(), /^IRS: 28 % até 2 anos, a descer até 19,6 % com 8 anos ou mais\. No alvo \(\+17,35%\), 1 000 € ganham \+173 €: \+125 € depois do imposto\.$/);
+    await page.click(adv + ' [data-hzset="short"]');
+    await page.waitForSelector(adv + ' .dec-hz button.on[data-hzset="short"]');
+    assert.deepEqual(await page.evaluate(() => [window.__mk.decIn('NVDA').hz, window.__mk.cfg.lots.NVDA.hz]), ['short', 'short']);
+    assert.match(await page.locator(adv + ' .dec-irs').textContent(), /^IRS: vender antes de 2 anos paga 28 % sobre o ganho\. No alvo/);
+    if (SHOTS) await page.locator(adv).screenshot({ path: path.join(SHOTS, '3f-decisao-curto.png') });
+    await page.click(adv + ' [data-hzset="long"]');
+    await page.waitForSelector(adv + ' .dec-hz button.on[data-hzset="long"]');
+    assert.match(await page.locator(adv + ' .dec-irs').textContent(), /: \+125 € a \+139 € depois do imposto, conforme os anos\.$/);
+    await page.click(adv + ' [data-hzset="long"]');
+    await page.waitForFunction((s) => !document.querySelector(s + ' .dec-hz button.on'), adv);
+    assert.equal(await page.evaluate(() => window.__mk.cfg.lots.NVDA), undefined, 'tocar outra vez tira o prazo (e o ativo sai da Carteira)');
     if (SHOTS) await page.locator(adv).screenshot({ path: path.join(SHOTS, '3c-decisao.png') });
     if (SHOTS) { await page.locator(adv).scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(SHOTS, '3b-ficha-claude.png') }); }
     await fichaInteira(page, '3d-ficha-inteira.png');
