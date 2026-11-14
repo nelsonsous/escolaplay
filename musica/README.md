@@ -46,7 +46,7 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   por outra — vê-se logo e fica gravada no Tidal —, arrastar para a esquerda para a tirar, «Desfazer», o «⋯» para
   mudar o nome, atualizar sozinha e apagar, «Sobre esta playlist» com o porquê e a mistura, tocar no título de uma
   faixa para tirar ou **«Mais como esta»**, «Acrescentar uma faixa» do Tidal, pedir uma afinação ao Maestro; os pedidos à espera do Maestro ficam no cimo da lista, com cancelar; tudo o que se cria vai logo para o Tidal — as playlists antigas que só estão na app têm «Pôr no Tidal»),
-  Pedir (só pedir: o texto, as opções e as ideias do Maestro), Gosto e Ajustes; o estado, a navegação e o motor de curadoria, tudo em Onda. **Afinar** é dentro da folha: o
+  Pedir (só pedir: o texto, as opções e as ideias do Maestro) e Ajustes — três separadores; **«O teu gosto»** (as favoritas, o que se está a ouvir, as tuas playlists no Tidal) é um cartão dos Ajustes, que se abre quando se quer; o estado, a navegação e o motor de curadoria, tudo em Onda. **Afinar** é dentro da folha: o
   `motor.onda` corre na própria app a cada mudança (estilo, energia, número de faixas, máximo por artista, fixar) em
   menos de 1 ms, o gráfico da energia é SVG escrito pela Onda (`onda/lib/grafico.onda`), e o juiz dos testes confirma
   que dá a mesma ordem que o `curador.wasm`. Ao guardar, a app manda só a decisão (a ordem e o porquê, por índice das

@@ -7,7 +7,8 @@
 # («MÉTODO caminho» + nova linha + corpo JSON), sair para o login do Tidal («IR url») e o regresso dele.
 #
 # Globais (M[1..59] são da app; M[63] é da biblioteca):
-#   fixos (criados no main): 1 vista (1 playlists, 3 pedir, 4 gosto, 5 ajustes),
+#   fixos (criados no main): 1 vista (1 playlists, 3 pedir, 5 ajustes — três separadores; a 4, o gosto, é agora um
+#     cartão dos Ajustes: @18 aberto, @4 o perfil e @11 as tendências),
 #     2 base do monte (navegar solta tudo o que veio depois), 20 texto do pedido, 21 client id, 22 conector,
 #     23 pesquisa, 24..27 pedido: faixas, max por artista, estilo, arco, 29 relogio do aviso, 30 id da playlist,
 #     36 pesos dos estilos, 38 codigo de ligacao (colado), 45 pedido sem letras explicitas, 46 47 nome e descricao
@@ -697,29 +698,32 @@
       barra_j idx l b 1 mx
       = q + q 1 } } { = c pri l = q 0 W && c < q 8 { barra_j c 0 mx = c seg c = q + q 1 } }
   "</div>" }
-: v_gosto >i {
-  = p @ 4
-  `<header class="mu-head"><div><h1>O teu gosto</h1><div class="sub">{ ? p { `{ N quantos p.favoritas } favoritas · atualizado { pdia txt p.geradoEm }` 0 } "Das tuas favoritas no Tidal" }</div></div>{ pill }</header>`
-  ? ~ @ 3 carregar {
-    ? ~ acesso boas_vindas {
-      ? ~ p carregar {
-        `<div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="atualizar">{ ic 6 }Atualizar do Tidal</button></div>`
-        Se @ 11 v_tend @ 11
-        = r p.resumo
-        Se quantos r.artistas `<div class="mu-card"><h3>Artistas que mais aparecem</h3>{ barras_j r.artistas 0 }</div>`
-        Se quantos r.decadas `<div class="mu-card"><h3>Décadas</h3>{ barras_j r.decadas 1 }</div>`
-        Se quantos r.generos `<div class="mu-card"><h3>Géneros (etiquetas do Tidal)</h3>{ barras_j r.generos 0 }</div>`
-        = ql r.qualidade
-        Se quantos ql { `<div class="mu-card"><h3>Qualidade das favoritas</h3><div class="mu-chips">` = c pri ql W c { `<span class="mu-chip">{ esct txt c.q } · { N int c.n }</span>` = c seg c } "</div></div>" }
-        = ar p.artistas
-        Se quantos ar { `<div class="mu-card"><h3>Artistas que segues</h3><div class="mu-chips">` = c pri ar = q 0 W && c < q 40 { `<span class="mu-chip">{ esct txt c.nome }</span>` = c seg c = q + q 1 } "</div></div>" }
-        `<h2 class="mu-sec">Favoritas mais recentes</h2><ol class="mu-faixas">`
-        = fv p.favoritas
-        ? quantos fv { = c pri fv = q 0 W && c < q 25 { linha_fav q c = c seg c = q + q 1 } } `<li class="mu-vazio">Sem favoritas.</li>`
-        "</ol>"
-        = pl p.playlists
-        Se quantos pl { `<h2 class="mu-sec">As tuas playlists no Tidal</h2><div class="mu-card">` = c pri pl = q 0 W && c < q 20 { `<div class="mu-pedido"><div class="tx">{ esct txt c.nome }</div><a class="mu-btn sec peq" href="{ esct txt c.url }" target="_blank" rel="noopener">Abrir</a></div>` = c seg c = q + q 1 } "</div>" } } } }
-  0 }
+: gosto_alternar >i { ! 18 ~ @ 18 Se && @ 18 ~ @ 4 { _an_buscam $"/api/perfil" $"lido_perfil" 300000 _an_buscam $"/api/tendencias" $"lido_tend" 300000 } render }
+# o teu gosto (era um separador): um cartão dos Ajustes, fechado até se querer ver — só aí se pedem o perfil e as
+# tendências ao conector. Aberto, mostra por baixo o que o separador mostrava. @18 aberto, @4 o perfil, @11 as tendências
+: cartao_gosto >i {
+  = p @ 4 = ab @ 18
+  `<section class="mu-gosto"><div class="mu-card"><button type="button" class="mu-gosto-a" data-onda="gosto" aria-expanded="{ ? ab "true" "false" }"><span class="tx"><b>O teu gosto</b><span>{ ? p { `{ N quantos p.favoritas } favoritas · atualizado { pdia txt p.geradoEm }` 0 } "As tuas favoritas, o que se está a ouvir e as tuas playlists no Tidal" }</span></span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>`
+  Se ab {
+    ? ~ p carregar {
+      `<div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="atualizar">{ ic 6 }Atualizar do Tidal</button></div>`
+      Se @ 11 v_tend @ 11
+      = r p.resumo
+      Se quantos r.artistas `<div class="mu-card"><h3>Artistas que mais aparecem</h3>{ barras_j r.artistas 0 }</div>`
+      Se quantos r.decadas `<div class="mu-card"><h3>Décadas</h3>{ barras_j r.decadas 1 }</div>`
+      Se quantos r.generos `<div class="mu-card"><h3>Géneros (etiquetas do Tidal)</h3>{ barras_j r.generos 0 }</div>`
+      = ql r.qualidade
+      Se quantos ql { `<div class="mu-card"><h3>Qualidade das favoritas</h3><div class="mu-chips">` = c pri ql W c { `<span class="mu-chip">{ esct txt c.q } · { N int c.n }</span>` = c seg c } "</div></div>" }
+      = ar p.artistas
+      Se quantos ar { `<div class="mu-card"><h3>Artistas que segues</h3><div class="mu-chips">` = c pri ar = q 0 W && c < q 40 { `<span class="mu-chip">{ esct txt c.nome }</span>` = c seg c = q + q 1 } "</div></div>" }
+      `<h2 class="mu-sec">Favoritas mais recentes</h2><ol class="mu-faixas">`
+      = fv p.favoritas
+      ? quantos fv { = c pri fv = q 0 W && c < q 25 { linha_fav q c = c seg c = q + q 1 } } `<li class="mu-vazio">Sem favoritas.</li>`
+      "</ol>"
+      = pl p.playlists
+      Se quantos pl { `<h2 class="mu-sec">As tuas playlists no Tidal</h2><div class="mu-card">` = c pri pl = q 0 W && c < q 20 { `<div class="mu-pedido"><div class="tx">{ esct txt c.nome }</div><a class="mu-btn sec peq" href="{ esct txt c.url }" target="_blank" rel="noopener">Abrir</a></div>` = c seg c = q + q 1 } "</div>" }
+      `<h2 class="mu-sec">Ajustes</h2>` } }
+  "</section>" }
 
 # ===== trocar uma faixa: o motor escolhe a substituta entre as candidatas que o Maestro deixou =====
 # a faixa (id) saiu da playlist do documento d (tirada ou trocada)?
@@ -847,6 +851,7 @@
   `<header class="mu-head"><div><h1>Ajustes</h1></div>{ pill }</header>`
   = e @ 3
   ? ~ e carregar {
+    Se acesso cartao_gosto
     `<div class="mu-card"><h3>Tidal</h3>`
     ? ligado `<dl class="mu-kv"><dt>Conta</dt><dd>{ esct txt e.utilizador } ({ esct txt e.pais })</dd><dt>Desde</dt><dd>{ pdia txt e.ligadoEm }</dd><dt>Biblioteca</dt><dd>{ N int e.playlists } playlists · { N int e.pedidos } pedidos à espera</dd></dl>` "<p>Não está ligado.</p>"
     `<div class="mu-acoes">`
@@ -870,21 +875,20 @@
         "</div>" }
     `<div class="mu-card"><h3>Conector de dados</h3><label class="mu-campo"><span>Endereço</span><input data-onda="px" value="{ esct @ 22 }" inputmode="url" autocapitalize="off" spellcheck="false"></label><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="px-ok">Guardar</button><button type="button" class="mu-btn sec" data-onda="px-rep">Repor</button></div></div>`
     `<div class="mu-card"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="motor">{ ic 7 }Testar o motor</button></div><p class="mu-motor" id="aj-motor-r"></p></div>`
-    `<p class="mu-nota">Música 2.31.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.32.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
 : nb i>i v `<button type="button" data-onda="ir&#9;{ N v }"{ Se == v @ 1 ` aria-current="page"` }>`
 : nav >i {
-  `{ nb 1 }<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h11M4 16h7"/><circle cx="17.5" cy="16.5" r="2.5"/><path d="M20 16.5V5l2 1"/></svg><span>Playlists</span></button>`
+  `{ nb 1 }<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h11M4 16h7"/><circle cx="17.5" cy="16.5" r="2.5"/><path d="M20 16.5V5l2 1"/></svg><span>Música</span></button>`
   `{ nb 3 }<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c.7 4.6 2.9 6.8 7.5 7.5-4.6.7-6.8 2.9-7.5 7.5-.7-4.6-2.9-6.8-7.5-7.5 4.6-.7 6.8-2.9 7.5-7.5z"/></svg><span>Pedir</span></button>`
-  `{ nb 4 }<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span>Gosto</span></button>`
   `{ nb 5 }<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Ajustes</span></button>` }
 : render >i {
   = m _me_marca
   = h _ht_ini 250000
   = v @ 1
-  ? == v 1 v_playlists ? == v 3 v_pedir ? == v 4 v_gosto v_ajustes
+  ? == v 1 v_playlists ? == v 3 v_pedir v_ajustes
   # a mesma vista muda-se (só o que é diferente); uma vista nova desenha-se de raiz (começa limpa: o `ir` põe M[12] a zero)
   ? == v @ 12 _ht_muda $"#mu-body" h _ht_poe $"#mu-body" h
   ! 12 v
@@ -907,8 +911,7 @@
   = v @ 1
   Se acesso {
     ? == v 1 { _an_buscam $"/api/playlists" $"lido_pl" 30000 _an_buscam $"/api/pedidos" $"lido_ped" 30000 0 }
-    ? == v 3 { _an_buscam $"/api/ideias" $"lido_ideias" 300000 0 }
-    Se == v 4 { _an_buscam $"/api/perfil" $"lido_perfil" 300000 _an_buscam $"/api/tendencias" $"lido_tend" 300000 } } }
+    Se == v 3 _an_buscam $"/api/ideias" $"lido_ideias" 300000 } }
 
 # ===== respostas do conector =====
 : lido_estado ii>i t s { ? == s 200 { ! 3 _ar_json t render carregar_vista 0 } { erro_ped t s 0 } }
@@ -917,13 +920,14 @@
 # os pedidos (para a lista das playlists): com a folha aberta não se redesenha a página (a folha voltava a subir);
 # vêem-se ao fechá-la
 : lido_ped ii>i t s Se && == @ 1 1 == s 200 { ! 5 _ar_json t Se ~ _tx_len @ 50 render }
-: lido_perfil ii>i t s Se == @ 1 4 ? == s 200 { ! 4 _ar_json t render 0 } { erro_ped t s 0 }
+# (se o perfil não vier — o Tidal desligado, sem rede —, o cartão fecha-se em vez de ficar «A carregar…»)
+: lido_perfil ii>i t s Se == @ 1 5 ? == s 200 { ! 4 _ar_json t render 0 } { Se ~ @ 4 { ! 18 0 render } erro_ped t s 0 }
 : exp_doc ii>i t mem { = d _ar_json t Se mesmo txt d.id @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }` t } ! 51 d refolha 575 } }
 : exp_prev ii>i t mem Se mesmo @ 57 @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }/previas` t } ! 52 _ar_json t refolha 40 }
 : lido_exp ii>i t s Se && == @ 1 1 == s 200 exp_doc t 0
 : lido_prev ii>i t s Se && == @ 1 1 == s 200 exp_prev t 0
 : lido_ideias ii>i t s Se && == @ 1 3 == s 200 { ! 48 _ar_json t render }
-: lido_tend ii>i t s Se && == @ 1 4 == s 200 { ! 11 _ar_json t render }
+: lido_tend ii>i t s Se && == @ 1 5 == s 200 { ! 11 _ar_json t render }
 : lido_pesq ii>i t s Se && == @ 1 1 _tx_len @ 50 ? == s 200 { ! 19 _ar_json t refolha 512 0 } { erro_ped t s 0 }
 
 # ===== eventos =====
@@ -988,6 +992,7 @@
   ? mesmo a $"cancelar" { cancelar_ped b 0 }
   ? mesmo a $"ligar" { ligar_enviar 0 }
   ? mesmo a $"config" { config_enviar 0 }
+  ? mesmo a $"gosto" { gosto_alternar 0 }
   ? mesmo a $"atualizar" { _an_buscar $"/api/perfil?fresco=1" $"lido_perfil" aviso $"A ler do Tidal…" 0 }
   ? mesmo a $"desligar" { ! 28 2 render 0 }
   ? mesmo a $"desligar_sim" { desligar_enviar 0 }

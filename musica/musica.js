@@ -211,7 +211,6 @@
     const CABECALHOS = {
         'ir\t1': ['Música', 'Playlists de qualidade para o teu Tidal'],
         'ir\t3': ['Pedir', 'Ao Maestro, que pesquisa e cria no teu Tidal'],
-        'ir\t4': ['O teu gosto', 'Das tuas favoritas no Tidal'],
         'ir\t5': ['Ajustes', ''],
     };
     // guarda o separador que está à vista (a folha aberta não conta: é por cima da página)
