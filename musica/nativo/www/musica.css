@@ -410,6 +410,30 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-juntar-barra { position: sticky; bottom: calc(var(--nav) + 12px + env(safe-area-inset-bottom)); z-index: 3; display: flex; align-items: center; gap: 8px; margin-top: 16px; padding: 10px 10px 10px 16px; border-radius: 18px; background: var(--panel3); box-shadow: 0 8px 30px rgba(0, 0, 0, .45); }
 .mu-juntar-barra > span { flex: 1; font-size: 14px; font-weight: 600; }
 .mu-juntar-barra .mu-btn[disabled] { opacity: .4; pointer-events: none; }
+.mu-juntar-barra { flex-wrap: wrap; }
+.mu-juntar-barra .mu-juntar-ap { flex-basis: 100%; }
+/* cada playlist diz o que é (de onde veio), numa linha */
+.mu-pl-a .or { color: var(--dim); font-size: 12.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* o cimo da lista: «Sugerir pastas» e «Juntar» */
+.mu-topo-b { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+/* as propostas por escolher (as antigas, várias versões de um pedido) */
+.mu-propostas { margin: 0 0 18px; }
+.mu-propostas > .mu-nota { margin: 0 2px 10px; font-size: 13px; }
+.mu-prop { padding: 12px 14px; margin-bottom: 10px; }
+.mu-prop-q { font-weight: 650; font-size: 14.5px; margin-bottom: 8px; }
+.mu-prop ul { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.mu-prop li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mu-prop li > span { min-width: 0; display: flex; flex-direction: column; }
+.mu-prop li > span b { font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mu-prop li > span i { font-style: normal; color: var(--mut); font-size: 12.5px; }
+.mu-prop li .mu-btn { flex: none; }
+/* as pastas (da app) e o guia para as fazer no Tidal */
+.mu-pasta-l { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.mu-tidal-pastas { margin: 18px 2px 0; }
+.mu-tidal-pastas > summary { cursor: pointer; font-size: 14px; font-weight: 650; color: var(--mut); padding: 8px 0; }
+.mu-tidal-pastas ul { margin: 6px 0 0; padding-left: 18px; }
+.mu-tidal-pastas li { margin: 6px 0; font-size: 14px; color: var(--mut); }
+.mu-tidal-pastas li b { color: var(--fg); }
 .mu-grp h2 span, .mu-espera h2 span { color: var(--mut); font-weight: 600; font-size: 15px; }
 .mu-espera h2.mu-sec { margin-top: 6px; }
 

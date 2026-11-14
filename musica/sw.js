@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay, a Mercados e a Meteo (/escolaplay/): este SW só mexe nas
 // caches "musica-*" e só trata pedidos dentro da sua pasta (/escolaplay/musica/) e o anfitrião das apps Onda.
 // O conector e o Tidal (outros domínios) nunca passam por aqui.
-const CACHE = 'musica-v57'; // 2.38.0 — a playlist na hora: a IA grátis da Cloudflare escolhe as músicas de partida e a playlist nasce já
+const CACHE = 'musica-v58'; // 2.39.0 — arrumar a lista: de onde vem cada uma, propostas juntas, pastas (sugeridas pela IA), juntar e apagar
 const ASSETS = [
     './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js', '../onda/rt/gestos-onda.js',
     './privacidade.html', './apoio.html',

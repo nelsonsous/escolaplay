@@ -37,7 +37,7 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 
 ## O que ficou por fazer
 
-As dez voltas estão feitas e publicadas (hoje: Música 2.38.0, conector 1.30.0). Fica isto, por ordem do que mais importa:
+As dez voltas estão feitas e publicadas (hoje: Música 2.39.0, conector 1.31.0). Fica isto, por ordem do que mais importa:
 
 | O quê | Porquê ficou | O que é preciso |
 |---|---|---|
@@ -61,6 +61,7 @@ operações abertas e 363 internas.
 | Pesquisar **playlists** por tema (`/searchResults/{id}/relationships/playlists`) e a **rádio** de uma faixa ou de um artista (`/tracks/{id}/relationships/radio`) | aberto | não usa (nunca foi experimentado) |
 | **Playlists feitas por IA a partir de um texto** (`/playlistGenerations`: o texto, «fica / tira / mais como esta» por faixa, voltar a gerar e renovar todas as semanas) | interno | **não dá.** Experimentado com a conta real a 14/11/2026 (conector 1.24.0, que saiu a seguir): o Tidal respondeu `403 Access tier is insufficient` |
 | O que se ouviu (`userPlaybackStates`) | interno | não dá |
+| As pastas (`folders`, `userCollectionFolders`: criar, ler, pôr playlists lá) | interno | não dá. A app tem as suas pastas (no «⋯» de cada playlist, ou sugeridas pela IA) e, no fim da lista, o guia «Fazer as mesmas pastas no Tidal» para as repetir lá à mão |
 
 Uma playlist que a pessoa faça com a IA **na app do Tidal** fica na conta dela como as outras: essa a Música pode ler
 (as playlists têm o atributo `hasGenerations`). O código da experiência está no histórico do repositório

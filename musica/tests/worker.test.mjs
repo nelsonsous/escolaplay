@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.30.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.31.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -700,6 +700,75 @@ test('a playlist na hora: com a autorização da pessoa, a IA da Cloudflare esco
     const m = await (await post('/api/pedidos', { texto: 'Outra', partida: '106' }, chave)).json();
     assert.deepEqual([chamadas, m.criada.nome, m.ia], [0, 'Parecidas com Teardrop', undefined]);
     delete env.AI;
+});
+
+test('arrumar a lista: pastas (só na app), pastas sugeridas pela IA, propostas antigas (ficar com uma ou apagar todas) e juntar apagando as originais', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const f = (id) => ({ id, titulo: 'x', artistas: ['y'] });
+    const nova = async (nome, extra = {}) => (await post('/api/playlists', { nome, faixas: [f('201'), f('202')], ...extra }, agente)).json();
+    const indice = async () => (await get('/api/playlists', chave)).json();
+    // pastas: a playlist e o índice guardam-na; sem nome sai da pasta
+    const a = await nova('Estrada à noite', { pedido: 'Para conduzir à noite', tidal: true });
+    const b = await nova('Adormecer com chuva', { pedido: 'Música para adormecer' });
+    const c = await nova('Onda da semana');
+    assert.deepEqual(await (await post(`/api/playlists/${a.id}/pasta`, { pasta: '  Carro  ' }, chave)).json(), { ok: true, pasta: 'Carro' });
+    assert.equal((await indice()).find((x) => x.id === a.id).pasta, 'Carro');
+    assert.equal(JSON.parse(await env.KV.get('playlist:' + a.id)).pasta, 'Carro');
+    await post(`/api/playlists/${a.id}/pasta`, { pasta: '' }, chave);
+    assert.equal((await indice()).find((x) => x.id === a.id).pasta, undefined);
+    await post(`/api/playlists/${a.id}/pasta`, { pasta: 'Carro' }, chave);
+    // propostas antigas: três versões de um pedido, só na app
+    const g = 'qgrupo1';
+    const v1 = await nova('Bandas sonoras · épica', { rascunho: true, grupo: g, variante: 'épica', pedido: 'Bandas sonoras para a estrada' });
+    const v2 = await nova('Bandas sonoras · noite', { rascunho: true, grupo: g, variante: 'noite', pedido: 'Bandas sonoras para a estrada' });
+    const v3 = await nova('Bandas sonoras · descoberta', { rascunho: true, grupo: g, variante: 'descoberta', pedido: 'Bandas sonoras para a estrada' });
+    // a IA sugere as pastas: sem ela no conector, ou sem a autorização da «playlist na hora», diz-se porquê
+    assert.equal((await (await post('/api/pastas/sugerir', {}, chave)).json()).error, 'sem_ia');
+    const vistos = [];
+    env.AI = { run: async (modelo, entrada) => { vistos.push(entrada.messages[1].content); return { response: JSON.stringify({ pastas: [
+        { nome: 'Dormir', ids: [b.id, 'inventado'] }, { nome: 'Carro', ids: [a.id] }, { nome: 'Descobrir', ids: [c.id, v1.id] }, { nome: '', ids: [b.id] }] }) }; } };
+    assert.equal((await (await post('/api/pastas/sugerir', {}, chave)).json()).error, 'ia_desligada');
+    await post('/api/consentir', { cloudflare: true }, chave);
+    const s = await (await post('/api/pastas/sugerir', {}, chave)).json();
+    // (as propostas não vão à IA; a que já tinha pasta fica onde estava; ids inventados e pastas sem nome não contam)
+    assert.ok(!vistos[0].includes(v1.id) && vistos[0].includes(`${b.id} | Adormecer com chuva | Música para adormecer`));
+    assert.deepEqual(s, { pastas: [{ nome: 'Dormir', n: 1 }, { nome: 'Descobrir', n: 1 }], arrumadas: 2 });
+    const i1 = await indice();
+    assert.deepEqual([a, b, c, v1].map((x) => i1.find((y) => y.id === x.id).pasta || null), ['Carro', 'Dormir', 'Descobrir', null]);
+    assert.equal(JSON.parse(await env.KV.get('playlist:' + b.id)).pasta, 'Dormir');
+    // tudo arrumado: não há nada a sugerir (nem se chama a IA)
+    vistos.length = 0;
+    assert.deepEqual(await (await post('/api/pastas/sugerir', {}, chave)).json(), { pastas: [], arrumadas: 0 });
+    assert.equal(vistos.length, 0);
+    delete env.AI;
+    // ficar com uma proposta: vai para o Tidal e deixa de ser proposta; as outras do mesmo pedido saem
+    const criadas = sim.criadas.length;
+    const r = await (await post('/api/arrumar', { ficar: v2.id }, chave)).json();
+    assert.deepEqual([r.ficou.id, r.ficou.tidal, r.apagadas], [v2.id, 'https://tidal.com/browse/playlist/uuid-nova', 2]);
+    assert.equal(sim.criadas.length, criadas + 1);
+    const i2 = await indice();
+    assert.ok(!i2.some((x) => x.id === v1.id || x.id === v3.id));
+    assert.deepEqual([i2.find((x) => x.id === v2.id).rascunho, !!i2.find((x) => x.id === v2.id).tidal], [undefined, true]);
+    assert.equal((await post('/api/arrumar', { ficar: v2.id }, chave)).status, 404, 'já não é proposta');
+    // apagar todas as propostas de um pedido
+    const w1 = await nova('Chuva a dois · devagar', { rascunho: true, grupo: 'qgrupo2' });
+    const w2 = await nova('Chuva a dois · estrada', { rascunho: true, grupo: 'qgrupo2' });
+    assert.deepEqual(await (await post('/api/arrumar', { apagar: 'qgrupo2' }, chave)).json(), { ok: true, apagadas: 2 });
+    assert.ok(!(await indice()).some((x) => x.id === w1.id || x.id === w2.id));
+    assert.equal((await post('/api/arrumar', { apagar: 'qgrupo2' }, chave)).status, 404);
+    // juntar e apagar as originais: a nova fica, as originais saem da app e do Tidal
+    const j1 = await nova('Um', { tidal: true }), j2 = await nova('Dois', { tidal: true });
+    const apagadasAntes = sim.apagadas.length;
+    const jn = await (await post('/api/juntar', { ids: [j1.id, j2.id], apagar: true }, chave)).json();
+    assert.deepEqual([jn.nome, jn.apagadas], ['Um + Dois', 2]);
+    const i3 = await indice();
+    assert.ok(i3.some((x) => x.id === jn.id) && !i3.some((x) => x.id === j1.id || x.id === j2.id));
+    assert.equal(sim.apagadas.length, apagadasAntes + 2, 'apagadas no Tidal');
+    // sem «apagar», as originais ficam
+    const k1 = await nova('Três'), k2 = await nova('Quatro');
+    await post('/api/juntar', { ids: [k1.id, k2.id] }, chave);
+    assert.ok((await indice()).some((x) => x.id === k1.id));
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {
