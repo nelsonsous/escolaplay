@@ -60,12 +60,16 @@ export function placeStatus(place, lastSeen, now = Date.now()) {
  * telemóveis que estão em uso, conforme a "análise dos outros" — ligada; "1x" = só na corrida da manhã (hora de Lisboa);
  * desligada — até `cap` locais ao todo. Primeiro os telemóveis que abriram a app há menos tempo.
  * devices = { <id do telemóvel>: { lastSeen } } (KV dev:<id>); morning = corrida da manhã (por omissão, pela hora de Lisboa).
+ * wanted = os locais pedidos pela app (want:<id>, ao abrir a app ou «Analisar agora»): a corrida é só para esses (o conector
+ * já viu a validade de 6 h, a «análise dos outros» e o 1× por dia; quem abre a app não está em pausa).
  * → { run: [{ ...local, kind }], skip: [{ ...local, kind, reason }], morning, others }
  */
-export function selectPlaces(places, { devices = {}, others = 'on', now = Date.now(), cap = ANALYSED_MAX, morning = isMorningRun(now) } = {}) {
+export function selectPlaces(places, { devices = {}, others = 'on', now = Date.now(), cap = ANALYSED_MAX, morning = isMorningRun(now), wanted = null } = {}) {
     const mode = Object.hasOwn(OTHERS, others) ? others : 'on';
-    const ok = (Array.isArray(places) ? places : []).filter((p) => p && typeof p.id === 'string' && Number.isFinite(p.lat) && Number.isFinite(p.lon));
+    const all = (Array.isArray(places) ? places : []).filter((p) => p && typeof p.id === 'string' && Number.isFinite(p.lat) && Number.isFinite(p.lon));
     const run = [], skip = [];
+    const ok = wanted ? all.filter((p) => wanted.has(p.id)) : all;
+    if (wanted) for (const p of all.filter((x) => !wanted.has(x.id))) skip.push({ ...p, kind: isOwnerPlace(p) ? 'owner' : 'guest', reason: 'sem pedido da app (análise recente ou app não aberta)' });
     for (const p of ok.filter(isOwnerPlace)) {
         if (p.off) skip.push({ ...p, kind: 'owner', reason: 'desligado' });
         else run.push({ ...p, kind: 'owner' });
@@ -75,8 +79,8 @@ export function selectPlaces(places, { devices = {}, others = 'on', now = Date.n
     for (const g of guests) {
         const reason = g.off ? (g.offBy === 'owner' ? 'desligado pelo dono' : 'desligado')
             : mode === 'off' ? 'análise dos outros desligada'
-            : mode === '1x' && !morning ? 'só 1× por dia (na corrida da manhã)'
-            : placeStatus(g, g.lastSeen, now) === 'paused' ? `em pausa (${PAUSE_DAYS} dias ou mais sem abrir a app)`
+            : mode === '1x' && !morning && !wanted ? 'só 1× por dia (na corrida da manhã)'
+            : !wanted && placeStatus(g, g.lastSeen, now) === 'paused' ? `em pausa (${PAUSE_DAYS} dias ou mais sem abrir a app)`
             : run.length >= cap ? `limite de ${cap} locais analisados`
             : null;
         if (reason) skip.push({ ...g, reason });

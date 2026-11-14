@@ -131,6 +131,27 @@ cd meteo/proxy && npx wrangler secret put OWNER_CODE
 
 Sem ele a app funciona na mesma, mas ninguém é o dono (os locais de antes, sem dono, ficam à espera dele).
 
+## A análise na hora: ao abrir a app (1.25)
+
+Decisão do dono (14/11/2026): **sem horas marcadas**. Quando alguém abre a app e a análise do seu local tem **mais de
+6 h**, o conector chama a tarefa da análise pelo gatilho «API» (como o Maestro da app Música); fica pronta em ~7 min,
+para a vez seguinte (com a app aberta, ela volta a buscá-la aos 8 min). «Analisar agora» também a chama. Se ninguém abrir
+a app, não se gasta nada. A notificação das 19:00 usa a última análise se tiver menos de 30 h; senão pede para abrir a
+app. Cada corrida gasta da subscrição do Claude: **uma de cada vez** (15 min), no máximo **4 por hora e 12 por dia**; o
+texto da chamada é fixo (só os ids dos locais); um pedido que fique para trás é chamado pela vigia do cron (até 2 vezes).
+Os locais dos outros seguem a «Análise dos outros» (desligada: nunca; 1× por dia: no máximo uma por dia).
+
+**Para ligar** (uma vez; o token nunca passa pelo código nem pelas conversas):
+
+1. Em `claude.ai/code/routines`, abre a tarefa **«Meteo — análise do Claude»** → **Edit** → na linha **Trigger** carrega
+   em **+** → **API** → **Generate token**. Copia o endereço («Fire URL») e o token (só aparece uma vez).
+2. No painel do Cloudflare: **Workers** → `meteo` → **Settings** → **Variables and Secrets** → junta dois, do tipo
+   **Secret**: `METEO_FIRE_URL` (o endereço) e `METEO_TOKEN` (o token).
+3. Abre a app: em Análise passa a dizer «ao abrir a app, se tiver mais de 6 h». Depois tiram-se as horas marcadas da
+   tarefa (até lá continuam, para nunca ficar sem análise).
+
+Para desligar, apaga os dois segredos (ou o token, na página da tarefa): volta às horas marcadas.
+
 ## Os meus locais (1.15)
 
 Tocar no nome do local (no topo) abre **Os meus locais**: os locais guardados (até 12) e os que o Claude analisa todos os

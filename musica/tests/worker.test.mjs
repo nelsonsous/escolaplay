@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.32.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.36.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -423,7 +423,7 @@ test('trocar e tirar uma faixa, na hora: no mesmo sítio, logo no Tidal; a que s
     assert.deepEqual([v6.trocas.length, v6.trocas.filter((x) => x.faixa).length, !!v6.trocas.at(-1).faixa], [10, 5, true]);
 });
 
-test('mais como esta: as parecidas do Tidal, logo no Tidal; fica um pedido para o Maestro a rever, na mesma playlist', async () => {
+test('mais como esta: as parecidas do Tidal, logo no Tidal; o Maestro revê-a só se a pessoa pedir, na mesma playlist', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
     const r = await post('/api/mais', { faixa: '101' }, chave);
@@ -436,13 +436,17 @@ test('mais como esta: as parecidas do Tidal, logo no Tidal; fica um pedido para 
     assert.match(d.tidal.url, /^https:\/\/tidal.com\/browse\/playlist\//);
     assert.ok(sim.chamadas.some((c) => c.includes('/tracks/101/relationships/similarTracks')));
     assert.equal((await post('/api/mais', { faixa: 'abc' }, chave)).status, 400);
-    // quem escolheu foi o Tidal: diz-se de onde vem, e o Maestro tem um pedido para a rever (no mesmo sítio)
+    // quem escolheu foi o Tidal: diz-se de onde vem; a revisão do Maestro só se a pessoa a pedir (na folha)
     assert.deepEqual([d.por, d.origem], ['app', 'parecidas']);
-    assert.match(d.resumo, /O Maestro revê-a na próxima corrida/);
-    const ped = (await (await get('/api/pedidos', chave)).json())[0];
+    assert.match(d.resumo, /Se quiseres, o Maestro revê-a, no mesmo link do Tidal\.$/);
+    assert.deepEqual([await (await get('/api/pedidos', chave)).json(), d.afinacoes], [[], undefined], 'não pede a revisão sozinha');
+    const rv = await post(`/api/playlists/${d.id}/rever`, {}, chave);
+    assert.equal(rv.status, 201);
+    const ped = await rv.json();
     assert.deepEqual([ped.estado, ped.texto, ped.afinar], ['pendente', 'Mais como «So What», de Miles Davis', { playlist: d.id, nome: d.nome, rejeitadas: [], rever: true }]);
     assert.deepEqual(ped.opcoes, d.opcoes);
-    assert.deepEqual(d.afinacoes, [{ pedido: ped.id, texto: 'Rever as parecidas do Tidal', rejeitadas: 0, em: ped.criadoEm, rever: true }]);
+    assert.equal((await (await post(`/api/playlists/${d.id}/rever`, {}, chave)).json()).id, ped.id, 'pedir outra vez não faz outro pedido');
+    assert.deepEqual((await (await get(`/api/playlists/${d.id}`, chave)).json()).afinacoes, [{ pedido: ped.id, texto: 'Rever as parecidas do Tidal', rejeitadas: 0, em: ped.criadoEm, rever: true }]);
     assert.equal((await (await get('/api/playlists', chave)).json())[0].origem, 'parecidas');
     // o Maestro revê-a: as faixas mudam na mesma playlist (o mesmo link do Tidal) e ela passa a ser dele
     const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200 });
@@ -457,20 +461,21 @@ test('mais como esta: as parecidas do Tidal, logo no Tidal; fica um pedido para 
     assert.deepEqual([d2.afinacoes[0].entraram, d2.afinacoes[0].sairam], [1, 3]);
     const i2 = (await (await get('/api/playlists', chave)).json())[0];
     assert.deepEqual([i2.por, i2.revistaEm], ['curador', d2.revistaEm]);
+    assert.equal((await post(`/api/playlists/${d.id}/rever`, {}, chave)).status, 409, 'já revista: para a mudar, afina-se');
     // cancelar a revisão (na app): o pedido sai e a playlist fica como está, do Tidal
     const e = await (await post('/api/mais', { faixa: '102' }, chave)).json();
-    const pe = (await (await get('/api/pedidos', chave)).json())[0];
+    const pe = await (await post(`/api/playlists/${e.id}/rever`, {}, chave)).json();
     assert.equal(pe.afinar.playlist, e.id);
     assert.equal((await call(`/api/pedidos/${pe.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } })).status, 200);
     const e2 = JSON.parse(await env.KV.get('playlist:' + e.id));
     assert.deepEqual([e2.por, e2.afinacoes], ['app', []]);
-    // com a fila de pedidos cheia, a playlist cria-se na mesma (sem pedido de revisão)
+    // com a fila de pedidos cheia, a playlist cria-se na mesma; a revisão é que não
     const cheia = JSON.parse(await env.KV.get('pedidos')).filter((x) => x.estado !== 'pendente');
     for (let i = 0; i < 20; i++) cheia.unshift({ id: 'qcheia' + i, texto: 'x', estado: 'pendente', criadoEm: new Date().toISOString() });
     await env.KV.put('pedidos', JSON.stringify(cheia));
     const g = await post('/api/mais', { faixa: '103' }, chave);
     assert.equal(g.status, 201);
-    assert.equal((await g.json()).afinacoes, undefined);
+    assert.equal((await post(`/api/playlists/${(await g.json()).id}/rever`, {}, chave)).status, 429);
     assert.equal(JSON.parse(await env.KV.get('pedidos')).filter((x) => x.estado === 'pendente').length, 20);
 });
 
@@ -484,8 +489,8 @@ test('mais como esta, Tidal × Maestro: a lista do Tidal fica guardada quando o 
     assert.deepEqual([d.doTidal.faixas[1].titulo, d.doTidal.faixas[1].artistas, d.doTidal.faixas[1].isrc], ['Feeling Good', ['Nina Simone'], 'USAAA0000102']);
     assert.equal(d.doTidal.faixas[4].versao, 'Radio Edit');
     assert.equal(d.doTidal.em, d.criadaEm);
-    // o Maestro revê-a: a playlist passa a ser a dele (as candidatas também); a lista do Tidal fica
-    const ped = (await (await get('/api/pedidos', chave)).json())[0];
+    // o Maestro revê-a (a pessoa pediu): a playlist passa a ser a dele (as candidatas também); a lista do Tidal fica
+    const ped = await (await post(`/api/playlists/${d.id}/rever`, {}, chave)).json();
     const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200 });
     const ren = await post(`/api/playlists/${d.id}/renovacoes`, { faixas: [f('101', 'So What', 'Miles Davis'), f('107', 'Blue in Green', 'Miles Davis'), f('105', 'Naima', 'John Coltrane')],
         candidatas: [{ artista: 'Miles Davis', titulo: 'Blue in Green', faixa: f('107', 'Blue in Green', 'Miles Davis') }], resumo: 'Revista.', modelo: 'm' }, agente);
@@ -523,7 +528,7 @@ test('mais como esta, Tidal × Maestro: a lista do Tidal fica guardada quando o 
     assert.equal(JSON.parse(await env.KV.get('playlist:' + pl.id)).doTidal, undefined);
 });
 
-test('pedir com música de partida: a playlist nasce já no Tidal com as parecidas dela; o Maestro revê-a com o texto do pedido e dá-lhe nome', async () => {
+test('pedir com música de partida: a playlist nasce já no Tidal com as parecidas dela; se a pessoa pedir, o Maestro revê-a com o texto do pedido e dá-lhe nome', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
     const texto = 'Para a Carolina, de 12 anos, que gosta de jazz modal';
@@ -534,18 +539,20 @@ test('pedir com música de partida: a playlist nasce já no Tidal com as parecid
     assert.deepEqual([sim.criadas.length, (await (await get('/api/pedidos', chave)).json()).length], [0, 0]);
     const r = await post('/api/pedidos', { texto, partida: '101', opcoes: { faixas: 40, maxArtista: 2, estilo: 'descoberta' } }, chave);
     assert.equal(r.status, 201);
-    const p = await r.json();
-    // o pedido é uma revisão: o texto é o da pessoa, as opções também; a playlist já existe, no Tidal
-    assert.deepEqual([p.estado, p.texto, p.afinar.rever, p.opcoes.faixas, p.opcoes.estilo], ['pendente', texto, true, 40, 'descoberta']);
-    assert.deepEqual(p.criada, { id: p.afinar.playlist, nome: 'Parecidas com So What', tidal: 'https://tidal.com/browse/playlist/uuid-nova' });
-    const d = await (await get(`/api/playlists/${p.criada.id}`, chave)).json();
+    const c = await r.json();
+    // a playlist já existe, no Tidal; nada fica à espera do Maestro (a revisão é se a pessoa a pedir)
+    assert.deepEqual([c.estado, c.afinar, c.criada.nome, c.criada.tidal], [undefined, undefined, 'Parecidas com So What', 'https://tidal.com/browse/playlist/uuid-nova']);
+    assert.deepEqual(await (await get('/api/pedidos', chave)).json(), []);
+    const d = await (await get(`/api/playlists/${c.criada.id}`, chave)).json();
     assert.deepEqual(d.faixas.map((x) => x.id), ['101', '102', '106', '105', '103'], 'a música de partida e as parecidas do Tidal, pela ordem dele');
     assert.deepEqual([d.origem, d.por, d.pedido, d.opcoes.faixas], ['parecidas', 'app', texto, 40]);
     assert.equal(d.faixas[0].motivo, 'A música de partida.');
     assert.match(d.resumo, /^Começou pelas faixas parecidas com «So What», de Miles Davis/);
     assert.deepEqual(d.doTidal.faixas.map((x) => x.id), ['101', '102', '106', '105', '103']);
     assert.deepEqual(sim.itens, ['101', '102', '106', '105', '103']);
-    assert.deepEqual(d.afinacoes.map((x) => [x.pedido, x.rever]), [[p.id, true]]);
+    // a pessoa pede a revisão: o texto é o dela, as opções também
+    const p = await (await post(`/api/playlists/${d.id}/rever`, {}, chave)).json();
+    assert.deepEqual([p.estado, p.texto, p.afinar.rever, p.afinar.playlist, p.opcoes.faixas, p.opcoes.estilo], ['pendente', texto, true, d.id, 40, 'descoberta']);
     // o Maestro vê-o como uma revisão, com o texto da pessoa
     const doMaestro = (await (await get('/api/pedidos', agente)).json()).find((x) => x.id === p.id);
     assert.deepEqual([doMaestro.texto, doMaestro.afinar.playlist], [texto, d.id]);
@@ -566,6 +573,34 @@ test('pedir com música de partida: a playlist nasce já no Tidal com as parecid
     // sem música de partida, fica como sempre: o pedido espera pelo Maestro
     const sem = await (await post('/api/pedidos', { texto: 'Soul dos anos 70' }, chave)).json();
     assert.deepEqual([sem.estado, sem.afinar, sem.criada], ['pendente', undefined, undefined]);
+});
+
+test('melhorar o pedido: a IA da playlist na hora reescreve o texto mais apurado; sem a autorização ou sem IA, diz porquê', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const texto = 'música para treinar ginástica';
+    // sem a playlist na hora ligada (a autorização para a IA ler o texto): não manda nada à IA
+    let pedidosIA = 0;
+    env.AI = { run: async (modelo, entrada) => { pedidosIA++; assert.match(entrada.messages[0].content, /^És um curador de música\. Uma pessoa escreveu um pedido de playlist/); assert.equal(entrada.messages[1].content, texto);
+        return { response: '{"texto": "Música enérgica e alegre para treinar ginástica rítmica, ritmo constante (100–130 bpm): pop dançável, como Dua Lipa ou Bruno Mars.", "porque": "Juntei a energia, o ritmo e exemplos."}' }; } };
+    try {
+        const sem = await post('/api/pedidos/melhorar', { texto }, chave);
+        assert.equal(sem.status, 409);
+        assert.match((await sem.json()).message, /^Liga a playlist na hora/);
+        assert.equal(pedidosIA, 0);
+        await post('/api/consentir', { cloudflare: true }, chave);
+        assert.equal((await post('/api/pedidos/melhorar', { texto: 'x' }, chave)).status, 400);
+        const r = await post('/api/pedidos/melhorar', { texto }, chave);
+        assert.equal(r.status, 200);
+        assert.deepEqual(await r.json(), { texto: 'Música enérgica e alegre para treinar ginástica rítmica, ritmo constante (100–130 bpm): pop dançável, como Dua Lipa ou Bruno Mars.',
+            porque: 'Juntei a energia, o ritmo e exemplos.', modelo: '@cf/mistralai/mistral-small-3.1-24b-instruct', por: 'Mistral Small' });
+        assert.equal(pedidosIA, 1);
+        assert.deepEqual(await (await get('/api/pedidos', chave)).json(), [], 'melhorar não faz pedido nenhum');
+        // a IA não responde (ou responde mal): diz que tente outra vez
+        env.AI = { run: async () => ({ response: 'não sei' }) };
+        const f = await post('/api/pedidos/melhorar', { texto }, chave);
+        assert.equal(f.status, 502);
+        assert.match((await f.json()).message, /^A IA não respondeu agora/);
+    } finally { delete env.AI; }
 });
 
 test('pesquisa: as do Tidal com capa e 30 s de pré-escuta; com «unicas», cada canção uma vez, na versão de estúdio mais ouvida', async () => {
@@ -679,16 +714,18 @@ test('a playlist na hora: com a autorização da pessoa, a IA da Cloudflare esco
     const p = await r.json();
     assert.equal(chamadas, 1);
     assert.equal(p.ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
-    assert.deepEqual([p.texto, p.afinar.rever, p.criada.nome], [texto, true, 'Modal ao fim do dia']);
+    assert.deepEqual([p.estado, p.criada.nome], [undefined, 'Modal ao fim do dia']);
     const d = await (await get(`/api/playlists/${p.criada.id}`, chave)).json();
     assert.deepEqual(d.ia, { modelo: '@cf/mistralai/mistral-small-3.1-24b-instruct', sementes: ['101', '102', '103'] });
+    assert.equal((await (await get('/api/playlists', chave)).json()).find((x) => x.id === d.id).feitaPor, 'Mistral Small', 'a lista diz quem a fez');
     assert.deepEqual(d.faixas.slice(0, 3).map((f) => [f.id, f.motivo]), [['101', 'Sugerida pela IA para o teu pedido.'], ['102', 'Sugerida pela IA para o teu pedido.'], ['103', 'Sugerida pela IA para o teu pedido.']]);
     // (as parecidas: a primeira de cada música de partida, depois a segunda de cada…, sem repetir)
     assert.deepEqual(d.faixas.slice(3).map((f) => f.id), ['106', '105']);
     // (a primeira parecida do «So What» já é uma música de partida: a primeira nova vem da lista da «Feeling Good»)
     assert.equal(d.faixas[3].motivo, 'Parecida com «Feeling Good».');
     assert.deepEqual([d.origem, d.pedido, d.nome], ['parecidas', texto, 'Modal ao fim do dia']);
-    assert.match(d.resumo, /^A IA da Cloudflare escolheu as músicas de partida \(«So What», «Feeling Good», «Get Lucky»\)/);
+    assert.match(d.resumo, /^A IA escolheu as músicas de partida \(«So What», «Feeling Good», «Get Lucky»\)/);
+    assert.equal(d.textoRever, texto, 'se a pessoa pedir a revisão, o Maestro revê-a com o pedido dela');
     assert.ok(d.candidatas.filter((x) => x.fixa).length === 3, 'as músicas de partida ficam fixas');
     assert.deepEqual(d.doTidal.faixas.map((f) => f.id), d.faixas.map((f) => f.id), 'a lista de partida fica, para comparar com a revisão');
     // «Só o Maestro»: com a playlist na hora ligada, o pedido salta a IA e fica para o Maestro
@@ -792,43 +829,101 @@ test('arrumar a lista: pastas (só na app), pastas sugeridas pela IA, propostas 
     assert.ok((await indice()).some((x) => x.id === k1.id));
 });
 
-test('a conta Mistral do dono: primeiro a Mistral (só nos pedidos dele), depois a IA da Cloudflare; os convidados nunca passam pela Mistral', async () => {
+test('a Mistral avançada: cada pessoa escolhe a IA; liga a conta Mistral dela (a chave confirma-se e nunca volta); a do dono pode estar no Cloudflare', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
-    const ia = (texto, k = agente) => post('/api/ia/sementes', { texto }, k).then((r) => r.json());
-    // só com a chave da Mistral (sem a IA da Cloudflare) já há IA; o estado diz que é a do dono
-    env.MISTRAL_API_KEY = 'mk-teste';
+    const estado = async (k) => (await get('/api/estado', k)).json();
+    env.AI = { run: async () => ({ response: '{"nome": "Da Cloudflare", "musicas": [{"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }) };
     sim.mistral = { status: 200, conteudo: '{"nome": "Da Mistral", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}]}' };
-    const e = await (await get('/api/estado', chave)).json();
-    assert.deepEqual([e.iaCfPode, e.iaMistral], [true, true]);
-    const r = await ia('Jazz modal');
-    assert.deepEqual([r.modelo, r.nome, r.musicas[0].tidal?.id], ['mistral:mistral-large-latest', 'Da Mistral', '101']);
-    const pm = sim.mistralPedidos.at(-1);
-    assert.deepEqual([pm.authorization, pm.corpo.model, pm.corpo.response_format], ['Bearer mk-teste', 'mistral-large-latest', { type: 'json_object' }]);
-    assert.deepEqual(pm.corpo.messages.map((x) => x.role), ['system', 'user']);
+    sim.mistralBoas = ['mkAnaBoaChave1234567890', 'mkDonoChave1234567890ab'];
+    await post('/api/consentir', { cloudflare: true }, chave);
+    // o dono, com a chave no Cloudflare: está ligada, mas só se usa quando ele a escolhe
+    env.MISTRAL_API_KEY = 'mkDonoChave1234567890ab';
+    assert.deepEqual([(await estado(chave)).mistralLigada, (await estado(chave)).iaMistral], [true, false]);
+    assert.equal((await (await post('/api/pedidos', { texto: 'Jazz para o dono' }, chave)).json()).ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    assert.deepEqual(await (await post('/api/consentir', { mistral: true }, chave)).json(), { ok: true, ia: 'mistral', mistral: true });
+    assert.equal((await estado(chave)).iaMistral, true);
+    const pd = await (await post('/api/pedidos', { texto: 'Mais jazz para o dono' }, chave)).json();
+    assert.equal(pd.ia, 'mistral:mistral-large-latest');
+    assert.equal(sim.mistralPedidos.at(-1).authorization, 'Bearer mkDonoChave1234567890ab');
+    assert.deepEqual([sim.mistralPedidos.at(-1).corpo.model, sim.mistralPedidos.at(-1).corpo.response_format], ['mistral-large-latest', { type: 'json_object' }]);
     // a Mistral recusa (limite do plano grátis, por exemplo): segue para a IA da Cloudflare
     sim.mistral.status = 429;
-    env.AI = { run: async () => ({ response: '{"nome": "Da Cloudflare", "musicas": [{"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }) };
-    const r2 = await ia('Jazz modal');
+    const r2 = await (await post('/api/ia/sementes', { texto: 'Jazz' }, agente)).json();
     assert.equal(r2.modelo, '@cf/mistralai/mistral-small-3.1-24b-instruct');
     assert.match(r2.erros[0], /^mistral:mistral-large-latest: HTTP 429$/);
     sim.mistral.status = 200;
-    // uma convidada: a playlist na hora usa a IA da Cloudflare; a Mistral do dono nunca vê os pedidos dela
+    // uma convidada: a Mistral do dono não é dela; liga a conta dela (a chave confirma-se na Mistral)
     const cv = await (await post('/api/convites', {}, chave)).json();
     const st = new URL((await (await post('/api/ligar', { codigo: cv.codigo, nome: 'Ana', consente: true })).json()).url).searchParams.get('state');
-    const chaveAna = decodeURIComponent((await call(`/tidal/retorno?code=CODIGO-ANA&state=${st}`)).headers.get('location').split('#chave=')[1] || '');
-    assert.ok(chaveAna.length > 20);
-    const eAna = await (await get('/api/estado', chaveAna)).json();
-    assert.deepEqual([eAna.iaCf, eAna.iaMistral], [true, undefined], 'autorizou ao ligar; a Mistral não é dela');
+    const ana = decodeURIComponent((await call(`/tidal/retorno?code=CODIGO-ANA&state=${st}`)).headers.get('location').split('#chave=')[1] || '');
+    assert.deepEqual([(await estado(ana)).mistralLigada, (await estado(ana)).iaMistral], [false, false]);
+    assert.equal((await (await post('/api/consentir', { mistral: true }, ana)).json()).error, 'sem_mistral');
     const antes = sim.mistralPedidos.length;
-    const p = await (await post('/api/pedidos', { texto: 'Fado para a Ana' }, chaveAna)).json();
-    assert.equal(p.ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
-    assert.equal(sim.mistralPedidos.length, antes, 'nada foi para a Mistral');
-    // e o dono, com a Mistral: a playlist na hora usa-a
-    await post('/api/consentir', { cloudflare: true }, chave);
-    const pd = await (await post('/api/pedidos', { texto: 'Jazz para o dono' }, chave)).json();
-    assert.equal(pd.ia, 'mistral:mistral-large-latest');
+    assert.equal((await (await post('/api/pedidos', { texto: 'Fado para a Ana' }, ana)).json()).ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    assert.equal(sim.mistralPedidos.length, antes, 'sem a escolha dela, nada vai para a Mistral');
+    assert.equal((await (await post('/api/mistral', { chave: 'curta' }, ana)).json()).error, 'mistral_chave');
+    const errada = await post('/api/mistral', { chave: 'mkErradaChave1234567890' }, ana);
+    assert.deepEqual([errada.status, (await errada.json()).message], [400, 'A Mistral não aceitou esta chave. Confirma que a copiaste toda.']);
+    assert.deepEqual(await (await post('/api/mistral', { chave: 'mkAnaBoaChave1234567890' }, ana)).json(), { ok: true, ia: 'mistral' });
+    const eAna = await estado(ana);
+    assert.deepEqual([eAna.mistralLigada, eAna.iaMistral], [true, true]);
+    assert.ok(!JSON.stringify(eAna).includes('mkAnaBoaChave'), 'a chave nunca volta nas respostas');
+    const pa = await (await post('/api/pedidos', { texto: 'Mais fado para a Ana' }, ana)).json();
+    assert.equal(pa.ia, 'mistral:mistral-large-latest');
+    assert.equal(sim.mistralPedidos.at(-1).authorization, 'Bearer mkAnaBoaChave1234567890', 'com a conta dela');
+    // voltar à da Cloudflare (a conta fica ligada) e desligar a conta
+    await post('/api/consentir', { mistral: false }, ana);
+    assert.deepEqual([(await estado(ana)).mistralLigada, (await estado(ana)).iaMistral], [true, false]);
+    assert.equal((await call('/api/mistral', { method: 'DELETE', headers: { authorization: `Bearer ${ana}` } })).status, 200);
+    assert.equal((await estado(ana)).mistralLigada, false);
+    assert.equal((await post('/api/mistral', { chave: 'mkAnaBoaChave1234567890' }, agente)).status, 403, 'o Maestro não liga contas');
     delete env.AI; delete env.MISTRAL_API_KEY;
+});
+
+test('o Gemini: a terceira IA (3.8 Flash; o 3.5 Flash-Lite de reserva), com a conta Google da pessoa', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const estado = async () => (await get('/api/estado', chave)).json();
+    env.AI = { run: async () => ({ response: '{"nome": "Da Cloudflare", "musicas": [{"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }) };
+    sim.gemini = { status: 200, conteudo: '{"nome": "Do Gemini", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}]}', falha: {} };
+    sim.geminiBoas = ['AIzaBoaChaveDoGoogle1234567890'];
+    await post('/api/consentir', { cloudflare: true }, chave);
+    assert.deepEqual([(await estado()).iaEscolha, (await estado()).geminiLigada], ['cloudflare', false]);
+    // sem a conta ligada não se escolhe; uma IA que não existe também não
+    assert.equal((await (await post('/api/consentir', { ia: 'gemini' }, chave)).json()).error, 'sem_gemini');
+    assert.equal((await post('/api/consentir', { ia: 'outra' }, chave)).status, 400);
+    // ligar: a chave confirma-se na Google; errada, diz-se
+    const errada = await post('/api/gemini', { chave: 'AIzaErradaChave1234567890' }, chave);
+    assert.deepEqual([errada.status, (await errada.json()).message], [400, 'A Google não aceitou esta chave. Confirma que a copiaste toda.']);
+    assert.deepEqual(await (await post('/api/gemini', { chave: 'AIzaBoaChaveDoGoogle1234567890' }, chave)).json(), { ok: true, ia: 'gemini' });
+    const e = await estado();
+    assert.deepEqual([e.iaEscolha, e.geminiLigada, e.iaMistral], ['gemini', true, false]);
+    assert.ok(!JSON.stringify(e).includes('AIzaBoa'), 'a chave nunca volta');
+    // a playlist na hora com o Gemini 3.8 Flash: JSON pedido, as partes de «pensamento» não contam
+    const p = await (await post('/api/pedidos', { texto: 'Jazz modal' }, chave)).json();
+    assert.equal(p.ia, 'gemini:gemini-3.8-flash');
+    const pg = sim.geminiPedidos.at(-1);
+    assert.deepEqual([pg.modelo, pg.chave, pg.corpo.generationConfig.responseMimeType], ['gemini-3.8-flash', 'AIzaBoaChaveDoGoogle1234567890', 'application/json']);
+    assert.match(pg.corpo.systemInstruction.parts[0].text, /^És um curador de música/);
+    assert.equal(pg.corpo.contents[0].parts[0].text, 'Jazz modal');
+    // o 3.8 Flash falha: o 3.5 Flash-Lite; os dois falham: a IA da Cloudflare
+    sim.gemini.falha = { 'gemini-3.8-flash': 503 };
+    assert.equal((await (await post('/api/pedidos', { texto: 'Mais jazz' }, chave)).json()).ia, 'gemini:gemini-3.5-flash-lite');
+    sim.gemini.falha = { 'gemini-3.8-flash': 503, 'gemini-3.5-flash-lite': 429 };
+    assert.equal((await (await post('/api/pedidos', { texto: 'Ainda mais jazz' }, chave)).json()).ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    sim.gemini.falha = {};
+    // voltar à da Cloudflare (a conta fica ligada); voltar ao Gemini; desligar a conta: fica a da Cloudflare
+    assert.deepEqual(await (await post('/api/consentir', { ia: 'cloudflare' }, chave)).json(), { ok: true, ia: 'cloudflare', mistral: false });
+    assert.deepEqual([(await estado()).iaEscolha, (await estado()).geminiLigada], ['cloudflare', true]);
+    await post('/api/consentir', { ia: 'gemini' }, chave);
+    await call('/api/gemini', { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } });
+    assert.deepEqual([(await estado()).iaEscolha, (await estado()).geminiLigada], ['cloudflare', false]);
+    // quem montou a app pode ter a chave no Cloudflare (GEMINI_API_KEY)
+    env.GEMINI_API_KEY = 'AIzaBoaChaveDoGoogle1234567890';
+    assert.equal((await estado()).geminiLigada, true);
+    await post('/api/consentir', { ia: 'gemini' }, chave);
+    assert.equal((await (await post('/api/pedidos', { texto: 'Jazz do dono' }, chave)).json()).ia, 'gemini:gemini-3.8-flash');
+    delete env.AI; delete env.GEMINI_API_KEY;
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {
@@ -918,7 +1013,7 @@ test('a app nativa (os ficheiros vão dentro dela): o login do Tidal volta à ap
     assert.match((await call('/tidal/retorno?code=X&state=expirado')).headers.get('location'), /^https:\/\/nelsonsous\.github\.io\/escolaplay\/musica\/#erro=/);
 });
 
-test('o Maestro na hora: com os segredos no Worker, um pedido novo chama a tarefa agendada — sem corridas a dobrar nem chamadas à toa; sem eles, nada muda', async () => {
+test('o Maestro na hora: com os segredos no Worker, cada pedido novo chama logo a sua corrida — em paralelo, sem chamadas à toa; sem eles, nada muda', async () => {
     const { chave } = await ligarPrimeiraVez();
     const agente = await env.KV.get('agente:chave');
     const chamadas = async () => JSON.parse((await env.KV.get('maestro:chamadas')) || '[]');
@@ -930,85 +1025,89 @@ test('o Maestro na hora: com os segredos no Worker, um pedido novo chama a taref
     assert.deepEqual(sim.maestro, []);
     assert.equal((await (await get('/api/estado', chave)).json()).naHora, undefined);
     await env.KV.put('pedidos', '[]');
-    // com os segredos (postos no painel do Cloudflare, nunca no código); as horas agendadas ficam de fora deste teste
-    Object.assign(env, { MAESTRO_FIRE_URL: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', MAESTRO_TOKEN: 'segredo-de-teste', MAESTRO_ESPERA_MS: 30, MAESTRO_AGENDADAS: '' });
+    // com os segredos (postos no painel do Cloudflare, nunca no código)
+    Object.assign(env, { MAESTRO_FIRE_URL: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', MAESTRO_TOKEN: 'segredo-de-teste', MAESTRO_ESPERA_MS: 30 });
     assert.equal((await (await get('/api/estado', chave)).json()).naHora, true);
+    const corre = (id) => `Corrida pedida pela app Música: trata o pedido ${id}.`;
     const p1 = await (await post('/api/pedidos', { texto: 'Fado para o jantar' }, chave)).json();
     assert.equal(p1.naHora, true, 'a app fica a saber que o Maestro foi chamado');
     await depois();
     assert.equal(sim.maestro.length, 1);
     assert.deepEqual(sim.maestro[0], { url: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', metodo: 'POST', authorization: 'Bearer segredo-de-teste',
-        beta: 'experimental-cc-routine-2026-04-01', versao: '2023-06-01', corpo: { text: 'Corrida pedida pela app Música: há pedidos à espera.' } });
-    assert.ok(!JSON.stringify(sim.maestro[0]).includes('Fado'), 'nada do que a pessoa escreveu segue na chamada');
-    assert.deepEqual((await peds()).map((x) => x.chamadas), [1]);
-    // outro pedido logo a seguir: há uma corrida a decorrer (a que acabou de ser chamada), que o vê antes de acabar
+        beta: 'experimental-cc-routine-2026-04-01', versao: '2023-06-01', corpo: { text: corre(p1.id) } });
+    assert.ok(!JSON.stringify(sim.maestro[0]).includes('Fado'), 'nada do que a pessoa escreveu segue na chamada (só o id do pedido)');
+    assert.deepEqual((await peds()).map((x) => [x.chamadas, !!x.chamadoEm]), [[1, true]]);
+    // outro pedido logo a seguir: tem a sua própria corrida, ao mesmo tempo (não espera que a primeira acabe)
     const p2 = await (await post('/api/pedidos', { texto: 'Soul dos 70' }, chave)).json();
     await depois();
     assert.equal(p2.naHora, true);
-    assert.equal(sim.maestro.length, 1, 'não se chama outra corrida por cima da que está a decorrer');
-    // a app vai pedindo a lista (a espera viva): enquanto a corrida decorre, nada
-    await get('/api/pedidos', chave);
-    await depois();
-    assert.equal(sim.maestro.length, 1);
-    // 16 minutos depois o segundo pedido continua à espera (a corrida já tinha feito a última ronda): a vigia chama —
-    // quando é a app a pedir a lista, não o Maestro
-    const recuar = async (min) => { await env.KV.put('maestro:chamadas', JSON.stringify((await chamadas()).map((x) => x - min * 60000)));
-        await env.KV.put('pedidos', JSON.stringify((await peds()).map((x) => ({ ...x, criadoEm: new Date(Date.parse(x.criadoEm) - min * 60000).toISOString() })))); };
-    await recuar(16);
-    await get('/api/pedidos', agente);
-    await depois();
-    assert.equal(sim.maestro.length, 1, 'os pedidos do Maestro à lista não o chamam a ele próprio');
+    assert.deepEqual(sim.maestro.map((x) => x.corpo.text), [corre(p1.id), corre(p2.id)]);
+    // a app vai pedindo a lista (a espera viva): enquanto as corridas decorrem, nada
     await get('/api/pedidos', chave);
     await depois();
     assert.equal(sim.maestro.length, 2);
+    // 16 minutos depois o primeiro continua à espera: a vigia chama-o outra vez — quando é a app a pedir a lista, não
+    // o Maestro
+    const recuar = async (min, so) => {
+        const menos = (t) => new Date(Date.parse(t) - min * 60000).toISOString();
+        await env.KV.put('maestro:chamadas', JSON.stringify((await chamadas()).map((x) => x - min * 60000)));
+        await env.KV.put('pedidos', JSON.stringify((await peds()).map((x) => (so && x.id !== so ? x : { ...x, criadoEm: menos(x.criadoEm), ...(x.chamadoEm ? { chamadoEm: menos(x.chamadoEm) } : {}) }))));
+    };
+    await recuar(16, p1.id);
+    await get('/api/pedidos', agente);
+    await depois();
+    assert.equal(sim.maestro.length, 2, 'os pedidos do Maestro à lista não o chamam a ele próprio');
+    await get('/api/pedidos', chave);
+    await depois();
+    assert.deepEqual(sim.maestro.map((x) => x.corpo.text).slice(2), [corre(p1.id)]);
     assert.deepEqual((await peds()).map((x) => [x.texto, x.chamadas]), [['Soul dos 70', 1], ['Fado para o jantar', 2]]);
     // cada pedido conta no máximo 2 chamadas: um pedido que o Maestro não consegue tratar não fica a chamá-lo para sempre
     await recuar(16);
     await get('/api/pedidos', chave);
     await depois();
-    assert.equal(sim.maestro.length, 3, 'o segundo pedido ainda só tinha uma');
+    assert.deepEqual(sim.maestro.map((x) => x.corpo.text).slice(3), [corre(p2.id)], 'o segundo pedido ainda só tinha uma');
     await recuar(16);
     await get('/api/pedidos', chave);
     await depois();
-    assert.equal(sim.maestro.length, 3, 'já tiveram as duas: fica para a corrida agendada');
-    // três pedidos ao mesmo tempo (um pedido, uma afinação e um «Mais como esta»): uma só chamada, depois do último
+    assert.equal(sim.maestro.length, 4, 'já tiveram as duas: ficam à espera (cancelam-se na app)');
+    // um pedido e uma afinação: cada um a sua corrida. Um «Mais como esta» não chama ninguém (a revisão é só se a pessoa
+    // a pedir); pedir a revisão chama
     await env.KV.delete('maestro:chamadas');
     await env.KV.put('pedidos', '[]');
     const f = [{ id: '101', titulo: 'So What', artistas: ['Miles Davis'], duracao: 200 }];
     const pl = await (await post('/api/playlists', { nome: 'Base', faixas: f }, chave)).json();
-    const [a, b, c] = await Promise.all([post('/api/pedidos', { texto: 'Bossa nova' }, chave), post(`/api/playlists/${pl.id}/afinar`, { texto: 'mais calma' }, chave), post('/api/mais', { faixa: '101' }, chave)]);
-    assert.deepEqual([a.status, b.status, c.status], [201, 201, 201]);
-    assert.equal((await c.json()).naHora, true);
+    const a = await (await post('/api/pedidos', { texto: 'Bossa nova' }, chave)).json();
     await depois();
-    assert.equal(sim.maestro.length, 4, 'vários pedidos seguidos dão uma só corrida');
+    const b = await (await post(`/api/playlists/${pl.id}/afinar`, { texto: 'mais calma' }, chave)).json();
+    await depois();
+    const c = await (await post('/api/mais', { faixa: '101' }, chave)).json();
+    await depois();
+    assert.deepEqual([a.naHora, b.naHora, c.naHora], [true, true, undefined]);
+    assert.deepEqual(sim.maestro.map((x) => x.corpo.text).slice(4), [corre(a.id), corre(b.id)]);
+    const rv = await (await post(`/api/playlists/${c.id}/rever`, {}, chave)).json();
+    await depois();
+    assert.equal(rv.naHora, true);
+    assert.deepEqual(sim.maestro.map((x) => x.corpo.text).slice(6), [corre(rv.id)]);
     // se o gatilho recusar (token revogado), o pedido fica feito na mesma; a tentativa conta (não se martela)
     await env.KV.delete('maestro:chamadas');
     sim.maestroStatus = 401;
     assert.equal((await post('/api/pedidos', { texto: 'Clássica' }, chave)).status, 201);
     await depois();
-    assert.equal(sim.maestro.length, 5);
+    assert.equal(sim.maestro.length, 8);
     assert.equal((await chamadas()).length, 1);
     sim.maestroStatus = 200;
-    // no máximo 6 chamadas por hora: daí em diante os pedidos esperam pela corrida agendada
+    // no máximo 6 chamadas por hora: daí em diante os pedidos ficam à espera
     await env.KV.put('maestro:chamadas', JSON.stringify(Array.from({ length: 6 }, (_, i) => Date.now() - (20 + i) * 60000)));
     const pz = await (await post('/api/pedidos', { texto: 'Mais um' }, chave)).json();
     await depois();
     assert.equal(pz.naHora, undefined);
-    assert.equal(sim.maestro.length, 5, 'passado o limite, não chama');
-    // à volta das corridas agendadas (de 3 min antes a 15 min depois) não se chama: é essa corrida que trata do pedido
-    await env.KV.delete('maestro:chamadas');
-    const lx = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
-    env.MAESTRO_AGENDADAS = `03:00,${lx}`;
-    const pa = await (await post('/api/pedidos', { texto: 'À hora da corrida' }, chave)).json();
-    await depois();
-    assert.equal(pa.naHora, true);
-    assert.equal(sim.maestro.length, 5);
-    env.MAESTRO_AGENDADAS = '';
+    assert.equal(sim.maestro.length, 8, 'passado o limite, não chama');
     // um endereço que não é o do gatilho não serve (não se chama outro sítio com o token)
+    await env.KV.delete('maestro:chamadas');
     env.MAESTRO_FIRE_URL = 'https://exemplo.com/fire';
     assert.equal((await (await post('/api/pedidos', { texto: 'Outro' }, chave)).json()).naHora, undefined);
     await depois();
-    assert.equal(sim.maestro.length, 5);
+    assert.equal(sim.maestro.length, 8);
 });
 
 test('o Maestro é uma IA de terceiros: quem liga o Tidal autoriza no botão; quem já estava ligado autoriza nos Ajustes; renovar a sessão não a perde', async () => {
@@ -1411,24 +1510,24 @@ test('avisos no telemóvel: ligar, teste, «propostas prontas» uma vez por pedi
     await feito(ped.id, b.id);
     assert.equal(sim.pushes.length, n + 1, 'um aviso por pedido, não por proposta');
     assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Propostas prontas', body: '«Fado para o jantar»: escolhe a que vai para o Tidal.',
-        url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-pedido' });
+        url: `https://nelsonsous.github.io/escolaplay/musica/#pl=${a.id}`, tag: 'musica-pedido' });
     // a afinação feita: «foi afinada»
     const af = await (await post(`/api/playlists/${a.id}/afinar`, { texto: 'mais guitarra' }, chave)).json();
     await feito(af.id, a.id);
     assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Playlist afinada', body: '«Fado A» foi afinada pelo Maestro.',
-        url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-afinar' });
+        url: `https://nelsonsous.github.io/escolaplay/musica/#pl=${a.id}`, tag: 'musica-afinar' });
     // um pedido dá uma playlist, logo no Tidal: «Playlist pronta»
     const ped2 = await (await post('/api/pedidos', { texto: 'Jazz para a estrada' }, chave)).json();
     const c = await (await post('/api/playlists', { nome: 'Estrada', pedido: ped2.texto, faixas, tidal: true }, agente)).json();
     assert.ok(c.tidal);
     await feito(ped2.id, c.id);
     assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Playlist pronta', body: '«Jazz para a estrada»: já está no teu Tidal.',
-        url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-pedido' });
-    // as parecidas do Tidal revistas pelo Maestro: «foi revista»
+        url: `https://nelsonsous.github.io/escolaplay/musica/#pl=${c.id}`, tag: 'musica-pedido' });
+    // as parecidas do Tidal revistas pelo Maestro (a pessoa pediu): «foi revista»; tocar no aviso abre a playlist
     const m = await (await post('/api/mais', { faixa: '101' }, chave)).json();
-    await feito(m.afinacoes[0].pedido, m.id);
+    await feito((await (await post(`/api/playlists/${m.id}/rever`, {}, chave)).json()).id, m.id);
     assert.deepEqual(await decifrar(ultimo().body, tel), { title: 'Playlist revista', body: '«Parecidas com So What» foi revista pelo Maestro.',
-        url: 'https://nelsonsous.github.io/escolaplay/musica/', tag: 'musica-afinar' });
+        url: `https://nelsonsous.github.io/escolaplay/musica/#pl=${m.id}`, tag: 'musica-afinar' });
     // o serviço diz que a assinatura caducou (410): sai, e deixa de haver avisos
     sim.pushStatus['https://web.push.apple.com/QGtelemovel'] = 410;
     assert.deepEqual(await (await post('/api/push/teste', {}, chave)).json(), { enviados: 0, falhados: 1 });

@@ -37,6 +37,8 @@
     else if (h.has('ligado')) ls.set('aviso', 'Tidal ligado outra vez.');
     else if (h.has('erro')) ls.set('aviso', 'Não liguei ao Tidal: ' + h.get('erro'));
     if (q.get('ligar')) { ls.set('codigo', q.get('ligar')); q.delete('ligar'); }
+    // tocar num aviso do telemóvel abre a playlist dele (#pl=id): a Onda abre-a quando a lista chegar
+    if (/^[a-z0-9_-]{4,40}$/.test(h.get('pl') || '')) ls.set('abrir', h.get('pl'));
     if (q.get('proxy')) { ls.set('proxy', q.get('proxy').replace(/\/+$/, '')); q.delete('proxy'); }
     const resto = q.toString() ? `?${q}` : '';
     if (location.hash || location.search !== resto) history.replaceState(null, '', location.pathname + resto);
@@ -85,6 +87,13 @@
         t.click();
         t.remove();
     };
+    // com a app já aberta, o service worker diz qual playlist abrir (o aviso tocado)
+    if (navigator.serviceWorker && typeof navigator.serviceWorker.addEventListener === 'function') navigator.serviceWorker.addEventListener('message', (e) => {
+        const id = e.data && e.data.abrir;
+        if (typeof id === 'string' && /^[a-z0-9_-]{4,40}$/.test(id)) { ls.set('abrir', id); disparar('abrir'); }
+    });
+    // ao voltar à app (estava noutra ou com o ecrã desligado), o Maestro pode ter acabado entretanto
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && window.app) disparar('voltou'); });
 
     // os avisos no telemóvel: a Onda desenha o cartão nos Ajustes; aqui fica o que só o browser faz — pedir autorização
     // (logo no toque), assinar no serviço de notificações do telemóvel e entregar a assinatura ao conector

@@ -64,7 +64,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.8.3');
+    assert.equal(j.version, '1.9.0');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -805,4 +805,73 @@ test('análise: notas sobre os dados (opcionais, até 4, cada uma até 160 carac
     assert.deepEqual(v.value.dados, ['Proteção Civil: sem dados', 'Guimarães: pluviómetro com 0 mm sob chuva', 'x']);
     assert.deepEqual(validateAnalysis({ ...base, dados: ['d'.repeat(177)] }, { strict: true }).errors, ['dados[0] com 177 caracteres (máx. 160)']);
     assert.ok(ANALYSIS_SCHEMA.properties.dados && /"dados"/.test(SYSTEM_PROMPT));
+});
+
+test('análise na hora: abrir a app com a análise do seu local com mais de 6 h chama a tarefa (uma de cada vez, com limites); sem os segredos nada muda', async () => {
+    const st = { id: 'santo-tirso', name: 'Santo Tirso', lat: 41.3354, lon: -8.4745, createdAt: '2026-11-01T10:00:00Z' };
+    const ago = (h) => new Date(Date.now() - h * 36e5).toISOString();
+    env.KV.m.set('places', JSON.stringify([st]));
+    env.KV.m.set('analysis:santo-tirso', JSON.stringify({ titulo: 'Velha', generatedAt: ago(7), place: st }));
+    env.OWNER_CODE = CODE;
+    const me = { d: device(), owner: CODE }, pend = [], c2 = { waitUntil: (p) => pend.push(p) };
+    const req = (method, path, { d, owner, body } = {}) => {
+        const headers = { origin: ORIGIN, 'x-meteo-device': `${d.id}.${d.token}` };
+        if (owner) headers['x-meteo-owner'] = encodeURIComponent(owner);
+        if (body !== undefined) headers['content-type'] = 'application/json';
+        return worker.fetch(new Request(ORIGIN + path, { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }), env, c2);
+    };
+    const get = async () => { const r = await req('GET', '/api/analysis?lat=41.3354&lon=-8.4745', me); await Promise.all(pend.splice(0)); return r.json(); };
+    const fired = [];
+    globalThis.fetch = async (u, init) => { fired.push({ url: String(u), init }); return new Response('{"type":"routine_fire"}', { status: 200 }); };
+    await J('GET', '/api/status', me); // o dono fica registado
+    // sem os segredos: as horas marcadas, nada é chamado
+    let b = await get();
+    assert.deepEqual([b.onOpen, b.refreshing, b.schedule.length > 0, fired.length], [null, false, true, 0]);
+    // com os segredos: chama a tarefa uma vez, com o texto fixo (só o id do local)
+    Object.assign(env, { METEO_FIRE_URL: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', METEO_TOKEN: 'segredo-de-teste' });
+    b = await get();
+    assert.deepEqual([b.onOpen, b.refreshing, b.schedule, b.analysis.titulo], [{ staleH: 6 }, true, [], 'Velha']);
+    assert.equal(fired.length, 1);
+    assert.equal(fired[0].url, env.METEO_FIRE_URL);
+    assert.deepEqual([fired[0].init.method, fired[0].init.headers.authorization, fired[0].init.headers['anthropic-beta'], JSON.parse(fired[0].init.body).text],
+        ['POST', 'Bearer segredo-de-teste', 'experimental-cc-routine-2026-04-01', 'Corrida pedida pela app Meteo (ao abrir a app): santo-tirso.']);
+    assert.deepEqual([kvj('want:santo-tirso').fires, kvj('fire:calls').length], [1, 1]);
+    // abrir outra vez logo a seguir: há uma corrida a decorrer — não chama outra, mas diz que está a atualizar
+    b = await get();
+    assert.deepEqual([b.refreshing, fired.length], [true, 1]);
+    // a tarefa fez a análise (e levou o pedido): fresca, nada a chamar
+    env.KV.m.delete('want:santo-tirso');
+    env.KV.m.set('analysis:santo-tirso', JSON.stringify({ titulo: 'Nova', generatedAt: ago(0.1), place: st }));
+    b = await get();
+    assert.deepEqual([b.refreshing, b.analysis.titulo, fired.length], [false, 'Nova', 1]);
+    // «Analisar agora»: com menos de 30 min não; depois sim (fica na fila se houver corrida a decorrer)
+    let r = await J('POST', '/api/analysis/refresh?lat=41.3354&lon=-8.4745', { ...me, body: {} });
+    assert.equal(r.status, 429);
+    env.KV.m.set('analysis:santo-tirso', JSON.stringify({ titulo: 'Nova', generatedAt: ago(1), place: st }));
+    env.KV.m.set('fire:calls', JSON.stringify([Date.now() - 20 * 6e4])); // a última corrida já acabou
+    r = await J('POST', '/api/analysis/refresh?lat=41.3354&lon=-8.4745', { ...me, body: {} });
+    assert.deepEqual([r.status, r.body.queued, fired.length, JSON.parse(fired[1].init.body).text], [202, true, 2, 'Corrida pedida pela app Meteo (pedida na app): santo-tirso.']);
+    // a vigia (cron): um pedido que ficou para trás há mais de 15 min volta a ser chamado, até 2 vezes
+    env.KV.m.set('fire:calls', JSON.stringify([Date.now() - 20 * 6e4]));
+    env.KV.m.set('want:santo-tirso', JSON.stringify({ at: ago(0.5), why: 'ao abrir a app', fires: 1 }));
+    await worker.scheduled({ scheduledTime: Date.now() }, env, c2);
+    await Promise.all(pend.splice(0));
+    assert.deepEqual([fired.length, kvj('want:santo-tirso').fires], [3, 2]);
+    env.KV.m.set('fire:calls', JSON.stringify([Date.now() - 20 * 6e4]));
+    await worker.scheduled({ scheduledTime: Date.now() }, env, c2);
+    await Promise.all(pend.splice(0));
+    assert.equal(fired.length, 3, 'já teve as suas 2 chamadas');
+    // limite: 4 corridas na última hora → não chama mais
+    env.KV.m.delete('want:santo-tirso');
+    env.KV.m.set('analysis:santo-tirso', JSON.stringify({ titulo: 'Velha', generatedAt: ago(8), place: st }));
+    env.KV.m.set('fire:calls', JSON.stringify([50, 40, 30, 20].map((m) => Date.now() - m * 6e4)));
+    b = await get();
+    assert.equal(fired.length, 3);
+    // o token falha (revogado): regista na mesma (não é martelado) e a app continua a funcionar
+    globalThis.fetch = async (u, init) => { fired.push({ url: String(u), init }); return new Response('{}', { status: 401 }); };
+    env.KV.m.set('fire:calls', '[]');
+    env.KV.m.delete('want:santo-tirso');
+    b = await get();
+    assert.deepEqual([b.refreshing, fired.length, kvj('fire:calls').length], [true, 4, 1]);
+    delete env.METEO_FIRE_URL; delete env.METEO_TOKEN; delete env.OWNER_CODE;
 });

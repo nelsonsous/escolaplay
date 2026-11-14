@@ -80,6 +80,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     let places = [];
     const guestPlace = { id: 'casa-ana-k2m9xq', name: 'Casa da Ana', lat: 41.55, lon: -8.43, approx: true, mine: false, kind: 'guest', status: 'active', createdAt: '2026-11-05T10:00:00Z' };
     const analysed = new Set(); // locais que a tarefa agendada já analisou
+    let onOpen = null, refreshing = false; // a análise na hora (conector 1.9): sem horas marcadas, ao abrir a app
     let failModels = false, refreshBody = null, elevCalls = 0, terrainCalls = 0, patchBody = null, postBody = null, others = 'on', settingsBody = null;
     const rvCalls = [], reportPosts = [], serverReports = [];
     // memória da aprendizagem do local (como a tarefa agendada a guarda em learn:<id>): 30 dias antes da janela do exemplo,
@@ -149,16 +150,17 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/raw/om/marine') return fulfill(r, MARINE);
         if (p === '/api/obs-history') return fulfill(r, []);
         if (p === '/api/me' && m === 'PATCH') { const b = JSON.parse(req.postData()); namePatches.push(b); myName = b.name.trim() || null; return fulfill(r, { id: 'a1b2c3', name: myName, device: true }); }
-        if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: SCHEDULE,
+        if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: onOpen ? [] : SCHEDULE, onOpen,
             device: !!h['x-meteo-device'], ...(h['x-meteo-device'] ? { id: 'a1b2c3', name: myName } : {}), owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 1 });
         if (p === '/api/analysis') { // como o conector: o local (deste telemóvel, ou o dono: todos) mais próximo até 10 km
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
             const near = visible().filter((x) => !x.off).map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
             const an = near && analysed.has(near.id);
-            return fulfill(r, { analysis: an ? MOCK_ANALYSIS : null, place: near || null, ageMin: an ? 140 : null, schedule: SCHEDULE, onDemand: true, others });
+            return fulfill(r, { analysis: an ? MOCK_ANALYSIS : null, place: near || null, ageMin: an ? 140 : null, schedule: onOpen ? [] : SCHEDULE, onOpen, refreshing, onDemand: true, others });
         }
         if (p === '/api/analysis/refresh' && m === 'POST') {
             refreshBody = JSON.parse(req.postData() || '{}');
+            if (onOpen) { refreshing = true; return r.fulfill({ status: 202, json: { queued: true, busy: false, etaMin: 8 }, headers: CORS }); }
             return fulfill(r, { analysis: { ...MOCK_ANALYSIS, by: 'claude-api', generatedAt: NOW, titulo: 'Análise a pedido: frente fria no domingo' } });
         }
         if (p === '/api/places' && m === 'GET') return fulfill(r, visible());
@@ -683,6 +685,20 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.click('[data-act="place-on"]');
     await toastIs(/ligada de novo/);
     assert.equal(calls.filter((c) => c === 'POST /api/places').length, 1, 'sem locais novos: o mesmo, ligado de novo');
+    // a análise na hora (sem horas marcadas): «Analisar agora» chama a tarefa e a app diz que vem daqui a uns minutos;
+    // ao abrir, a análise velha mostra «a atualizar…»; os textos dizem «ao abrir a app» em vez das horas
+    onOpen = { staleH: 6 };
+    await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
+    await page.waitForFunction(() => /ao abrir a app, se tiver mais de 6 h/.test(document.querySelector('.form .sw .hint')?.textContent || ''));
+    await page.click('[data-act="analyze"]');
+    await toastIs(/Pedida: a análise fica pronta daqui a uns minutos/);
+    assert.match(await page.locator('.today .an-meta').textContent(), /a atualizar: a nova chega daqui a uns minutos\./);
+    await tab('agora');
+    assert.match(await page.locator('#cl-teaser .adv-src').textContent(), /a atualizar…/);
+    await tab('analise');
+    onOpen = null; refreshing = false;
+    await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
+    await page.waitForFunction(() => !/ao abrir a app/.test(document.querySelector('.form .sw .hint')?.textContent || ''));
     await page.click('[data-act="analyze"]');
     await toastIs(/Análise feita/);
     assert.ok(refreshBody && refreshBody.summary.length > 500, 'resumo enviado ao Claude');
