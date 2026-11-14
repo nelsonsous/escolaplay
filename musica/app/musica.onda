@@ -800,7 +800,7 @@
         ? nh $"Pedido feito — o Maestro já foi chamado: costuma demorar uns minutos." $"Pedido feito — o Maestro trata dele quando estiver ligado." 0 }
     # a sugestão da IA para o pedido: fica à vista, por baixo do texto, até se usar ou não
     ? == modo 38 { _an_buscar $"/api/estado" $"lido_estado" aviso ? == tipo r.gosto 3 $"A IA passa a ver os artistas que ouves." $"A IA deixa de ver os artistas que ouves." 0 }
-    ? == modo 37 { = x texto`{ crut txt r.texto }{ P 9 }{ crut txt r.porque }{ P 9 }{ crut txt r.por }` tcopia @ 47 x 1250 render 0 }
+    ? == modo 37 { = x texto`S{ ? sug_mm "M" "J" }{ P 9 }{ crut txt r.texto }{ P 9 }{ crut txt r.porque }{ P 9 }{ crut txt r.por }` tcopia @ 47 x 1250 render 0 }
     ? == modo 36 { _an_buscar $"/api/pedidos" $"lido_ped" Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp"
       aviso ? == tipo r.naHora 3 $"O Claude já está a revê-la: costuma demorar uns minutos." $"Pedido enviado: o Claude revê-a quando estiver ligado." 0 }
     # cancelado: sai da lista; se era uma afinação, sai também da folha da playlist
@@ -824,7 +824,8 @@
       Se && == modo 2 == s 401 _an_gravar $"codigo" 0
       # com a folha aberta redesenham-se só os pedaços dela (a página toda fazia a folha subir outra vez)
       ? && == @ 1 1 _tx_len @ 50 refolha 143 render
-      erro_ped t s 0 } }
+      # a sugestão não veio (a IA não respondeu): cria logo, com o texto da pessoa
+      ? == modo 37 { = mm sug_mm tcopia @ 47 $"R" 10 pedir_enviar mm 0 } { erro_ped t s 0 } } }
 
 # ===== Pedir =====
 # começar por uma música (opcional): procura-se no Tidal (a mesma pesquisa de «Acrescentar uma faixa», a mesma caixa
@@ -845,32 +846,37 @@
           W && x < q 8 { res_linha x q $"pd_sem" $"Começar por" = x seg x = q + q 1 }
           "</ol>" } }
       "</div></details>" } }
-# melhorar o pedido com a IA (a da playlist na hora): a sugestão fica em @47 («texto», tab, «porque», tab, quem a fez)
-# até se usar ou não (mudar de vista esquece-a)
+# antes de criar, a sugestão da IA (a da playlist na hora: a da Cloudflare, a Mistral ou o Gemini) para o texto do
+# pedido; a pessoa escolhe: criar com ela, ajustá-la (vai para o texto) ou manter o seu. Em @47: vazio (ainda não
+# houve sugestão); «PJ»/«PM» à espera dela (J: já, com a IA; M: com o Claude); «S?», tab, texto, tab, porquê, tab,
+# quem a fez (a sugestão à vista); «R» (já vista: o toque seguinte cria). Mudar de vista esquece tudo.
 : sug_bloco >i {
-  = am && @ 31 == @ 34 37
-  ? _tx_len @ 47 {
-      = qm _tx_campo @ 47 2 9 = pq _tx_campo @ 47 1 9
-      `<div class="mu-sugestao"><p class="mu-sug-q">Sugestão{ Se _tx_len qm ` · { esct qm }` }</p><p class="mu-sug-t">{ esct _tx_campo @ 47 0 9 }</p>{ Se _tx_len pq `<p class="mu-nota">{ esct pq }</p>` }`
-      `<div class="mu-acoes"><button type="button" class="mu-btn peq" data-onda="sug_usar">Usar esta</button><button type="button" class="mu-btn sec peq" data-onda="sug_nao">Manter o meu</button></div></div>` 0 }
-    `<button type="button" class="mu-ligacao mu-melhorar" data-onda="melhorar"{ Se am " disabled" }>{ ? am "A melhorar o pedido…" "✦ Melhorar o pedido com a IA" }</button>` }
+  Se == _tx_b @ 47 0 83 {
+      = qm _tx_campo @ 47 3 9 = pq _tx_campo @ 47 2 9
+      `<div class="mu-sugestao"><p class="mu-sug-q">Antes de criar{ Se _tx_len qm `, o { esct qm } sugere` }:</p><p class="mu-sug-t">{ esct _tx_campo @ 47 1 9 }</p>{ Se _tx_len pq `<p class="mu-nota">{ esct pq }</p>` }`
+      `<div class="mu-acoes"><button type="button" class="mu-btn peq" data-onda="sug_usar">Criar com esta</button><button type="button" class="mu-btn sec peq" data-onda="sug_ajustar">Ajustar</button><button type="button" class="mu-btn sec peq" data-onda="sug_manter">Manter o meu</button></div></div>` } }
 : melhorar_enviar >i ? ocupado 0 {
-    ? < _tx_len @ 20 3 { aviso $"Escreve primeiro o que queres ouvir." 0 } {
-      = r _tx_abre + 200 * 7 _tx_len @ 20 `POST /api/pedidos/melhorar{ P 10 }\{"texto":{ pjs @ 20 }\}`
-      pede _tx_fecha r 37 render 0 } }
+    = r _tx_abre + 200 * 7 _tx_len @ 20 `POST /api/pedidos/melhorar{ P 10 }\{"texto":{ pjs @ 20 }\}`
+    pede _tx_fecha r 37 render 0 }
+# tocar em criar: com a playlist na hora ligada e sem sugestão vista, primeiro a sugestão; senão, cria logo
+: pedir_tocar i>i mm {
+  ? && && == tipo _ar_get @ 3 $"iaCf" 3 ~ _tx_len @ 47 >= _tx_len @ 20 3 { tcopia @ 47 ? mm $"PM" $"PJ" 10 melhorar_enviar 0 }
+    { tcopia @ 47 $"R" 10 pedir_enviar mm 0 } }
+# o caminho guardado com a sugestão (M: com o Claude)
+: sug_mm >i == _tx_b @ 47 1 77
 : v_pedir >i {
   `<header class="mu-head"><div><h1>Pedir</h1><div class="sub">Ao Maestro, que pesquisa e cria no teu Tidal</div></div>{ pill }</header>`
   Se && @ 3 ~ acesso boas_vindas
   `<div class="mu-card"><h3>O que te apetece ouvir?</h3><label class="mu-campo"><span class="sr">Pedido</span><textarea data-onda="ptx" maxlength="500" placeholder="Ex.: jazz dos anos 60 bem gravado para a viagem de sábado">{ esct @ 20 }</textarea></label>`
   # o botao logo a seguir ao texto: com o teclado aberto (iPhone) fica a vista
   = pt pd_tem @ 19 = nh == tipo _ar_get @ 3 $"naHora" 3 = ia == tipo _ar_get @ 3 $"iaCf" 3 = iap == tipo _ar_get @ 3 $"iaCfPode" 3
-  = ac && @ 31 == @ 34 6
+  = ac && @ 31 == @ 34 6 = am && @ 31 == @ 34 37
   Se ia sug_bloco
   = ianm ? mesmo txt _ar_get @ 3 $"iaEscolha" $"gemini" $"Gemini" ? mesmo txt _ar_get @ 3 $"iaEscolha" $"mistral" $"Mistral Large" $"Mistral Small"
   ? && ia ~ pt {
-      `<div class="mu-duo"><button type="button" class="mu-btn mu-duo-b" data-onda="pedir"{ ? && acesso ~ ac 0 " disabled" }><b>⚡ Já, com o { esct ianm }</b><span>{ ? ac "a criar no Tidal…" "em segundos" }</span></button><button type="button" class="mu-btn mu-duo-b" data-onda="pedir_m"{ ? && acesso ~ ac 0 " disabled" }><b>✦ Com o Claude</b><span>em minutos · mais apurada</span></button></div>` 0 }
+      `<div class="mu-duo"><button type="button" class="mu-btn mu-duo-b" data-onda="pedir"{ ? && acesso ~ || ac am 0 " disabled" }><b>⚡ Já, com o { esct ianm }</b><span>{ ? ac "a criar no Tidal…" ? am "a ler o pedido…" "em segundos" }</span></button><button type="button" class="mu-btn mu-duo-b" data-onda="pedir_m"{ ? && acesso ~ || ac am 0 " disabled" }><b>✦ Com o Claude</b><span>em minutos · mais apurada</span></button></div>` 0 }
     `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? && acesso ~ ac 0 " disabled" }>{ ic 2 }{ ? ac ? pt "A criar no Tidal…" "A enviar…" ? pt "Criar já no Tidal" "Pedir ao Maestro" }</button></div>`
-  `<p class="mu-nota">{ Se && ac || pt ia `<b>{ ? pt "O Tidal está a juntar as parecidas." `O { esct ianm } está a escolher as músicas.` }</b> São só uns segundos: não precisas de tocar outra vez.<br>` }`
+  `<p class="mu-nota">{ ? am `<b>O { esct ianm } está a ler o teu pedido, para sugerir um texto mais apurado.</b> Uns segundos…<br>` Se && ac || pt ia `<b>{ ? pt "O Tidal está a juntar as parecidas." `O { esct ianm } está a escolher as músicas.` }</b> São só uns segundos: não precisas de tocar outra vez.<br>` }`
   ? pt `A playlist nasce já no teu Tidal com as parecidas da música de partida. Depois, se quiseres, o Claude revê-a com o teu pedido, no mesmo link, e dá-lhe nome.`
     { ? ia `<b>⚡ Já</b> — o { esct ianm } escolhe 4 músicas de partida e o Tidal junta as parecidas: fica no teu Tidal em segundos. Depois, se quiseres, o Claude revê-a.<br><b>✦ Com o Claude</b> — o Maestro (Claude) pesquisa e escolhe todas as faixas, com critério{ ? nh ": leva uns minutos e avisa-te quando estiver" " (quando estiver ligado)" }.`
       `{ ? nh "O Maestro é chamado logo e cria a playlist em poucos minutos, no teu Tidal." "O Maestro ainda não está ligado: o pedido fica à espera até ser chamado." } Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.{ Se iap ` <button type="button" class="mu-ligacao" data-onda="iacf&#9;1">Ligar a playlist na hora</button>: a IA da Cloudflare lê o texto do pedido e a playlist nasce logo.` }` }
@@ -1246,10 +1252,11 @@
   ? mesmo a $"desfazer" { desfazer 0 }
   ? mesmo a $"exp" { tvazio @ 54 exp_alternar b 0 }
   ? mesmo a $"rever" { rever_pedir 0 }
-  ? mesmo a $"melhorar" { melhorar_enviar 0 }
   ? mesmo a $"ia_gosto" { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"gosto":{ ? mesmo b $"1" "true" "false" }\}` 38 0 } }
-  ? mesmo a $"sug_usar" { tcopia @ 20 _tx_campo @ 47 0 9 1990 tvazio @ 47 render aviso $"Pedido melhorado: revê-o e cria." 0 }
-  ? mesmo a $"sug_nao" { tvazio @ 47 render 0 }
+  # a sugestão: criar com ela; ajustá-la (vai para o texto; o toque seguinte cria); manter o meu (cria com ele)
+  ? mesmo a $"sug_usar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 $"R" 10 pedir_enviar mm 0 }
+  ? mesmo a $"sug_ajustar" { tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 $"R" 10 render aviso $"Ajusta o texto e toca outra vez em criar." 0 }
+  ? mesmo a $"sug_manter" { = mm sug_mm tcopia @ 47 $"R" 10 pedir_enviar mm 0 }
   # uma pasta: abre (e fecha a que estava aberta) ou fecha
   ? mesmo a $"pasta_alt" { = ab _an_ler $"pasta_aberta" ? && ab mesmo ab b { _an_gravar $"pasta_aberta" 0 0 } { _an_gravar $"pasta_aberta" b 0 } render 0 }
   # tocar num aviso do telemóvel com a app aberta: o anfitrião guardou o id em «abrir»; abre-se quando a lista chegar
@@ -1285,8 +1292,8 @@
   ? mesmo a $"juntar_sim_ap" { juntar_enviar 1 0 }
   ? mesmo a $"afinar_pedir" { afinar_maestro 0 }
   ? mesmo a $"idea" { = c idx _ar_get @ 48 $"ideias" _tx_int b Se c { tcopia @ 20 txt c.texto 1990 = e txt c.estilo Se e ! 26 idx_estilo e = q txt c.arco Se q ! 27 idx_arco q render } }
-  ? mesmo a $"pedir" { pedir_enviar 0 0 }
-  ? mesmo a $"pedir_m" { pedir_enviar 1 0 }
+  ? mesmo a $"pedir" { pedir_tocar 0 0 }
+  ? mesmo a $"pedir_m" { pedir_tocar 1 0 }
   ? mesmo a $"cancelar" { cancelar_ped b 0 }
   ? mesmo a $"ligar" { ligar_enviar 0 0 }
   ? mesmo a $"ligar_c" { ligar_enviar 1 0 }
