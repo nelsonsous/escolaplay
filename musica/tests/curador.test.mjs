@@ -165,8 +165,10 @@ test('paridade: o dados.md da versão Onda é o da versão em JavaScript, ao byt
     const pedirAo = (caminho, corpo) => worker.fetch(new Request(base + caminho, { method: 'POST', headers: { authorization: `Bearer ${CHAVE}`, 'content-type': 'application/json' }, body: JSON.stringify(corpo) }), env, { waitUntil() {} });
     assert.equal((await pedirAo(`/api/playlists/${doc.id}/rejeitar`, { faixa: novas[1].id })).status, 200);
     assert.equal((await pedirAo(`/api/playlists/${doc.id}/afinar`, { texto: 'Mais vozes, menos eletrónica' })).status, 201);
-    // «Mais como esta»: as parecidas do Tidal, com um pedido para o Maestro as rever
-    assert.equal((await pedirAo('/api/mais', { faixa: doc.faixas[0].id })).status, 201);
+    // «Mais como esta»: as parecidas do Tidal; a pessoa pede ao Maestro que as reveja
+    const mais = await pedirAo('/api/mais', { faixa: doc.faixas[0].id });
+    assert.equal(mais.status, 201);
+    assert.equal((await pedirAo(`/api/playlists/${(await mais.json()).id}/rever`, {})).status, 201);
     const ren = await worker.fetch(new Request(`${base}/api/playlists/${doc.id}/renovar`, { method: 'POST', headers: { authorization: `Bearer ${CHAVE}`, 'content-type': 'application/json' }, body: '{"ativo":true}' }), env, { waitUntil() {} });
     assert.equal(ren.status, 200);
     for (const agora of ['2026-11-13T09:30:00Z', '2026-07-03T22:59:00Z', '2027-03-28T00:59:59Z']) {

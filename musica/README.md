@@ -54,8 +54,9 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   A casca [`musica.js`](musica.js) só trata do que a Onda não tem como porta: a chave do aparelho nos pedidos, os
   pedidos que escrevem ("MÉTODO caminho" + corpo), sair para o login do Tidal ("IR url") e o regresso dele.
 - **O Maestro na hora** — com o gatilho «API» da tarefa agendada ligado ao conector (dois segredos no Cloudflare:
-  ver «Agilidade» no [`PLANO.md`](PLANO.md)), um pedido chama o Maestro logo, sem corridas a dobrar; a app vai ver
-  sozinha se ele já acabou. A tarefa não tem horário: sem os segredos, os pedidos ficam à espera.
+  ver «Agilidade» no [`PLANO.md`](PLANO.md)), cada pedido chama logo a sua corrida do Maestro (vários pedidos correm ao
+  mesmo tempo); a app vai ver sozinha se ele já acabou, mesmo com uma playlist aberta, e a playlist feita aparece nas
+  «Novas», no cimo da lista. A revisão das parecidas do Tidal só se a pessoa a pedir («Rever com o Maestro»). A tarefa não tem horário: sem os segredos, os pedidos ficam à espera.
 - **A tua conta e a App Store** — antes de ligar o Tidal a app diz que o Maestro é uma IA de terceiros e pede a
   autorização («Concordo e ligar»; fica registada); o que a loja pede está em [`loja/LEIA.md`](loja/LEIA.md). Nos Ajustes, «A tua conta» diz o que se guarda e tem **«Apagar a minha conta»**
   (`DELETE /api/conta`: o conector apaga tudo o que guarda da pessoa; as playlists do Tidal ficam). As páginas de

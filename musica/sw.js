@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay, a Mercados e a Meteo (/escolaplay/): este SW só mexe nas
 // caches "musica-*" e só trata pedidos dentro da sua pasta (/escolaplay/musica/) e o anfitrião das apps Onda.
 // O conector e o Tidal (outros domínios) nunca passam por aqui.
-const CACHE = 'musica-v63'; // 2.42.2 — as propostas abrem-se; «Pedir» explica os dois botões em duas linhas
+const CACHE = 'musica-v64'; // 2.43.0 — revisão a pedido, corridas em paralelo, «Novas», pastas fechadas, quem fez, avisos que abrem a playlist
 const ASSETS = [
     './', './index.html', './musica.css', './musica.js', './manifest.webmanifest', './app/musica.wasm', '../onda/rt/anfitriao.js', '../onda/rt/gestos-onda.js',
     './privacidade.html', './apoio.html',
@@ -61,7 +61,8 @@ self.addEventListener('fetch', (event) => {
     })());
 });
 
-// Avisos do conector (Web Push, cifrados): «as propostas estão prontas» e «a playlist foi afinada». Ao tocar, abre a app.
+// Avisos do conector (Web Push, cifrados): «a playlist está pronta», «foi afinada», «foi revista». Ao tocar, abre a app
+// na playlist do aviso.
 self.addEventListener('push', (event) => {
     let d = null;
     try { d = event.data ? event.data.json() : null; } catch { d = null; }
@@ -78,7 +79,8 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil((async () => {
         const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         const w = wins.find((c) => c.url.startsWith(scope));
-        if (w) { try { await w.focus(); } catch { /* o sistema decide */ } return; }
+        const pl = /#pl=([a-z0-9_-]{4,40})$/.exec(url);
+        if (w) { if (pl) w.postMessage({ abrir: pl[1] }); try { await w.focus(); } catch { /* o sistema decide */ } return; }
         await self.clients.openWindow(url);
     })());
 });
