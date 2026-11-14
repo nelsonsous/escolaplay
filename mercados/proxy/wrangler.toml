@@ -1,6 +1,8 @@
 name = "mercados-proxy"
 main = "src/worker.js"
 compatibility_date = "2026-06-01"
+# as variáveis de texto criadas no painel do Cloudflare (ex.: CONSELHEIRO_FIRE_URL) ficam ao publicar
+keep_vars = true
 
 # Opcional: só aceitar pedidos vindos da tua app (separar por vírgulas)
 # [vars]
