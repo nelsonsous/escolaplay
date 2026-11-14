@@ -5,6 +5,12 @@ das 00 e 12 UTC dos modelos (2× por dia desde 13/11/2026, para gastar menos). A
 omissão, cada telemóvel escolhe a hora): amanhã no ponto e o que vestir; ao domingo, a semana que vem. Para mudar o comportamento muda-se este ficheiro, os scripts em
 `meteo/analista/` e as regras em `meteo/lib/analysis.js`, e faz-se merge — o agendamento usa sempre o `main`.
 
+**A análise na hora (1.25, conector 1.9).** Com o gatilho «API» da tarefa ligado no conector (segredos `METEO_FIRE_URL`
+e `METEO_TOKEN`), deixa de haver horas marcadas: a tarefa é chamada quando alguém abre a app e a análise do seu local tem
+mais de 6 h, ou carrega em «Analisar agora». A chamada traz uma mensagem fixa («Corrida pedida pela app Meteo (…):
+<ids>.») e os pedidos ficam em `want:<id>`: o `dados.mjs` analisa **só esses locais** (e apaga os pedidos); sem pedidos
+(corrida à hora marcada ou à mão), todos como antes. Segue os passos de sempre.
+
 Só os dados mudam (base de dados KV do Worker `meteo`). Não alteres código nem abras PR nesta tarefa.
 
 **A análise é para o PONTO EXATO de cada local registado** (coordenadas, altitude e relevo no bloco `## O ponto` do

@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.24.1';
+const VERSION = '1.25.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -312,7 +312,7 @@ async function loadAnalysis(loc) {
         st.reports = r.value;
         if (currentReport() !== had) { reportTimer(); scheduleRender(); }
     }
-    if (a.status === 'fulfilled' && a.value) { st.analysis = a.value; api.saveAnalysis(loc.lat, loc.lon, a.value); }
+    if (a.status === 'fulfilled' && a.value) { st.analysis = a.value; api.saveAnalysis(loc.lat, loc.lon, a.value); watchRefresh(); }
     else {
         const saved = api.loadSavedAnalysis(loc.lat, loc.lon);
         st.analysis = saved?.data
@@ -324,6 +324,12 @@ async function loadAnalysis(loc) {
     if (numKey() !== nums0 && st.fc && cfg.tab !== 'satelite') scheduleRender();
     else if (cfg.tab === 'agora' && $('#cl-teaser')) $('#cl-teaser').outerHTML = teaserHtml();
     else if (cfg.tab === 'analise' || cfg.tab === 'ajustes') scheduleRender();
+}
+// a análise está a ser feita (ao abrir a app ou a pedido): com a app aberta, volta a buscá-la daqui a 8 min
+let refreshT = null;
+function watchRefresh() {
+    clearTimeout(refreshT);
+    if (st.analysis?.refreshing) refreshT = setTimeout(() => { if (cfg.loc) loadAnalysis(cfg.loc); }, 8 * 6e4);
 }
 let statusP = null;
 function loadStatus() {
@@ -559,7 +565,18 @@ function schedFor() {
     return !isOwner() && othersMode() === '1x' ? s.slice(0, 1) : s;
 }
 const schedTxt = (s = schedFor()) => (s.length > 1 ? `${s.slice(0, -1).join(', ')} e ${s.at(-1)}` : s[0]);
+// a análise na hora (conector 1.9): sem horas marcadas — ao abrir a app, se a do local tiver mais de N h, ou a pedido
+const onOpenH = () => (st.analysis?.onOpen || st.status?.onOpen)?.staleH || null;
+const whenTxt = () => { const H = onOpenH(); return H ? `quando abres a app, se a última tiver mais de ${H} h` : `às ${schedTxt()}`; };
 function nextRun() {
+    const H = onOpenH();
+    if (H) {
+        if (st.analysis?.refreshing) return 'daqui a uns minutos';
+        const at = Date.parse(st.analysis?.analysis?.generatedAt || '');
+        if (!Number.isFinite(at) || Date.now() - at >= H * 36e5) return 'daqui a uns minutos, ao abrires a app';
+        const t = new Date(at + H * 36e5);
+        return `quando abrires a app depois das ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+    }
     const sched = schedFor();
     const d = new Date();
     const now = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -573,7 +590,7 @@ function teaserHtml() {
     if (!a) return `<div class="claude cl-opt" id="cl-teaser">${optInHtml()}</div>`;
     const ap = analysedPoint();
     const tomorrow = a.notificacao?.amanha || a.vestir || '';
-    const main = `<div class="adv-src">Análise${IA_AN} <span>· ${esc(F.ago(r.ageMin ?? 0))}</span></div>${ap ? forLine(ap) : ''}
+    const main = `<div class="adv-src">Análise${IA_AN} <span>· ${esc(F.ago(r.ageMin ?? 0))}${r.refreshing ? ' · a atualizar…' : ''}</span></div>${ap ? forLine(ap) : ''}
         <div class="cl-head">${esc(a.titulo)}</div>${tomorrow ? `<p class="cl-tom"><b>Amanhã</b> ${esc(tomorrow)}</p>` : a.resumo ? `<p class="clamp">${esc(a.resumo)}</p>` : ''}<span class="lnk">Ler a análise</span>`;
     // feita para outro ponto (> 2 km): dizê-lo e oferecer mudar a análise diária para aqui
     if (ap?.far && ap.reg && !ap.moved) {
@@ -594,7 +611,7 @@ function optInHtml() {
     const owner = isOwner(), mine = owner ? null : myPlaces()[0];
     if (!owner && mine?.off && mine.offBy === 'owner') return `${head}<p>A análise diária deste telemóvel foi desligada pelo dono da app.</p>`;
     if (!owner && othersMode() === 'off') return `${head}<p>A análise diária está desligada, por agora, pelo dono da app.</p>`;
-    const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
+    const when = !owner && othersMode() === '1x' ? (onOpenH() ? 'uma vez por dia, quando abres a app' : 'uma vez por dia, às 07:34') : whenTxt();
     return `${head}<p>Opcional: uma análise escrita por inteligência artificial para este ponto exato, ${esc(when)}, com os modelos, as observações, o radar e o satélite. Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma.</p>
         ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada pessoa tem 1 local: a tua análise diária passa de ${mine.name} para aqui.`)}</p>` : ''}
         <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise diária para este local</span></button>`;
@@ -888,16 +905,17 @@ function viewAnalysis() {
             ${a.conselhos?.length ? `<div class="an-sec"><h4>Conselhos</h4><ul class="an-list">${a.conselhos.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
             ${a.fiabilidade ? `<div class="an-sec"><h4>Fiabilidade</h4><p><span class="badge">${sig(a.fiabilidade.curto, false)}Curto prazo: ${esc(a.fiabilidade.curto === 'media' ? 'média' : a.fiabilidade.curto)}</span><span class="badge">${sig(a.fiabilidade.medio, false)}Médio prazo: ${esc(a.fiabilidade.medio === 'media' ? 'média' : a.fiabilidade.medio)}</span></p>${a.fiabilidade.texto ? `<p style="margin-top:6px">${esc(a.fiabilidade.texto)}</p>` : ''}</div>` : ''}
             ${sec('Análise técnica', a.tecnica)}${sec('Como correu a previsão anterior', a.verificacao)}${st.status?.owner && a.dados?.length ? sec('Notas sobre os dados (só para o dono)', a.dados.join('\n')) : ''}`)}
-            <p class="an-meta">Feita ${esc(F.ago(r.ageMin ?? 0))} · próxima ${esc(nextRun())}.</p>
+            <p class="an-meta">Feita ${esc(F.ago(r.ageMin ?? 0))} · ${r.refreshing ? 'a atualizar: a nova chega daqui a uns minutos' : `próxima ${esc(nextRun())}`}.</p>
         </article>`;
     } else {
         h += `<div class="today cl-opt">${optInHtml()}</div>`;
     }
     const np = nearPlace(), owner = isOwner(), mine = owner ? null : myPlaces()[0];
-    const swHint = np ? `Ligada (${np.name}) · ${schedFor().join(' · ')}`
-        : owner ? `Às ${sched.join(', ')} · sem limite de locais`
+    const at = onOpenH() ? 'Ao abrir a app' : `Às ${sched.join(', ')}`;
+    const swHint = np ? `Ligada (${np.name}) · ${onOpenH() ? `ao abrir a app, se tiver mais de ${onOpenH()} h` : schedFor().join(' · ')}`
+        : owner ? `${at} · sem limite de locais`
         : othersMode() === 'off' ? 'Desligada pelo dono da app, por agora'
-        : `${othersMode() === '1x' ? '1× por dia, às 07:34' : `Às ${sched.join(', ')}`} · 1 local por pessoa${mine && !mine.off ? ` (agora em ${mine.name})` : ''}`;
+        : `${othersMode() === '1x' ? (onOpenH() ? '1× por dia, ao abrir a app' : '1× por dia, às 07:34') : at} · 1 local por pessoa${mine && !mine.off ? ` (agora em ${mine.name})` : ''}`;
     h += `<div class="form"><div class="sw"><span><b>Análise diária para este local</b><br><small class="hint">${esc(swHint)}</small></span>
         <div class="seg" role="group" aria-label="Análise diária"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
@@ -1139,7 +1157,7 @@ function notifHtml() {
             <div class="sw"><span><b>Ao domingo: a semana que vem</b><br><small class="hint">Em vez de amanhã, a semana toda</small></span>${seg('push-sun', P.sunday !== false, 'Ao domingo, a semana')}</div>
             ${own.length > 1 ? `<div><label for="f-push-place">Local</label><select id="f-push-place" class="inp">${own.map((p) => `<option value="${esc(p.id)}"${p.id === cur?.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>` : ''}
             <button type="button" class="btn blk" data-act="push-test"${st.pushBusy ? ' disabled' : ''}>${ui('bell')}Enviar uma agora (teste)</button>
-            <div class="hint">Da análise das 17:34, à hora deste telemóvel.</div>`
+            <div class="hint">${onOpenH() ? 'Da última análise do local (se tiver menos de 30 h), à hora deste telemóvel.' : 'Da análise das 17:34, à hora deste telemóvel.'}</div>`
                 : '<div class="hint">Às 19:00 por omissão; ao domingo, a semana que vem.</div>'}`;
     }
     return `<section class="sec" id="notificacoes"><div class="sec-h"><h2>Notificações</h2></div><div class="form">${body}</div></section>`;
@@ -1231,7 +1249,7 @@ function placesSettingsHtml() {
         h += `<div><label>Dos outros telemóveis</label><div class="wl">${others.length ? others.map((p) => placeRow(p, true)).join('') : '<div class="hint">Ainda nenhum.</div>'}</div>
             <div class="hint">Só o nome e a zona (~1 km), nunca o ponto exato. ✕ desliga a análise desse telemóvel e só tu a voltas a ligar.</div></div>`;
     }
-    const when = !owner && othersMode() === '1x' ? 'uma vez por dia, às 07:34' : `às ${schedTxt()}`;
+    const when = !owner && othersMode() === '1x' ? (onOpenH() ? 'uma vez por dia, quando abres a app' : 'uma vez por dia, às 07:34') : whenTxt();
     return h + `<div class="hint">A análise é escrita por inteligência artificial ${esc(when)}, com os modelos, as observações, o radar e as imagens de satélite.${owner ? ''
         : ` Uma análise por cidade (partilhada com quem a ligar na mesma cidade); se ninguém abrir a app durante ${PAUSE_DAYS} dias, fica em pausa até voltarem.`}</div></div></section>`;
 }
@@ -1264,8 +1282,8 @@ function usageHtml() {
     }
     const mode = u?.others || othersMode();
     return `<section class="sec" id="uso"><div class="sec-h"><h2>Utilização</h2><span class="sub">só tu vês isto</span></div><div class="form">${b}
-        <div><label>Análise dos outros</label><div class="seg use-seg" role="group" aria-label="Análise diária nos outros telemóveis">${OTHERS_UI.map(([v, l]) => `<button type="button" data-others="${v}" class="${mode === v ? 'on' : ''}" aria-pressed="${mode === v}">${l}</button>`).join('')}</div>
-        <div class="hint">A análise diária nos outros telemóveis. «Só 1× por dia»: só na análise das 07:34. «Desligada»: os outros não a ligam nem a recebem, e a análise imediata fica só para ti. Os teus locais nunca são cortados; no máximo ${esc(F.num(u?.places?.cap ?? 15))} locais por corrida.</div></div></div></section>`;
+        <div><label>Análise dos outros</label><div class="seg use-seg" role="group" aria-label="Análise diária nos outros telemóveis">${OTHERS_UI.map(([v, l]) => `<button type="button" data-others="${v}" class="${mode === v ? 'on' : ''}" aria-pressed="${mode === v}">${v === '1x' && onOpenH() ? 'Só 1× por dia' : l}</button>`).join('')}</div>
+        <div class="hint">A análise diária nos outros telemóveis. «Só 1× por dia»: ${onOpenH() ? 'no máximo uma análise por dia em cada local dos outros' : 'só na análise das 07:34'}. «Desligada»: os outros não a ligam nem a recebem, e a análise imediata fica só para ti. Os teus locais nunca são cortados; no máximo ${esc(F.num(u?.places?.cap ?? 15))} locais por corrida.</div></div></div></section>`;
 }
 
 // ---------- folhas ----------
@@ -1326,7 +1344,7 @@ function renderSheet() {
             <div class="d-sub">${other ? 'É o local de outro telemóvel.' : p.shared ? 'É uma análise partilhada.' : 'A análise atual fica guardada.'}</div></div>${closeBtn}</div>
             <p class="note" style="margin:0 2px 14px">${other ? 'Esse telemóvel deixa de receber a análise diária e não a pode voltar a ligar; tu podes, em Ajustes.'
                 : p.shared ? 'Deixa de aparecer neste telemóvel; continua para quem a ligou.'
-                : `Este local deixa de ter análise às ${esc(schedTxt())}. Se voltares a ligar, aparece outra vez a última análise.`}</p>
+                : `${onOpenH() ? 'Este local deixa de ter análise.' : `Este local deixa de ter análise às ${esc(schedTxt())}.`} Se voltares a ligar, aparece outra vez a última análise.`}</p>
             <div class="btns-col"><button type="button" class="btn blk danger" data-act="off-yes">Desligar</button><button type="button" class="btn blk" data-act="close">Cancelar</button></div>`;
         return;
     }
@@ -1710,9 +1728,15 @@ async function analyzeNow() {
     st.analyzing = true; render();
     try {
         const analysis = await requestAnalysis(viewFc(), { reports: st.reports, headers: api.identityHeaders() });
-        st.analysis = { ...(st.analysis || {}), analysis, ageMin: 0, offline: false };
-        if (cfg.loc) api.saveAnalysis(cfg.loc.lat, cfg.loc.lon, st.analysis);
-        toast('Análise feita ✓');
+        if (analysis?.queued) { // a análise na hora: a tarefa foi chamada (ou vem a seguir à que está a decorrer)
+            st.analysis = { ...(st.analysis || {}), refreshing: true };
+            watchRefresh();
+            toast(analysis.busy ? 'Já há uma análise a ser feita: a tua vem a seguir.' : 'Pedida: a análise fica pronta daqui a uns minutos.');
+        } else {
+            st.analysis = { ...(st.analysis || {}), analysis, ageMin: 0, offline: false };
+            if (cfg.loc) api.saveAnalysis(cfg.loc.lat, cfg.loc.lon, st.analysis);
+            toast('Análise feita ✓');
+        }
     } catch (e) { toast(e?.message || 'Não foi possível fazer a análise agora.'); }
     st.analyzing = false; render();
 }

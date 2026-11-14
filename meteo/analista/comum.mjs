@@ -35,6 +35,11 @@ export async function kvPut(key, value, { ttl } = {}) {
     if (!r.ok || !b || !b.success) throw new Error(`Cloudflare: HTTP ${r.status} a gravar ${key} ${JSON.stringify(b && b.errors)}`);
 }
 
+export async function kvDelete(key) {
+    const r = await fetch(`${KV()}/values/${encodeURIComponent(key)}`, { method: 'DELETE', headers: CF_AUTH });
+    if (!r.ok && r.status !== 404) throw new Error(`Cloudflare: HTTP ${r.status} a apagar ${key}`);
+}
+
 /** Os nomes das chaves com este início (até 1000). */
 export async function kvList(prefix) {
     const r = await fetch(`${KV()}/keys?limit=1000&prefix=${encodeURIComponent(prefix)}`, { headers: CF_AUTH });
