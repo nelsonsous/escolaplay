@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.26.0';
+    const VERSION = '4.27.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -671,6 +671,7 @@
         try {
             const m = await px(`/me?id=${encodeURIComponent(cfg.jid)}`);
             st.others = m.others !== false;
+            st.naHora = !!m.naHora; // a análise faz-se quando se abre a app (conector com o gatilho do Claude)
             if (!!m.owner !== !!cfg.owner) { cfg.owner = !!m.owner; saveCfg(); scheduleRender(); }
         } catch { /* fica o que se sabia */ }
     }
@@ -741,8 +742,28 @@
             for (const x of CLAUDE.actions) if (x && x.s && (!mem[x.s] || mem[x.s].date <= CLAUDE.date)) mem[x.s] = { ...x, date: CLAUDE.date };
             store.set('mercados:clmem', mem);
         }
+        // a análise nova chegou: acabou a corrida pedida
+        if (st.runAt && CLAUDE && Date.parse(CLAUDE.generatedAt || '') > st.runAt) st.runAt = null;
         scheduleRender();
         loadClaudeHistory();
+        pedirAnalise('abrir');
+    }
+    // a análise na hora (conector 1.10.0): ao abrir a app, se a última tem 4 horas ou mais; ao puxar para atualizar,
+    // 30 minutos ou mais. O conector tem os travões (uma corrida de cada vez, no máximo 6 por dia); aqui só se evita
+    // perguntar à toa. Com a app aberta, vai ver se já acabou
+    async function pedirAnalise(quando) {
+        if (!cfg.owner || !st.naHora || !cfg.proxy || !claudeOn()) return;
+        const g = CLAUDE && CLAUDE.generatedAt ? Date.parse(CLAUDE.generatedAt) : NaN;
+        if (Number.isFinite(g) && now() - g < (quando === 'pedido' ? 30 : 240) * 60000) return;
+        if (st.runAt && now() - st.runAt < 25 * 60000) return;
+        try {
+            const r = await pxPost(`/advice/run?id=${encodeURIComponent(cfg.jid)}`, { quando });
+            if (!r || !r.naHora) return;
+            st.runAt = Date.parse(r.pedidaEm) || now();
+            toast('O Claude está a fazer a análise nova: fica pronta em poucos minutos.');
+            for (const m of [6, 12, 20]) setTimeout(() => { if (st.runAt) { st.meAt = 0; loadClaude(); } }, m * 60000);
+            scheduleRender();
+        } catch { /* fica a de antes */ }
     }
     async function loadClaudeHistory() {
         if (st.clHist || !cfg.owner || !CLAUDE || CLAUDE.missing) return;
@@ -777,6 +798,9 @@
         let next = CL_TIMES.map(([h, m]) => new Date(n.getFullYear(), n.getMonth(), n.getDate(), h, m)).find((d) => d > n);
         if (!next) { next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, CL_TIMES[0][0], CL_TIMES[0][1]); }
         const day = next.getDate() === n.getDate() ? 'hoje' : 'amanhã';
+        // na hora: a próxima faz-se quando se abre a app (ou já vem a caminho)
+        if (st.runAt) return `${made} · a nova vem a caminho (pedida às ${new Date(st.runAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })})`;
+        if (st.naHora && cfg.owner) return `${made} · atualiza-se quando abres a app`;
         return `${made} · próxima ${day} às ${next.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`;
     }
     const moverWhy = (k) => { const m = CLAUDE && Array.isArray(CLAUDE.movers) ? CLAUDE.movers.find((x) => x.s === k) : null; return m ? m.why : ''; };
@@ -2336,7 +2360,7 @@
     function refreshAll() {
         st.lastRefresh = now();
         if (holdingKeys().some((k) => REG[k] && REG[k].kind === 'crypto')) loadCryptoGlobal(); // o Fear & Greed, para a decisão da cripto que tenho
-        return Promise.all([pollYahoo(), loadCryptoSeries(), ws ? null : cryptoREST(), cfg.tab === 'destaques' ? loadMovers() : null, loadClaude()])
+        return Promise.all([pollYahoo(), loadCryptoSeries(), ws ? null : cryptoREST(), cfg.tab === 'destaques' ? loadMovers() : null, loadClaude().then(() => pedirAnalise('pedido'))])
             .finally(() => scheduleRender());
     }
     // puxar para baixo no topo da página → atualizar (como nas apps do iPhone)
@@ -2753,6 +2777,6 @@
         highlightsSnap, highlightsHtml, fmtBig, get movers() { return MOVERS; }, set movers(v) { MOVERS = v; }, get cg() { return CG; }, set cg(v) { CG = v; },
         // o Painel (só em Onda): o instantâneo, o desenho e o que ele lê já feito (a variação no período, o conselho do Claude
         // de cada ativo, o imposto da cripto), e o estado dos combustíveis
-        panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, decSnapOf: (k) => { const d = decOf(k); return d ? decSnap(k, qv(k), d) : null; }, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; } };
+        panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, pedirAnalise, clWhen, decSnapOf: (k) => { const d = decOf(k); return d ? decSnap(k, qv(k), d) : null; }, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; } };
     boot();
 })();

@@ -65,6 +65,7 @@ A ficha de cada ativo tem um só cartão, **Decisão**, que junta seis fontes nu
 
 ## Manhã e tarde
 
+- **Corridas pedidas pela app** (quando o dono a abre e a última análise tem 4 horas ou mais, ou quando puxa para atualizar): a mesma análise, com os mesmos passos, a qualquer hora. Se a anterior é do mesmo dia, foca no que mudou desde ela.
 - **07:14 (manhã)**: análise completa (passos abaixo).
 - **15:14 (tarde, 45 min depois da abertura dos EUA)**: atualização. Os mesmos passos, focados no que **mudou desde a manhã** (abertura dos EUA, notícias novas, movimentos fortes e o seu motivo em `movers`). Começar o `headline` por "Tarde:". O `modelo.json` já traz os veredictos da manhã: ajusta os que mudaram e escreve o porquê de cada ativo com os números da tarde. Manter o plano do mês salvo motivo forte; `review` e `lessons` só mudam se houver algo novo. O publicar substitui a análise da manhã na app.
 

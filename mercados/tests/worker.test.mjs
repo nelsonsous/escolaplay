@@ -426,3 +426,43 @@ test('/cryptoglobal junta CoinGecko e o índice de medo e ganância', async () =
     mockFetch(() => res({}, 500));
     assert.equal((await worker.fetch(new Request('https://w.test/cryptoglobal?x=1'), {})).status, 502);
 });
+
+test('/advice/run: a análise na hora, só para o dono, com travões (1.10.0)', async () => {
+    const agora = Date.now(), iso = (min) => new Date(agora - min * 60000).toISOString();
+    const store = new Map([['cfg:owner', JSON.stringify(OWNER)], ['advice:latest', JSON.stringify({ date: '2026-11-14', generatedAt: iso(300) })]]);
+    const env = { JOURNAL: { get: async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null), put: async (k, v) => { store.set(k, v); } } };
+    const fires = [];
+    mockFetch((u, init) => { fires.push({ u, auth: init.headers.authorization, beta: init.headers['anthropic-beta'], corpo: JSON.parse(init.body) }); return res({ type: 'routine_fire' }); });
+    const run = async (id, b) => { const r = await worker.fetch(new Request(`https://w.test/advice/run?id=${id}`, { method: 'POST', body: b ? JSON.stringify(b) : undefined }), env); return { status: r.status, body: await r.json() }; };
+    // sem os segredos: nada se chama, e o /me não diz naHora
+    assert.deepEqual((await run(OWNER)).body, { naHora: false, motivo: 'sem gatilho' });
+    assert.equal((await (await worker.fetch(new Request(`https://w.test/me?id=${OWNER}`), env)).json()).naHora, undefined);
+    Object.assign(env, { CONSELHEIRO_FIRE_URL: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', CONSELHEIRO_TOKEN: 'segredo-de-teste' });
+    assert.equal((await run('outra-app-123')).status, 403, 'só o dono');
+    assert.equal((await (await worker.fetch(new Request(`https://w.test/me?id=${OWNER}`), env)).json()).naHora, true);
+    assert.equal((await (await worker.fetch(new Request('https://w.test/me?id=outra-app-123'), env)).json()).naHora, undefined, 'as outras apps não sabem do gatilho');
+    // a análise tem 5 horas: abrir a app chama (uma vez); a seguir, a corrida a decorrer é a que vale
+    const a = await run(OWNER, { quando: 'abrir' });
+    assert.equal(a.body.naHora, true);
+    assert.deepEqual([fires.length, fires[0].u, fires[0].auth, fires[0].beta, fires[0].corpo.text], [1, env.CONSELHEIRO_FIRE_URL, 'Bearer segredo-de-teste', 'experimental-cc-routine-2026-04-01', 'Análise pedida pela app Mercados (o dono abriu a app).']);
+    const b = await run(OWNER, { quando: 'pedido' });
+    assert.deepEqual([b.body.naHora, b.body.pedidaEm, fires.length], [true, a.body.pedidaEm, 1], 'uma corrida de cada vez');
+    // a análise nova chegou: com 10 minutos, abrir não chama (menos de 4 h) e puxar também não (menos de 30 min)
+    store.set('advice:latest', JSON.stringify({ generatedAt: iso(10) }));
+    assert.equal((await run(OWNER, { quando: 'abrir' })).body.motivo, 'recente');
+    assert.equal((await run(OWNER, { quando: 'pedido' })).body.motivo, 'recente');
+    // com 40 minutos, puxar para atualizar chama (a última chamada já tem análise depois dela)
+    store.set('cons:chamadas', JSON.stringify([agora - 50 * 60000]));
+    store.set('advice:latest', JSON.stringify({ generatedAt: iso(40) }));
+    assert.equal((await run(OWNER, { quando: 'pedido' })).body.naHora, true);
+    assert.equal(fires.length, 2);
+    // no máximo 6 por dia; o token recusado não deixa a app à espera
+    store.set('cons:chamadas', JSON.stringify(Array.from({ length: 6 }, (_, i) => agora - (i + 2) * 3600000)));
+    assert.deepEqual((await run(OWNER, { quando: 'pedido' })).body, { naHora: false, motivo: 'limite' });
+    store.set('cons:chamadas', '[]');
+    mockFetch(() => res({ error: 'token' }, 401));
+    assert.deepEqual((await run(OWNER, { quando: 'pedido' })).body, { naHora: false, motivo: 'erro 401' });
+    // um endereço que não é o da Anthropic não conta como gatilho
+    env.CONSELHEIRO_FIRE_URL = 'https://exemplo.com/fire';
+    assert.deepEqual((await run(OWNER)).body, { naHora: false, motivo: 'sem gatilho' });
+});

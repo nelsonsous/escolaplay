@@ -20,6 +20,7 @@
 //   GET  /journal?id=…                        → diário de sugestões (KV)
 //   POST /journal  { id, date, items, lots, plano }  → guardar as sugestões do dia, o que se tem (com o valor por mês e o
 //                  prazo de cada ativo, desde a 1.9.0) e o valor do plano mensal
+//   POST /advice/run?id=… { quando }        → pede a análise ao Claude na hora (só o dono; precisa do gatilho, 1.10.0)
 //   GET  /advice?id=…[&date=AAAA-MM-DD]       → análise do Claude (KV, só leitura; a tarefa agendada escreve-a
 //                                               pela API da Cloudflare): a completa só para o dono, as outras
 //                                               apps recebem a sua (a dos seus ativos), se a ligarem
@@ -31,7 +32,7 @@
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.9.1';
+const VERSION = '1.10.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -626,7 +627,42 @@ async function me(url, env) {
     const id = url.searchParams.get('id') || '';
     if (!JID.test(id)) return { status: 400, body: { error: 'id inválido' } };
     const [owner, others] = await Promise.all([isOwner(env, id), othersOn(env)]);
-    return { body: { owner, others } };
+    // naHora: a análise do dono faz-se quando ele abre a app (há gatilho do Claude ligado ao conector)
+    return { body: { owner, others, ...(owner && naHora(env) ? { naHora: true } : {}) } };
+}
+
+// ---------- a análise na hora (1.10.0) ----------
+// Com os segredos CONSELHEIRO_FIRE_URL e CONSELHEIRO_TOKEN no Worker (o endereço e o token do gatilho «API» da tarefa
+// agendada do conselheiro, criados em claude.ai/code/routines — nunca no código), a app do dono pede a análise
+// quando é aberta (se a última tem 4 horas ou mais) ou quando ele puxa para atualizar (30 minutos ou mais). Travões,
+// porque cada corrida gasta da subscrição do Claude: uma de cada vez (25 minutos entre chamadas, o tempo de uma
+// corrida) e no máximo MAX_CORRIDAS por dia. O texto da chamada é fixo: nada do que vem da app segue nele.
+const MAX_CORRIDAS = 6, CORRIDA_MIN = 25, IDADE_MIN = { abrir: 240, pedido: 30 };
+const FIRE = /^https:\/\/api\.anthropic\.com\/v1\/claude_code\/routines\/[A-Za-z0-9_-]+\/fire$/;
+const naHora = (env) => !!(env.CONSELHEIRO_TOKEN && FIRE.test(env.CONSELHEIRO_FIRE_URL || ''));
+async function correr(request, url, env) {
+    if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
+    const id = url.searchParams.get('id') || '';
+    if (!(await isOwner(env, id))) return { status: 403, body: { error: 'só para a app do dono' } };
+    if (!naHora(env)) return { body: { naHora: false, motivo: 'sem gatilho' } };
+    let b = {};
+    try { b = JSON.parse((await request.text()) || '{}') || {}; } catch { /* sem corpo: ao abrir */ }
+    const quando = b.quando === 'pedido' ? 'pedido' : 'abrir', agora = Date.now();
+    const doc = await env.JOURNAL.get('advice:latest', 'json');
+    const feita = doc && Date.parse(doc.generatedAt || '');
+    if (Number.isFinite(feita) && agora - feita < IDADE_MIN[quando] * 60000) return { body: { naHora: false, motivo: 'recente', feita: doc.generatedAt } };
+    const chamadas = ((await env.JOURNAL.get('cons:chamadas', 'json')) || []).filter((x) => Number.isFinite(x) && agora - x < 86400000);
+    const ultima = chamadas.length ? Math.max(...chamadas) : 0;
+    // uma corrida a decorrer (chamada há menos de 25 minutos e ainda sem análise nova): é essa que vale
+    if (ultima && agora - ultima < CORRIDA_MIN * 60000 && !(Number.isFinite(feita) && feita > ultima)) return { body: { naHora: true, pedidaEm: new Date(ultima).toISOString() } };
+    if (chamadas.length >= MAX_CORRIDAS) return { body: { naHora: false, motivo: 'limite' } };
+    // regista primeiro e chama depois (dois pedidos quase ao mesmo tempo não passam os dois)
+    await env.JOURNAL.put('cons:chamadas', JSON.stringify([...chamadas, agora]));
+    const r = await fetch(env.CONSELHEIRO_FIRE_URL, { method: 'POST', headers: { authorization: `Bearer ${env.CONSELHEIRO_TOKEN}`,
+        'anthropic-beta': 'experimental-cc-routine-2026-04-01', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ text: 'Análise pedida pela app Mercados (o dono abriu a app).' }) });
+    if (!r.ok) { console.error('conselheiro', r.status); return { body: { naHora: false, motivo: 'erro ' + r.status } }; }
+    return { body: { naHora: true, pedidaEm: new Date(agora).toISOString() } };
 }
 const dayAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 // quantas apps se ligam (gravam o diário) e quantas pediram a análise do Claude — só para o dono
@@ -689,6 +725,9 @@ export default {
                 const { status = 200, body } = await journal(request, url, env);
                 return json(body, status, 0, origin);
             } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
+        }
+        if (path === '/advice/run' && request.method === 'POST') {
+            try { const { status = 200, body } = await correr(request, url, env); return json(body, status, 0, origin); } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
         }
         if (path === '/owner' && request.method === 'POST') {
             try { const { status = 200, body } = await ownerSet(request, env); return json(body, status, 0, origin); } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }
