@@ -3062,3 +3062,74 @@ iguais em JS e Onda (seis novos: o plano e os prazos certos, estranhos e em falt
 o valor por mês, o prazo e o plano guardados e limpos. Interface: o prazo escolhido na Carteira chega à decisão e ao
 conector, com o valor do plano.
 
+
+## Iteração 158: o ecrã acordado, o tom e a voz (portas 120–122), as contagens (`lib/tempo.onda`), o «quis dizer» a sério e a Ginástica (0.1.0)
+
+**A app.** A Ginástica (`ginastica/`) é a primeira app nascida do molde: a sessão de ginástica rítmica de hoje,
+guiada. Escolhe a sessão que se segue (A, B, C, D), mostra os exercícios dela e leva a ginasta de um a um — o nome,
+como se faz, o relógio, as vezes, os lados e os intervalos, com voz e sinais — até à estrela do dia. Os exercícios e
+as sessões vêm de um `dados.json` (o plano está em `ginastica/PLANO.md`). São 272 linhas de Onda e um módulo de
+53 969 bytes (o molde: 49 550). Compilou à primeira, com o `SPEC.md`, o `lib/LEIA.md` e o molde como únicos guias.
+
+**Três portas no anfitrião das apps** (`rt/anfitriao.js`; os nomes em `lib/anfitriao.onda`):
+- `Y 120` (`_an_acordado v`): o ecrã não apaga enquanto a app se vê (Screen Wake Lock). O browser larga o trinco
+  quando a página se esconde; o anfitrião volta a pedi-lo quando ela se vê outra vez, e larga logo um trinco que
+  chegue depois de a app já não o querer. Um pedido recusado não se repete até a página voltar.
+- `Y 121` (`_an_tom hz ms`): um sinal sonoro sem ficheiros (Web Audio), com o volume a subir e a descer em 10 ms
+  para não estalar. Com `hz = 0` só prepara o som: faz-se num toque, porque há browsers que só o deixam começar num
+  gesto.
+- `Y 122` (`_an_falar t l`): diz um texto em voz alta na língua pedida (ou na da página) e cala o que estava a dizer.
+  Só cancela se estava mesmo a falar: há browsers que perdem a fala que vem logo a seguir a um `cancel`.
+
+Valem 1 se o browser as tem e 0 se não: a app continua a funcionar calada e com o ecrã a apagar.
+
+**Contagens na biblioteca** (`lib/tempo.onda`, prefixo `_tp_`, sem mais nenhum módulo): guarda-se a hora do fim
+(`_tp_fim s`) e em cada tique pergunta-se o que falta (`_tp_falta`, para cima: 19 999 ms ainda são 20). A contagem
+guia-se pela hora e não pelos tiques: um telemóvel que adormece 7 segundos acorda com o relógio certo, e um que
+adormece mais do que faltava acaba essa contagem e começa a seguinte do princípio. `_tp_faltams` serve a pausa e
+`_tp_mss` escreve `1:15`. Iguais à mesma conta em JavaScript, em WebAssembly e em x86-64.
+
+**O «quis dizer…?» estava errado desde a it.33.** Na distância de edição (`edist`, `src/1lex.onda`) a primeira coluna
+era posta a zero (`! cu 0 i` em vez de `! cu i`): o início do nome errado não contava, e um nome curto que acabasse
+como ele ganhava a todos. Com a fala junta (`ha`, `eh`…) quase todos os enganos davam «quis dizer ha?» — nesta app,
+`entraa` em vez de `entra`. Agora sugere o nome mais parecido, e só se estiver perto (uma letra; duas num nome de 4
+ou mais). O compilador voltou ao ponto fixo nos três arranques (WASM: 520 952 → 520 946 bytes; x86-64; a ponte C), e
+os módulos das apps saem iguais ao byte com o compilador novo (o molde, a Mercados e o conselheiro, o protótipo, a
+Meteo, a Música e o Maestro). A semente arm64 não foi refeita: faz-se no Mac (`./build.sh --semente-arm64`), e esse
+arranque já aceita uma semente mais velha do que a fonte.
+
+**O molde, para a próxima app:**
+- o `build.mjs` junta a biblioteca toda (faltavam o `grafico` e agora o `tempo`): o módulo do molde fica igual ao
+  byte, e uma app copiada não tem de mexer na lista para usar um gráfico ou uma contagem;
+- um erro de compilação lê-se: antes o `build.mjs` rebentava com a pilha do Node e o erro da Onda em bytes; agora
+  mostra o erro e diz o ficheiro e a linha dele (`→ ginastica/app.onda, linha 197, coluna 36`), porque o compilador
+  conta as linhas do texto todo junto;
+- `node build.mjs --verificar` falha se o `gerado/` não é o da app de agora, sem escrever nada;
+- o `LEIA.md` ganhou as receitas da contagem, do ecrã aceso, do som e da voz, de testar com o relógio do Playwright
+  e de conferir o desenho por medidas.
+
+**O que se aprendeu a escrever a app** (e ficou escrito onde a próxima IA o vai ler):
+- a ordem das definições não importa, e um local ou um parâmetro com o nome de uma função tapa-a (`SPEC.md`,
+  «Programa»; `test/ordem.test.js`);
+- o `esc` de um nó serve qualquer valor do JS e por isso traz o `String(x)` dos números: num ecrã só com textos,
+  `esct txt c.nome` — o módulo passou de 61 149 para 53 969 bytes;
+- os testes de uma app montam-na logo ao abrir o ficheiro de teste. Sem isso, correr um teste só usa o módulo que lá
+  estiver: seis mutações feitas de propósito «passaram» porque o módulo não era o da fonte;
+- conferir os testes com mutações: com a app montada, 7 de 8 foram apanhadas à primeira. A que escapou (um tique
+  que não solta a memória) mostrou um buraco no teste da memória, que foi fechado;
+- o desenho confere-se por medidas, sem olhar para capturas: o que sai do ecrã ou fica cortado, botões mais pequenos
+  do que um dedo, o contraste, o botão principal à vista. Três tamanhos de ecrã, todos os passos das quatro sessões.
+
+**Números** (Chromium): um toque 0,10 a 0,15 ms (a casa desenha a lista toda); um tique 0,0009 ms a contar e 0,0003
+parado; o relógio redesenha só os algarismos (`_ht_muda`), e só quando mudam. O monte fica exatamente onde estava
+depois de quatro sessões inteiras, 600 toques e 6 000 tiques.
+
+**Testes.** Na Onda, 186 (eram 176): as contagens, as portas (a fingir e num Chromium a sério), a ordem das
+definições, o molde copiado para fora da pasta e a sugestão dos nomes. Na Ginástica, 7: os dados contra o plano, a
+montagem, as quatro sessões inteiras com o relógio do teste (o que a voz disse e os sinais, por ordem), a pausa, a
+página que se esconde, o relógio pela hora, saltar e sair, o armazém com lixo, HTML nos dados, a rede em baixo, o
+desenho e a memória. A Música (77) passa com o anfitrião novo.
+
+**O que ficou por fazer.** A voz, o som e o ecrã acordado só se confirmam num telemóvel a sério (aqui o Chromium não
+tem ecrã nem colunas). Um telemóvel deitado tem de rolar para chegar aos botões. As voltas 2 a 6 da Ginástica estão
+no plano.

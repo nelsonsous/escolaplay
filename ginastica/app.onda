@@ -1,0 +1,272 @@
+# Ginástica — a sessão de hoje, guiada. A app escolhe a sessão que se segue (A, B, C, D), mostra os exercícios dela e
+# leva a ginasta de um a um: o nome, como se faz, o relógio, as vezes, os lados e os intervalos, com voz e sinais.
+# No fim, a estrela do dia. Os exercícios e as sessões vêm do dados.json (o plano: ginastica/PLANO.md).
+# Monta-se com `ONDA=onda node ginastica/build.mjs` (a biblioteca onda/lib + este ficheiro → gerado/app.wasm).
+#
+# COMO FUNCIONA: o anfitrião (onda/rt/anfitriao.js) corre o `main` uma vez; depois chama uma função daqui em cada evento:
+#   clique t         um toque num elemento com data-onda="ação:número" (t = esse texto)
+#   lido t estado    o dados.json chegou (t = o corpo, estado = o HTTP; 0 = sem rede)
+#   tique z          o relógio da sessão, quatro vezes por segundo
+# Cada evento solta no fim o que reservou (_me_solta): o monte não cresce com o uso.
+#
+# O RELÓGIO guia-se pela hora marcada (M[11], o fim da contagem) e não pelos tiques: se o telemóvel adormecer, ao
+# acordar o que falta está certo (onda/lib/tempo.onda). Um tique só redesenha os algarismos, e só quando mudam.
+#
+# GLOBAIS (a app tem M[0..62]; a biblioteca só usa o M[63])
+#   0 os dados (árvore do JSON; 0 enquanto não chegaram)      1 rede (0 a carregar, 1 chegou, 2 falhou)
+#   2 vista (0 casa, 1 sessão, 2 fim)                         3 sessão escolhida (índice)
+#   4 os exercícios da sessão (um nó por passo; lugar fixo)   5 quantos passos
+#   6 as vezes de cada passo (0 = as do exercício)            7 passo atual
+#   8 fase (0 apresentação, 1 a contar, 2 intervalo)          9 vez atual (desde 0)     10 lado atual (desde 0)
+#   11 a hora a que a contagem acaba (ms)                     12 parada pela pessoa: o que faltava (ms) + 1; 0 = a andar
+#   13 o relógio do anfitrião (0 = desligado)                 14 os segundos que o ecrã mostra
+#   15 som ligado      16 voz ligada                          17 estrelas (sessões feitas)
+#   18 a sessão que se segue (índice)                         19 a de hoje já está feita
+#   20 quantas vezes a sessão escolhida já foi feita          21 a perguntar se quer mesmo sair
+#   22 passos feitos nesta sessão (os saltados não contam)    23 a vista é nova (desenha de raiz)
+#   24 o intervalo é uma troca de lado (1) ou um descanso (2) 25 esta sessão deu estrela
+
+# ---------- os dados ----------
+: sessoes >i { = d @ 0 d.sessoes }
+: sessao i>i i idx sessoes i
+: nsess >i quantos sessoes
+# o exercício do passo i da sessão (nó) e o do passo atual
+: no i>i i @ + @ 4 i
+: exa >i no @ 7
+# o exercício com este id (nó), ou 0
+: exde i>i id { = d @ 0 = c pri d.exercicios = r 0 W && c ~ r { Se mesmo txt c.id id = r c = c seg c } r }
+# o índice da sessão com este id, ou -1
+: sessde i>i id { = c pri sessoes = i 0 = r -1 W && c < r 0 { Se mesmo txt c.id id = r i = c seg c = i + i 1 } r }
+# quantos lados tem um exercício (1 se não tem) e o nome do lado j
+: nl i>i e { = l e.lados ? && == tipo l 6 > quantos l 0 quantos l 1 }
+: lado ii>i e j { = l e.lados txt idx l j }
+# as vezes do passo i: as que a sessão manda, senão as do exercício, senão uma
+: vz i>i i { = v @ + @ 6 i = e no i = w int e.vezes ? > v 0 v ? > w 0 w 1 }
+# o descanso entre vezes (10 s se os dados não dizem)
+: pausa i>i e { = p int e.pausa ? > p 0 p 10 }
+# quanto leva o passo i, em segundos (para o resumo da casa)
+: dura i>i i {
+  = e no i = v vz i = q nl e = s int e.seg
+  ? eh e.tipo $"tempo" s
+  ? eh e.tipo $"segura" + + * * v q s * * v - q 1 5 * - v 1 pausa e
+  { = u int e.dura ? > u 0 u 45 } }
+
+# ---------- o armazém: as sessões feitas ("AAAA-MM-DD:ID," umas a seguir às outras), o som e a voz ----------
+# conta as estrelas (17), a sessão que se segue à última feita (18) e se a de hoje já está (19). Só contam as
+# entradas de sessões que existem: o que mais lá estiver é ignorado
+: lefeitas >i {
+  = m _me_marca
+  = g _an_ler $"feitas"
+  = hoje texto`{ _dt_phoje _an_agora }`
+  = k 0 = j 0 = ult -1 = dia 0
+  = f _tx_campo g 0 44
+  W > _tx_len f 0 {
+    = s sessde _tx_campo f 1 58
+    Se >= s 0 { = k + k 1 = ult s = dia mesmo _tx_campo f 0 58 hoje }
+    = j + j 1 = f _tx_campo g j 44 }
+  ! 17 k ! 18 ? < ult 0 0 % + ult 1 nsess ! 19 dia
+  _me_solta m }
+# quantas vezes a sessão s já foi feita
+: feitasde i>i s {
+  = m _me_marca
+  = g _an_ler $"feitas" = k 0 = j 0
+  = f _tx_campo g 0 44
+  W > _tx_len f 0 { Se == sessde _tx_campo f 1 58 s = k + k 1 = j + j 1 = f _tx_campo g j 44 }
+  _me_solta m k }
+# junta a sessão escolhida, com o dia de hoje (o de Lisboa)
+: gravafeita >i {
+  = m _me_marca
+  = g _an_ler $"feitas" = z sessao @ 3
+  = t _tx_abre + _tx_len g 60
+  crut g _dt_phoje _an_agora P 58 crut txt z.id P 44
+  _tx_fecha t
+  _an_gravar $"feitas" t
+  _me_solta m }
+: guarda ii>i k v _an_gravar k ? v $"1" $"0"
+# 1 se a pessoa desligou isto (está lá um "0"); sem nada guardado, está ligado
+: desligou i>i k { = m _me_marca = g _an_ler k = r && > _tx_len g 0 == _tx_b g 0 48 _me_solta m r }
+
+# ---------- a sessão: os passos ----------
+# enche os passos da sessão s (4, 5 e 6). Um passo é o id de um exercício, { ex, vezes } ou { vez: [ids] } (um de
+# cada vez que a sessão se faz). O que não existir nos dados salta-se
+: monta i>i s {
+  ! 20 feitasde s
+  = z sessao s = n 0 = c pri z.passos
+  W && c < n 60 {
+    = e 0 = v 0
+    Se == tipo c 5 = e exde txt c
+    Se == tipo c 7 {
+      Se ha c.ex { = e exde txt c.ex = v int c.vezes }
+      = r c.vez
+      Se && == tipo r 6 > quantos r 0 = e exde txt idx r % @ 20 quantos r }
+    Se e { ! + @ 4 n e ! + @ 6 n v = n + n 1 }
+    = c seg c }
+  ! 5 n n }
+
+# ---------- o som, a voz e o relógio ----------
+: bip ii>i hz ms { Se @ 15 _an_tom hz ms 0 }
+: diz i>i t { Se @ 16 _an_falar t $"pt-PT" 0 }
+: liga >i { Se ~ @ 13 ! 13 _an_relogio 250 $"tique" 0 }
+: desliga >i { Se @ 13 { _an_parar @ 13 ! 13 0 } 0 }
+# começa a contar s segundos na fase f
+: arranca ii>i f s { ! 8 f ! 11 _tp_fim s ! 12 0 ! 14 s 0 }
+# os segundos que o relógio mostra: os que faltam, ou os que faltavam quando a pessoa parou
+: faltam >i ? @ 12 / + - @ 12 1 999 1000 _tp_falta @ 11
+
+# ---------- o ecrã ----------
+: pseg i>i s ? && >= s 60 == % s 60 0 plural / s 60 $"minuto" $"minutos" plural s $"segundo" $"segundos"
+# quanto se faz: o texto dos dados, ou feito das vezes e dos segundos
+: pdose ii>i e v {
+  ? ha e.quanto esct txt e.quanto
+  ? eh e.tipo $"tempo" pseg int e.seg
+  { plural v $"vez" $"vezes" ` · ` pseg int e.seg Se > nl e 1 ` de cada lado` 0 } }
+# o relógio: os algarismos (nada na apresentação)
+: prel >i ? > @ 8 0 `<b{ Se @ 12 ` class="parado"` }>{ _tp_mss faltam }</b>` 0
+: drel >i { = h _ht_ini 300 prel _ht_muda $"#relogio" h }
+# o que se está a fazer agora: o lado e a vez, ou o intervalo
+: petiqueta >i {
+  = e exa = q nl e = n vz @ 7
+  Se == @ 8 2 { ? == @ 24 1 `A seguir: { esct lado e @ 10 }` `Descansa` }
+  Se == @ 8 1 {
+    Se > q 1 esct lado e @ 10
+    Se && > q 1 > n 1 ` · `
+    Se > n 1 `{N + @ 9 1} de {N n}` }
+  0 }
+: pbotoes >i {
+  = e exa
+  ? @ 21 `<button class="acao" data-onda="fica:0">Continuar a sessão</button><button class="acao fraco" data-onda="sai:1">Sair sem estrela</button>`
+  {
+    ? == @ 8 0 `<button class="acao" data-onda="vai:0">{ ? eh e.tipo $"conta" `Feito` `Vai` }</button>`
+               `<button class="acao" data-onda="pausa:0">{ ? @ 12 `Continuar` `Pausa` }</button>`
+    `<button class="menos" data-onda="salta:0">Saltar</button><button class="menos" data-onda="sai:0">Sair</button>`
+    0 } }
+# o cartão do exercício atual
+: dexe >i {
+  = e exa = i @ 7 = n @ 5
+  = h _ht_ini 4000
+  `<div class="barra"><i style="width:{N / * 100 i n}%"></i></div>`
+  `<p class="passo">{N + i 1} de {N n}</p>`
+  `<h2 class="nome">{ esct txt e.nome }</h2>`
+  `<p class="como">{ esct txt e.como }</p>`
+  `<p class="dose">{ pdose e vz i }</p>`
+  `<div id="relogio" class="relogio">{ prel }</div>`
+  `<p class="etiqueta">{ petiqueta }</p>`
+  `<div class="botoes">{ pbotoes }</div>`
+  ? @ 23 { ! 23 0 _ht_poe $"#ecra" h } _ht_muda $"#ecra" h }
+# a casa: as estrelas, as sessões, a escolhida e os exercícios dela
+: dcasa >i {
+  = h _ht_ini 8000
+  Se == @ 1 0 `<p class="vazio">A carregar…</p>`
+  Se == @ 1 2 `<p class="vazio">Sem ligação.</p><button class="acao" data-onda="tenta:0">Tentar outra vez</button>`
+  Se == @ 1 1 {
+    = z sessao @ 3 = n @ 5 = tot 0
+    L i n = tot + + tot dura i 8
+    `<p class="estrelas"><b>★ {N @ 17}</b>{ Se @ 19 ` · já tens a estrela de hoje` }</p>`
+    `<nav class="sessoes" aria-label="Sessões">`
+    = c pri sessoes = j 0
+    W c { `<button data-onda="sessao:{N j}"{ Se == j @ 3 ` class="on"` }>{ esct txt c.id }</button>` = c seg c = j + j 1 }
+    `</nav>`
+    `<h2 class="nome">{ esct txt z.nome }</h2>`
+    `<p class="resumo">{ plural n $"exercício" $"exercícios" } · cerca de { plural / + tot 30 60 $"minuto" $"minutos" }</p>`
+    `<button class="acao" data-onda="comeca:0"{ Se == n 0 ` disabled` }>Começar</button>`
+    `<ol class="lista">` L i n { = e no i `<li>{ esct txt e.nome }</li>` } `</ol>`
+    `<div class="ajustes"><button data-onda="som:0">Som: { ? @ 15 `ligado` `desligado` }</button>`
+    `<button data-onda="voz:0">Voz: { ? @ 16 `ligada` `desligada` }</button></div>` }
+  _ht_poe $"#ecra" h }
+: dfim >i {
+  = h _ht_ini 1500
+  ? @ 25 `<div class="fim"><p class="estrela">★</p><h2>Parabéns!</h2><p class="texto">Ganhaste a estrela de hoje. Já tens { plural @ 17 $"estrela" $"estrelas" }.</p>`
+         `<div class="fim"><p class="estrela apagada">☆</p><h2>Hoje ficou a meio</h2><p class="texto">Sem estrela desta vez. Amanhã há mais.</p>`
+  `<button class="acao" data-onda="casa:0">Voltar</button></div>`
+  _ht_poe $"#ecra" h }
+: desenha >i ? == @ 2 0 dcasa ? == @ 2 1 dexe dfim
+
+# ---------- a sessão: andar de passo em passo ----------
+# o fim: com pelo menos metade dos passos feitos, a estrela fica guardada com o dia
+: termina >i {
+  desliga _an_acordado 0
+  ! 25 >= * 2 @ 22 @ 5
+  Se @ 25 gravafeita
+  lefeitas
+  ! 2 2
+  ? @ 25 { bip 1568 600 diz`Parabéns! Ganhaste a estrela de hoje.` } diz`Hoje ficou a meio. Amanhã há mais.`
+  _an_rolar 0
+  dfim }
+# apresenta o passo i: o relógio só começa quando ela tocar em «Vai»
+: entra i>i i { ! 7 i ! 8 0 ! 9 0 ! 10 0 ! 12 0 ! 21 0 = e no i diz`{ crut txt e.nome }` dexe }
+: segue >i { = i + @ 7 1 ? < i @ 5 entra i termina }
+: feito >i { ! 22 + @ 22 1 segue }
+# «Vai» (ou «Feito», nos de contar): começa a primeira contagem
+: vai >i {
+  = e exa
+  ? eh e.tipo $"conta" feito {
+    arranca 1 int e.seg
+    Se > nl e 1 diz`{ crut lado e 0 }`
+    dexe } }
+# uma contagem chegou ao fim: outro lado, outra vez, ou o passo seguinte
+: fimfase >i {
+  = e exa
+  bip 1320 350
+  ? == @ 8 2 {
+      arranca 1 int e.seg
+      Se == @ 10 0 { ? > nl e 1 diz`{ crut lado e 0 }` diz`Outra vez` }
+      dexe }
+  ? eh e.tipo $"tempo" feito {
+    = l + @ 10 1 = v + @ 9 1
+    ? < l nl e { ! 10 l ! 24 1 arranca 2 5 diz`Troca. { crut lado e l }` dexe }
+    ? < v vz @ 7 { ! 9 v ! 10 0 ! 24 2 arranca 2 pausa e diz`Descansa` dexe }
+    feito } }
+: comeca >i {
+  ! 2 1 ! 22 0 ! 23 1
+  _an_acordado 1
+  Se @ 15 _an_tom 0 0
+  liga
+  _an_rolar 0
+  entra 0 }
+: pausar >i { Se && > @ 8 0 ~ @ 12 ! 12 + _tp_faltams @ 11 1 dexe }
+: continuar >i { Se @ 12 { ! 11 + _an_agora - @ 12 1 ! 12 0 } dexe }
+: sai >i { desliga _an_acordado 0 _an_falar 0 0 ! 2 0 monta @ 3 _an_rolar 0 dcasa }
+
+# ---------- os eventos ----------
+: pede >i { ! 1 0 _an_buscar $"dados.json" $"lido" }
+: clique i>i t {
+  = v arg t = w @ 2
+  Se == w 0 {
+    Se && eacao t $"sessao" && >= v 0 < v nsess { ! 3 v monta v dcasa }
+    Se eacao t $"som" { ! 15 ~ @ 15 guarda $"som" @ 15 dcasa }
+    Se eacao t $"voz" { ! 16 ~ @ 16 guarda $"voz" @ 16 dcasa }
+    Se eacao t $"tenta" { pede dcasa }
+    Se && eacao t $"comeca" && == @ 1 1 > @ 5 0 comeca }
+  Se == w 1 {
+    Se && eacao t $"vai" == @ 8 0 vai
+    Se eacao t $"pausa" { ? @ 12 continuar pausar }
+    Se eacao t $"esconde" pausar
+    Se eacao t $"salta" segue
+    Se eacao t $"sai" { ? v sai { ! 21 1 dexe } }
+    Se eacao t $"fica" { ! 21 0 dexe } }
+  Se && == w 2 eacao t $"casa" { ! 2 0 ! 3 @ 18 monta @ 3 _an_rolar 0 dcasa }
+  _me_solta t }
+: tique i>i z {
+  = m _me_marca
+  Se && && == @ 2 1 > @ 8 0 ~ @ 12 {
+    = f _tp_falta @ 11
+    Se != f @ 14 {
+      ! 14 f
+      ? > f 0 { Se <= f 3 bip 880 120 drel } fimfase } }
+  _me_solta m }
+: lido ii>i t estado {
+  = r _ar_json t
+  ? && == estado 200 && == tipo r.exercicios 6 == tipo r.sessoes 6 {
+    ! 0 r ! 1 1
+    lefeitas
+    ! 3 @ 18
+    monta @ 3
+    0 } ! 1 2
+  desenha }
+: main >i {
+  _me_lb
+  ! 4 A 64 ! 6 A 64
+  ! 15 ~ desligou $"som" ! 16 ~ desligou $"voz"
+  _an_ouvir $"click" $"clique"
+  pede
+  desenha 0 }

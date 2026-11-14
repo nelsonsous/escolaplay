@@ -1,0 +1,45 @@
+{
+  "nota": "Os exercícios e as sessões do plano (ginastica/PLANO.md), nas doses das semanas 1 a 4. tipo: tempo (um relógio de seg segundos), segura (vezes × seg segundos, de cada lado se houver lados, com pausa segundos entre vezes) ou conta (a pessoa conta e toca em «Feito»; dura = quanto costuma levar, em segundos). Um passo de uma sessão é o id de um exercício, { ex, vezes } para mudar as vezes, ou { vez: [ids] } para um de cada vez.",
+  "exercicios": [
+    { "id": "saltitar", "n": 1, "nome": "Saltitar", "como": "Salta no lugar, de pés leves. Também podes saltar à corda.", "tipo": "tempo", "seg": 60 },
+    { "id": "circulos", "n": 2, "nome": "Círculos", "como": "Roda devagar os tornozelos, as ancas, os ombros e os pulsos.", "tipo": "conta", "quanto": "8 para cada lado", "dura": 45 },
+    { "id": "balancos", "n": 3, "nome": "Balanços de perna", "como": "De pé, com a mão numa cadeira. A perna esticada vai e vem como um pêndulo: primeiro à frente, depois ao lado.", "tipo": "conta", "quanto": "10 por perna, em cada direção", "dura": 60 },
+    { "id": "gato", "n": 4, "nome": "Gato e vaca", "como": "De gatas. Arredonda as costas como um gato e depois alonga-as, devagar.", "tipo": "conta", "quanto": "8 vezes", "dura": 30 },
+
+    { "id": "barquinho", "n": 5, "nome": "Barquinho", "como": "Deitada de costas, com a lombar colada ao chão. Braços e pernas esticados, a um palmo do chão. Se custar muito, dobra os joelhos.", "tipo": "segura", "vezes": 3, "seg": 15, "pausa": 10 },
+    { "id": "supermulher", "n": 6, "nome": "Super-mulher", "como": "De barriga para baixo. Levanta um palmo os braços e as pernas esticados, a olhar para o chão.", "tipo": "segura", "vezes": 3, "seg": 10, "pausa": 10 },
+    { "id": "prancha", "n": 7, "nome": "Prancha", "como": "Apoiada nos antebraços e nas pontas dos pés. O corpo fica direito como uma tábua.", "tipo": "segura", "vezes": 3, "seg": 15, "pausa": 15 },
+    { "id": "gluteos", "n": 8, "nome": "Ponte de glúteos", "como": "Deitada de costas, joelhos dobrados e pés no chão. Sobe a anca até o corpo ficar direito e desce devagar.", "tipo": "conta", "quanto": "2 × 10", "dura": 50 },
+    { "id": "meiaspontas", "n": 9, "nome": "Meias pontas", "como": "De pé, com a mão na parede. Sobe o mais alto que conseguires e desce devagar, de joelhos esticados. Primeiro de pés paralelos, depois virados para fora.", "tipo": "conta", "quanto": "2 × 15", "dura": 60 },
+    { "id": "elastico", "n": 10, "nome": "Pontas com elástico", "como": "Sentada, de pernas esticadas, com o elástico na planta do pé. Estica o pé todo, até aos dedos, e volta devagar.", "tipo": "conta", "quanto": "15 por pé", "dura": 60 },
+    { "id": "pernadevagar", "n": 11, "nome": "Perna que sobe devagar", "como": "De pé, com a mão na cadeira. A perna esticada sobe à frente sem balanço, fica 3 segundos e desce devagar. Depois ao lado.", "tipo": "conta", "quanto": "6 por perna, em cada direção", "dura": 90 },
+
+    { "id": "cavaleiro", "n": 12, "nome": "Cavaleiro", "como": "Um joelho no chão e o outro pé à frente. A anca desce para a frente, com o tronco direito.", "tipo": "segura", "vezes": 2, "seg": 20, "pausa": 5, "lados": ["Perna direita à frente", "Perna esquerda à frente"] },
+    { "id": "meiaespargata", "n": 13, "nome": "Meia espargata", "como": "Do cavaleiro, senta-te para trás e estica a perna da frente. Dobra-te para a frente a partir da anca, de costas direitas.", "tipo": "segura", "vezes": 1, "seg": 20, "pausa": 5, "lados": ["Perna direita à frente", "Perna esquerda à frente"] },
+    { "id": "espargata", "n": 14, "nome": "Espargata direita e esquerda", "como": "Desce até onde der, com as mãos no chão ou em duas almofadas firmes. As duas ancas ficam viradas para a frente.", "tipo": "segura", "vezes": 1, "seg": 20, "pausa": 5, "lados": ["Perna direita à frente", "Perna esquerda à frente"] },
+    { "id": "borboleta", "n": 15, "nome": "Borboleta e rã", "como": "Borboleta: sentada, plantas dos pés juntas e joelhos a cair para os lados. Rã: de gatas, afasta os joelhos e deixa a anca descer.", "tipo": "segura", "vezes": 2, "seg": 20, "pausa": 5, "lados": ["Borboleta", "Rã"], "quanto": "2 vezes cada · 20 segundos" },
+    { "id": "lateral", "n": 16, "nome": "Espargata lateral sentada", "como": "Sentada, de pernas afastadas, com os joelhos e os pés a apontar para o teto. As mãos andam para a frente, de costas direitas.", "tipo": "segura", "vezes": 1, "seg": 20, "pausa": 5 },
+    { "id": "cachorrinho", "n": 17, "nome": "Cachorrinho", "como": "De gatas, com a anca por cima dos joelhos. As mãos andam para a frente até o peito descer para o chão.", "tipo": "segura", "vezes": 2, "seg": 20, "pausa": 5 },
+    { "id": "ponte", "n": 18, "nome": "Ponte", "como": "Deitada de costas, com as mãos ao lado das orelhas. Sobe, estica os braços e empurra o peito para o lado das mãos.", "tipo": "segura", "vezes": 3, "seg": 8, "pausa": 10 },
+    { "id": "bolinha", "nome": "Bolinha", "como": "Senta-te nos calcanhares e pousa a testa no chão. Respira devagar: as costas descansam da ponte.", "tipo": "tempo", "seg": 20 },
+
+    { "id": "estatua", "n": 19, "nome": "Estátua", "como": "Em meias pontas, de pés juntos e braços em cima. Olha para um ponto e não te mexas.", "tipo": "segura", "vezes": 2, "seg": 20, "pausa": 10 },
+    { "id": "passe", "n": 20, "nome": "Passé", "como": "Em meias pontas num pé. O outro pé encosta ao joelho, com esse joelho virado para o lado.", "tipo": "segura", "vezes": 3, "seg": 10, "pausa": 5, "lados": ["Lado direito", "Lado esquerdo"] },
+    { "id": "balanca", "n": 21, "nome": "Balança", "como": "Uma perna esticada atrás. O tronco desce à medida que a perna sobe, de costas compridas e perna de apoio esticada.", "tipo": "segura", "vezes": 3, "seg": 8, "pausa": 5, "lados": ["Lado direito", "Lado esquerdo"] },
+    { "id": "pivot", "n": 22, "nome": "Pivot", "como": "Do passé: meia volta, depois uma volta inteira, a acabar parada em meias pontas. Conta as que acabam paradas.", "tipo": "conta", "quanto": "5 tentativas para cada lado", "dura": 90 },
+    { "id": "saltitos", "n": 23, "nome": "Saltitos", "como": "De pés juntos, salta com os joelhos e os pés esticados no ar e aterra sem barulho. Depois, chassé e salto pela sala.", "tipo": "conta", "quanto": "2 × 10, e 5 saltos", "dura": 60 },
+    { "id": "ondas", "n": 24, "nome": "Ondas", "como": "A onda do corpo, de baixo para cima: primeiro à frente, depois de lado.", "tipo": "conta", "quanto": "5 de cada", "dura": 45 },
+
+    { "id": "corda", "n": 25, "nome": "Corda", "como": "Saltos seguidos, para trás e cruzados. Conta o teu recorde sem falhar.", "tipo": "tempo", "seg": 360 },
+    { "id": "arco", "n": 26, "nome": "Arco", "como": "Rola o arco no chão a direito e apanha-o. Roda-o na mão direita e na esquerda. Passa por dentro a saltar. Lançamentos só na rua.", "tipo": "tempo", "seg": 360 },
+    { "id": "bola", "n": 27, "nome": "Bola", "como": "Rola a bola de uma mão à outra, pelos braços e pelo peito. Bate ao ritmo da música. A bola pousa na mão: não se agarra com os dedos.", "tipo": "tempo", "seg": 360 },
+    { "id": "clube", "n": 28, "nome": "Exercício do clube", "como": "O de movimentos livres ou o do aparelho, com a música, uma vez a valer. Pede para te filmarem.", "tipo": "conta", "quanto": "1 vez", "dura": 120 },
+    { "id": "danca", "n": 29, "nome": "Dança livre", "como": "A tua música, a inventar. Usa uma coisa que aprendeste esta semana.", "tipo": "tempo", "seg": 90, "quanto": "1 minuto e meio" }
+  ],
+  "sessoes": [
+    { "id": "A", "nome": "Pernas", "passos": ["saltitar", "circulos", "balancos", "gato", "barquinho", "meiaspontas", "elastico", "cavaleiro", { "ex": "meiaespargata", "vezes": 2 }, { "ex": "espargata", "vezes": 2 }, { "ex": "lateral", "vezes": 2 }, "danca"] },
+    { "id": "B", "nome": "Centro e costas", "passos": ["saltitar", "circulos", "balancos", "gato", "barquinho", "supermulher", "prancha", "gluteos", "borboleta", "cachorrinho", "ponte", "bolinha", "meiaespargata", "espargata", "lateral", "danca"] },
+    { "id": "C", "nome": "Equilíbrio e voltas", "passos": ["saltitar", "circulos", "balancos", "gato", "prancha", "estatua", "passe", "balanca", "saltitos", "ondas", "meiaespargata", "espargata", "lateral", "danca"] },
+    { "id": "D", "nome": "Aparelho e dança", "passos": ["saltitar", "circulos", "balancos", "gato", "barquinho", { "vez": ["corda", "arco", "bola"] }, "clube", "meiaespargata", "espargata", "lateral", "danca"] }
+  ]
+}

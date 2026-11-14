@@ -34,7 +34,7 @@
   = j 0 W <= j b { ! + pr j j = j + j 1 }
   = i 1
   W <= i a {
-    ! cu 0 i
+    ! cu i
     = j 1
     W <= j b {
       = c ? == @ + p - i 1 @ + q - j 1 0 1

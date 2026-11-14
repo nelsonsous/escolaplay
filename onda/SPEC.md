@@ -19,6 +19,7 @@ Não há runtime, GC nem VM. O compilador gera C (e daí código nativo ou WebAs
 `: nome ASSIN p1 .. pn CORPO`, onde ASSIN é `[if]*>[if]` (tipos dos parâmetros > tipo de retorno; `i` = int64, `f` = float64).
 O CORPO é uma única expressão. O ponto de entrada é `: main >i`, cujo valor é o código de saída (um programa que acaba com `P ...` sai com esse byte; termina o `main` com `0` para sair limpo).
 Exemplo: `: fib i>i n ? < n 2 n + fib - n 1 fib - n 2`
+A ordem das definições não importa: uma função pode chamar outra definida mais abaixo, e duas podem chamar-se uma à outra. Um local ou um parâmetro com o nome de uma função tapa-a dentro dessa função (o resto do programa continua a vê-la); duas funções com o mesmo nome são um erro (`funcao repetida`).
 
 ## Expressões (prefixas, aridade fixa, sem parênteses)
 | op | aridade | efeito |
@@ -104,7 +105,7 @@ Com `: gro >i 1` e um predicado (resultado 0 ou 1), o programa é a busca de Gro
     zzz x
     ^
   ```
-  Num nome desconhecido perto de uma função existente, sugere: `nome desconhecido, quis dizer soma?`.
+  Num nome desconhecido perto de uma função existente, sugere: `nome desconhecido, quis dizer soma?`. É o nome à menor distância de edição, e só se estiver mesmo perto: até uma letra de diferença, ou duas num nome com 4 letras ou mais.
 - Um erro de tipo aponta o token onde começa a expressão culpada (o operando, o segundo ramo do `?`, o argumento) e diz os tipos: `tipos diferentes: inteiro e real`, `ramos com tipos diferentes: o primeiro vale real, o segundo inteiro`, `argumento com tipo errado: f espera inteiro`. Um nome que começa por maiúscula é um operador, e o erro di-lo (`= precisa de nome: L comeca por maiuscula, …`).
 
 ## Apps (WebAssembly + anfitrião)
@@ -129,6 +130,9 @@ Uma app em Onda é um módulo `ondac -w` corrido pelo anfitrião `rt/anfitriao.j
 | 117 | "url⇥ms" fn | o `fetch` da 102 com memória: uma resposta 200 desse url guardada há menos de ms é dada logo a `fn` (vale 1); senão vai à rede e guarda a que chegar |
 | 118 | sel | rola a página até ao elemento `sel` (vale 1 se existe); com 0, até ao topo (uma vista nova abre no topo) |
 | 119 | sel txt | como a 100, mas mexe só no que mudou: um nó que continua igual é o mesmo nó (as imagens não piscam, uma animação a meio continua, um campo não perde o cursor); os filhos com `data-chave` (ou `id`) emparelham-se pela chave |
+| 120 | v | o ecrã acordado: com v = 1 o ecrã não apaga enquanto a app se vê; com 0 deixa de o segurar. O browser larga-o quando a página se esconde, e o anfitrião volta a pedi-lo quando ela se vê outra vez. Vale 1 se o browser o tem |
+| 121 | hz ms | um sinal sonoro sem ficheiro: um tom de hz hertz durante ms milissegundos. Com hz = 0 só prepara o som: faz-se num toque, porque há browsers que só deixam começar o som a partir de um gesto. Vale 1 se o browser o tem |
+| 122 | t l | diz o texto t em voz alta, na língua l (`"pt-PT"`; com 0, a da página), e cala o que estava a dizer; com t = 0 só cala. A primeira fala também se faz num toque. Vale 1 se o browser o tem |
 
 Depois de desenhar (100 e 119), o elemento recebe o evento `onda-desenho`, que sobe pela página: é o sinal de «a app desenhou» para a casca (com a 119 pode não mudar nó nenhum). Quem o ouve não chama a app de dentro dele.
 
@@ -155,7 +159,7 @@ Depois de desenhar (100 e 119), o elemento recebe o evento `onda-desenho`, que s
 Chromium 153 em `test/biblioteca-*.test.js`). Junta-se antes da app, por esta ordem (cada módulo só usa os de cima):
 
 ```
-cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala}.onda app.onda | ondac -w main clique > app.wasm
+cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,grafico,anfitriao,tempo,fala}.onda app.onda | ondac -w main clique > app.wasm
 ```
 
 | módulo | prefixo | o quê |
@@ -170,7 +174,8 @@ cat lib/{memoria,texto,numero,valor,json,arvore,data,ordenar,html,anfitriao,fala
 | `ordenar` | `_or_` | o `sort` do V8, comparação a comparação: o PowerSort do Chromium e o TimSort do Node 22, com o comparador num código |
 | `html` | `_ht_` | pedaços de HTML para o ecrã, atributos e textos escapados |
 | `grafico` | `_gr_` | gráficos em SVG: o caminho (`d`) de uma série de inteiros, em linha (`_gr_linha`) ou em curva suave (`_gr_curva`), à escala de uma caixa; só inteiros, igual ao byte à mesma conta em JS |
-| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–119` e `Y 200–214`) com nomes |
+| `anfitriao` | `_an_` | as portas dos anfitriões (`Y 100–122` e `Y 200–214`) com nomes |
+| `tempo` | `_tp_` | contagens que se guiam pela hora marcada e não pelos tiques do relógio (`_tp_fim`, `_tp_falta`: um ecrã que adormece não as atrasa) e o tempo escrito como num relógio (`_tp_mss`: 75 → `1:15`); não precisa de mais nenhum módulo |
 | `fala` | (sem `_`) | a fala das apps, opcional: nomes curtos para ler um nó (`ha`, `eh`, `num`, `int`, `txt`, `pri`, `seg`…), escrever (`esc`, `cru`, `plural`), o texto de um molde (`` texto`…` ``), números pt-PT (`casas`, `ate`, `inteiro`, `moeda`) e ações dos botões (`acao`, `arg`, `eacao`). Com os moldes e o ponto: `` `<b>{ esc c.nome }</b>` `` |
 
 - **Nomes:** `_` + o prefixo do módulo + `_` + o nome. As apps não começam nomes por `_` e o runtime não usa um segundo `_`: não

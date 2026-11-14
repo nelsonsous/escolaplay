@@ -1,0 +1,24 @@
+# tempo.onda — contagens e o tempo escrito como num relógio. Uma contagem guia-se pela hora marcada (o fim), não pelos
+# tiques do relógio: um ecrã que adormece ou um separador em segundo plano atrasam os tiques, mas não a hora. Não
+# precisa de mais nenhum módulo (usa a porta 108, a hora, que os dois anfitriões têm).
+#
+#   _tp_fim s         a hora (ms desde 1970) daqui a s segundos: guarda-se, e pergunta-se por ela em cada tique
+#   _tp_faltams fim   os milissegundos que faltam até à hora fim; 0 se já passou. Serve para uma pausa: guarda-se o
+#                     que faltava e, ao continuar, o fim novo é a hora de agora mais isso
+#   _tp_falta fim     os segundos que faltam, para cima: o que um relógio a contar para trás mostra (19 999 ms ainda
+#                     são 20; 0 só quando chegou a hora)
+#   _tp_mss s         escreve s segundos como num relógio: «m:ss» (75 → 1:15, 5 → 0:05) e, a partir de uma hora,
+#                     «h:mm:ss» (3661 → 1:01:01); um s negativo escreve 0:00
+# Globais: nenhum.
+# Exemplo — uma contagem de 20 segundos, com um relógio do anfitrião (_an_relogio 250 $"tique"):
+#   ! 11 _tp_fim 20                                             ao começar
+#   = f _tp_falta @ 11  ? f `<b>{ _tp_mss f }</b>` acabou        em cada tique
+
+: _tp_fim i>i s + Y 108 0 0 * s 1000
+: _tp_faltams i>i fim { = d - fim Y 108 0 0 ? > d 0 d 0 }
+: _tp_falta i>i fim / + _tp_faltams fim 999 1000
+: _tp_d2 i>i x { P + 48 / x 10 P + 48 % x 10 }
+: _tp_mss i>i s {
+  = x ? > s 0 s 0 = h / x 3600 = m / % x 3600 60
+  ? h { N h P 58 _tp_d2 m } N m
+  P 58 _tp_d2 % x 60 }
