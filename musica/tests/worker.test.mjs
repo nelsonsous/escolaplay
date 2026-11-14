@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.35.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.36.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -573,6 +573,34 @@ test('pedir com música de partida: a playlist nasce já no Tidal com as parecid
     // sem música de partida, fica como sempre: o pedido espera pelo Maestro
     const sem = await (await post('/api/pedidos', { texto: 'Soul dos anos 70' }, chave)).json();
     assert.deepEqual([sem.estado, sem.afinar, sem.criada], ['pendente', undefined, undefined]);
+});
+
+test('melhorar o pedido: a IA da playlist na hora reescreve o texto mais apurado; sem a autorização ou sem IA, diz porquê', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const texto = 'música para treinar ginástica';
+    // sem a playlist na hora ligada (a autorização para a IA ler o texto): não manda nada à IA
+    let pedidosIA = 0;
+    env.AI = { run: async (modelo, entrada) => { pedidosIA++; assert.match(entrada.messages[0].content, /^És um curador de música\. Uma pessoa escreveu um pedido de playlist/); assert.equal(entrada.messages[1].content, texto);
+        return { response: '{"texto": "Música enérgica e alegre para treinar ginástica rítmica, ritmo constante (100–130 bpm): pop dançável, como Dua Lipa ou Bruno Mars.", "porque": "Juntei a energia, o ritmo e exemplos."}' }; } };
+    try {
+        const sem = await post('/api/pedidos/melhorar', { texto }, chave);
+        assert.equal(sem.status, 409);
+        assert.match((await sem.json()).message, /^Liga a playlist na hora/);
+        assert.equal(pedidosIA, 0);
+        await post('/api/consentir', { cloudflare: true }, chave);
+        assert.equal((await post('/api/pedidos/melhorar', { texto: 'x' }, chave)).status, 400);
+        const r = await post('/api/pedidos/melhorar', { texto }, chave);
+        assert.equal(r.status, 200);
+        assert.deepEqual(await r.json(), { texto: 'Música enérgica e alegre para treinar ginástica rítmica, ritmo constante (100–130 bpm): pop dançável, como Dua Lipa ou Bruno Mars.',
+            porque: 'Juntei a energia, o ritmo e exemplos.', modelo: '@cf/mistralai/mistral-small-3.1-24b-instruct', por: 'Mistral Small' });
+        assert.equal(pedidosIA, 1);
+        assert.deepEqual(await (await get('/api/pedidos', chave)).json(), [], 'melhorar não faz pedido nenhum');
+        // a IA não responde (ou responde mal): diz que tente outra vez
+        env.AI = { run: async () => ({ response: 'não sei' }) };
+        const f = await post('/api/pedidos/melhorar', { texto }, chave);
+        assert.equal(f.status, 502);
+        assert.match((await f.json()).message, /^A IA não respondeu agora/);
+    } finally { delete env.AI; }
 });
 
 test('pesquisa: as do Tidal com capa e 30 s de pré-escuta; com «unicas», cada canção uma vez, na versão de estúdio mais ouvida', async () => {

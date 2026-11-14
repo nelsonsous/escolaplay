@@ -787,6 +787,8 @@
     ? == modo 6 { = nh == tipo r.naHora 3 = cr == tipo r.criada 7 Se cr tcopia @ 30 txt r.criada.id 70 tvazio @ 20 _an_esquecer ir 1 Se cr abre_folha @ 30
       aviso ? cr $"Já está no teu Tidal. Se quiseres, o Maestro revê-a: «Rever com o Maestro»."
         ? nh $"Pedido feito — o Maestro já foi chamado: costuma demorar uns minutos." $"Pedido feito — o Maestro trata dele quando estiver ligado." 0 }
+    # a sugestão da IA para o pedido: fica à vista, por baixo do texto, até se usar ou não
+    ? == modo 37 { = x texto`{ crut txt r.texto }{ P 9 }{ crut txt r.porque }{ P 9 }{ crut txt r.por }` tcopia @ 47 x 1250 render 0 }
     ? == modo 36 { _an_buscar $"/api/pedidos" $"lido_ped" Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp"
       aviso ? == tipo r.naHora 3 $"O Maestro já está a revê-la: costuma demorar uns minutos." $"Pedido enviado: o Maestro revê-a quando estiver ligado." 0 }
     # cancelado: sai da lista; se era uma afinação, sai também da folha da playlist
@@ -831,6 +833,19 @@
           W && x < q 8 { res_linha x q $"pd_sem" $"Começar por" = x seg x = q + q 1 }
           "</ol>" } }
       "</div></details>" } }
+# melhorar o pedido com a IA (a da playlist na hora): a sugestão fica em @47 («texto», tab, «porque», tab, quem a fez)
+# até se usar ou não (mudar de vista esquece-a)
+: sug_bloco >i {
+  = am && @ 31 == @ 34 37
+  ? _tx_len @ 47 {
+      = qm _tx_campo @ 47 2 9 = pq _tx_campo @ 47 1 9
+      `<div class="mu-sugestao"><p class="mu-sug-q">Sugestão{ Se _tx_len qm ` · { esct qm }` }</p><p class="mu-sug-t">{ esct _tx_campo @ 47 0 9 }</p>{ Se _tx_len pq `<p class="mu-nota">{ esct pq }</p>` }`
+      `<div class="mu-acoes"><button type="button" class="mu-btn peq" data-onda="sug_usar">Usar esta</button><button type="button" class="mu-btn sec peq" data-onda="sug_nao">Manter o meu</button></div></div>` 0 }
+    `<button type="button" class="mu-ligacao mu-melhorar" data-onda="melhorar"{ Se am " disabled" }>{ ? am "A melhorar o pedido…" "✦ Melhorar o pedido com a IA" }</button>` }
+: melhorar_enviar >i ? ocupado 0 {
+    ? < _tx_len @ 20 3 { aviso $"Escreve primeiro o que queres ouvir." 0 } {
+      = r _tx_abre + 200 * 7 _tx_len @ 20 `POST /api/pedidos/melhorar{ P 10 }\{"texto":{ pjs @ 20 }\}`
+      pede _tx_fecha r 37 render 0 } }
 : v_pedir >i {
   `<header class="mu-head"><div><h1>Pedir</h1><div class="sub">Ao Maestro, que pesquisa e cria no teu Tidal</div></div>{ pill }</header>`
   Se && @ 3 ~ acesso boas_vindas
@@ -838,6 +853,7 @@
   # o botao logo a seguir ao texto: com o teclado aberto (iPhone) fica a vista
   = pt pd_tem @ 19 = nh == tipo _ar_get @ 3 $"naHora" 3 = ia == tipo _ar_get @ 3 $"iaCf" 3 = iap == tipo _ar_get @ 3 $"iaCfPode" 3
   = ac && @ 31 == @ 34 6
+  Se ia sug_bloco
   `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? && acesso ~ ac 0 " disabled" }>{ ic 2 }{ ? ac ? || pt ia "A criar no Tidal…" "A enviar…" ? || pt ia "Criar já no Tidal" "Pedir ao Maestro" }</button>{ Se && ia ~ pt `<button type="button" class="mu-btn sec" data-onda="pedir_m"{ ? && acesso ~ ac 0 " disabled" }>Só o Maestro</button>` }</div><p class="mu-nota">{ Se && ac || pt ia "<b>A IA está a escolher as músicas.</b> Pode levar até meio minuto: não precisas de tocar outra vez.<br>" }`
   ? pt `A playlist nasce já no teu Tidal com as parecidas da música de partida. Depois, se quiseres, o Maestro revê-a com o teu pedido, no mesmo link, e dá-lhe nome.`
     { ? ia `<b>Criar já</b> — em segundos, no teu Tidal. A IA ({ ? mesmo txt _ar_get @ 3 $"iaEscolha" $"gemini" "Gemini, a tua conta Google" ? mesmo txt _ar_get @ 3 $"iaEscolha" $"mistral" "Mistral avançada, a tua conta" "Mistral, na Cloudflare" }) escolhe as músicas. Depois, se quiseres, o Maestro revê-a e dá-lhe nome.<br><b>Só o Maestro</b> — o Claude pesquisa e cria-a de raiz{ ? nh ", em poucos minutos" " (quando estiver ligado)" }.`
@@ -1083,7 +1099,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.43.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.44.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»
@@ -1116,7 +1132,7 @@
   espera_para
   _me_solta @ 2
   = q 3 W <= q 19 { ! q 0 = q + q 1 }
-  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 ! 60 0 ! 61 0 ! 62 0 tvazio @ 50 tvazio @ 54 ! 56 0 tvazio @ 58 tvazio @ 23 tvazio @ 46
+  ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 ! 60 0 ! 61 0 ! 62 0 tvazio @ 50 tvazio @ 54 ! 56 0 tvazio @ 58 tvazio @ 23 tvazio @ 46 tvazio @ 47
   ! 1 v
   render
   # cada vista abre no topo (sem isto ficava onde a anterior estava, se as duas fossem altas)
@@ -1212,6 +1228,9 @@
   ? mesmo a $"desfazer" { desfazer 0 }
   ? mesmo a $"exp" { tvazio @ 54 exp_alternar b 0 }
   ? mesmo a $"rever" { rever_pedir 0 }
+  ? mesmo a $"melhorar" { melhorar_enviar 0 }
+  ? mesmo a $"sug_usar" { tcopia @ 20 _tx_campo @ 47 0 9 1990 tvazio @ 47 render aviso $"Pedido melhorado: revê-o e cria." 0 }
+  ? mesmo a $"sug_nao" { tvazio @ 47 render 0 }
   # uma pasta: abre (e fecha a que estava aberta) ou fecha
   ? mesmo a $"pasta_alt" { = ab _an_ler $"pasta_aberta" ? && ab mesmo ab b { _an_gravar $"pasta_aberta" 0 0 } { _an_gravar $"pasta_aberta" b 0 } render 0 }
   # tocar num aviso do telemóvel com a app aberta: o anfitrião guardou o id em «abrir»; abre-se quando a lista chegar
