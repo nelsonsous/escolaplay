@@ -26,7 +26,7 @@ const pt2 = new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 2, maximumFr
 const pt1 = new Intl.NumberFormat('pt-PT', { maximumFractionDigits: 1 });
 const pc = (x, mais) => { const r = Math.round(x); return (r > 0 && mais ? '+' : r < 0 ? '−' : '') + Math.abs(r) + '%'; };
 const pct = (x) => (x >= 0.005 ? '+' : x <= -0.005 ? '−' : '') + pt2.format(Math.abs(x)) + '%';
-const prazos = (x) => [['short', 'C'], ['mid', 'M'], ['long', 'L']].filter(([h]) => e(x[h])).map(([h, l]) => l + String(Math.round(x[h]) || 0)).join(' · ');
+const prazos = (x) => [['short', 'curto '], ['mid', 'médio '], ['long', 'longo ']].filter(([h]) => e(x[h])).map(([h, l]) => l + String(Math.round(x[h]) || 0)).join(' · ');
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function voz(d) {
     if (d.n === 1) return `Uma só fonte: ${ART[d.f[0].f]}.`;
@@ -82,6 +82,9 @@ function cartao(s) {
         + (s.act ? `<div class="adv-nu">${esc(s.act)}</div>` : '') + desde(s)
         + `<div class="dec-p"><small>Média das fontes${{ short: ' · prazo curto', mid: ' · prazo médio', long: ' · prazo longo' }[ob(s.d).hz] || ''}</small>${barra(d.p)}</div><div class="dec-voz">${voz(d)}</div>`
         + `<ul class="dec-f">${d.f.map((x, i) => fonte(s, d, x, i)).join('')}</ul>`
+        + '<p class="dec-leg">Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. '
+        + '<b>Decide</b>: quem manda (o Claude, se analisou o ativo). <b>A favor</b> ou <b>contra</b>: diz o mesmo ou o contrário. '
+        + '<b>Ao lado</b>: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.</p>'
         + (arr(s.lv).length ? `<ul class="cl-lv">${arr(s.lv).map((l) => { const o = ob(l); return `<li class="${esc(o.f)}"><small>${esc(o.l)}</small><b class="num">${esc(o.px)}</b><span class="num">${esc(o.d)}</span></li>`; }).join('')}</ul>` : '')
         + (s.hoje ? `<div class="adv-why"><b>Porquê ${s.desce ? 'desce' : 'sobe'} hoje:</b> ${esc(s.hoje)}</div>` : '')
         + (s.why ? `<div class="adv-txt">${esc(s.why)}</div>` : '')
@@ -157,6 +160,8 @@ test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
     for (const [nome, v] of Object.entries(conta)) assert.ok(v >= CASOS / 100, `poucos casos de ${nome}: ${v}`);
 });
 
+// a legenda do cartão, como fica sem as etiquetas
+const LEG = 'Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. |Decide|: quem manda (o Claude, se analisou o ativo). |A favor| ou |contra|: diz o mesmo ou o contrário. |Ao lado|: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.|';
 test('casos lidos à mão', () => {
     // uma ação com as seis fontes: o Claude, os analistas e os fundamentos a favor; as outras ao lado
     const h = O.ecra.decisao({
@@ -167,8 +172,9 @@ test('casos lidos à mão', () => {
     });
     const txt = h.replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
     assert.equal(txt, '|Decisão|Análise do Claude · feita às 07:16|Comprar|confiança alta|Comprar aos poucos|Média das fontes|69|3 de 6 a favor · ao lado: a técnica, as notícias e o sentimento'
-        + '|Claude|Comprar|decide|75|C48 · M88 · L81|Analistas|Compra forte|a favor|90|58 analistas · alvo +17,60%|Fundamentos|fortes|a favor|65|P/E 28 · vendas +60% · margem 55%'
-        + '|Técnica|Aguardar|ao lado|51|C52 · M68 · L36|Notícias|neutras|ao lado|50|6 títulos recentes|Sentimento|calmo|ao lado|48|VIX 17'
+        + '|Claude|Comprar|decide|75|curto 48 · médio 88 · longo 81|Analistas|Compra forte|a favor|90|58 analistas · alvo +17,60%|Fundamentos|fortes|a favor|65|P/E 28 · vendas +60% · margem 55%'
+        + '|Técnica|Aguardar|ao lado|51|curto 52 · médio 68 · longo 36|Notícias|neutras|ao lado|50|6 títulos recentes|Sentimento|calmo|ao lado|48|VIX 17'
+        + '|' + LEG.slice(0, -1)
         + '|Entrada|164,93 €|−3,06%|Desconto de 22%.|Plano:| Metade agora.|Resultados daqui a 5 dias (18/11).| Nesses dias a ação costuma mexer ±5–10%.|');
     // tenho o ativo e o Claude diz reduzir contra todos: a decisão é a dele, com os contra à vista
     const g = O.ecra.decisao({ d: { cl: { key: 'reduce', short: 30, mid: 30, long: 35 }, an: { key: 'buy', mean: 2, n: 30 }, tec: { key: 'buy', short: 70, mid: 70, long: 70 }, news: 0.5 }, own: true, algWhy: 'A regra não vê os resultados.' });
@@ -183,8 +189,8 @@ test('casos lidos à mão', () => {
     const base = { d: { cl: { key: 'buy', short: 60, mid: 70, long: 80 }, news: 0.4 }, own: false, why: 'Porquê.', plan: 'Plano.', nn: 5 };
     const linhas = (x) => O.ecra.decisao({ ...base, ...x }).replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');
     assert.equal(linhas({ desde: 'hoje', dias: 0, era: 'wait', cat: 'Resultados a 19/11', risk: 'Fecho abaixo de 150 €', nc: true }),
-        '|Decisão|Comprar |forte|confiança média|Mudou hoje · antes: Aguardar|Média das fontes|72|As 2 fontes de acordo.|Claude|Comprar|decide|72|C60 · M70 · L80'
-        + '|Notícias|positivas|a favor|70|lidas pelo Claude|Porquê.|Plano:| Plano.|Catalisador:| Resultados a 19/11|Risco:| Fecho abaixo de 150 €|');
+        '|Decisão|Comprar |forte|confiança média|Mudou hoje · antes: Aguardar|Média das fontes|72|As 2 fontes de acordo.|Claude|Comprar|decide|72|curto 60 · médio 70 · longo 80'
+        + '|Notícias|positivas|a favor|70|lidas pelo Claude|' + LEG + 'Porquê.|Plano:| Plano.|Catalisador:| Resultados a 19/11|Risco:| Fecho abaixo de 150 €|');
     assert.match(O.ecra.decisao({ ...base, desde: 'hoje', dias: 0, era: 'wait' }), /<div class="dec-desde novo">Mudou hoje · antes: Aguardar<\/div>/);
     assert.match(O.ecra.decisao({ ...base, own: true, desde: 'ontem', dias: 1, era: 'sell' }), /<div class="dec-desde novo">Mudou ontem · antes: Vender<\/div>/);
     assert.match(O.ecra.decisao({ ...base, own: true, desde: '11/11', dias: 2, era: 'reduce' }), /<div class="dec-desde novo">Desde 11\/11 \(há 2 dias\) · antes: Vender parte<\/div>/);

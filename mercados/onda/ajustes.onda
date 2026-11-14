@@ -63,12 +63,20 @@
   Se m "on"
   `"><b>Bitcoin 70 / Ether 30</b></button></div>\n                    <div class="hint">Cripto entra todos os meses (sem tentar acertar no momento). Em Portugal, vender ao fim de 365 dias ou mais está isento de IRS.</div></div>` }
 : aj_plano >i {
-  `<section class="sec"><div class="sec-h"><h2>O teu plano na Trade Republic</h2></div>\n            <div class="form">\n                <div><label for="f-budget">Quanto investes por mês (€)</label>\n                    <input id="f-budget" class="inp" type="number" inputmode="decimal" min="0" step="50" data-cfg="budget" value="`
+  `<section class="sec"><div class="sec-h"><h2>O teu plano na Trade Republic</h2></div>\n            <div class="form">\n                <div><label for="f-budget">Quanto investes por mês (€)</label>\n                    `
+  # com o «€ por mês» de cada ativo na Carteira, o valor é a soma deles (e muda-se lá); sem nenhum, o dos Ajustes
+  = ps _ar_num es.pmSum = pv && > ps 0. == ps ps
   # +cfg.budget (o `+` vem do JS)
   = b _ar_num es.budget
   = bv && != b 0. == b b
-  Se bv _nu_ps b
-  `" placeholder="ex.: 900"></div>\n                <div><label>Estratégia</label><div class="seg prof two"><button type="button" data-strat="etfcrypto" class="`
+  ? pv {
+      `<div id="f-budget" class="inp ro num">{ _nu_ps ps } €</div><div class="hint">É a soma do «€ por mês» de cada ativo na Carteira (O que tens e as tuas compras): muda-se lá.</div></div>\n` 0 } {
+    `<input id="f-budget" class="inp" type="number" inputmode="decimal" min="0" step="50" data-cfg="budget" value="`
+    Se bv _nu_ps b
+    `" placeholder="ex.: 900"></div>\n` 0 }
+  # daqui para baixo, o valor do mês é o que conta (budgetOf): a soma da Carteira, se a há
+  Se pv { = b ps = bv 1 }
+  `                <div><label>Estratégia</label><div class="seg prof two"><button type="button" data-strat="etfcrypto" class="`
   = etf aj_etf
   Se etf "on"
   `"><b>ETF + cripto</b><small>recomendado</small></button><button type="button" data-strat="mix" class="`

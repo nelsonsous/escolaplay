@@ -667,10 +667,11 @@ function proxyBody(u) {
     assert.ok(voz.startsWith(dec.d.favor === dec.d.n ? `As ${dec.d.n} fontes de acordo.` : `${dec.d.favor} de ${dec.d.n} a favor`), voz);
     const fontes = await page.locator(adv + ' .dec-f li').evaluateAll((ls) => ls.map((l) => [...l.querySelectorAll('.dec-r b, .dec-r .dec-l, .dec-r em, .dec-s .val, .dec-s small')].map((x) => x.textContent)));
     assert.deepEqual(fontes.map((x) => x[0]), ['Claude', 'Analistas', 'Fundamentos', 'Técnica', 'Notícias', 'Sentimento']);
-    assert.deepEqual(fontes[0].slice(1), ['Comprar', 'decide', String(dec.d.f[0].p), 'C48 · M88 · L81'], 'o Claude: o veredicto, quem decide e a convicção por prazo');
+    assert.deepEqual(fontes[0].slice(1), ['Comprar', 'decide', String(dec.d.f[0].p), 'curto 48 · médio 88 · longo 81'], 'o Claude: o veredicto, quem decide e a convicção por prazo');
     assert.deepEqual(fontes[1].slice(1), ['Compra forte', 'a favor', '97', '58 analistas · alvo +17,60% · revisões 12↑ 2↓'], 'os analistas: a recomendação, quantos, o alvo e as revisões das estimativas');
     assert.deepEqual(fontes[2].slice(1), ['fortes', 'a favor', '65', 'P/E 28,4 · vendas +60% · margem 55%'], 'os fundamentos: o P/E, as vendas e a margem');
-    assert.match(fontes[3][4], /^C\d+ · M\d+ · L\d+$/, 'a técnica: as pontuações por prazo');
+    assert.match(fontes[3][4], /^curto \d+ · médio \d+ · longo \d+$/, 'a técnica: as pontuações por prazo');
+    assert.match(await page.locator(adv + ' .dec-leg').textContent(), /^Cada fonte dá uma nota de 0 \(vender\) a 100 \(comprar\)/, 'a legenda: como se lê o cartão');
     assert.deepEqual(fontes.map((x) => x[2]), dec.d.f.map((x, i) => (i === 0 ? 'decide' : x.d > 0 ? 'a favor' : x.d < 0 ? 'contra' : 'ao lado')), 'de que lado fica cada uma');
     assert.deepEqual(fontes[4].slice(1), ['positivas', 'a favor', '72', 'lidas pelo Claude'], 'as notícias: o tom que o Claude leu (news 72), em vez do dos títulos');
     assert.equal(dec.e.news, (72 - 50) / 50, 'o tom do Claude entra na decisão de -1 a 1');
@@ -989,6 +990,12 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.fill('#f-budget', '900');
     await page.locator('#f-budget').dispatchEvent('change');
+    // com o «€ por mês» de um ativo na Carteira, o valor do mês é a soma dela e os Ajustes só o mostram (4.25.1)
+    const ajPm = await page.evaluate(() => { const m = window.__mk, L0 = m.cfg.lots['VWCE.DE']; m.cfg.lots['VWCE.DE'] = { ...(L0 || {}), pm: 700 }; m.render();
+        const el = document.querySelector('#f-budget'), r = [el.tagName, el.textContent, m.panelSnap ? null : 0];
+        if (L0) m.cfg.lots['VWCE.DE'] = L0; else delete m.cfg.lots['VWCE.DE']; m.render(); return r; });
+    assert.deepEqual(ajPm.slice(0, 2), ['DIV', '700 €'], 'a soma da Carteira, só para ler');
+    assert.equal(await page.locator('input#f-budget').count(), 1, 'sem valor na Carteira, volta o campo dos Ajustes');
     await page.click('#mk-nav [data-tab="painel"]');
     const amounts = await page.locator('.today .plan-blk .idea .i-t').allTextContents();
     const total = amounts.reduce((a, t) => a + Number(t.replace(/[^\d,]/g, '').replace(',', '.')), 0);
