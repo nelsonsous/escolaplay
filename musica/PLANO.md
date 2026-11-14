@@ -48,6 +48,24 @@ As dez voltas estão feitas e publicadas (Música 2.34.1, conector 1.23.0). Fica
 | **Os scripts do Maestro na biblioteca nova da Onda** (`curador/onda/`, 1200 linhas) | é uma reescrita grande, com as suas próprias funções de JSON e de texto, e a ferramenta de conversão não conhece tudo o que eles usam; feita à pressa punha em risco as playlists de todos os dias | uma sessão só para isso, com os testes de paridade (a versão em JavaScript) como juiz |
 | **Testar com o Tidal a sério** o que só correu no simulador: trocar, juntar, «Mais como esta» com revisão, apagar a conta | os testes usam um Tidal simulado | usar a app uns dias e dizer o que falhar |
 
+## O que o Tidal deixa (e não deixa) fazer a uma app de fora
+
+A referência da API do Tidal (`tidal-api-oas.json`) marca cada operação com um nível de acesso
+(`x-path-item-properties.required-access-tier`): `THIRD_PARTY` é o que uma app como a Música pode usar; `INTERNAL` é
+só para as apps do próprio Tidal. **Antes de contar com uma operação, vê o nível dela.** Em novembro de 2026 eram 101
+operações abertas e 363 internas.
+
+| O quê | Nível | Na Música |
+|---|---|---|
+| Favoritas, artistas seguidos, playlists (criar, mudar, apagar, as faixas), pesquisa de faixas, faixas parecidas, as tuas mixes | aberto | já usa |
+| Pesquisar **playlists** por tema (`/searchResults/{id}/relationships/playlists`) e a **rádio** de uma faixa ou de um artista (`/tracks/{id}/relationships/radio`) | aberto | não usa (nunca foi experimentado) |
+| **Playlists feitas por IA a partir de um texto** (`/playlistGenerations`: o texto, «fica / tira / mais como esta» por faixa, voltar a gerar e renovar todas as semanas) | interno | **não dá.** Experimentado com a conta real a 14/11/2026 (conector 1.24.0, que saiu a seguir): o Tidal respondeu `403 Access tier is insufficient` |
+| O que se ouviu (`userPlaybackStates`) | interno | não dá |
+
+Uma playlist que a pessoa faça com a IA **na app do Tidal** fica na conta dela como as outras: essa a Música pode ler
+(as playlists têm o atributo `hasGenerations`). O código da experiência está no histórico do repositório
+(«Conector 1.24.0 (por experimentar…)»), se um dia o Tidal abrir este nível.
+
 ## Agilidade: três degraus
 
 O Maestro é uma tarefa agendada do Claude. Um pedido pode ser tratado de três maneiras, da mais simples à mais rápida:

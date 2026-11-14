@@ -155,37 +155,7 @@ function tidalSimulado(sim, u, init = {}) {
         sim.criadas.push(b.data.attributes);
         return resp({ data: { id: 'uuid-nova', type: 'playlists', attributes: b.data.attributes } }, 201);
     }
-    // a IA do Tidal: gera para dentro de uma playlist que já existe. sim.ia = { faixas, nome, estados (um por cada vez que
-    // se pergunta; o último repete-se), recusa: { status, detail }, falha: 'CÓDIGO' }
-    if (p === '/playlistGenerations' && metodo === 'POST') {
-        const b = JSON.parse(init.body), ia = sim.ia || {};
-        assert.equal(b.data.type, 'playlistGenerations');
-        assert.ok(b.data.attributes.prompt.length >= 1 && b.data.attributes.prompt.length <= 512, 'o texto: de 1 a 512 letras');
-        assert.equal(b.data.relationships.playlist.data.type, 'playlists');
-        if (ia.recusa) return resp({ errors: [{ status: String(ia.recusa.status), code: 'FORBIDDEN', detail: ia.recusa.detail }] }, ia.recusa.status);
-        const id = 'ger-' + ((sim.geracoes ||= []).length + 1);
-        sim.geracoes.push({ id, texto: b.data.attributes.prompt, playlist: b.data.relationships.playlist.data.id, vezes: 0 });
-        return resp({ data: { id, type: 'playlistGenerations', attributes: { status: 'PENDING', prompt: b.data.attributes.prompt, preferenceVersion: 0, progress: { playlistReady: false, coverArtStatus: 'PENDING' } } } }, 201);
-    }
-    const ger = /^\/playlistGenerations\/([^/]+)$/.exec(p);
-    if (ger && metodo === 'GET') {
-        const g = (sim.geracoes || []).find((x) => x.id === ger[1]), ia = sim.ia || {};
-        if (!g) return resp({ errors: [{ status: '404', detail: 'Generation not found' }] }, 404);
-        const estados = ia.estados || ['OK'], st = estados[Math.min(g.vezes++, estados.length - 1)];
-        const alvo = (ia.faixas || []).length;
-        if (st === 'OK' && !g.pronta) {
-            g.pronta = true;
-            sim.listas[g.playlist] = (ia.faixas || []).map((id) => ({ id, itemId: 'it' + ++sim.nItem }));
-            (sim.nomes ||= {})[g.playlist] = ia.nome || '';
-        }
-        return resp({ data: { id: g.id, type: 'playlistGenerations', attributes: { status: st, prompt: g.texto, preferenceVersion: 0,
-            progress: { playlistReady: st === 'OK', coverArtStatus: 'SKIPPED', ...(st === 'PROCESSING' ? { stage: 'CHOOSING', targetTrackCount: alvo, selectedTrackCount: 1 } : {}), ...(st === 'ERROR' ? { failureCode: ia.falha || 'UNKNOWN' } : {}) } } } });
-    }
     const del = /^\/playlists\/([^/]+)$/.exec(p);
-    if (del && metodo === 'GET') {
-        if (del[1] !== 'uuid-nova' || sim.apagadas.includes(del[1])) return resp({ errors: [{ status: '404', detail: 'Playlist not found' }] }, 404);
-        return resp({ data: { id: del[1], type: 'playlists', attributes: { name: sim.nomes?.[del[1]] || sim.criadas.at(-1)?.name || '', description: sim.criadas.at(-1)?.description || '', numberOfItems: (sim.listas[del[1]] || []).length } } });
-    }
     if (del && metodo === 'PATCH') {
         if (del[1] !== 'uuid-nova') return resp({ errors: [{ status: '404', detail: 'Playlist not found' }] }, 404);
         (sim.renomeadas ||= []).push({ id: del[1], ...JSON.parse(init.body).data.attributes });
