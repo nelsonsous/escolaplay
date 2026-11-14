@@ -142,7 +142,10 @@ function tidalSimulado(sim, u, init = {}) {
         const q = (url.searchParams.get('filter[query]') || '').toLowerCase();
         assert.ok(q, 'a pesquisa vai em filter[query]');
         assert.deepEqual(url.searchParams.getAll('include'), ['tracks']);
-        const ids = Object.keys(FAIXAS).filter((id) => q.includes(FAIXAS[id].title.toLowerCase().replace(/ \(live\)/, '')));
+        // (o nome de um artista, sozinho, dá as faixas dele)
+        const artista = Object.keys(ARTISTAS).find((k) => ARTISTAS[k].toLowerCase() === q);
+        const ids = artista ? Object.keys(FAIXAS).filter((id) => FAIXAS[id].artists[0] === artista)
+            : Object.keys(FAIXAS).filter((id) => q.includes(FAIXAS[id].title.toLowerCase().replace(/ \(live\)/, '')));
         if (!ids.length) return resp({ data: [], links: { self: '/x' } });
         return resp({ data: [{ id: q, type: 'searchResults', attributes: { trackingId: 't' }, relationships: { tracks: { data: ids.map((id) => ({ id, type: 'tracks' })), links: { self: '/x' } } } }],
             included: ids.map(recursoFaixa), links: { self: '/x' } });

@@ -8,6 +8,10 @@ compatibility_date = "2026-10-01"
 [triggers]
 crons = ["23 4 * * *"]
 
+# A IA da Cloudflare (Workers AI): as músicas de partida de um pedido escrito (grátis até 10 000 «Neurons» por dia)
+[ai]
+binding = "AI"
+
 [[kv_namespaces]]
 binding = "KV"
 id = "f3574d08325242b88f73354859b291ff"
