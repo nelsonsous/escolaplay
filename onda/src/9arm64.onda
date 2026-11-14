@@ -5,6 +5,12 @@
 # Disposicao: slot(local j) = j; slot(temp t) = @9 + t; byte = slot*8. Tudo vive na moldura (sem alocar registos).
 # FOLHA: o -a nunca compila o proprio compilador (o ponto fixo faz-se em C/wasm/x86), logo um erro aqui falha
 # testes mas NAO pode partir o ponto fixo -- a mesma garantia do vetorizador.
+# bloco 63 (o estado do -a/-m, no monte como o 61 do x86 e o 62 dos circuitos): 0 pilha de ciclos 1 tabela de
+#           chamadas 2 pilha de ramos 3 chamadas a libSystem 4 o programa le a entrada (R/Rb/Rp/Y) 5 usa a GPU (G)
+# Nao em lugares fixos acima de 63: M[64..] e a zona dos dados, e no C (sem os textos do compilador em M) o monte
+# comeca logo em M[64], com a fonte -- o -a/-m da ponte C apagava o nome do main (it.158).
+: aq i>i k @ + @ 63 k
+: aqs ii>i k v ! + @ 63 k v
 
 # --- codificadores de instrucoes (hex = encoding exato, conferido com o llvm-objdump) ---
 : aslt i>i t * + @ 9 t 8
@@ -120,7 +126,7 @@
     = p s
     W <= p e { ? && > p h0 < p h1 0 { = o @ + @ 39 p = m | m o ? && > p s || && < p e & o << 1 50 & o << 1 51 = cs 1 0 } = p + p 1 }
     = fl aty v
-    = r ? fl { = r ? cs -1 afree m 22 43 = r ? < r 0 afree m 16 22 r ? < r 0 afree m 43 45 r } { = r ? cs -1 afree m 8 ? xq 5 11 14 = r ? < r 0 afree m 0 8 r ? && < r 0 ~ @ 67 afree m 14 15 r }
+    = r ? fl { = r ? cs -1 afree m 22 43 = r ? < r 0 afree m 16 22 r ? < r 0 afree m 43 45 r } { = r ? cs -1 afree m 8 ? xq 5 11 14 = r ? < r 0 afree m 0 8 r ? && < r 0 ~ aq 4 afree m 14 15 r }
     ? >= r 0 {
       = b << 1 r
       = p s W <= p e { ? && > p h0 < p h1 0 { = q + @ 39 p ! q | @ q b } = p + p 1 }
@@ -502,9 +508,9 @@
 : afcc i>i o ? == o '< 0x4 ? == o '> 0xC ? == o k2 '< '= 0x9 ? == o k2 '> '= 0xA ? == o k2 '= '= 0 1
 : acallf i>i fi { acsrec @ 16 fi abl 0 }
 : aro i>i o fby k3 '_ 'o o
-# pilha de ramos (if/else e &&/|| curto-circuito): @65[0]=n; cada entrada = posicao de um salto a corrigir
-: aipush i>i p { = n @ @ 65 ! + @ 65 + 1 n p ! @ 65 + n 1 }
-: aipop >i { = n - @ @ 65 1 ! @ 65 n @ + @ 65 + 1 n }
+# pilha de ramos (if/else e &&/|| curto-circuito): aq 2, [0]=n; cada entrada = posicao de um salto a corrigir
+: aipush i>i p { = s aq 2 = n @ s ! + s + 1 n p ! s + n 1 }
+: aipop >i { = s aq 2 = n - @ s 1 ! s n @ + s + 1 n }
 : apcbz i>i p ap19 p
 : apcbnz i>i p ap19 p
 : apb i>i p xput4 p | 0x14000000 & / - @ 16 p 4 0x3FFFFFF
@@ -1100,10 +1106,10 @@
   ! 7 s7
   0 }
 
-# --- pilha de ciclos (nested W): @63 = array; [0] = profundidade; cada moldura = (inicio, pos_do_cbz) ---
-: adep >i @ @ 63
-: afrm i>i i + @ 63 + 1 * i 4
-: a21 >i { = d adep = f afrm d ! f @ 16 ! + f 1 -1 ! + f 2 -1 ! + f 3 -1 ! @ 63 + d 1 }
+# --- pilha de ciclos (nested W): aq 0, [0] = profundidade; cada moldura = (inicio, pos_do_cbz) ---
+: adep >i @ aq 0
+: afrm i>i i + aq 0 + 1 * i 4
+: a21 >i { = d adep = f afrm d ! f @ 16 ! + f 1 -1 ! + f 2 -1 ! + f 3 -1 ! aq 0 + d 1 }
 : a22 i>i p {
   = a @ + p 2
   = f afrm - adep 1
@@ -1122,7 +1128,7 @@
   ? >= c2 0 ap19 c2 0
   ? >= e1 0 ap19 e1 0
   ? >= e2 0 ap19 e2 0
-  ! @ 63 - adep 1 }
+  ! aq 0 - adep 1 }
 # duplicacao da cauda num salto para tras: o salto vai dar a poucas instrucoes e a um salto condicional ja resolvido
 # -- copiam-se, e so a saida paga um salto (no ciclo da recursao com acumulador)
 : atdup i>i t {
@@ -1182,8 +1188,8 @@
     = p + p 4 }
   r }
 
-# tabela de chamadas: @64[0] = n; cada par (posicao do bl no buffer, indice da funcao alvo). Corrigida no outa.
-: acsrec ii>i pos fi { = c @ @ 64 = b + @ 64 + 1 * c 2 ! b pos ! + b 1 fi ! @ 64 + c 1 }
+# tabela de chamadas: aq 1, [0] = n; cada par (posicao do bl no buffer, indice da funcao alvo). Corrigida no outa.
+: acsrec ii>i pos fi { = t aq 1 = c @ t = b + t + 1 * c 2 ! b pos ! + b 1 fi ! t + c 1 }
 # despacho de syscall em linha (Y a b c): a=numero logico, b/c=args; resultado em d. 0=escrever, 2=sair,
 # 7=brk (devolve o limite fixo de M). svc #0 x8 no Linux (-a); svc #0x80 x16 no macOS (-m). Escreve byte a
 # byte (o byte vai para M[-8]) -- simples e correto; o benchmark usa o codigo de saida, nao a impressao.
@@ -1210,7 +1216,7 @@
   aaddsp 4096
   amovr 0 4 }
 # ler 1 byte de fd 0: buffer de 64 KiB no fim de M (slot arb). Num programa com R (ou Y), x27 = posicao fica fora do
-# alocador (@67) durante o programa todo; o fim fica em M[-14] (so muda ao encher). Caminho rapido: adr, ldur, cmp,
+# alocador (aq 4) durante o programa todo; o fim fica em M[-14] (so muda ao encher). Caminho rapido: adr, ldur, cmp,
 # salto (nao tomado) e ldrb com pos-incremento. 0/0 no arranque: o primeiro R enche o buffer.
 : aldur iii>i rt rn off x4 | | | 0xF8400000 << & off 0x1FF 12 << rn 5 rt
 : astur iii>i rt rn off x4 | | | 0xF8000000 << & off 0x1FF 12 << rn 5 rt
@@ -1633,12 +1639,12 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
 # --- _pr (paralelo, so -m): x0 = condutora, x1 = n, x2 = modo (bit 0: E ou S; bits 1..8: n de inteiros; bit 9: S; bits 10..: limiar). Em serie se for
 # pouco (E com menos de 4096, D com menos de 2 linhas), se o destino do E for um dos argumentos inteiros (pode ler o
 # que escreve) ou se houver 1 cpu. Senao cria cpus-1 threads (pthread_create) e todas correm _pwk: blocos de max(1,
-# n/64) tirados de um contador com ldaddal, ate acabar; depois pthread_join. As chamadas a libSystem vao para @66.
+# n/64) tirados de um contador com ldaddal, ate acabar; depois pthread_join. As chamadas a libSystem vao para aq 3.
 : apair iiii>i op a b o x4 | | | | op << & / o 8 0x7F 15 << b 10 << 31 5 a
 : aasri iii>i rd rn sh x4 | | | 0x9340FC00 << sh 16 << rn 5 rd
 : aldsl ii>i r s { aimm 10 pjs s aldrx r 28 10 }
 : astsl ii>i r s { aimm 10 pjs s astrx r 28 10 }
-: aextc i>i s { = q @ 16 x4 0x94000000 = n @ @ 66 ! + @ 66 + 1 * n 2 q ! + @ 66 + 2 * n 2 s ! @ 66 + n 1 }
+: aextc i>i s { = q @ 16 x4 0x94000000 = t aq 3 = n @ t ! + t + 1 * n 2 q ! + t + 2 * n 2 s ! t + n 1 }
 : ablr i>i r x4 | 0xD63F0000 << r 5
 : aprn i>i k {
   O 16
@@ -1856,17 +1862,17 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
 # bloco de dados: os textos registados (sreg, treg), pela ordem dos enderecos (wdat)
 : adata >i { = j 0 W < j @ 22 { wdat j = j + j 1 } 0 }
 : aftot >i { = t 0 = k 0 W < k @ 6 { = t + t - @ fe k 9 @ fe k 8 = k + k 1 } t }
-# corrige o bl da entrada para _go e os bl entre funcoes (@64; posicoes no buffer 16, contiguas na saida)
+# corrige o bl da entrada para _go e os bl entre funcoes (aq 1; posicoes no buffer 16, contiguas na saida)
 : abls iii>i estart elen blp {
   = mi fby k3 '_ 'g 'o
   = moff elen
   = k 0 W < k mi { = moff + moff - @ fe k 9 @ fe k 8 = k + k 1 }
   xput4 blp | 0x94000000 & / - moff - blp estart 4 0x3FFFFFF
-  = nc @ @ 64
+  = nc @ aq 1
   = c 0
   W < c nc {
-    = pos @ + @ 64 + 1 * c 2
-    = fi @ + @ 64 + 2 * c 2
+    = pos @ + aq 1 + 1 * c 2
+    = fi @ + aq 1 + 2 * c 2
     = o - @ fe fi 8 pos
     ? == & arw pos 0x9F000000 0x10000000
       { xput4 pos | | 0x10000000 << & o 3 29 | << & >> o 2 0x7FFFF 5 & arw pos 31 }
@@ -1898,7 +1904,7 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
   apimm dp 10 - + elen ft - - dp 4 estart
   = clen + + elen ft * 8 - @ 20 64
   = coff 232
-  = nr ? > @ 66 0 @ @ 66 0
+  = nr ? > aq 3 0 @ aq 3 0
   = rel + coff clen
   = so + rel * 8 nr
   = pad ? nr & so 7 0
@@ -1922,7 +1928,7 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
   adata
   # relocacoes BRANCH26 (pcrel, 4 bytes, externas) das chamadas a libSystem: simbolos 1 _sysconf 2 _pthread_create 3 _pthread_join 4 ___ulock_wait 5 ___ulock_wake
   = j 0
-  W < j nr { x4 - + elen @ + @ 66 + 1 * j 2 @ fe 0 8 x4 | + 1 @ + @ 66 + 2 * j 2 0x2D000000 = j + j 1 }
+  W < j nr { x4 - + elen @ + aq 3 + 1 * j 2 @ fe 0 8 x4 | + 1 @ + aq 3 + 2 * j 2 0x2D000000 = j + j 1 }
   ? pad x4 0 0
   # simbolo _main (externo, seccao 1, valor 0) + tabela de strings "\0_main\0"
   x4 1 P 15 P 1 P 0 P 0 x8 0
@@ -2002,8 +2008,8 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
   = ft aftot
   apimm dp 10 - + elen ft - - dp 4 estart
   = clen + + elen ft * 8 - @ 20 64
-  = nr ? > @ 66 0 @ @ 66 0
-  = ni ? nr ? @ 68 7 5 0
+  = nr ? > aq 3 0 @ aq 3 0
+  = ni ? nr ? aq 5 7 5 0
   = bse 4294967296
   # disposicao: cabecalho+comandos | codigo (+ stubs) | __got | __LINKEDIT (bind, strings, assinatura)
   = st0 al4 clen 4
@@ -2016,7 +2022,7 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
   = tsz al4 + tof cl 16384
   = dsz ? ni 16384 0
   = lof + tsz dsz
-  = bl ? ni ? @ 68 128 104 8
+  = bl ? ni ? aq 5 128 104 8
   = syo + lof bl
   = cso al4 + syo 2 16
   = nsl / + cso 4095 4096
@@ -2026,8 +2032,8 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
   # cada bl externo passa a ir ao stub do seu simbolo (0 _sysconf .. 4 ___ulock_wake)
   = j 0
   W < j nr {
-    = q @ + @ 66 + 1 * j 2
-    = s @ + @ 66 + 2 * j 2
+    = q @ + aq 3 + 1 * j 2
+    = s @ + aq 3 + 2 * j 2
     = ro - + elen q @ fe 0 8
     xput4 q | 0x94000000 & / - + st0 * 12 s ro 4 0x3FFFFFF
     = j + j 1 }
@@ -2074,7 +2080,7 @@ kernel void vadd(device const uint* a[[buffer(0)]], device const uint* b[[buffer
     P 0x11 P 0x40 "_pthread_join" P 0 P 0x51 P 0x72 P 16 P 0x90
     P 0x11 P 0x40 "___ulock_wait" P 0 P 0x51 P 0x72 P 24 P 0x90
     P 0x11 P 0x40 "___ulock_wake" P 0 P 0x51 P 0x72 P 32 P 0x90
-    ? @ 68 { P 0x11 P 0x40 "_dlopen" P 0 P 0x51 P 0x72 P 40 P 0x90 P 0x11 P 0x40 "_dlsym" P 0 P 0x51 P 0x72 P 48 P 0x90 az 4 } { az 7 } } { az 8 }
+    ? aq 5 { P 0x11 P 0x40 "_dlopen" P 0 P 0x51 P 0x72 P 40 P 0x90 P 0x11 P 0x40 "_dlsym" P 0 P 0x51 P 0x72 P 48 P 0x90 az 4 } { az 7 } } { az 8 }
   P 32 P 0
   az - cso + syo 2
   O 0

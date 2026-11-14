@@ -2943,7 +2943,7 @@ poda; os seis erros; o leitor do significado. `test/biblioteca-fala.test.js` con
 template literal do JS. A bateria: 174 testes, 150 passam e 24 saltam (Mac e qemu).
 
 **Fica por fazer.** A ponte C do compilador (`build.sh --c`) não compila para `-a`/`-m` (já não compilava antes desta
-iteração): serve só para arrancar num CPU novo, e os testes usam o compilador nativo.
+iteração): serve só para arrancar num CPU novo, e os testes usam o compilador nativo. (Feito na it.158.)
 
 ## Iteração 154: rolar a página (porta 118) e a folha única da Música (2.27.0)
 
@@ -3062,3 +3062,40 @@ iguais em JS e Onda (seis novos: o plano e os prazos certos, estranhos e em falt
 o valor por mês, o prazo e o plano guardados e limpos. Interface: o prazo escolhido na Carteira chega à decisão e ao
 conector, com o valor do plano.
 
+
+## Iteração 158: a ponte C volta a compilar para o arm64 (`-a`/`-m`)
+
+**O problema.** O compilador feito pela ponte C (`seed/ondac.c`, o do `sh build.sh --c`) não compilava nada para o
+arm64: `printf ': main >i 0\n' | ondac-c -a` dava `nome desconhecido, quis dizer _on?` no `main` do `_go`, a última
+linha do runtime em Onda que o compilador junta à fonte, e o mesmo com `-m`. O nativo e a semente WebAssembly
+compilavam o programa (6656 bytes), e a ponte C fazia bem o `-x` e o `-w`. Vinha de antes da it.153.
+
+**A causa.** O `-a`/`-m` guardava o seu estado em lugares fixos da memória: 63 (a pilha de ciclos), 64 (a tabela de
+chamadas), 65 (a pilha de ramos), 66 (as chamadas à libSystem), 67 (o programa lê a entrada) e 68 (usa a GPU). Mas
+`M[64..]` é a zona dos dados. No nativo e no WebAssembly estão lá os textos do próprio compilador, e o primeiro é o
+prelúdio C, que o `-a` não imprime — o comentário do `main` contava com isso. No C os textos ficam no C e não em `M`:
+o monte começa logo em `M[64]` (`HP=64` no `rt/prelude.c`), e a primeira coisa que lá fica é a fonte. O `! 66 A 64`,
+o `! 67 0` e o `! 68 0` escreviam por cima dos primeiros caracteres, e `: main >i 0` perdia o nome antes de se
+compilar o `_go`. Noutros programas perdia-se outro nome do início (no próprio compilador, o `eln`).
+
+**A correção** (só na fonte; o `rt/prelude.c` fica igual, e com ele o C que as apps gravam). O estado do arm64 passa a
+ser um bloco no monte, apontado pelo lugar 63, como o 61 do x86 e o 62 dos circuitos. Lê-se com `aq k` e escreve-se
+com `aqs k v` (`src/9arm64.onda`): 0 pilha de ciclos, 1 tabela de chamadas, 2 pilha de ramos, 3 chamadas à libSystem,
+4 a entrada, 5 a GPU. O `main` aloca-o (`! 63 A 6`) antes de o encher. Nenhum lugar acima de 63 fica em uso, por isso
+o `-a` já não depende do que está no início da zona dos dados.
+
+**Testes.** `test/ponte-c.test.js` compila a `seed/ondac.c` como o `build.sh --c` e compara-a ao byte com o nativo,
+que tem de dar um executável ou objeto a sério (não um `#error` igual nos dois): o `: main >i 0` em `-a` e `-m`;
+programas que passam por cada parte do bloco (ciclos, ramos e chamadas, threads, `R`/`Rb`, e a GPU em `-mx`) em C,
+`-x`, `-w`, `-a`, `-m` e `-mx`; e o próprio compilador em `-a`, `-m` e `-mx`. Com a semente de antes, os três falham
+com o erro de cima. A bateria: 179 testes, 155 passam e 24 saltam (Mac e qemu).
+
+**Verificado.**
+- Pontos fixos: WebAssembly (520 814 bytes), x86-64 (370 816) e a ponte C. A semente arm64 não se refez aqui (como na
+  it.138): o `./build.sh` no Mac refá-la a partir da semente WebAssembly.
+- O comando de cima dá os mesmos 6656 bytes que o `build/ondac -a` (e os mesmos 6795 com `-m`).
+- Os outros 114 ficheiros `.onda` do repositório dão o mesmo, ao byte, em C, `-x`, `-w`, `-j`, `-a`, `-m`, `-mx`,
+  `-mfx`, `-g`, `-q` e `-v` com o compilador de antes e o de agora; a fonte nova do compilador também, compilada pelos
+  dois. Pela ponte C, tudo isto sai igual ao nativo (2530 comparações, da saída e do código de saída). Só o `-d`
+  difere, como antes, porque mostra os endereços da fonte na memória.
+- A Música, o conselheiro e os gestos compilam igual (`--verificar`).
