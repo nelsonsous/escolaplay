@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.36.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.37.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -438,7 +438,7 @@ test('mais como esta: as parecidas do Tidal, logo no Tidal; o Maestro revê-a s�
     assert.equal((await post('/api/mais', { faixa: 'abc' }, chave)).status, 400);
     // quem escolheu foi o Tidal: diz-se de onde vem; a revisão do Maestro só se a pessoa a pedir (na folha)
     assert.deepEqual([d.por, d.origem], ['app', 'parecidas']);
-    assert.match(d.resumo, /Se quiseres, o Maestro revê-a, no mesmo link do Tidal\.$/);
+    assert.match(d.resumo, /Se quiseres, o Claude revê-a, no mesmo link do Tidal\.$/);
     assert.deepEqual([await (await get('/api/pedidos', chave)).json(), d.afinacoes], [[], undefined], 'não pede a revisão sozinha');
     const rv = await post(`/api/playlists/${d.id}/rever`, {}, chave);
     assert.equal(rv.status, 201);
@@ -573,6 +573,33 @@ test('pedir com música de partida: a playlist nasce já no Tidal com as parecid
     // sem música de partida, fica como sempre: o pedido espera pelo Maestro
     const sem = await (await post('/api/pedidos', { texto: 'Soul dos anos 70' }, chave)).json();
     assert.deepEqual([sem.estado, sem.afinar, sem.criada], ['pendente', undefined, undefined]);
+});
+
+test('a IA da playlist na hora recebe o contexto (as opções; os artistas que a pessoa ouve, só se ela deixar) e diz porquê', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    await post('/api/consentir', {}, chave);
+    await env.KV.put('perfil', JSON.stringify({ favoritas: [{ id: '1', artistas: ['Nina Simone'] }, { id: '2', artistas: ['Nina Simone'] }], artistas: [{ nome: 'Billie Holiday' }] }));
+    const msgs = [];
+    env.AI = { run: async (modelo, entrada) => { msgs.push(entrada.messages);
+        return { response: JSON.stringify({ nome: 'Jazz ao almoço', porque: 'Jazz leve e alegre para um almoço em família', musicas: [{ artista: 'Miles Davis', titulo: 'So What' }] }) }; } };
+    try {
+        const p = await (await post('/api/pedidos', { texto: 'Música para almoçar com as filhas', opcoes: { faixas: 30, limpa: true } }, chave)).json();
+        assert.match(msgs[0][0].content, /"porque": "uma frase/);
+        assert.match(msgs[0][1].content, /^Música para almoçar com as filhas\n\nContexto \(o pedido manda\):\n- Opções: 30 faixas, no máximo \d+ por artista, estilo \w+, energia em \w+, sem letras explícitas\.$/);
+        assert.ok(!/Artistas/.test(msgs[0][1].content), 'sem a autorização, os artistas não vão');
+        const d = await (await get(`/api/playlists/${p.criada.id}`, chave)).json();
+        assert.equal(d.ia.porque, 'Jazz leve e alegre para um almoço em família');
+        assert.match(d.resumo, /^Jazz leve e alegre para um almoço em família\. A IA escolheu as músicas de partida/);
+        // com a autorização (nos Ajustes): vão também os artistas que ouve (das favoritas e dos que segue, sem repetir)
+        assert.equal((await (await get('/api/estado', chave)).json()).iaGosto, false);
+        assert.deepEqual(await (await post('/api/consentir', { gosto: true }, chave)).json(), { ok: true, gosto: true });
+        assert.equal((await (await get('/api/estado', chave)).json()).iaGosto, true);
+        await post('/api/pedidos', { texto: 'Outro almoço' }, chave);
+        assert.match(msgs.at(-1)[1].content, /\n- Artistas que a pessoa ouve: Nina Simone, Billie Holiday\.$/);
+        assert.deepEqual(await (await post('/api/consentir', { gosto: false }, chave)).json(), { ok: true, gosto: false });
+        await post('/api/pedidos', { texto: 'Mais um almoço' }, chave);
+        assert.ok(!/Artistas/.test(msgs.at(-1)[1].content));
+    } finally { delete env.AI; }
 });
 
 test('melhorar o pedido: a IA da playlist na hora reescreve o texto mais apurado; sem a autorização ou sem IA, diz porquê', async () => {
@@ -881,7 +908,7 @@ test('a Mistral avançada: cada pessoa escolhe a IA; liga a conta Mistral dela (
     delete env.AI; delete env.MISTRAL_API_KEY;
 });
 
-test('o Gemini: a terceira IA (3.8 Flash; o 3.5 Flash-Lite de reserva), com a conta Google da pessoa', async () => {
+test('o Gemini: a terceira IA (3.5 Flash-Lite, que responde em segundos; o 3.8 Flash de reserva), com a conta Google da pessoa', async () => {
     const { chave } = await ligarPrimeiraVez();
     const estado = async () => (await get('/api/estado', chave)).json();
     env.AI = { run: async () => ({ response: '{"nome": "Da Cloudflare", "musicas": [{"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }) };
@@ -899,16 +926,16 @@ test('o Gemini: a terceira IA (3.8 Flash; o 3.5 Flash-Lite de reserva), com a co
     const e = await estado();
     assert.deepEqual([e.iaEscolha, e.geminiLigada, e.iaMistral], ['gemini', true, false]);
     assert.ok(!JSON.stringify(e).includes('AIzaBoa'), 'a chave nunca volta');
-    // a playlist na hora com o Gemini 3.8 Flash: JSON pedido, as partes de «pensamento» não contam
+    // a playlist na hora com o Gemini 3.5 Flash-Lite: JSON pedido, as partes de «pensamento» não contam
     const p = await (await post('/api/pedidos', { texto: 'Jazz modal' }, chave)).json();
-    assert.equal(p.ia, 'gemini:gemini-3.8-flash');
+    assert.equal(p.ia, 'gemini:gemini-3.5-flash-lite');
     const pg = sim.geminiPedidos.at(-1);
-    assert.deepEqual([pg.modelo, pg.chave, pg.corpo.generationConfig.responseMimeType], ['gemini-3.8-flash', 'AIzaBoaChaveDoGoogle1234567890', 'application/json']);
+    assert.deepEqual([pg.modelo, pg.chave, pg.corpo.generationConfig.responseMimeType], ['gemini-3.5-flash-lite', 'AIzaBoaChaveDoGoogle1234567890', 'application/json']);
     assert.match(pg.corpo.systemInstruction.parts[0].text, /^És um curador de música/);
-    assert.equal(pg.corpo.contents[0].parts[0].text, 'Jazz modal');
-    // o 3.8 Flash falha: o 3.5 Flash-Lite; os dois falham: a IA da Cloudflare
-    sim.gemini.falha = { 'gemini-3.8-flash': 503 };
-    assert.equal((await (await post('/api/pedidos', { texto: 'Mais jazz' }, chave)).json()).ia, 'gemini:gemini-3.5-flash-lite');
+    assert.match(pg.corpo.contents[0].parts[0].text, /^Jazz modal\n\nContexto \(o pedido manda\):\n- Opções: /, 'o pedido e o contexto (as opções)');
+    // o 3.5 Flash-Lite falha: o 3.8 Flash; os dois falham: a IA da Cloudflare
+    sim.gemini.falha = { 'gemini-3.5-flash-lite': 503 };
+    assert.equal((await (await post('/api/pedidos', { texto: 'Mais jazz' }, chave)).json()).ia, 'gemini:gemini-3.8-flash');
     sim.gemini.falha = { 'gemini-3.8-flash': 503, 'gemini-3.5-flash-lite': 429 };
     assert.equal((await (await post('/api/pedidos', { texto: 'Ainda mais jazz' }, chave)).json()).ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
     sim.gemini.falha = {};
@@ -922,7 +949,7 @@ test('o Gemini: a terceira IA (3.8 Flash; o 3.5 Flash-Lite de reserva), com a co
     env.GEMINI_API_KEY = 'AIzaBoaChaveDoGoogle1234567890';
     assert.equal((await estado()).geminiLigada, true);
     await post('/api/consentir', { ia: 'gemini' }, chave);
-    assert.equal((await (await post('/api/pedidos', { texto: 'Jazz do dono' }, chave)).json()).ia, 'gemini:gemini-3.8-flash');
+    assert.equal((await (await post('/api/pedidos', { texto: 'Jazz do dono' }, chave)).json()).ia, 'gemini:gemini-3.5-flash-lite');
     delete env.AI; delete env.GEMINI_API_KEY;
 });
 
