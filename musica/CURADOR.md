@@ -17,6 +17,10 @@ nesta tarefa.
   que resistem ao tempo — sem ficar preso ao que já ouve, mas a partir do que ouve.
 - A API do Tidal não dá o histórico de reprodução. O gosto lê-se das **favoritas** (as mais recentes pesam mais), dos
   **artistas seguidos** e das **playlists dele** — tudo no `dados.md`.
+- **O perfil de cada pessoa** (a linha «**O perfil desta pessoa**» no `dados.md`): o que ela respondeu na app (para quem
+  é a música, onde ouve, crianças e idades, momentos, géneros, novidade), o que se aprendeu com o uso (playlists
+  apagadas, faixas tiradas) e os pedidos recentes. Tem-no **sempre** em conta — no que escolhes, no tom, na energia e
+  no que evitas —, sem o copiar para as descrições.
 - Escreve sempre em **português de Portugal**.
 - **Várias pessoas**: o Nelson pode convidar outras pessoas (cada uma liga o seu Tidal). O `dados.md` tem uma
   secção por pessoa (`# Pessoa: <nome> (`<id>`)`) — o gosto, os pedidos, a playlist da semana e as novidades de cada

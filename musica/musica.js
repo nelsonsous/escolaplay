@@ -87,6 +87,15 @@
         t.click();
         t.remove();
     };
+    // a caixa do texto do pedido cresce com o texto (cabe todo, até ~60% do ecrã): ao escrever e quando a Onda o muda
+    const crescer = (t) => {
+        if (!t || t.dataset.onda !== 'ptx') return;
+        t.style.height = 'auto';
+        t.style.height = `${Math.min(t.scrollHeight + 2, Math.round(innerHeight * 0.6))}px`;
+    };
+    document.addEventListener('input', (e) => crescer(e.target), true);
+    new MutationObserver(() => { const t = document.querySelector('textarea[data-onda="ptx"]'); if (t && !t.dataset.cresce) { t.dataset.cresce = '1'; crescer(t); } else if (t && document.activeElement !== t) crescer(t); })
+        .observe(corpo, { childList: true, subtree: true });
     // com a app já aberta, o service worker diz qual playlist abrir (o aviso tocado)
     if (navigator.serviceWorker && typeof navigator.serviceWorker.addEventListener === 'function') navigator.serviceWorker.addEventListener('message', (e) => {
         const id = e.data && e.data.abrir;

@@ -82,7 +82,9 @@ ${tend.paraTi.map((x) => `- ${nome(x)} · ${x.fonte} n.º ${x.pos}${x.estado ? `
 
 Conta Tidal: **${perfil.utilizador || '?'}** (${perfil.pais}) · ${perfil.favoritas.length} favoritas lidas (as mais recentes) · ${perfil.artistas.length} artistas seguidos · ${perfil.playlists.length} playlists tuas.
 
-## Pedidos à espera (${pend.length})
+${perfil.contexto ? `**O perfil desta pessoa** (tem-no em conta em tudo o que fizeres para ela) — ${perfil.contexto}
+
+` : ''}## Pedidos à espera (${pend.length})
 ${pend.length ? pend.map((p) => `- \`${p.id}\` — «${p.texto}» · ${p.opcoes.faixas} faixas, máx. ${p.opcoes.maxArtista} por artista, estilo ${p.opcoes.estilo}, arco ${p.opcoes.arco}${p.opcoes.limpa ? ', sem letras explícitas' : ''} · pedido a ${lisboa(new Date(p.criadoEm))}` +
     `${p.afinar ? ` · **${p.afinar.rever ? 'rever' : 'afinar'} a playlist «${p.afinar.nome}» (\`${p.afinar.playlist}\`)**${p.afinar.rever ? ' — são as faixas parecidas do Tidal, por rever' : ''}${p.afinar.rejeitadas.length ? ` — tira: ${p.afinar.rejeitadas.map((x) => `${x.artista} — ${x.titulo}`).join('; ')}` : ''}` : ''}`).join('\n') : '- nenhum'}
 
