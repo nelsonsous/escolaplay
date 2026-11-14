@@ -396,8 +396,10 @@
         if (!g.modo) {
             const m = G.modo(g.c, g.dx, g.dy);
             if (m === G.AINDA) {
-                // na folha, no topo e a descer: segura já (no iPhone o deslizar nativo começa cedo e já não se trava)
-                if ((g.c & G.FOLHA) && (g.c & G.TOPO) && !(g.c & (G.DESLIZA | G.CAMPO)) && g.dy > 0 && Math.abs(g.dy) >= Math.abs(g.dx) && e.cancelable) e.preventDefault();
+                // na folha, no topo e a descer: segura já (no iPhone o deslizar nativo começa cedo e já não se trava) — mas
+                // só a partir de 4 px: um toque num botão mexe sempre um bocadinho, e segurar esse movimento fazia o
+                // iPhone desistir do toque (os botões do cimo da folha, como o «Afinar», não respondiam)
+                if ((g.c & G.FOLHA) && (g.c & G.TOPO) && !(g.c & (G.DESLIZA | G.CAMPO)) && g.dy >= 4 && Math.abs(g.dy) >= Math.abs(g.dx) && e.cancelable) e.preventDefault();
                 return;
             }
             if (m === G.NENHUM) { g = null; return; }
