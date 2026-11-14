@@ -57,6 +57,11 @@ export function simulador() {
 }
 
 function mistralSimulada(sim, u, init) {
+    // confirmar uma chave: as de sim.mistralBoas valem
+    if (String(u) === 'https://api.mistral.ai/v1/models') {
+        const ok = (sim.mistralBoas || []).includes((new Headers(init.headers).get('authorization') || '').replace(/^Bearer /, ''));
+        return new Response(JSON.stringify(ok ? { data: [{ id: 'mistral-large-latest' }] } : { message: 'Unauthorized' }), { status: ok ? 200 : 401, headers: { 'content-type': 'application/json' } });
+    }
     if (String(u) !== 'https://api.mistral.ai/v1/chat/completions') return null;
     sim.mistralPedidos.push({ authorization: new Headers(init.headers).get('authorization'), corpo: JSON.parse(init.body) });
     return new Response(JSON.stringify(sim.mistral.status === 200 ? { choices: [{ message: { role: 'assistant', content: sim.mistral.conteudo } }] } : { message: 'x' }),

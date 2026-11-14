@@ -439,6 +439,12 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-pasta-nova { display: flex; align-items: center; gap: 8px; }
 .mu-pasta-nova .mu-campo { flex: 1; margin: 0; }
 .mu-pastas-ed > .mu-nota { margin: 8px 0 0; font-size: 13px; }
+/* a IA da playlist na hora (nos Ajustes) e o ligar da conta Mistral */
+.mu-ia-esc { margin-top: 12px; }
+.mu-mistral { margin: 10px 0 4px; padding: 12px 14px; border-radius: 14px; background: var(--panel2); }
+.mu-mistral p { margin: 0 0 6px; }
+.mu-mistral ol { margin: 0 0 10px; padding-left: 20px; color: var(--mut); font-size: 14px; }
+.mu-mistral li { margin: 3px 0; }
 .mu-tidal-pastas { margin: 18px 2px 0; }
 .mu-tidal-pastas > summary { cursor: pointer; font-size: 14px; font-weight: 650; color: var(--mut); padding: 8px 0; }
 .mu-tidal-pastas ul { margin: 6px 0 0; padding-left: 18px; }
