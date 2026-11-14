@@ -25,6 +25,10 @@
 //   117 buscam   u fn     → u = "url\tms": como o 102, mas se a resposta está guardada (113) há menos de ms, dá-a já
 //                           (estado 200, sem ir à rede); senão vai à rede e guarda-a, se vier 200. A app decide o quê e o
 //                           prazo; 115 esquece
+//   118 rolar    sel 0    → rola a página até ao elemento sel (1 se existe); com 0, até ao topo
+//   119 mudar    sel txt  → como o 100, mas mexe só no que mudou: um nó que continua igual é o mesmo nó (as imagens não
+//                           piscam, o que está a meio de uma animação continua, um campo não perde o cursor). Ver `mudar`
+// Depois de desenhar (100 e 119), o elemento recebe o evento `onda-desenho` (sobe pela página): «a app desenhou».
 // Os nomes de funções (fn) são textos com o nome de uma função da Onda (ex.: "clique").
 // Memória: cada texto que o anfitrião entrega é reservado com o alocador do runtime (_oa). Para não crescer sem fim,
 // a app marca o monte antes de um evento e solta-o no fim (ver `marca`/`solta` em lib/app.onda).
@@ -63,6 +67,65 @@
 
     // Cria a app. `bytes`: o módulo (Uint8Array) ou um WebAssembly.Module já compilado.
     // opcoes: { documento, armazem (objeto chave→texto), buscar (fetch), registo (função de log), prefixo (localStorage) }
+    // ---------- mudar: pôr um HTML novo num elemento sem deitar fora o que lá está igual ----------
+    // O innerHTML faz tudo de novo: as imagens piscam, uma animação a meio recomeça, a lista perde o sítio. O mudar
+    // compara o que lá está com o HTML novo e mexe só no que é diferente. Os filhos emparelham-se pela ordem e pelo
+    // nome; os que têm data-chave (ou id), pela chave — numa lista, tirar, trocar ou mudar um item de sítio não mexe
+    // nos outros. Duas regras para o que é de quem usa a página:
+    //   - o valor de um campo é o que a app escreveu: se é diferente do que lá está, muda. Uma app que acompanha o que
+    //     se escreve (o evento input) fica com o texto e o cursor onde estavam; limpar o campo na app limpa-o no ecrã;
+    //   - o `open` de um <details> é de quem o abriu: não sai só porque o HTML novo não o traz.
+    // O elemento tem de ser de HTML (o conteúdo de um <svg> muda-se pelo elemento que o tem dentro).
+    const chaveDe = (n) => (n.nodeType === 1 ? n.getAttribute('data-chave') || n.id || '' : '');
+    function mudarNo(a, b) {
+        if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+        const nome = a.localName;
+        for (const at of Array.from(a.attributes)) if (!b.hasAttribute(at.name) && !(at.name === 'open' && nome === 'details')) a.removeAttribute(at.name);
+        for (const at of Array.from(b.attributes)) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+        if (nome === 'textarea') {
+            const v = b.textContent;
+            if (a.textContent !== v) a.textContent = v;
+            if (a.value !== v) a.value = v;
+            return;
+        }
+        if (nome === 'input') {
+            if (a.type === 'checkbox' || a.type === 'radio') { const c = b.hasAttribute('checked'); if (a.checked !== c) a.checked = c; }
+            else if (a.type !== 'file' && b.hasAttribute('value') && a.value !== b.getAttribute('value')) a.value = b.getAttribute('value');
+        }
+        mudarFilhos(a, b);
+    }
+    function mudarFilhos(de, para) {
+        let a = de.firstChild, mapa = null;
+        const feitos = new Set();
+        for (let b = para.firstChild; b;) {
+            const prox = b.nextSibling, k = chaveDe(b);
+            let alvo = null;
+            if (a && a.nodeType === b.nodeType && (b.nodeType !== 1 || (a.localName === b.localName && chaveDe(a) === k))) alvo = a;
+            else if (k) {
+                if (!mapa) { mapa = new Map(); for (let x = a; x; x = x.nextSibling) { const kx = chaveDe(x); if (kx && !mapa.has(kx)) mapa.set(kx, x); } }
+                const x = mapa.get(k);
+                if (x && !feitos.has(x) && x.parentNode === de && x.localName === b.localName) alvo = x;
+            }
+            if (alvo) {
+                if (alvo === a) a = a.nextSibling; else de.insertBefore(alvo, a);
+                feitos.add(alvo);
+                mudarNo(alvo, b);
+            } else if (a && !k && !chaveDe(a)) { const s = a.nextSibling; de.replaceChild(b, a); a = s; } // sem chaves e diferentes: um pelo outro
+            else de.insertBefore(b, a); // novo aqui (um antigo com chave pode ser preciso mais à frente: sai no fim, se sobrar)
+            b = prox;
+        }
+        while (a) { const s = a.nextSibling; if (!feitos.has(a)) de.removeChild(a); a = s; }
+    }
+    function mudar(el, html) {
+        const t = el.ownerDocument.createElement('template');
+        t.innerHTML = html;
+        mudarFilhos(el, t.content);
+    }
+    // Depois de desenhar (portas 100 e 119), o elemento recebe o evento `onda-desenho`, que sobe pela página: é o sinal
+    // de «a app desenhou» para a casca (com o mudar pode não mudar nó nenhum, e um MutationObserver não daria por nada).
+    // Dispara a meio de uma função da Onda: quem o ouve não chama a app de dentro dele (marca para depois).
+    const desenhado = (el) => { if (el.dispatchEvent && typeof Event === 'function') el.dispatchEvent(new Event('onda-desenho', { bubbles: true })); };
+
     function criar(bytes, opcoes = {}) {
         const doc = opcoes.documento || (typeof document !== 'undefined' ? document : null);
         const mem0 = {};
@@ -124,7 +187,7 @@
                 case 5: { const x = new Float64Array(new BigInt64Array([a]).buffer)[0], t = cfmt(x), v = W(b, t.length); for (let i = 0; i < t.length; i++) v[i] = BigInt(t.charCodeAt(i)); return BigInt(t.length); }
                 case 6: return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000));
                 case 7: { const need = (Number(a) + 16) * 8, cur = mem.buffer.byteLength; if (need > cur) mem.grow(Math.ceil((need - cur) / 65536)); return BigInt(mem.buffer.byteLength / 8 - 16); }
-                case 100: { const el = doc && doc.querySelector(ler(a)); if (!el) return 0n; el.innerHTML = ler(b); return 1n; }
+                case 100: { const el = doc && doc.querySelector(ler(a)); if (!el) return 0n; el.innerHTML = ler(b); desenhado(el); return 1n; }
                 case 101: {
                     const tipo = ler(a), fn = ler(b);
                     if (doc) doc.addEventListener(tipo, (e) => {
@@ -176,6 +239,7 @@
                     return 0n;
                 }
                 case 116: { const u = aTocar(); return u ? escrever(u) : 0n; }
+                case 119: { const el = doc && doc.querySelector(ler(a)); if (!el) return 0n; if (el.ownerDocument && doc.createElement) mudar(el, ler(b)); else el.innerHTML = ler(b); desenhado(el); return 1n; }
                 // rolar: a página até ao elemento do seletor a (1 se existe); com 0, até ao topo (uma vista nova abre no topo)
                 case 118: {
                     const el = Number(a) && doc ? doc.querySelector(ler(a)) : null;
@@ -195,7 +259,7 @@
         return { exports: ex, chamar, ler, escrever, get som() { return som(); }, parar: () => { for (const t of relogios.values()) clearInterval(t); relogios.clear(); } };
     }
 
-    const api = { criar, cfmt };
+    const api = { criar, cfmt, mudar };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     else raiz.OndaApp = api;
 })(typeof self !== 'undefined' ? self : this);

@@ -227,7 +227,9 @@
         // a meio de um gesto ou de uma troca, tenta outra vez daqui a pouco (não se perde o último estado)
         retratar = setTimeout(() => { if (aTrocar || g) retratarDepois(); else retratar_(); }, 250);
     };
-    if (corpo) new MutationObserver(retratarDepois).observe(corpo, { childList: true, subtree: true });
+    // (o sinal de «a app desenhou» é o evento onda-desenho do anfitrião: a Onda muda só o que é diferente, e um
+    // MutationObserver não daria por um desenho que deixou tudo igual)
+    if (corpo) corpo.addEventListener('onda-desenho', retratarDepois);
     const prepararEspreita = (alvo) => {
         const k = alvo.dataset.onda, chave = k + '#' + (retratos.has(k) ? versao : 'cab');
         if (espreita.dataset.para === chave) return;
@@ -449,10 +451,11 @@
             if (ok && G.fim(G.ATUALIZAR, G2.h, ms)) {
                 aAtualizar = true;
                 ptrPor(44, 'A atualizar…');
-                const pronto = () => { aAtualizar = false; corpo.style.transition = 'transform .2s'; ptrPor(0, ''); };
-                const ob = new MutationObserver(() => { ob.disconnect(); setTimeout(pronto, 150); });
-                ob.observe(corpo, { childList: true });
-                setTimeout(() => { ob.disconnect(); pronto(); }, 4000);
+                let feito = false;
+                const pronto = () => { if (feito) return; feito = true; aAtualizar = false; corpo.style.transition = 'transform .2s'; ptrPor(0, ''); };
+                // acaba quando a app voltar a desenhar a página (com os dados novos), ou ao fim de 4 s
+                corpo.addEventListener('onda-desenho', () => setTimeout(pronto, 150), { once: true });
+                setTimeout(pronto, 4000);
                 disparar('recarregar');
             } else ptrPor(0, '');
         }

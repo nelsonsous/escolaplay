@@ -5,6 +5,10 @@
 #                      escreve até ao _ht_poe vai para ele (como o _tx_abre: abre-se dentro de outro)
 #   _ht_poe sel t      fecha o pedaço t e põe-no no innerHTML do elemento sel (seletor CSS; rt/anfitriao.js); 1 se o
 #                      elemento existe
+#   _ht_muda sel t     fecha o pedaço t e muda o elemento sel para ficar com ele, mexendo só no que é diferente (o
+#                      _an_muda): para redesenhar o que já está no ecrã sem piscar. Um item de uma lista leva
+#                      data-chave="…" para se saber qual é qual. Num anfitrião antigo (sem a porta 119) desenha
+#                      como o _ht_poe, para a app não ficar em branco a meio de uma atualização
 #   _ht_attr nome t    escreve ` nome="t"` (nome e t são textos; t escapado)
 #   _ht_cp u           escreve o código u em UTF-8, escapado (& < > " ')
 #   _ht_min t          escreve t.toLowerCase() escapado (o ASCII e o Latim-1, byte a byte: o resto fica igual)
@@ -13,6 +17,7 @@
 
 : _ht_ini i>i n _tx_abre n
 : _ht_poe ii>i sel t { _tx_fecha t _an_html sel t }
+: _ht_muda ii>i sel t { _tx_fecha t ? _an_muda sel t 1 _an_html sel t }
 : _ht_attr ii>i nome t { P 32 _tx_p nome P '= P 34 _tx_html t P 34 }
 : _ht_cp i>i u ? _tx_ent u 0 _tx_putf u
 : _ht_min i>i t {
