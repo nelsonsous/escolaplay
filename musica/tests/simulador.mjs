@@ -49,10 +49,19 @@ export function simulador() {
     // o gatilho «API» da tarefa agendada do Maestro: guarda o que chegou; sim.maestroStatus simula uma recusa
     sim.maestro = [];
     sim.maestroStatus = 200;
-    sim.fetch = async (u, init = {}) => maestroSimulado(sim, u, init) || pushSimulado(sim, u, init) || tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
+    // a API da Mistral (a conta do dono): guarda o que chegou; sim.mistral = { status, conteudo }
+    sim.mistralPedidos = [];
+    sim.mistral = { status: 200, conteudo: '{}' };
+    sim.fetch = async (u, init = {}) => mistralSimulada(sim, u, init) || maestroSimulado(sim, u, init) || pushSimulado(sim, u, init) || tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
     return sim;
 }
 
+function mistralSimulada(sim, u, init) {
+    if (String(u) !== 'https://api.mistral.ai/v1/chat/completions') return null;
+    sim.mistralPedidos.push({ authorization: new Headers(init.headers).get('authorization'), corpo: JSON.parse(init.body) });
+    return new Response(JSON.stringify(sim.mistral.status === 200 ? { choices: [{ message: { role: 'assistant', content: sim.mistral.conteudo } }] } : { message: 'x' }),
+        { status: sim.mistral.status, headers: { 'content-type': 'application/json' } });
+}
 function maestroSimulado(sim, u, init) {
     const h = String(u);
     if (!h.startsWith('https://api.anthropic.com/')) return null;

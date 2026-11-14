@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.31.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.32.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -691,6 +691,11 @@ test('a playlist na hora: com a autorização da pessoa, a IA da Cloudflare esco
     assert.match(d.resumo, /^A IA da Cloudflare escolheu as músicas de partida \(«So What», «Feeling Good», «Get Lucky»\)/);
     assert.ok(d.candidatas.filter((x) => x.fixa).length === 3, 'as músicas de partida ficam fixas');
     assert.deepEqual(d.doTidal.faixas.map((f) => f.id), d.faixas.map((f) => f.id), 'a lista de partida fica, para comparar com a revisão');
+    // «Só o Maestro»: com a playlist na hora ligada, o pedido salta a IA e fica para o Maestro
+    const antesIA = chamadas;
+    const so = await (await post('/api/pedidos', { texto: 'Só para o Maestro', so: 'maestro' }, chave)).json();
+    assert.deepEqual([so.estado, so.criada, chamadas], ['pendente', undefined, antesIA]);
+    await call(`/api/pedidos/${so.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } });
     // a IA falha (sem «Neurons» no dia, por exemplo): o pedido fica para o Maestro, como sempre
     resposta = '';
     const f = await (await post('/api/pedidos', { texto: 'Outra coisa' }, chave)).json();
@@ -723,24 +728,40 @@ test('arrumar a lista: pastas (só na app), pastas sugeridas pela IA, propostas 
     const v1 = await nova('Bandas sonoras · épica', { rascunho: true, grupo: g, variante: 'épica', pedido: 'Bandas sonoras para a estrada' });
     const v2 = await nova('Bandas sonoras · noite', { rascunho: true, grupo: g, variante: 'noite', pedido: 'Bandas sonoras para a estrada' });
     const v3 = await nova('Bandas sonoras · descoberta', { rascunho: true, grupo: g, variante: 'descoberta', pedido: 'Bandas sonoras para a estrada' });
-    // a IA sugere as pastas: sem ela no conector, ou sem a autorização da «playlist na hora», diz-se porquê
+    // as pastas da pessoa (mesmo vazias): «Carro» entrou ao pôr lá a playlist; cria-se outra; a lista vem no estado
+    assert.equal((await post('/api/pastas', { nome: ' ' }, chave)).status, 400);
+    assert.deepEqual((await (await post('/api/pastas', { nome: 'Dormir' }, chave)).json()).pastas, ['Carro', 'Dormir']);
+    assert.deepEqual((await (await get('/api/estado', chave)).json()).pastas, ['Carro', 'Dormir']);
+    // a IA arruma: sem ela no conector, ou sem a autorização da «playlist na hora», diz-se porquê
     assert.equal((await (await post('/api/pastas/sugerir', {}, chave)).json()).error, 'sem_ia');
     const vistos = [];
-    env.AI = { run: async (modelo, entrada) => { vistos.push(entrada.messages[1].content); return { response: JSON.stringify({ pastas: [
-        { nome: 'Dormir', ids: [b.id, 'inventado'] }, { nome: 'Carro', ids: [a.id] }, { nome: 'Descobrir', ids: [c.id, v1.id] }, { nome: '', ids: [b.id] }] }) }; } };
+    let resposta = { pastas: [{ nome: 'dormir', ids: [b.id, 'inventado'] }, { nome: 'Carro', ids: [a.id, c.id] }, { nome: 'Descobrir', ids: [v1.id] }, { nome: '', ids: [b.id] }] };
+    env.AI = { run: async (modelo, entrada) => { vistos.push(entrada.messages); return { response: JSON.stringify(resposta) }; } };
     assert.equal((await (await post('/api/pastas/sugerir', {}, chave)).json()).error, 'ia_desligada');
     await post('/api/consentir', { cloudflare: true }, chave);
     const s = await (await post('/api/pastas/sugerir', {}, chave)).json();
-    // (as propostas não vão à IA; a que já tinha pasta fica onde estava; ids inventados e pastas sem nome não contam)
-    assert.ok(!vistos[0].includes(v1.id) && vistos[0].includes(`${b.id} | Adormecer com chuva | Música para adormecer`));
-    assert.deepEqual(s, { pastas: [{ nome: 'Dormir', n: 1 }, { nome: 'Descobrir', n: 1 }], arrumadas: 2 });
+    // com as pastas da pessoa, a IA só usa essas (o nome volta ao dela); as propostas não vão à IA; a que já tinha pasta
+    // fica onde estava; ids inventados e pastas que não são dela não contam; a IA recebe o género de cada uma (do Tidal)
+    assert.match(vistos[0][0].content, /pastas que a pessoa criou: «Carro», «Dormir»/);
+    assert.ok(!vistos[0][1].content.includes(v1.id) && vistos[0][1].content.includes(`${b.id} | Adormecer com chuva | Música para adormecer | `));
+    assert.deepEqual(s, { pastas: [{ nome: 'Dormir', n: 1 }, { nome: 'Carro', n: 1 }], arrumadas: 2 });
     const i1 = await indice();
-    assert.deepEqual([a, b, c, v1].map((x) => i1.find((y) => y.id === x.id).pasta || null), ['Carro', 'Dormir', 'Descobrir', null]);
+    assert.deepEqual([a, b, c, v1].map((x) => i1.find((y) => y.id === x.id).pasta || null), ['Carro', 'Dormir', 'Carro', null]);
     assert.equal(JSON.parse(await env.KV.get('playlist:' + b.id)).pasta, 'Dormir');
     // tudo arrumado: não há nada a sugerir (nem se chama a IA)
     vistos.length = 0;
     assert.deepEqual(await (await post('/api/pastas/sugerir', {}, chave)).json(), { pastas: [], arrumadas: 0 });
     assert.equal(vistos.length, 0);
+    // apagar uma pasta: sai da lista e as playlists dela ficam sem pasta
+    const apagarPasta = (n) => call(`/api/pastas?nome=${encodeURIComponent(n)}`, { method: 'DELETE', headers: { authorization: `Bearer ${chave}` } }).then((r) => r.json());
+    assert.deepEqual(await apagarPasta('Carro'), { ok: true, pastas: ['Dormir'], soltas: 2 });
+    assert.deepEqual([a, c].map((x) => JSON.parse(env.KV.m.get('playlist:' + x.id)).pasta), [undefined, undefined]);
+    await apagarPasta('Dormir');
+    // sem pastas da pessoa, a IA inventa-as (e passam a ser dela)
+    resposta = { pastas: [{ nome: 'Noite', ids: [a.id, c.id] }, { nome: 'Calma', ids: [b.id] }] };
+    assert.deepEqual(await (await post('/api/pastas/sugerir', {}, chave)).json(), { pastas: [{ nome: 'Noite', n: 2 }, { nome: 'Calma', n: 1 }], arrumadas: 3 });
+    assert.match(vistos.at(-1)[0].content, /^Organizas playlists de música em pastas\./);
+    assert.deepEqual((await (await get('/api/estado', chave)).json()).pastas, ['Noite', 'Calma']);
     delete env.AI;
     // ficar com uma proposta: vai para o Tidal e deixa de ser proposta; as outras do mesmo pedido saem
     const criadas = sim.criadas.length;
@@ -769,6 +790,45 @@ test('arrumar a lista: pastas (só na app), pastas sugeridas pela IA, propostas 
     const k1 = await nova('Três'), k2 = await nova('Quatro');
     await post('/api/juntar', { ids: [k1.id, k2.id] }, chave);
     assert.ok((await indice()).some((x) => x.id === k1.id));
+});
+
+test('a conta Mistral do dono: primeiro a Mistral (só nos pedidos dele), depois a IA da Cloudflare; os convidados nunca passam pela Mistral', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const ia = (texto, k = agente) => post('/api/ia/sementes', { texto }, k).then((r) => r.json());
+    // só com a chave da Mistral (sem a IA da Cloudflare) já há IA; o estado diz que é a do dono
+    env.MISTRAL_API_KEY = 'mk-teste';
+    sim.mistral = { status: 200, conteudo: '{"nome": "Da Mistral", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}]}' };
+    const e = await (await get('/api/estado', chave)).json();
+    assert.deepEqual([e.iaCfPode, e.iaMistral], [true, true]);
+    const r = await ia('Jazz modal');
+    assert.deepEqual([r.modelo, r.nome, r.musicas[0].tidal?.id], ['mistral:mistral-large-latest', 'Da Mistral', '101']);
+    const pm = sim.mistralPedidos.at(-1);
+    assert.deepEqual([pm.authorization, pm.corpo.model, pm.corpo.response_format], ['Bearer mk-teste', 'mistral-large-latest', { type: 'json_object' }]);
+    assert.deepEqual(pm.corpo.messages.map((x) => x.role), ['system', 'user']);
+    // a Mistral recusa (limite do plano grátis, por exemplo): segue para a IA da Cloudflare
+    sim.mistral.status = 429;
+    env.AI = { run: async () => ({ response: '{"nome": "Da Cloudflare", "musicas": [{"artista": "Nina Simone", "titulo": "Feeling Good"}]}' }) };
+    const r2 = await ia('Jazz modal');
+    assert.equal(r2.modelo, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    assert.match(r2.erros[0], /^mistral:mistral-large-latest: HTTP 429$/);
+    sim.mistral.status = 200;
+    // uma convidada: a playlist na hora usa a IA da Cloudflare; a Mistral do dono nunca vê os pedidos dela
+    const cv = await (await post('/api/convites', {}, chave)).json();
+    const st = new URL((await (await post('/api/ligar', { codigo: cv.codigo, nome: 'Ana', consente: true })).json()).url).searchParams.get('state');
+    const chaveAna = decodeURIComponent((await call(`/tidal/retorno?code=CODIGO-ANA&state=${st}`)).headers.get('location').split('#chave=')[1] || '');
+    assert.ok(chaveAna.length > 20);
+    const eAna = await (await get('/api/estado', chaveAna)).json();
+    assert.deepEqual([eAna.iaCf, eAna.iaMistral], [true, undefined], 'autorizou ao ligar; a Mistral não é dela');
+    const antes = sim.mistralPedidos.length;
+    const p = await (await post('/api/pedidos', { texto: 'Fado para a Ana' }, chaveAna)).json();
+    assert.equal(p.ia, '@cf/mistralai/mistral-small-3.1-24b-instruct');
+    assert.equal(sim.mistralPedidos.length, antes, 'nada foi para a Mistral');
+    // e o dono, com a Mistral: a playlist na hora usa-a
+    await post('/api/consentir', { cloudflare: true }, chave);
+    const pd = await (await post('/api/pedidos', { texto: 'Jazz para o dono' }, chave)).json();
+    assert.equal(pd.ia, 'mistral:mistral-large-latest');
+    delete env.AI; delete env.MISTRAL_API_KEY;
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {
