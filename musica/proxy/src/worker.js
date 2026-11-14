@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.34.0';
+const VERSION = '1.34.1';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -385,7 +385,8 @@ async function consentir(env, quem, c = {}) {
 // nem chamadas à toa (cada corrida gasta da subscrição do Claude):
 //   - espera uns segundos e só chama se entretanto não chegou outro pedido (vários seguidos dão uma só corrida);
 //   - não chama se há uma corrida a decorrer: uma chamada há menos de 15 min, ou à volta das corridas agendadas
-//     (07:44 e 18:44, hora de Lisboa) — essa corrida vê os pedidos novos antes de acabar (CURADOR.md);
+//     (MAESTRO_AGENDADAS, ex. "07:44,18:44"; hoje não há: o Maestro só corre quando é pedido) — essa corrida vê os
+//     pedidos novos antes de acabar (CURADOR.md);
 //   - um pedido que mesmo assim fique para trás é chamado quando a app volta a pedir a lista (a vigia), e cada
 //     pedido conta no máximo 2 chamadas; no total, no máximo MAX_CHAMADAS por hora.
 // O texto que vai na chamada é fixo: nada do que as pessoas escrevem segue no pedido.
@@ -393,7 +394,7 @@ const MAX_CHAMADAS = 6, CORRIDA_MS = 15 * 60000;
 const FIRE = /^https:\/\/api\.anthropic\.com\/v1\/claude_code\/routines\/[A-Za-z0-9_-]+\/fire$/;
 const naHora = (env) => !!(env.MAESTRO_TOKEN && FIRE.test(env.MAESTRO_FIRE_URL || ''));
 function emCorridaAgendada(env, agora) {
-    const horas = String(env.MAESTRO_AGENDADAS ?? '07:44,18:44').split(',').map((x) => /^(\d\d):(\d\d)$/.exec(x.trim())).filter(Boolean).map((m) => Number(m[1]) * 60 + Number(m[2]));
+    const horas = String(env.MAESTRO_AGENDADAS ?? '').split(',').map((x) => /^(\d\d):(\d\d)$/.exec(x.trim())).filter(Boolean).map((m) => Number(m[1]) * 60 + Number(m[2]));
     if (!horas.length) return false;
     const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(agora));
     const min = Number(p.find((x) => x.type === 'hour').value) * 60 + Number(p.find((x) => x.type === 'minute').value);
@@ -1260,7 +1261,7 @@ async function parecidasDe(env, id, { limpa = false, opcoes = null, texto = '', 
         descricao: txt(ia ? `Começou com ${partidas} e as parecidas do Tidal.` : `Faixas parecidas com «${semente.titulo}», de ${semente.artistas[0] || 'vários'}.`, 300),
         resumo: ia ? `A IA da Cloudflare escolheu as músicas de partida (${partidas}) e o Tidal juntou as parecidas. O Maestro revê-a com o teu pedido na próxima corrida, aqui e no mesmo link do Tidal.`
             : texto ? `Começou pelas faixas parecidas com ${de}: as do Tidal, pela ordem dele. O Maestro revê-a com o teu pedido na próxima corrida, aqui e no mesmo link do Tidal.`
-                : `Pedi ao Tidal as faixas parecidas com «${semente.titulo}»: são as dele, pela ordem dele. O Maestro revê-a na próxima corrida (às 07:44 ou às 18:44), aqui e no mesmo link do Tidal.`,
+                : `Pedi ao Tidal as faixas parecidas com «${semente.titulo}»: são as dele, pela ordem dele. O Maestro revê-a na próxima corrida, aqui e no mesmo link do Tidal.`,
         pedido: texto, faixas, candidatas, opcoes: opcoes || { faixas: Math.max(5, faixas.length), maxArtista: 3, limpa }, origem: 'parecidas', tidal: true }, quem);
     if (ia) d.ia = { modelo: ia, sementes: sementes.filter((x) => det.has(x)) };
     const lista = (await env.KV.get('pedidos', 'json')) || [];
