@@ -126,7 +126,20 @@
       `<div class="mu-card boas"><h3>{ ? ligado "Liga este aparelho" "Liga o teu Tidal" }</h3><p>Num aparelho onde já entraste, vai a Ajustes → <b>Ligar outro aparelho</b> e cola aqui o código. Se é a primeira vez, abre o link do convite.</p>{ campo_codigo }</div>` } }
 
 # ===== Playlists =====
-: npendentes i>i pd { = n 0 = c pri pd W c { Se mesmo txt c.estado $"pendente" = n + n 1 = c seg c } n }
+# os pedidos à espera do Maestro ficam no cimo da lista das playlists (é para lá que vão quando ficam prontos): o que
+# se pediu, quando, e cancelar (o botão, ou arrastar para a esquerda). Um pedido de afinação não aparece aqui: vê-se
+# na playlist dele (o selo no cartão e a linha «à espera do Maestro» na folha, com o seu cancelar)
+: ped_novo i>i c && mesmo txt c.estado $"pendente" ~ c.afinar
+: espera i>i pd { = n 0 = c pri pd W c { Se ped_novo c = n + n 1 = c seg c }
+  Se n {
+    `<section class="mu-espera"><h2 class="mu-sec">À espera do Maestro <span>{ N n }</span></h2><div class="mu-card mu-pedidos">`
+    = c pri pd
+    W c { Se ped_novo c { = op c.opcoes
+        `<div class="mu-pedido" data-esq="cancelar&#9;{ esct txt c.id }" data-esq-rotulo="Cancelar"><div><div class="tx">«{ esct txt c.texto }»</div><div class="mt">pedido a { pdia txt c.criadoEm } · { N int op.faixas } faixas · { nome_estilo idx_estilo txt op.estilo }</div></div><button type="button" class="mu-btn sec peq" data-onda="cancelar&#9;{ esct txt c.id }">Cancelar</button></div>` }
+      = c seg c }
+    `</div><p class="mu-nota">O Maestro trata deles às 07:44 e às 18:44, e as playlists aparecem aqui.</p></section>` } }
+# a playlist (id) tem uma afinação pedida, ainda à espera do Maestro?
+: afina_pend i>i id { = r 0 = c pri @ 5 W && c ~ r { = r && mesmo txt c.estado $"pendente" mesmo txt c.afinar.playlist id = c seg c } r }
 # arrastar um cartão para a esquerda (a casca) pede para o apagar: a pergunta aparece no lugar do cartão
 # o nome da proposta (a variante) antes do nome, se o nome ainda nao o tiver (o Maestro as vezes ja o junta)
 : tmin i>i c ? && >= c 65 <= c 90 + c 32 c
@@ -150,6 +163,7 @@
   `<button type="button" class="mu-pl-a" data-onda="exp&#9;{ esct txt c.id }" aria-expanded="{ ? ab "true" "false" }"><div class="nm">{ var_pref c }{ esct txt c.nome }</div><div class="mt">{ N int c.faixas } faixas · { pmin int c.duracao } · { pdia txt c.criadaEm }`
   = av c.avaliacao Se av { = e txt av.etiqueta ? || mesmo e $"ainda cedo" mesmo e $"sem sinais" 0 { ` · { esct e }` 0 } }
   Se == tipo c.renovar 3 " · ↻"
+  Se afina_pend txt c.id ` · <span class="mu-pedida">afinação pedida</span>`
   # afinada pelo Maestro nos ultimos 7 dias: um selo, para se ver logo na lista
   = fa txt c.afinadaEm Se fa Se <= - / _an_agora 86400000 dias_de fa 7 ` · <span class="mu-afinada">✓ afinada a { pdia fa }</span>`
   `</div><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>`
@@ -239,7 +253,7 @@
       = nr int c.rejeitadas
       `<li{ ? _tx_len txt c.feitoEm 0 ` class="espera"` }><span class="q">{ ? _tx_len txt c.texto `«{ esct txt c.texto }»` `Sem { N nr }{ ? > nr 1 " faixas que tiraste" " faixa que tiraste" }` }</span><span class="m">Afinação · `
       ? _tx_len txt c.feitoEm { `feita a { pdia txt c.feitoEm }` 0 } "à espera do Maestro"
-      `{ Se && nr _tx_len txt c.texto ` · sem { N nr } que tiraste` }</span>`
+      `{ Se && nr _tx_len txt c.texto ` · sem { N nr } que tiraste` }{ Se && ~ _tx_len txt c.feitoEm _tx_len txt c.pedido ` · <button type="button" class="mu-ligacao" data-onda="cancelar&#9;{ esct txt c.pedido }">Cancelar</button>` }</span>`
       # o que mudou com a afinacao: quantas entraram e sairam, e as primeiras novas
       Se c.entraram { = ne int c.entraram = ns int c.sairam
           `<span class="mu-mudou">{ ? || ne ns { N ne ? == ne 1 " nova, " " novas, " N ns ? == ns 1 " saiu" " saíram" } "Sem faixas novas" }`
@@ -409,8 +423,7 @@
   `<header class="mu-head"><div><h1>Música</h1><div class="sub">Playlists de qualidade para o teu Tidal</div></div>{ pill }</header>`
   ? ~ @ 3 carregar {
     ? ~ acesso boas_vindas {
-      = np npendentes @ 5
-      Se > np 0 `<button type="button" class="mu-card mu-cartao" data-onda="ir&#9;3" data-rolar="#mu-pedidos"><h3>{ N np }{ ? > np 1 " pedidos à espera do Maestro" " pedido à espera do Maestro" }</h3><p>O Maestro trata deles às 07:44 e às 18:44.</p></button>`
+      Se ~ @ 56 espera @ 5
       ? @ 4 lista_pl @ 4 carregar } }
   0 }
 
@@ -626,6 +639,8 @@
       _an_buscar`/api/playlists/{ purl @ 30 }/previas` $"lido_prev" _an_buscar $"/api/playlists" $"lido_pl" 0 }
     ? == modo 19 { ! 56 0 tvazio @ 58 ! 53 0 tvazio @ 59 _an_buscar $"/api/playlists" $"lido_pl" render aviso`Juntas em «{ crut txt r.nome }» — { N quantos r.faixas } faixas. Abre-a para a enviar para o Tidal.` 0 }
     ? == modo 18 { tvazio @ 49 refolha 64
+      # (os pedidos também: o cartão da playlist passa a dizer «afinação pedida»)
+      _an_buscar $"/api/pedidos" $"lido_ped"
       Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp"
       aviso $"Pedido de afinação enviado: o Maestro refá-la na próxima corrida." 0 }
     ? == modo 16 { ! 51 r ! 28 0 refolha 3 _an_buscar $"/api/playlists" $"lido_pl" aviso ? == tipo r.tidal 7 $"Nome mudado na app e no Tidal." $"Nome mudado." 0 }
@@ -634,8 +649,10 @@
     ? == modo 12 { tcopia @ 30 txt r.id 70 ir 1 abre_folha @ 30 aviso $"Criada no Tidal — já a podes ouvir." 0 }
     ? == modo 5 { ir 1 aviso $"Apagada da app." 0 }
     ? == modo 11 { ir 1 aviso $"Apagada no Tidal e na app." 0 }
-    ? == modo 6 { tvazio @ 20 _an_buscar $"/api/pedidos" $"lido_ped" render aviso $"Pedido feito — o Maestro trata dele na próxima corrida." 0 }
-    ? == modo 7 { _an_buscar $"/api/pedidos" $"lido_ped" aviso $"Pedido cancelado." 0 }
+    # pedido feito: vai-se para a lista das playlists, onde ele fica à espera (no cimo)
+    ? == modo 6 { tvazio @ 20 ir 1 aviso $"Pedido feito — o Maestro trata dele na próxima corrida." 0 }
+    # cancelado: sai da lista; se era uma afinação, sai também da folha da playlist
+    ? == modo 7 { _an_buscar $"/api/pedidos" $"lido_ped" Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp" aviso $"Pedido cancelado." 0 }
     ? == modo 8 { ir 5 aviso $"Tidal desligado." 0 }
     Se == modo 10 { = ch txt r.chave Se ch { _an_gravar $"chave" ch tvazio @ 38 ir 1 aviso $"Este aparelho fica com acesso." } } }
     { ! 28 0 ! 60 0 ! 61 0 tvazio @ 54
@@ -646,26 +663,12 @@
       erro_ped t s 0 } }
 
 # ===== Pedir =====
-: lista_pedidos i>i pd {
-  = c pri pd = q 0
-  W && c < q 12 {
-    = op c.opcoes
-    = fe mesmo txt c.estado $"feito"
-    `<div class="mu-pedido"{ Se mesmo txt c.estado $"pendente" ` data-esq="cancelar&#9;{ esct txt c.id }" data-esq-rotulo="Cancelar"` }><div><div class="tx">«{ esct txt c.texto }»</div><div class="mt">`
-    ? fe { `feito a { pdia txt c.feitoEm }` 0 } { `à espera · { pdia txt c.criadoEm }` 0 }
-    ` · { N int op.faixas } faixas · { nome_estilo idx_estilo txt op.estilo }</div></div>`
-    ? && fe txt c.playlist { `<div class="mu-mini">`
-        Se txt c.tidal `<a class="mu-btn peq" href="{ esct txt c.tidal }" target="_blank" rel="noopener">{ ic 4 }Ouvir</a>`
-        `<button type="button" class="mu-btn sec peq" data-onda="abrir&#9;{ esct txt c.playlist }">Ver</button></div>` }
-      { Se mesmo txt c.estado $"pendente" `<button type="button" class="mu-btn sec peq" data-onda="cancelar&#9;{ esct txt c.id }">Cancelar</button>` }
-    "</div>"
-    = c seg c = q + q 1 } }
 : v_pedir >i {
   `<header class="mu-head"><div><h1>Pedir</h1><div class="sub">Ao Maestro, que pesquisa e cria no teu Tidal</div></div>{ pill }</header>`
   Se && @ 3 ~ acesso boas_vindas
   `<div class="mu-card"><h3>O que te apetece ouvir?</h3><label class="mu-campo"><span class="sr">Pedido</span><textarea data-onda="ptx" maxlength="500" placeholder="Ex.: jazz dos anos 60 bem gravado para a viagem de sábado">{ esct @ 20 }</textarea></label>`
   # o botao logo a seguir ao texto: com o teclado aberto (iPhone) fica a vista
-  `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? acesso 0 " disabled" }>{ ic 2 }Pedir ao Maestro</button></div><p class="mu-nota">O Maestro prepara 2 ou 3 propostas às 07:44 e às 18:44; escolhes a que vai para o Tidal.</p>`
+  `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? acesso 0 " disabled" }>{ ic 2 }Pedir ao Maestro</button></div><p class="mu-nota">O Maestro prepara 2 ou 3 propostas às 07:44 e às 18:44; escolhes a que vai para o Tidal. Até lá, o pedido fica à espera no cimo da lista das playlists.</p>`
   # as opcoes ficam escondidas (uma linha com o resumo); "Mudar" mostra-as
   ? @ 39 {
       `<div class="mu-opcoes"><span>Opções</span><button type="button" class="mu-mais" data-onda="opcoes">Fechar</button></div>`
@@ -680,8 +683,7 @@
   `<div class="mu-chips">` = n 0
   Se @ 48 { = c pri _ar_get @ 48 $"ideias" = q 0 W && c < n 7 { = mo txt c.momento Se || mesmo mo $"sempre" mesmo mo ? e_dia $"dia" $"noite" { = pq txt c.porque `<button type="button" class="mu-chip{ ? && pq _tx_len pq ` ideia" data-onda="idea&#9;{ N q }"><b>{ esct txt c.texto }</b><span>{ esct pq }</span>` { `" data-onda="idea&#9;{ N q }">{ esct txt c.texto }` 0 } }</button>` = n + n 1 } = c seg c = q + q 1 } }
   Se ~ n { L q 7 `<button type="button" class="mu-chip" data-onda="sug&#9;{ N q }">{ sugestao q }</button>` }
-  "</div></div>"
-  Se quantos @ 5 `<h2 class="mu-sec" id="mu-pedidos">Os teus pedidos</h2><div class="mu-card mu-pedidos">{ lista_pedidos @ 5 }</div>` }
+  "</div></div>" }
 
 # ===== Gosto =====
 # uma favorita: o número, o título, quem toca e ouvir no Tidal
@@ -873,7 +875,7 @@
         "</div>" }
     `<div class="mu-card"><h3>Conector de dados</h3><label class="mu-campo"><span>Endereço</span><input data-onda="px" value="{ esct @ 22 }" inputmode="url" autocapitalize="off" spellcheck="false"></label><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="px-ok">Guardar</button><button type="button" class="mu-btn sec" data-onda="px-rep">Repor</button></div></div>`
     `<div class="mu-card"><h3>Motor de curadoria</h3><p>Esta app é toda em <b>Onda</b>, a linguagem que criaste: os ecrãs, o estado e o motor que escolhe e ordena as faixas (<code>motor.onda</code>) correm aqui no telemóvel, em WebAssembly, pelo anfitrião das apps Onda. O mesmo motor corre na tarefa agendada, e o juiz confirma que dá o mesmo, ao bit, em todas as formas.</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="motor">{ ic 7 }Testar o motor</button></div><p class="mu-motor" id="aj-motor-r"></p></div>`
-    `<p class="mu-nota">Música 2.29.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.30.0 · conector { esct txt e.versao } · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
@@ -908,15 +910,16 @@
   = v @ 1
   Se acesso {
     ? == v 1 { _an_buscam $"/api/playlists" $"lido_pl" 30000 _an_buscam $"/api/pedidos" $"lido_ped" 30000 0 }
-    ? == v 3 { _an_buscam $"/api/pedidos" $"lido_ped" 30000 _an_buscam $"/api/ideias" $"lido_ideias" 300000 0 }
+    ? == v 3 { _an_buscam $"/api/ideias" $"lido_ideias" 300000 0 }
     Se == v 4 { _an_buscam $"/api/perfil" $"lido_perfil" 300000 _an_buscam $"/api/tendencias" $"lido_tend" 300000 } } }
 
 # ===== respostas do conector =====
 : lido_estado ii>i t s { ? == s 200 { ! 3 _ar_json t render carregar_vista 0 } { erro_ped t s 0 } }
 # o índice das playlists: com a folha aberta, a lista por baixo espera (desenha-se ao fechar) e a folha fica onde está
 : lido_pl ii>i t s Se == @ 1 1 ? == s 200 { ! 4 _ar_json t ? _tx_len @ 50 refolha 7 render 0 } { erro_ped t s 0 }
-# os pedidos: com a folha aberta não se redesenha a página (a folha voltava a subir); vêem-se ao fechá-la
-: lido_ped ii>i t s Se || == @ 1 1 == @ 1 3 Se == s 200 { ! 5 _ar_json t Se ~ && == @ 1 1 _tx_len @ 50 render }
+# os pedidos (para a lista das playlists): com a folha aberta não se redesenha a página (a folha voltava a subir);
+# vêem-se ao fechá-la
+: lido_ped ii>i t s Se && == @ 1 1 == s 200 { ! 5 _ar_json t Se ~ _tx_len @ 50 render }
 : lido_perfil ii>i t s Se == @ 1 4 ? == s 200 { ! 4 _ar_json t render 0 } { erro_ped t s 0 }
 : exp_doc ii>i t mem { = d _ar_json t Se mesmo txt d.id @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }` t } ! 51 d refolha 575 } }
 : exp_prev ii>i t mem Se mesmo @ 57 @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }/previas` t } ! 52 _ar_json t refolha 40 }

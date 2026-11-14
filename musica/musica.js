@@ -274,17 +274,6 @@
         };
         setTimeout(ver, 40);
     });
-    // um botão com data-rolar leva a um sítio da página nova (ex.: «2 pedidos à espera» → a lista dos pedidos):
-    // quando ela tiver os dados, desliza até lá
-    document.addEventListener('click', (e) => {
-        const b = e.target.closest?.('[data-rolar]');
-        if (!b || !corpo) return;
-        const sel = b.dataset.rolar;
-        setTimeout(async () => {
-            await pronta();
-            corpo.querySelector(sel)?.scrollIntoView({ behavior: calmo() ? 'auto' : 'smooth', block: 'start' });
-        }, 0);
-    }, true);
     // larga para o separador alvo: a página sai pelo lado do dedo (à velocidade dele) e o vizinho entra
     async function trocarPara(alvo, dir, x = 0, v = 0) {
         if (aTrocar) return;
