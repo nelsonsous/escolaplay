@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.25.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.26.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -521,6 +521,51 @@ test('mais como esta, Tidal × Maestro: a lista do Tidal fica guardada quando o 
     assert.equal(pl.doTidal, undefined);
     await post(`/api/playlists/${pl.id}/renovacoes`, { faixas: [f('202', 'x', 'y')] }, agente);
     assert.equal(JSON.parse(await env.KV.get('playlist:' + pl.id)).doTidal, undefined);
+});
+
+test('pedir com música de partida: a playlist nasce já no Tidal com as parecidas dela; o Maestro revê-a com o texto do pedido e dá-lhe nome', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const texto = 'Para a Carolina, de 12 anos, que gosta de jazz modal';
+    // uma música que o Tidal não conhece, ou um id que não é do Tidal: nada fica criado
+    assert.equal((await post('/api/pedidos', { texto, partida: 'abc' }, chave)).status, 400);
+    assert.equal((await post('/api/pedidos', { texto, partida: '999' }, chave)).status, 404);
+    assert.equal((await post('/api/pedidos', { texto: 'x', partida: '101' }, chave)).status, 400, 'o texto continua a ser preciso');
+    assert.deepEqual([sim.criadas.length, (await (await get('/api/pedidos', chave)).json()).length], [0, 0]);
+    const r = await post('/api/pedidos', { texto, partida: '101', opcoes: { faixas: 40, maxArtista: 2, estilo: 'descoberta' } }, chave);
+    assert.equal(r.status, 201);
+    const p = await r.json();
+    // o pedido é uma revisão: o texto é o da pessoa, as opções também; a playlist já existe, no Tidal
+    assert.deepEqual([p.estado, p.texto, p.afinar.rever, p.opcoes.faixas, p.opcoes.estilo], ['pendente', texto, true, 40, 'descoberta']);
+    assert.deepEqual(p.criada, { id: p.afinar.playlist, nome: 'Parecidas com So What', tidal: 'https://tidal.com/browse/playlist/uuid-nova' });
+    const d = await (await get(`/api/playlists/${p.criada.id}`, chave)).json();
+    assert.deepEqual(d.faixas.map((x) => x.id), ['101', '102', '106', '105', '103'], 'a música de partida e as parecidas do Tidal, pela ordem dele');
+    assert.deepEqual([d.origem, d.por, d.pedido, d.opcoes.faixas], ['parecidas', 'app', texto, 40]);
+    assert.equal(d.faixas[0].motivo, 'A música de partida.');
+    assert.match(d.resumo, /^Começou pelas faixas parecidas com «So What», de Miles Davis/);
+    assert.deepEqual(d.doTidal.faixas.map((x) => x.id), ['101', '102', '106', '105', '103']);
+    assert.deepEqual(sim.itens, ['101', '102', '106', '105', '103']);
+    assert.deepEqual(d.afinacoes.map((x) => [x.pedido, x.rever]), [[p.id, true]]);
+    // o Maestro vê-o como uma revisão, com o texto da pessoa
+    const doMaestro = (await (await get('/api/pedidos', agente)).json()).find((x) => x.id === p.id);
+    assert.deepEqual([doMaestro.texto, doMaestro.afinar.playlist], [texto, d.id]);
+    // a revisão: as faixas mudam no mesmo link, e o nome passa a ser o do Maestro (na app e no Tidal)
+    const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200 });
+    await post(`/api/playlists/${d.id}/renovacoes`, { nome: 'Jazz modal para a Carolina', descricao: 'Do «So What» ao modal de hoje.', faixas: [f('101', 'So What', 'Miles Davis'), f('201', 'Faixa 1', 'Miles Davis')], resumo: 'Revista.', modelo: 'm' }, agente);
+    await call(`/api/pedidos/${p.id}?playlist=${d.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${agente}` } });
+    const d2 = await (await get(`/api/playlists/${d.id}`, chave)).json();
+    assert.deepEqual([d2.nome, d2.descricao, d2.por, d2.tidal.id], ['Jazz modal para a Carolina', 'Do «So What» ao modal de hoje.', 'curador', 'uuid-nova']);
+    assert.deepEqual(sim.renomeadas.at(-1), { id: 'uuid-nova', name: 'Jazz modal para a Carolina', description: 'Do «So What» ao modal de hoje.' });
+    assert.equal((await (await get('/api/playlists', chave)).json()).find((x) => x.id === d.id).nome, 'Jazz modal para a Carolina');
+    // uma segunda renovação já não lhe muda o nome; nem a revisão de uma «Mais como esta»
+    await post(`/api/playlists/${d.id}/renovacoes`, { nome: 'Outro nome', faixas: [f('101', 'So What', 'Miles Davis')] }, agente);
+    assert.equal((await (await get(`/api/playlists/${d.id}`, chave)).json()).nome, 'Jazz modal para a Carolina');
+    const m = await (await post('/api/mais', { faixa: '102' }, chave)).json();
+    await post(`/api/playlists/${m.id}/renovacoes`, { nome: 'Outro nome', faixas: [f('102', 'Feeling Good', 'Nina Simone')] }, agente);
+    assert.equal((await (await get(`/api/playlists/${m.id}`, chave)).json()).nome, 'Parecidas com Feeling Good');
+    // sem música de partida, fica como sempre: o pedido espera pelo Maestro
+    const sem = await (await post('/api/pedidos', { texto: 'Soul dos anos 70' }, chave)).json();
+    assert.deepEqual([sem.estado, sem.afinar, sem.criada], ['pendente', undefined, undefined]);
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {

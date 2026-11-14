@@ -1397,3 +1397,73 @@ test('Tidal × Maestro: depois da revisão, a folha compara as duas listas; as d
         if (SHOTS) { await cmp.scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(SHOTS, 'tidal-maestro.png') }); }
     } finally { await ctx.close(); }
 });
+
+// Pedir com música de partida: procura-se no Tidal, escolhe-se, e a playlist nasce logo no Tidal com as parecidas; o
+// pedido fica para o Maestro a rever com o texto. Sem música, «Pedir» fica como era
+test('pedir com música de partida: procurar, escolher, criar já no Tidal; o Maestro revê-a com o pedido', { skip: !chromium && 'sem Playwright' }, async () => {
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('PARTIDA-1').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    try {
+        const page = await ctx.newPage();
+        const erros = [];
+        page.on('pageerror', (e) => erros.push(String(e)));
+        page.on('console', (m) => { if (m.type() === 'error') erros.push('consola: ' + m.text()); });
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('PARTIDA-1');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        await page.locator('#mu-body .mu-pl').first().waitFor();
+        const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
+        await nav(3);
+        const corpo = page.locator('#mu-body');
+        const texto = 'Jazz modal para a Carolina estudar';
+        await corpo.locator('[data-onda="ptx"]').fill(texto);
+        // sem música: o botão é o de sempre, logo a seguir ao texto
+        assert.equal(await corpo.locator('[data-onda="pedir"]').innerText(), 'Pedir ao Maestro');
+        const abrir = corpo.locator('details.mu-partida-d > summary');
+        assert.equal(await abrir.innerText(), 'Começar por uma músicaopcional'.replace('músicaopcional', 'música\nopcional'));
+        await abrir.click();
+        await corpo.locator('details.mu-partida-d [data-onda="q"]').fill('So What');
+        await corpo.locator('details.mu-partida-d').getByRole('button', { name: 'Procurar no Tidal' }).click();
+        const resultado = corpo.locator('details.mu-partida-d .mu-xf li');
+        await resultado.first().waitFor();
+        assert.deepEqual(await resultado.locator('.tx b').allInnerTexts(), ['So What']);
+        await resultado.first().getByRole('button', { name: 'Começar por «So What»' }).click();
+        // a escolhida: um cartão com «Tirar»; o botão passa a criar já
+        const escolhida = corpo.locator('.mu-partida');
+        await escolhida.waitFor();
+        assert.match(await escolhida.innerText(), /Começa por\s+«So What»\s+Miles Davis/);
+        assert.equal(await corpo.locator('details.mu-partida-d').count(), 0);
+        assert.equal(await corpo.locator('[data-onda="pedir"]').innerText(), 'Criar já no Tidal');
+        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^A playlist nasce já no teu Tidal com as parecidas da música de partida\./);
+        assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), texto, 'o texto fica');
+        // «Tirar» volta à escolha; escolhe-se outra vez
+        await escolhida.getByRole('button', { name: 'Não começar por «So What»' }).click();
+        await corpo.locator('details.mu-partida-d').waitFor();
+        assert.equal(await corpo.locator('[data-onda="pedir"]').innerText(), 'Pedir ao Maestro');
+        await corpo.locator('details.mu-partida-d > summary').click();
+        await corpo.locator('details.mu-partida-d').getByRole('button', { name: 'Procurar no Tidal' }).click();
+        await resultado.first().getByRole('button', { name: 'Começar por «So What»' }).click();
+        await escolhida.waitFor();
+        const antes = sim.criadas.length;
+        await corpo.locator('[data-onda="pedir"]').click();
+        await page.locator('#mu-aviso').getByText(/^Já está no teu Tidal\. O Maestro/).waitFor();
+        // a playlist está no Tidal e no cimo da lista, à espera da revisão; o pedido leva o texto
+        assert.equal(sim.criadas.length, antes + 1);
+        const ped = JSON.parse(await env.KV.get('pedidos')).find((x) => x.texto === texto);
+        assert.ok(ped?.afinar?.rever, 'o pedido é uma revisão');
+        const cartao = page.locator('#mu-body .mu-pl', { has: page.locator(`[data-onda="exp\t${ped.afinar.playlist}"]`) });
+        await cartao.waitFor();
+        assert.match(await cartao.innerText(), /Parecidas com So What[\s\S]*o Maestro vai revê-la/);
+        const doc = JSON.parse(await env.KV.get('playlist:' + ped.afinar.playlist));
+        assert.deepEqual([doc.pedido, doc.origem, doc.faixas[0].id], [texto, 'parecidas', '101']);
+        // voltar a «Pedir»: a escolha e a procura ficaram esquecidas
+        await nav(3);
+        await corpo.locator('details.mu-partida-d').waitFor();
+        assert.equal(await corpo.locator('.mu-partida').count(), 0);
+        assert.equal(await corpo.locator('details.mu-partida-d').evaluate((d) => d.open), false);
+        await corpo.locator('details.mu-partida-d > summary').click();
+        assert.equal(await corpo.locator('details.mu-partida-d [data-onda="q"]').inputValue(), '');
+        assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
+        if (SHOTS) { await nav(3); await corpo.locator('details.mu-partida-d > summary').click(); await page.screenshot({ path: path.join(SHOTS, 'pedir-partida.png') }); }
+    } finally { await ctx.close(); }
+});
