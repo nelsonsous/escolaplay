@@ -13,6 +13,10 @@ Kabaz, do KuantoKusta.
 **O formato:** tudo na app, como nas outras três: a app, o conector no Worker e o Claude pela tua subscrição. Não há
 API paga nem bot. O WhatsApp só entra para partilhar a lista ou a ementa no grupo da família.
 
+**O foco** (pedido de quem a vai usar, 14/11/2026): para as compras que se vão fazer, saber em que supermercado fica
+mais barato. As receitas são um bónus e ficam para o fim, porque comprar os ingredientes de uma receita pode sair mais
+caro.
+
 ## A PlanMyMeals a fundo
 
 Pesquisa de 14/11/2026. «Diz o site» quer dizer que a afirmação é da própria app, sem confirmação independente.
@@ -65,7 +69,7 @@ Compras.
 | Não se sabe se a promoção é verdadeira | **Promoção verdadeira?** Mostra o preço mais baixo dos últimos 30 dias, tirado do nosso histórico, ao lado do «antes» da loja (a regra do Decreto-Lei 109-G/2021). Fica fiável ao fim de 30 dias de recolha. |
 | Não se sabe quanto se gastou | **Talões:** com uma fotografia, a app fica a saber o que compraste, quanto pagaste e onde. A despensa e o gasto do mês atualizam-se sozinhos. |
 | A poupança contada pelo «preço antes da promoção» | **Poupança honesta:** compara o que pagaste com o que o mesmo cabaz custaria na tua loja de sempre, no mesmo dia. |
-| Ementas de molde | **A Semana com o Ecónomo:** a ementa nasce das promoções desta semana nas tuas lojas e do que tens na despensa, e respeita quem come e o tempo que há para cozinhar. Trocar um prato é na hora (⇄), como trocar uma faixa na Música. Aprende com o que gostas e com o que compras. |
+| Ementas de molde | **A Semana com o Ecónomo** (bónus, na última volta): a ementa nasce das promoções desta semana nas tuas lojas e do que tens na despensa, e respeita quem come e o tempo que há para cozinhar. Trocar um prato é na hora (⇄), como trocar uma faixa na Música. Aprende com o que gostas e com o que compras. |
 | Uma lista para uma pessoa | **Lista da casa:** partilhada entre telemóveis, abre sem rede na loja e fica arrumada por loja e por corredor. O botão «Partilhar no WhatsApp» manda-a para o grupo da família. |
 
 ## O formato: tudo na app
@@ -77,7 +81,7 @@ conta na Meta e de um número próprio, os avisos pagavam-se à mensagem e as me
 |---|---|
 | «Acabou o azeite» | A app abre do ecrã principal direto na lista. Escreve-se, ou dita-se pelo microfone do teclado, e a IA arruma. No iPhone, um Atalho da Siri («junta azeite à lista») manda o texto ao conector sem abrir a app. No Android, carregar no ícone da app dá «Juntar à lista». |
 | O talão depois das compras | Fotografa-se com a câmara na app. No Android, a fotografia também se pode partilhar da galeria para a app. |
-| Pedir a ementa | Pede-se na Semana, e a app avisa quando o Ecónomo acabar. |
+| Pedir a ementa (bónus) | Pede-se na Semana, e a app avisa quando o Ecónomo acabar. |
 | Avisos de promoções | Chegam como notificações da app, como na Meteo. No iPhone, só com a app adicionada ao ecrã principal. |
 | O grupo da família no WhatsApp | O botão «Partilhar no WhatsApp» manda a lista ou a ementa como texto, pelo WhatsApp de cada pessoa, sem API e sem custo. |
 
@@ -111,6 +115,11 @@ produtos que interessam: os que estão nas listas, nas ementas e nos talões das
 categoria. O cabaz de 63 produtos da DECO é um bom ponto de partida para os testes. São uns poucos milhares de
 produtos, que cabem inteiros no telemóvel (umas centenas de KB por dia). Por isso a pesquisa e o «onde compro»
 funcionam na loja sem rede. Como se recolhe só uma parte pequena de cada catálogo, também baixa o risco legal.
+
+**O índice vem dos mapas do site; os preços, só do que está nas listas.** Os mapas do site do Continente, do Pingo
+Doce, do Auchan e do Lidl trazem o nome de cada produto no endereço («leite-uht-meio-gordo-mimosa-4421406»), e o
+robots.txt deixa lê-los. Chegam para procurar sem a pesquisa dos sites, que o robots.txt fecha. Os preços pedem-se uma
+vez por dia, só para os produtos que estão nas listas das casas.
 
 | Cadeia | De onde | O que a volta 1 provou (14/11/2026) |
 |---|---|---|
@@ -179,15 +188,15 @@ guarda lições sobre cada local.
 | # | O que muda para ti | Por dentro |
 |---|---|---|
 | **1** ✔ | Nada à vista: ficou a saber-se que cadeias entram (tabela «O que cada cadeia deixa»). | O Worker `compras` 0.2.0, publicado em teste, tem `/sonda` e `/sonda/produto`: só com o segredo, só nos domínios das cadeias e só onde o robots.txt deixa. Tem quatro fontes em `proxy/src/fontes/` (Continente, Pingo Doce, Auchan e Lidl), testadas com excertos reais das páginas (23 testes). O ambiente do Claude chega ao Worker (aprovado a 14/11/2026). Nenhuma cadeia que interessava recusou o Worker, por isso não foi preciso abrir sites no ambiente. |
-| **2** | **A lista da casa:** escreves ou ditas como te sai («2 leites, pão») e a IA arruma. Partilha-se com um código e abre sem rede. «Partilhar no WhatsApp» manda a lista para o grupo da família. No iPhone, o Atalho da Siri junta à lista sem abrir a app. Separadores **Lista · Semana · Casa**. | `onda/molde` → `compras/`. Conector 1.0.0: casa, telemóveis e lista com as gravações juntas. Workers AI para ler o texto. O Atalho fala com o conector com a chave do telemóvel. Os atalhos do ícone (Android) ficam no manifesto. Testes de interface no Chromium. |
-| **3** | Cada produto da lista mostra **o preço em cada cadeia**, por kg ou por litro, com a origem e a data. Escolhes «qualquer marca», «marca branca serve» ou «esta marca». | A recolha fica no cron do conector (o universo, aos poucos) e sai o primeiro `ECONOMO.md` (só pares e revisão). O universo fica na base e no telemóvel. Os pares entre cadeias fazem-se pelo código de barras e pelo nome; o resto decide o Ecónomo. |
-| **4** | **Onde compro:** a melhor combinação das tuas lojas, com a deslocação e os cartões. A lista arruma-se por loja e por corredor para ires às compras. | O motor em Onda (`onde.onda`), com testes de paridade em JavaScript. As tuas lojas e os teus cartões ficam na Casa. |
-| **5** | **Talões:** tiras uma fotografia, revês o que a app leu, e ficam o gasto, a loja e o preço real. Os produtos riscam-se da lista e entram na despensa. | `/api/talao` no conector, com uma IA que lê imagens; se não chegar, o talão vai ao Ecónomo. O QR da fatura confere a loja, a data e o total, onde o telemóvel o lê. O NIF de quem compra nunca se guarda. Cada linha confirmada ensina um nome de talão («LT UHT MG MIM 1L»). |
-| **6** | **Folhetos e promoções para ti:** o que está em promoção nas tuas lojas, entre o que costumas comprar, com avisos no telemóvel. | O Ecónomo lê os folhetos do Lidl e do Aldi (e os das outras, se as lojas online não chegarem). As promoções têm validade. Os avisos usam o `push.js` como na Meteo e o cron do conector. |
-| **7** | **Promoção verdadeira?** e o gráfico do preço de cada produto. Podes pedir um aviso quando o azeite baixar de X. | Histórico na base (só as mudanças). A regra dos 30 dias fica no motor. O gráfico usa o `onda/lib/grafico.onda`. |
-| **8** | **A Semana:** dizes quem come, o orçamento e o tempo, e a ementa nasce das promoções e da despensa. ⇄ troca um prato na hora e a lista sai feita, com as quantidades certas. Podes importar uma receita por link ou por fotografia. | Pedido → rascunho na hora (Workers AI) → revisão do Ecónomo, também na hora (gatilho «API»). A app avisa quando a ementa estiver pronta, e «Partilhar no WhatsApp» manda-a para o grupo da família. O Ecónomo deixa 2 ou 3 pratos de reserva por refeição, para o ⇄ não precisar dele. Cada 👍/👎 num prato vira lição. |
-| **9** | **A despensa:** o que tens, o que está a acabar (entra sozinho na lista) e o que está a passar do prazo, mais «o que faço com o que tenho». | O ritmo de cada produto sai dos talões (motor). Os prazos são opcionais. O pedido «com o que tenho» vai ao Ecónomo. |
-| **10** | **A poupança honesta** do mês, e tudo revisto. | O painel compara o que pagaste com o mesmo cabaz na tua loja de sempre. Auditoria e limpeza: sem funções por usar, sem marcas nos textos onde não é preciso, documentação conferida com o que a app faz. Notas para a loja da Apple, se a app for para o público. |
+| **2** | **A lista da casa:** escreves ou ditas como te sai («2 leites, pão») e a IA arruma. Para cada coisa, a app mostra os produtos parecidos em cada cadeia, e escolhes «este», «qualquer marca» ou «marca branca serve». Partilha-se com um código e abre sem rede. «Partilhar no WhatsApp» manda a lista para o grupo da família. Separadores **Lista · Mais barato · Casa**. | `onda/molde` → `compras/`. Conector 1.0.0: casa, telemóveis e lista com as gravações juntas. O Ecónomo faz o índice para procurar a partir dos mapas do site das cadeias, e o índice fica guardado no telemóvel. Workers AI para ler o texto. Testes de interface no Chromium. |
+| **3** | **Mais barato:** o total da tua lista em cada supermercado (Continente, Pingo Doce, Auchan e, onde houver preço, Lidl), com o que falta em cada um à vista. Por baixo, diz se compensa dividir por duas lojas e quanto se poupa. A lista arruma-se pela loja escolhida. | O cron do conector pede uma vez por dia os preços dos produtos que estão nas listas, com as quatro fontes da volta 1. O motor em Onda (`onde.onda`) faz as contas no telemóvel, com testes de paridade em JavaScript. Um cabaz só é «o mais barato» quando há preço para quase tudo. |
+| **4** | **Trocas que poupam:** para cada produto, o equivalente mais barato noutra marca ou na marca branca («a marca branca do Pingo Doce custa menos 0,40 €»), e o preço por kg ou por litro para comparar embalagens diferentes. | O Ecónomo junta os produtos iguais e os equivalentes entre cadeias: pelo código de barras quando há, pelo nome e pela embalagem no resto. Sai o primeiro `ECONOMO.md`. |
+| **5** | **Promoções no que costumas comprar:** o que da tua lista está em promoção, em que loja e até quando, com aviso no telemóvel. | As promoções vêm das páginas (Continente, Pingo Doce, Auchan) e dos folhetos do Lidl e do Aldi, lidos pelo Ecónomo. Os avisos usam o `push.js` como na Meteo e o cron do conector. |
+| **6** | **Promoção verdadeira?** e o gráfico do preço de cada produto. Podes pedir um aviso quando o azeite baixar de X. | Histórico na base (só as mudanças). A regra dos 30 dias fica no motor. O gráfico usa o `onda/lib/grafico.onda`. |
+| **7** | **Talões:** tiras uma fotografia, revês o que a app leu, e ficam o gasto, a loja e o preço real. É assim que entram a Mercadona, o Intermarché e o preço de cada loja física. | `/api/talao` no conector, com uma IA que lê imagens; se não chegar, o talão vai ao Ecónomo. O QR da fatura confere a loja, a data e o total, onde o telemóvel o lê. O NIF de quem compra nunca se guarda. Cada linha confirmada ensina um nome de talão («LT UHT MG MIM 1L»). |
+| **8** | **A poupança honesta** do mês: o que pagaste contra o que a mesma lista custaria na tua loja de sempre. | O painel sai dos talões e das listas. |
+| **9** | **A despensa** (opcional): o que está a acabar entra sozinho na lista. | O ritmo de cada produto sai dos talões (motor). Os prazos são opcionais. |
+| **10** | **Receitas, o bónus:** ementas feitas com o que está mais barato nessa semana e com o que já há em casa, com o custo de cada prato à vista, para não sair mais caro. E tudo revisto. | Pedido → rascunho na hora (Workers AI) → revisão do Ecónomo (gatilho «API»). O Ecónomo escolhe os pratos pelos preços da semana e o motor soma o custo. Auditoria e limpeza: sem funções por usar, documentação conferida com o que a app faz. |
 
 ## O que precisa de ti
 
@@ -196,8 +205,9 @@ guarda lições sobre cada local.
 | Escolher o nome (Compras?) | antes da volta 2 |
 | ✔ Feito a 14/11/2026: o OK para publicar o Worker `compras` em teste, e o acesso do ambiente ao endereço dele (`compras.mercados-proxy.workers.dev`) | volta 1 |
 | Dar ao token da Cloudflare a permissão D1 (Edit) | volta 2 ou 3 |
-| Criar a tarefa do Ecónomo em `claude.ai/code/routines` e o gatilho «API». Os segredos `ECONOMO_FIRE_URL` e `ECONOMO_TOKEN` ficam no Worker, como na Música | volta 3 |
-| Dizer as tuas lojas e os teus cartões, e dar uns talões reais para os testes | voltas 4 e 5 |
+| Criar a tarefa do Ecónomo em `claude.ai/code/routines` e o gatilho «API». Os segredos `ECONOMO_FIRE_URL` e `ECONOMO_TOKEN` ficam no Worker, como na Música | volta 2 |
+| Dizer as tuas lojas e os teus cartões | volta 3 |
+| Dar uns talões reais para os testes | volta 7 |
 | Decidir se a app fica para a casa e os convidados ou vai para o público. Para o público é preciso um parecer jurídico sobre a recolha de preços e, provavelmente, a API do Claude | antes de abrir |
 
 ## Riscos
