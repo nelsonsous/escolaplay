@@ -16,7 +16,7 @@ import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { selectPlaces, isOwnerPlace, placeOwner, placeMembers, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
 import { mergeMemory } from '../lib/learn.js';
 import { verifyNumbers, claudeWeights, numbersReport } from '../lib/nums.js';
-import { WORKER, getJSON, kvGet, kvPut as kvPutReal, kvList, arg } from './comum.mjs';
+import { WORKER, getJSON, kvGet, kvPut as kvPutReal, kvList, kvDelete as kvDeleteReal, arg } from './comum.mjs';
 
 const DRY = process.argv.includes('--sem-gravar');
 const kvPut = DRY ? async () => {} : kvPutReal;
@@ -43,7 +43,15 @@ const all = (await kvGet('places')) || [];
 const settings = (await kvGet('settings').catch(() => null)) || {};
 const guestIds = [...new Set((Array.isArray(all) ? all : []).filter((p) => p && !isOwnerPlace(p)).flatMap((p) => [placeOwner(p), ...placeMembers(p)]))];
 const devices = Object.fromEntries(await Promise.all(guestIds.map(async (id) => [id, await kvGet('dev:' + id).catch(() => null)])));
-const plan = selectPlaces(all, { devices, others: othersMode(settings) });
+// pedidos da app (want:<id>, ao abrir a app com a análise com mais de 6 h, ou «Analisar agora»): se os há, a corrida é só
+// para esses locais, e o pedido sai (fica feito); sem pedidos (corrida às horas marcadas ou à mão), todos como antes
+const wantIds = (await kvList('want:').catch(() => [])).map((k) => k.slice(5));
+const wanted = wantIds.length ? new Set(wantIds) : null;
+const plan = selectPlaces(all, { devices, others: othersMode(settings), wanted });
+if (wanted) {
+    console.log(`Pedidos da app: ${wantIds.join(', ')}.`);
+    if (!DRY) for (const p of plan.run) await kvDeleteReal('want:' + p.id).catch(() => {});
+}
 const places = plan.run;
 console.log(`Análise dos outros: ${OTHERS[plan.others]} · corrida ${plan.morning ? 'da manhã' : 'da tarde ou da noite'} (${lisbon().hour} h em Lisboa) · ` +
     `${places.length} local(is) a analisar (máx. ${ANALYSED_MAX}; os do dono nunca ficam de fora).`);

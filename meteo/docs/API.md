@@ -302,8 +302,10 @@ arredondados (~1 km). Um local desligado não tem análise.
 ```jsonc
 { "analysis": { /* ver "Análise" abaixo */ } | null,
   "place": { "id": "casa-k2m9xq", "name": "Casa", "lat": 38.72, "lon": -9.14, "distanceKm": 0.3, "mine": true, "kind": "guest" } | null,
-  "ageMin": 95, "schedule": ["07:34", "17:34"],
-  "onDemand": false, // há chave da API e quem pede a pode usar (o dono; os outros só com a análise dos outros "on")
+  "ageMin": 95, "schedule": ["07:34", "17:34"], // [] com a análise na hora (1.9)
+  "onOpen": { "staleH": 6 } | null, // a análise na hora (1.9, segredos METEO_FIRE_URL e METEO_TOKEN): ao abrir a app
+  "refreshing": false, // true: a análise deste local está a ser feita (a tarefa foi chamada agora ou há pedido à espera)
+  "onDemand": false, // há chave da API (ou a análise na hora) e quem pede a pode usar (o dono; os outros só com "on")
   "others": "on" }   // análise dos outros: on | 1x | off
 ```
 
@@ -346,7 +348,11 @@ selecionado, avisa e oferece «Mudar a análise diária para este ponto» (`PATC
 
 ## POST /api/analysis/refresh?lat=..&lon=..
 
-Análise imediata pela API do Claude (só se o Worker tiver `ANTHROPIC_API_KEY`). 200 `{ "analysis": {…} }`,
+Análise imediata pela API do Claude (só se o Worker tiver `ANTHROPIC_API_KEY`). Sem a chave mas com a análise na hora
+(1.9): chama a tarefa para o local de quem pede (o seu, com a análise ligada, ≤ 10 km) → 202 `{ "queued": true, "busy":
+false, "etaMin": 8, "place": {…} }` (busy: há uma corrida a decorrer; esta vem a seguir), 409 `sem_local`, 429 `limite`
+(análise com menos de 30 min, ou 4 corridas na última hora / 12 no dia). Os pedidos ficam em KV `want:<id>` (3 h; a
+tarefa apaga-os ao analisar) e as chamadas em `fire:calls`. Com a chave: 200 `{ "analysis": {…} }`,
 503 `{ "error": "sem_chave" }`, 429 `{ "error": "limite" }` (máx. 1 por ponto a cada 30 min, 20 por dia ao todo),
 403 `dispositivo` (sem identidade) ou `convidados_desligados` (a análise dos outros não está "on": só o dono).
 Recebe o resumo do ponto e 3 imagens (cor natural de perto ~280 km e a ~1200 km, massas de ar). Fica como análise de um
@@ -413,7 +419,7 @@ O primeiro pedido da app ao abrir (regista o telemóvel; os outros pedidos esper
 
 ```jsonc
 { "version": "1.4.0", "onDemand": false, "places": 1, // locais ligados que quem pede vê
-  "schedule": ["07:34","17:34"],
+  "schedule": ["07:34","17:34"], "onOpen": null, // com a análise na hora: schedule [] e onOpen { "staleH": 6 }
   "device": true, "owner": false, "ownerCode": "ok" | "errado" | "sem_codigo", // ownerCode só com x-meteo-owner
   "others": "on", "limit": 1 }                                                // limit = locais por telemóvel (dono: null)
 ```

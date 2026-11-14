@@ -13,7 +13,7 @@ import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.8.3';
+const VERSION = '1.9.0';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -45,6 +45,7 @@ export default {
     // de 15 em 15 min (wrangler.toml → [triggers]): envia as notificações do fim do dia que chegaram à hora
     async scheduled(event, env, ctx) {
         ctx.waitUntil(runPush(env, event?.scheduledTime || Date.now()).catch((e) => console.error('notificações', e)));
+        ctx.waitUntil(watchWants(env).catch((e) => console.error('análise na hora', e)));
     },
 };
 
@@ -107,7 +108,7 @@ async function route(req, env, ctx, url) {
         return json((await env.KV.get('obs:' + id, 'json')) || [], 200, { 'cache-control': 'public, max-age=600' });
     }
     // --- análises, locais e avisos: dependem de quem pede (cabeçalhos x-meteo-device / x-meteo-owner) ---
-    if (m === 'GET' && p === '/api/analysis') return getAnalysis(req, env, url);
+    if (m === 'GET' && p === '/api/analysis') return getAnalysis(req, env, url, ctx);
     if (m === 'GET' && p === '/api/learning') return getLearning(req, env, url);
     if (m === 'GET' && p === '/api/push/key') return pushKey(env);
     if (p === '/api/push') {
@@ -513,9 +514,68 @@ async function listReports(req, env, url) {
 // Só para o telemóvel do local (ou o dono): o local em uso de quem pede mais perto (≤ 10 km) — nunca a de outras pessoas
 // por estar perto. A análise imediata feita fora dos seus locais fica só para esse telemóvel (analysis:dev:<id>, 24 h).
 const adhocKey = (id) => `analysis:dev:${id}`;
-const onDemandFor = (env, me, mode) => !!env.ANTHROPIC_API_KEY && (me.owner || mode === 'on');
+const onDemandFor = (env, me, mode) => (!!env.ANTHROPIC_API_KEY || onOpenOn(env)) && (me.owner || mode === 'on');
 
-async function getAnalysis(req, env, url) {
+// ---------- a análise na hora: ao abrir a app (1.9.0) ----------
+// Com os segredos METEO_FIRE_URL e METEO_TOKEN no Worker (o endereço e o token do gatilho «API» da tarefa da análise,
+// criados em claude.ai/code/routines — nunca no código), abrir a app com a análise do seu local com mais de 6 h chama a
+// tarefa: fica pronta em ~7 min, para a vez seguinte; sem abrir a app, não há análise (decisão do dono: sem horas
+// marcadas). «Analisar agora» também a chama. Sem os segredos, nada muda (as corridas às horas marcadas).
+// Cada corrida gasta da subscrição do Claude: uma de cada vez (15 min), no máximo 4 por hora e 12 por dia; o texto da
+// chamada é fixo (só os ids dos locais). O pedido fica em want:<id> (3 h): a tarefa analisa só esses e apaga-os; um
+// pedido que fique para trás (corrida a decorrer) é chamado pela vigia do cron (de 15 em 15 min, até 2 vezes).
+const FIRE_URL = /^https:\/\/api\.anthropic\.com\/v1\/claude_code\/routines\/[A-Za-z0-9_-]+\/fire$/;
+export const ON_OPEN = { staleH: 6, runMin: 15, maxHour: 4, maxDay: 12, wantTtl: 3 * 3600, maxFires: 2 };
+const onOpenOn = (env) => !!(env.METEO_TOKEN && FIRE_URL.test(env.METEO_FIRE_URL || ''));
+const scheduleFor = (env) => (onOpenOn(env) ? [] : SCHEDULE);
+const onOpenView = (env) => (onOpenOn(env) ? { staleH: ON_OPEN.staleH } : null);
+async function fireState(env, now) {
+    const calls = ((await env.KV.get('fire:calls', 'json')) || []).filter((x) => now - x < 864e5);
+    return { calls, busy: calls.some((x) => now - x < ON_OPEN.runMin * 6e4), full: calls.filter((x) => now - x < 36e5).length >= ON_OPEN.maxHour || calls.length >= ON_OPEN.maxDay };
+}
+// chama a tarefa (regista primeiro: duas aberturas quase ao mesmo tempo não dão duas corridas; um token revogado não é
+// martelado)
+async function fireAnalysis(env, ids, why, state) {
+    const now = Date.now(), st = state || (await fireState(env, now));
+    if (st.busy || st.full) return { fired: false, busy: st.busy, full: st.full };
+    await env.KV.put('fire:calls', JSON.stringify([...st.calls, now]));
+    const r = await fetch(env.METEO_FIRE_URL, { method: 'POST', headers: { authorization: `Bearer ${env.METEO_TOKEN}`,
+        'anthropic-beta': 'experimental-cc-routine-2026-04-01', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ text: `Corrida pedida pela app Meteo (${why}): ${ids.join(', ')}.` }) }).catch(() => null);
+    if (!r?.ok) console.error('análise na hora', r?.status);
+    return { fired: !!r?.ok, busy: false, full: false };
+}
+// pede a análise de um local: o pedido fica em want:<id> (antes de chamar, para a tarefa o ver) e a tarefa é chamada se
+// não houver uma a decorrer
+async function wantAnalysis(env, place, why) {
+    const key = 'want:' + place.id, now = Date.now();
+    const [old, state] = await Promise.all([env.KV.get(key, 'json'), fireState(env, now)]);
+    const go = !state.busy && !state.full;
+    await env.KV.put(key, JSON.stringify({ at: old?.at || new Date(now).toISOString(), why, fires: (old?.fires || 0) + (go ? 1 : 0) }), { expirationTtl: ON_OPEN.wantTtl });
+    return go ? fireAnalysis(env, [place.id], why, state) : { fired: false, busy: state.busy, full: state.full };
+}
+// a análise deste local está velha (mais de 6 h)? Os locais dos outros seguem a «análise dos outros» do dono
+// (desligada: nunca; 1× por dia: só se a última for de outro dia, hora de Lisboa)
+function stale(a, p, mode, now = Date.now()) {
+    const at = Date.parse(a?.generatedAt || '') || 0;
+    if (now - at < ON_OPEN.staleH * 36e5) return false;
+    if (!isOwnerPlace(p) && (mode === 'off' || (mode === '1x' && at && lisbon(at).date === lisbon(now).date))) return false;
+    return true;
+}
+// a vigia (cron): pedidos com mais de 15 min que a tarefa ainda não levou, com menos de 2 chamadas → chama outra vez
+export async function watchWants(env, now = Date.now()) {
+    if (!onOpenOn(env) || !env.KV) return null;
+    const keys = (await env.KV.list({ prefix: 'want:' })).keys.map((k) => k.name);
+    if (!keys.length) return null;
+    const late = (await Promise.all(keys.map(async (k) => [k, await env.KV.get(k, 'json')])))
+        .filter(([, w]) => w && (w.fires || 0) < ON_OPEN.maxFires && now - Date.parse(w.at) > ON_OPEN.runMin * 6e4);
+    if (!late.length) return null;
+    const f = await fireAnalysis(env, late.map(([k]) => k.slice(5)), 'pedido que ficou para trás');
+    if (f.fired) await Promise.all(late.map(([k, w]) => env.KV.put(k, JSON.stringify({ ...w, fires: (w.fires || 0) + 1 }), { expirationTtl: ON_OPEN.wantTtl })));
+    return f;
+}
+
+async function getAnalysis(req, env, url, ctx) {
     const c = coords(url.searchParams);
     if (!c) return bad('coordenadas inválidas');
     const me = await who(req, env, url);
@@ -523,14 +583,23 @@ async function getAnalysis(req, env, url) {
     const [places, mode] = await Promise.all([getPlaces(env), getSettings(env).then(othersMode)]);
     const near = nearestOf(me, places, c.lat, c.lon, 10);
     let analysis = near && env.KV ? await env.KV.get('analysis:' + near.p.id, 'json') : null;
+    // ao abrir a app: a análise do seu local com mais de 6 h → chama a tarefa (fica pronta para a vez seguinte)
+    let refreshing = false;
+    if (onOpenOn(env) && near && env.KV && mine(me, near.p) && !near.p.off) {
+        if (stale(analysis, near.p, mode)) {
+            refreshing = true;
+            const job = wantAnalysis(env, near.p, 'ao abrir a app').catch((e) => console.error('análise na hora', e));
+            if (ctx?.waitUntil) ctx.waitUntil(job); else await job;
+        } else refreshing = !!(await env.KV.get('want:' + near.p.id));
+    }
     // a de um local de outro telemóvel (só o dono a vê): sem as coordenadas exatas
     if (analysis?.place && !mine(me, near.p)) analysis = { ...analysis, place: { ...analysis.place, lat: approx(analysis.place.lat), lon: approx(analysis.place.lon) } };
     // análise imediata deste telemóvel para este ponto (≤ 2 km), fora dos seus locais: mostra-se se for mais recente
     const adhoc = me.id && env.KV ? await env.KV.get(adhocKey(me.id), 'json') : null;
     if (adhoc?.place && distKm(c.lat, c.lon, adhoc.place.lat, adhoc.place.lon) <= 2 && (!analysis || Date.parse(adhoc.generatedAt) > Date.parse(analysis.generatedAt))) analysis = adhoc;
     const ageMin = analysis?.generatedAt ? Math.round((Date.now() - Date.parse(analysis.generatedAt)) / 6e4) : null;
-    return json({ analysis: analysis || null, place: near ? placeView(me, near.p, { distanceKm: r1(near.d) }) : null, ageMin, schedule: SCHEDULE,
-        onDemand: onDemandFor(env, me, mode), others: mode }, 200);
+    return json({ analysis: analysis || null, place: near ? placeView(me, near.p, { distanceKm: r1(near.d) }) : null, ageMin, schedule: scheduleFor(env),
+        onOpen: onOpenView(env), refreshing, onDemand: onDemandFor(env, me, mode), others: mode }, 200);
 }
 
 // Memória da aprendizagem (lib/learn.js) do local deste telemóvel mais perto do ponto (≤ 3 km), que a tarefa agendada
@@ -648,7 +717,7 @@ async function status(req, env, url) {
     const me = await who(req, env, url);
     if (me.error) return me.error;
     const [places, mode] = await Promise.all([getPlaces(env), getSettings(env).then(othersMode)]);
-    return json({ version: VERSION, onDemand: onDemandFor(env, me, mode), places: places.filter((p) => !p.off && canSee(me, p)).length, schedule: SCHEDULE,
+    return json({ version: VERSION, onDemand: onDemandFor(env, me, mode), places: places.filter((p) => !p.off && canSee(me, p)).length, schedule: scheduleFor(env), onOpen: onOpenView(env),
         device: !!me.id, ...(me.id ? { id: shortId(me.id), name: me.name || null } : {}), owner: me.owner, ...(me.code ? { ownerCode: me.code } : {}), others: mode, limit: me.owner ? null : GUEST_MAX });
 }
 
@@ -717,7 +786,26 @@ async function settings(req, env, url) {
 }
 
 // ---------- análise imediata pela API do Claude (opcional: precisa do segredo ANTHROPIC_API_KEY) ----------
+async function refreshByTask(req, env, url) {
+    if (!trusted(req, env, url)) return notTrusted();
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!me.id && !me.owner) return noDevice();
+    const mode = othersMode(await getSettings(env));
+    if (!me.owner && mode !== 'on') return json({ error: 'convidados_desligados', message: 'Pedir a análise está, por agora, só disponível para o dono da app.' }, 403);
+    const c = coords(url.searchParams);
+    if (!c) return bad('coordenadas inválidas');
+    const near = nearestOf(me, await getPlaces(env), c.lat, c.lon, 10);
+    if (!near || !mine(me, near.p) || near.p.off) return json({ error: 'sem_local', message: 'Pedir a análise é para o teu local com análise ligada: liga-a primeiro (Análise → «Análise para este local»).' }, 409);
+    const a = await env.KV.get('analysis:' + near.p.id, 'json');
+    if (a?.generatedAt && Date.now() - Date.parse(a.generatedAt) < 30 * 6e4) return json({ error: 'limite', message: 'A análise deste local tem menos de 30 min.' }, 429);
+    const f = await wantAnalysis(env, near.p, 'pedida na app');
+    if (f.full) return json({ error: 'limite', message: 'Já se pediram muitas análises nesta hora; tenta mais tarde.' }, 429);
+    return json({ queued: true, busy: !!f.busy, etaMin: 8, place: placeView(me, near.p, { distanceKm: r1(near.d) }) }, 202);
+}
 async function refresh(req, env, url) {
+    // sem a chave da API mas com a análise na hora: «Analisar agora» chama a tarefa para o local de quem pede
+    if (!env.ANTHROPIC_API_KEY && onOpenOn(env)) return refreshByTask(req, env, url);
     if (!env.ANTHROPIC_API_KEY) return json({ error: 'sem_chave', message: 'A análise imediata não está disponível (falta a chave da API no conector). As análises diárias continuam a funcionar.' }, 503);
     if (!trusted(req, env, url)) return notTrusted();
     const me = await who(req, env, url);

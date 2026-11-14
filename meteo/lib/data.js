@@ -368,7 +368,8 @@ export async function requestAnalysis(fc, { base = PROXY, det, reports, headers 
         method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ summary, name: fc.location.name }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.message || 'A análise imediata não está disponível.');
-    return j.analysis;
+    // com a análise na hora (sem chave da API no conector) a tarefa é chamada: a análise chega daqui a uns minutos
+    return j.queued ? { queued: true, busy: !!j.busy } : j.analysis;
 }
 
 export { buildSummary, perModelTable };
