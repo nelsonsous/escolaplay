@@ -56,7 +56,7 @@ function fonte(s, d, x, i) {
     }
     if (x.f === 'noticias') por = s.nc ? 'lidas pelo Claude' : e(s.nn) ? `${Math.trunc(s.nn)} ${Math.trunc(s.nn) === 1 ? 'título' : 'títulos'} recentes` : '';
     if (x.f === 'fundamentos') por = [e(f.fun.pe) && f.fun.pe > 0 ? `P/E ${pt1.format(f.fun.pe)}` : '', e(f.fun.cr) ? `vendas ${pc(f.fun.cr, true)}` : '', e(f.fun.mg) ? `margem ${pc(f.fun.mg, false)}` : ''].filter(Boolean).join(' · ');
-    if (x.f === 'sentimento') por = fg ? `Fear &amp; Greed ${Math.round(sv) || 0} de 100${x.fam > 0 ? ' · com medo compra-se melhor' : x.fam < 0 ? ' · com ganância compra-se pior' : ''}` : `VIX ${Math.round(sv)}`;
+    if (x.f === 'sentimento') por = fg ? `Medo e ganância ${Math.round(sv) || 0} (0 = pânico, 100 = euforia)${x.fam > 0 ? ' · com medo os preços costumam estar em baixo: bom para comprar' : x.fam < 0 ? ' · com euforia os preços costumam estar em cima: mau para comprar' : ''}` : `VIX ${Math.round(sv)}`;
     return `<li class="d${x.d > 0 ? 1 : x.d < 0 ? 2 : 0}"><div class="dec-r"><b>${NOME[x.f]}</b><span class="dec-l ${tom(x.fam)}-t">${diz}</span><em>${lado}</em></div><div class="dec-s">${barra(x.p)}<small>${por}</small></div></li>`;
 }
 // o porquê de o Claude discordar mostra-se quando ele manda e há quem esteja contra (ou a técnica ficou ao lado)
@@ -156,7 +156,7 @@ test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
         assert.ok(fechado(h), `caso ${i}: etiquetas por fechar`);
         assert.ok(!/<img|<u>|<i>1/.test(h), `caso ${i}: HTML de fora por escapar`);
         const d = O.decisao(s.d);
-        conta[d.manda]++; conta.niveis += /cl-lv/.test(h); conta.agenda += /adv-ev/.test(h); conta.contra += d.contra > 0; conta.lado += d.favor + d.contra < d.n; conta.acordo += d.n > 1 && d.favor === d.n; conta.uma += d.n === 1; conta.discorda += /Porque discorda d[oa]s? /.test(h); conta.calado += !!s.algWhy && !/Porque discorda/.test(h); conta.fundamentos += />Fundamentos</.test(h); conta.medo += /Fear &amp; Greed/.test(h); conta.vix += /<small>VIX /.test(h);
+        conta[d.manda]++; conta.niveis += /cl-lv/.test(h); conta.agenda += /adv-ev/.test(h); conta.contra += d.contra > 0; conta.lado += d.favor + d.contra < d.n; conta.acordo += d.n > 1 && d.favor === d.n; conta.uma += d.n === 1; conta.discorda += /Porque discorda d[oa]s? /.test(h); conta.calado += !!s.algWhy && !/Porque discorda/.test(h); conta.fundamentos += />Fundamentos</.test(h); conta.medo += /Medo e ganância \d/.test(h); conta.vix += /<small>VIX /.test(h);
         conta.mudou += />Mudou /.test(h); conta.desde += /"dec-desde">Desde /.test(h); conta.ha += / \(há \d+ dias\)/.test(h); conta.novo += /dec-desde novo/.test(h); conta.antes += / · antes: [A-Z]/.test(h); conta.cat += /Catalisador:/.test(h); conta.risco += /Risco:/.test(h); conta.lidas += /lidas pelo Claude/.test(h);
     }
     for (const [nome, v] of Object.entries(conta)) assert.ok(v >= CASOS / 100, `poucos casos de ${nome}: ${v}`);
@@ -186,7 +186,7 @@ test('casos lidos à mão', () => {
     // cripto que tenho: o Claude diz esperar; o medo extremo do mercado fica ao lado, a puxar para comprar
     const c = O.ecra.decisao({ d: { cl: { key: 'wait', short: 40, mid: 50, long: 60 }, tec: { key: 'neutral', short: 50, mid: 50, long: 50 }, sent: { fg: 12 } }, own: true });
     assert.match(c, /<div class="adv-act flat-t">Manter<\/div><span class="dec-conf c2">confiança alta<\/span>/);
-    assert.match(c, /<b>Sentimento<\/b><span class="dec-l up-t">medo extremo<\/span><em>ao lado<\/em>.*<small>Fear &amp; Greed 12 de 100 · com medo compra-se melhor<\/small>/);
+    assert.match(c, /<b>Sentimento<\/b><span class="dec-l up-t">medo extremo<\/span><em>ao lado<\/em>.*<small>Medo e ganância 12 \(0 = pânico, 100 = euforia\) · com medo os preços costumam estar em baixo: bom para comprar<\/small>/);
     // o que o Claude acrescenta: desde quando, o que dizia antes, o catalisador, o risco e as notícias lidas por ele
     const base = { d: { cl: { key: 'buy', short: 60, mid: 70, long: 80 }, news: 0.4 }, own: false, why: 'Porquê.', plan: 'Plano.', nn: 5 };
     const linhas = (x) => O.ecra.decisao({ ...base, ...x }).replace(/<[^>]+>/g, '|').replace(/\|+/g, '|');

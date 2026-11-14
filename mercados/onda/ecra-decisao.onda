@@ -86,7 +86,8 @@
   Se == q 4 dv_fun d.fun
   Se == q 5 {
     = c d.sent
-    ? ln_fin c.fg `Fear &amp; Greed { _nu_ps _nu_round num c.fg } de 100{ Se > f 0 " · com medo compra-se melhor" }{ Se < f 0 " · com ganância compra-se pior" }`
+    # lê-se ao contrário: com medo os preços estão em baixo (bom para comprar); com euforia, em cima
+    ? ln_fin c.fg `Medo e ganância { _nu_ps _nu_round num c.fg } (0 = pânico, 100 = euforia){ Se > f 0 " · com medo os preços costumam estar em baixo: bom para comprar" }{ Se < f 0 " · com euforia os preços costumam estar em cima: mau para comprar" }`
       `VIX { _nu_ps _nu_round num c.vix }` }
   `</small></div></li>` }
 
