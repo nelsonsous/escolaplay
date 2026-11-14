@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.23.0';
+const VERSION = '1.25.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -603,6 +603,8 @@ async function guardar(env, c, quem) {
         ...(Array.isArray(c.capas) && c.capas.some((u) => /^https:\/\//.test(u)) ? { capas: c.capas.filter((u) => /^https:\/\//.test(u)).slice(0, 4).map((u) => txt(u, 300)) } : {}),
         // de onde vem, quando não é do Maestro nem de um pedido: as parecidas do Tidal («Mais como esta») ou juntada
         ...(c.origem === 'parecidas' || c.origem === 'juntar' ? { origem: c.origem } : {}),
+        // as parecidas: a lista tal como o Tidal a fez fica guardada, para se comparar com a revisão do Maestro
+        ...(c.origem === 'parecidas' ? { doTidal: listaDoTidal(faixas) } : {}),
         // à antiga (o Maestro já não as faz: cada pedido dá uma playlist, logo no Tidal): uma de várias propostas para
         // o mesmo pedido, que fica só na app até a pessoa a pôr no Tidal
         ...(c.rascunho === true ? { rascunho: true, grupo: txt(c.grupo, 40), variante: txt(c.variante, 40) } : {}),
@@ -640,6 +642,12 @@ async function juntar(env, c, quem) {
         resumo: 'Uma faixa de cada playlist, à vez, sem repetidas. Afina no telemóvel para mudar a ordem ou a escolha.', faixas, candidatas: candidatas.slice(0, 200),
         opcoes: { ...docs[0].opcoes, faixas: Math.min(faixas.length, 200) }, capas: docs.map((d) => d.capas?.[0]).filter(Boolean), origem: 'juntar', tidal: true }, quem);
 }
+// a lista do Tidal (as parecidas, pela ordem dele): o essencial de cada faixa, para a mostrar e ouvir depois de o Maestro
+// a rever (a playlist passa a ser a dele, no mesmo link; as candidatas também)
+const listaDoTidal = (faixas, em = new Date().toISOString()) => ({ em, faixas: faixas.slice(0, 60).map((f) => ({ id: String(f.id), titulo: f.titulo, ...(f.versao ? { versao: f.versao } : {}),
+    artistas: f.artistas || [], album: f.album || '', ano: f.ano || 0, duracao: f.duracao || 0, ...(f.isrc ? { isrc: f.isrc } : {}) })) });
+// as do Tidal que já não estão na playlist (as que o Maestro tirou ao rever, ou tu)
+const foraDoTidal = (d) => { const ja = new Set(d.faixas.map((f) => String(f.id))); return (d.doTidal?.faixas || []).filter((f) => !ja.has(String(f.id))); };
 const resumoDe = (d) => ({ id: d.id, nome: d.nome, criadaEm: d.criadaEm, por: d.por, faixas: d.faixas.length,
     duracao: d.faixas.reduce((s, f) => s + (f.duracao || 0), 0), tidal: d.tidal?.url || null,
     ...(d.renovar ? { renovar: true, renovadaEm: d.renovadaEm || null } : {}), ...(d.afinadaEm ? { afinadaEm: d.afinadaEm } : {}), ...(d.revistaEm ? { revistaEm: d.revistaEm } : {}),
@@ -836,7 +844,8 @@ const MAX_PREVIAS = 40; // pedidos ao Deezer por chamada (o plano gratuito deixa
 // Se a KV recusar escritas (limite do dia), responde na mesma: só não guarda.
 async function previas(env, id) {
     const d = await obter(env, id);
-    const fx = d.faixas.slice(0, 100);
+    // as da playlist primeiro (o mosaico é só delas); depois as do Tidal que saíram
+    const daLista = d.faixas.slice(0, 100), fx = [...daLista, ...foraDoTidal(d).slice(0, 40)];
     const agora = Math.floor(Date.now() / 1000);
     const guarda = (k, v, o) => env.KV.put(k, v, o).catch(() => {});
     // as capas: as da playlist; as que faltam, das chaves antigas por faixa (só leitura) e depois do Tidal
@@ -844,8 +853,7 @@ async function previas(env, id) {
     for (const f of fx) if (d.capasF?.[f.id] !== undefined) capasF[f.id] = d.capasF[f.id];
     const semCapa = fx.filter((f) => capasF[f.id] === undefined);
     await Promise.all(semCapa.map(async (f) => { const c = await env.KV.get('capa:t:' + f.id); if (c) capasF[f.id] = c; }));
-    const doTidal = await capasTidal(env, fx.filter((f) => capasF[f.id] === undefined)).catch(() => ({}));
-    Object.assign(capasF, doTidal);
+    Object.assign(capasF, await capasTidal(env, fx.filter((f) => capasF[f.id] === undefined)).catch(() => ({})));
     // as pré-escutas: uma chave por playlist; vão ao Deezer só as que faltam (e as capas que o Tidal não tem)
     const kp = 'previas:p:' + d.id;
     const antes = (await env.KV.get(kp, 'json')) || {};
@@ -868,7 +876,7 @@ async function previas(env, id) {
     const out = {}, capas = {};
     for (const f of fx) { if (pv[f.id]) out[f.id] = pv[f.id]; if (capasF[f.id]) capas[f.id] = capasF[f.id]; }
     // a playlist (e o índice, para o mosaico) só se escreve quando algo mudou
-    const albuns = [...new Set(fx.map((f) => capas[f.id]).filter(Boolean))];
+    const albuns = [...new Set(daLista.map((f) => capas[f.id]).filter(Boolean))];
     const mosaico = albuns.length >= 4 ? albuns.slice(0, 4).map(capaPequena) : albuns.slice(0, 1);
     const novoMosaico = mosaico.length && JSON.stringify(mosaico) !== JSON.stringify(d.capas || []);
     if (novoMosaico || JSON.stringify(capasF) !== JSON.stringify(d.capasF || {})) {
@@ -970,6 +978,7 @@ async function renovacao(env, id, c) {
     const faixas = (Array.isArray(c?.faixas) ? c.faixas : []).map(normalizarFaixa).filter(Boolean).slice(0, 200);
     if (!faixas.length) throw new Erro(400, 'sem_faixas', 'A renovação precisa de "faixas" já encontradas no Tidal (com "id").');
     const agora = new Date().toISOString();
+    if (d.origem === 'parecidas' && !d.doTidal) d.doTidal = listaDoTidal(d.faixas, d.criadaEm);
     // o que mudou (a app mostra-o na afinação que esta renovação cumpre)
     const antes = new Set(d.faixas.map((f) => String(f.id))), depois = new Set(faixas.map((f) => f.id));
     const novas = faixas.filter((f) => !antes.has(f.id));

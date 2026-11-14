@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.23.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.25.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -472,6 +472,55 @@ test('mais como esta: as parecidas do Tidal, logo no Tidal; fica um pedido para 
     assert.equal(g.status, 201);
     assert.equal((await g.json()).afinacoes, undefined);
     assert.equal(JSON.parse(await env.KV.get('pedidos')).filter((x) => x.estado === 'pendente').length, 20);
+});
+
+test('mais como esta, Tidal × Maestro: a lista do Tidal fica guardada quando o Maestro a revê; as que saíram ouvem-se e voltam a entrar; as de antes ficam com a que lá estava', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const d = await (await post('/api/mais', { faixa: '101' }, chave)).json();
+    // a lista do Tidal, tal como ele a fez: o essencial de cada faixa
+    assert.deepEqual(d.doTidal.faixas.map((x) => x.id), ['101', '102', '106', '105', '103']);
+    assert.deepEqual(Object.keys(d.doTidal.faixas[1]).sort(), ['album', 'ano', 'artistas', 'duracao', 'id', 'isrc', 'titulo']);
+    assert.deepEqual([d.doTidal.faixas[1].titulo, d.doTidal.faixas[1].artistas, d.doTidal.faixas[1].isrc], ['Feeling Good', ['Nina Simone'], 'USAAA0000102']);
+    assert.equal(d.doTidal.faixas[4].versao, 'Radio Edit');
+    assert.equal(d.doTidal.em, d.criadaEm);
+    // o Maestro revê-a: a playlist passa a ser a dele (as candidatas também); a lista do Tidal fica
+    const ped = (await (await get('/api/pedidos', chave)).json())[0];
+    const f = (id, titulo, artista) => ({ id, titulo, artistas: [artista], duracao: 200 });
+    const ren = await post(`/api/playlists/${d.id}/renovacoes`, { faixas: [f('101', 'So What', 'Miles Davis'), f('107', 'Blue in Green', 'Miles Davis'), f('105', 'Naima', 'John Coltrane')],
+        candidatas: [{ artista: 'Miles Davis', titulo: 'Blue in Green', faixa: f('107', 'Blue in Green', 'Miles Davis') }], resumo: 'Revista.', modelo: 'm' }, agente);
+    assert.equal(ren.status, 201);
+    await call(`/api/pedidos/${ped.id}?playlist=${d.id}`, { method: 'DELETE', headers: { authorization: `Bearer ${agente}` } });
+    const d2 = await (await get(`/api/playlists/${d.id}`, chave)).json();
+    assert.deepEqual(d2.faixas.map((x) => x.id), ['101', '107', '105']);
+    assert.deepEqual(d2.doTidal, d.doTidal, 'a revisão não mexe na lista do Tidal');
+    // as do Tidal que saíram também se ouvem e têm capa; o mosaico da playlist é só das faixas dela
+    const pv = await (await get(`/api/playlists/${d.id}/previas`, chave)).json();
+    for (const id of ['102', '103', '106']) assert.ok(pv.previas[id], `pré-escuta da ${id}, que saiu`);
+    for (const id of ['102', '103']) assert.ok(pv.capas[id], `capa da ${id}, que saiu`);
+    assert.ok(pv.previas['101']);
+    assert.equal(JSON.parse(await env.KV.get('playlist:' + d.id)).capas.length, 1, 'o mosaico não leva as capas das que saíram');
+    // voltar a pôr uma das do Tidal: entra no fim, na app e no Tidal; deixa de estar nas que saíram
+    const v = await post(`/api/playlists/${d.id}/trocar`, { entra: '102' }, chave);
+    assert.equal(v.status, 200);
+    const d3 = await v.json();
+    assert.deepEqual(d3.faixas.map((x) => x.id), ['101', '107', '105', '102']);
+    assert.deepEqual(sim.listas[d3.tidal.id].map((x) => x.id), ['101', '107', '105', '102']);
+    assert.deepEqual(d3.doTidal, d.doTidal);
+    // uma playlist de parecidas de antes desta versão (sem a lista guardada): ao rever, fica com a que lá estava
+    const e = await (await post('/api/mais', { faixa: '102' }, chave)).json();
+    const ve = JSON.parse(await env.KV.get('playlist:' + e.id));
+    delete ve.doTidal;
+    await env.KV.put('playlist:' + e.id, JSON.stringify(ve));
+    await post(`/api/playlists/${e.id}/renovacoes`, { faixas: [f('102', 'Feeling Good', 'Nina Simone'), f('201', 'Faixa 1', 'Miles Davis')], resumo: 'Revista.', modelo: 'm' }, agente);
+    const e2 = JSON.parse(await env.KV.get('playlist:' + e.id));
+    assert.deepEqual(e2.doTidal.faixas.map((x) => x.id), ve.faixas.map((x) => x.id));
+    assert.equal(e2.doTidal.em, ve.criadaEm);
+    // as outras playlists não guardam lista do Tidal
+    const pl = await (await post('/api/playlists', { nome: 'Outra', faixas: [f('201', 'x', 'y')] }, agente)).json();
+    assert.equal(pl.doTidal, undefined);
+    await post(`/api/playlists/${pl.id}/renovacoes`, { faixas: [f('202', 'x', 'y')] }, agente);
+    assert.equal(JSON.parse(await env.KV.get('playlist:' + pl.id)).doTidal, undefined);
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {

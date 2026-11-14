@@ -37,7 +37,7 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 
 ## O que ficou por fazer
 
-As dez voltas estão feitas e publicadas (Música 2.34.1, conector 1.23.0). Fica isto, por ordem do que mais importa:
+As dez voltas estão feitas e publicadas (hoje: Música 2.35.0, conector 1.25.0). Fica isto, por ordem do que mais importa:
 
 | O quê | Porquê ficou | O que é preciso |
 |---|---|---|
@@ -57,7 +57,7 @@ operações abertas e 363 internas.
 
 | O quê | Nível | Na Música |
 |---|---|---|
-| Favoritas, artistas seguidos, playlists (criar, mudar, apagar, as faixas), pesquisa de faixas, faixas parecidas, as tuas mixes | aberto | já usa |
+| Favoritas, artistas seguidos, playlists (criar, mudar, apagar, as faixas), pesquisa de faixas, faixas parecidas, as tuas mixes | aberto | já usa. As parecidas fazem o «Mais como esta»: a lista do Tidal fica guardada e, depois da revisão do Maestro, a folha compara as duas (quantas ficaram, quantas entraram, o que guardaste de cada lado; as que saíram ouvem-se e voltam a entrar) |
 | Pesquisar **playlists** por tema (`/searchResults/{id}/relationships/playlists`) e a **rádio** de uma faixa ou de um artista (`/tracks/{id}/relationships/radio`) | aberto | não usa (nunca foi experimentado) |
 | **Playlists feitas por IA a partir de um texto** (`/playlistGenerations`: o texto, «fica / tira / mais como esta» por faixa, voltar a gerar e renovar todas as semanas) | interno | **não dá.** Experimentado com a conta real a 14/11/2026 (conector 1.24.0, que saiu a seguir): o Tidal respondeu `403 Access tier is insufficient` |
 | O que se ouviu (`userPlaybackStates`) | interno | não dá |

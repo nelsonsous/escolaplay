@@ -1324,3 +1324,76 @@ test('afinar uma playlist de parecidas à antiga, com 30 faixas (as do Tidal: en
         assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros (as capas de fora não se carregam neste teste)');
     } finally { await ctx.close(); }
 });
+
+// Tidal × Maestro: uma «Mais como esta» já revista pelo Maestro. A história da playlist diz quantas das do Tidal ficaram
+// e quantas entraram, o que guardaste de cada lado, e deixa ouvir as do Tidal que saíram e voltar a pô-las
+test('Tidal × Maestro: depois da revisão, a folha compara as duas listas; as do Tidal que saíram ouvem-se e voltam a entrar', { skip: !chromium && 'sem Playwright' }, async () => {
+    const curta = (id, titulo, artista, extra = {}) => ({ id, titulo, artistas: [artista], album: 'Álbum', ano: 1960, duracao: 200, ...extra });
+    const doTidal = [curta('101', 'So What', 'Miles Davis'), curta('102', 'Feeling Good', 'Nina Simone', { isrc: 'USAAA0000102' }), curta('106', 'Teardrop', 'Massive Attack'),
+        curta('105', 'Barco Negro', 'Amália Rodrigues'), curta('103', 'Get Lucky', 'Daft Punk', { versao: 'Radio Edit' })];
+    const linha = (f, motivo) => ({ ...f, versao: f.versao || '', tags: ['LOSSLESS'], bpm: 0, tom: 0, genero: '', popularidade: 50, motivo, porque: '', pontos: 0, url: `https://tidal.com/browse/track/${f.id}` });
+    const faixas = [linha(doTidal[0], 'A faixa de partida.'), linha(doTidal[3], 'Fica: a mesma época.'), linha(curta('200', 'Faixa 0', 'Miles Davis'), 'Do mesmo sexteto.'), linha(curta('201', 'Faixa 1', 'Miles Davis'), 'Da mesma sessão.')];
+    const em = '2026-11-13T10:00:00.000Z', revista = '2026-11-13T18:50:00.000Z';
+    const doc = { id: 'pcmptidal', nome: 'Parecidas com So What', descricao: 'Faixas parecidas com «So What», de Miles Davis.', resumo: 'Revista pelo Maestro.', tendencias: [], pedido: '',
+        opcoes: { faixas: 30, maxArtista: 3, estilo: 'equilibrado', arco: 'onda' }, faixas, candidatas: [], custo: 0, criadaEm: em, por: 'curador', modelo: 'm', origem: 'parecidas',
+        doTidal: { em, faixas: doTidal }, revistaEm: revista, afinadaEm: revista,
+        afinacoes: [{ pedido: 'qcmp1', texto: 'Rever as parecidas do Tidal', rejeitadas: 0, em, rever: true, feitoEm: revista, entraram: 2, sairam: 3, novas: ['Faixa 0 — Miles Davis'] }],
+        avaliacao: { nota: 70, etiqueta: 'boa', guardadas: [{ id: '101', artista: 'Miles Davis', titulo: 'So What' }, { id: '200', artista: 'Miles Davis', titulo: 'Faixa 0' }, { id: '201', artista: 'Miles Davis', titulo: 'Faixa 1' }],
+            tiradas: [], juntadas: 0, eco: [], apagada: false, em: revista },
+        tidal: { id: 'uuid-nova', url: 'https://tidal.com/browse/playlist/uuid-nova', criadaEm: em, faixas: 4 } };
+    await env.KV.put('playlist:' + doc.id, JSON.stringify(doc));
+    const idx = JSON.parse(await env.KV.get('playlists'));
+    idx.unshift({ id: doc.id, nome: doc.nome, criadaEm: em, por: 'curador', faixas: 4, duracao: 800, tidal: doc.tidal.url, origem: 'parecidas', revistaEm: revista });
+    await env.KV.put('playlists', JSON.stringify(idx));
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('COMPARA-1').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    try {
+        const page = await ctx.newPage();
+        const erros = [];
+        page.on('pageerror', (e) => erros.push(String(e)));
+        page.on('console', (m) => { if (m.type() === 'error') erros.push('consola: ' + m.text()); });
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('COMPARA-1');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        await page.evaluate(() => { window.musicaLeitor.play = () => Promise.resolve(); }); // (sem ir à rede no teste)
+        const cartao = page.locator('#mu-body .mu-pl', { has: page.locator(`[data-onda="exp\t${doc.id}"]`) });
+        await cartao.locator('.mu-pl-a').click();
+        const hist = page.locator('.mu-folha .mu-hist');
+        await hist.locator('.mu-cmp-n').waitFor();
+        assert.equal(await hist.locator('.mu-cmp-n').innerText(), 'Das 5 do Tidal ficaram 2 · entraram 2 novas');
+        assert.equal(await hist.locator('.mu-mudou').nth(1).innerText(), 'Guardaste nas favoritas: 1 do Tidal · 2 das novas');
+        const cmp = hist.locator('details.mu-cmp');
+        assert.equal(await cmp.locator('summary').innerText(), 'Ouvir as 3 do Tidal que saíram');
+        await cmp.locator('summary').click();
+        // as que saíram, pela ordem do Tidal, cada uma com o ▶ (as pré-escutas chegam depois de abrir a folha) e o «+»
+        await page.waitForFunction(() => document.querySelectorAll('.mu-folha .mu-cmp [data-onda^="ouvir"]').length === 3);
+        assert.deepEqual(await cmp.locator('li .tx b').allInnerTexts(), ['Feeling Good', 'Teardrop', 'Get Lucky']);
+        assert.equal(await cmp.locator('[data-onda^="repor_t"]').count(), 3);
+        // cada uma numa linha como as da playlist (capa, título, ▶ e «+» lado a lado), sem o ponto da história e sem sair da folha
+        const g = await cmp.locator('li').first().evaluate((li) => {
+            const r = li.getBoundingClientRect(), t = li.querySelector('.tx').getBoundingClientRect(), b = li.querySelector('[data-onda^="repor_t"]').getBoundingClientRect();
+            const f = document.querySelector('.mu-folha');
+            return { h: Math.round(r.height), mesmaLinha: b.top < t.bottom && b.bottom > t.top, aDireita: b.left >= t.right - 1, dentro: b.right <= r.right + 1,
+                ponto: getComputedStyle(li, '::before').content, larga: f.scrollWidth - f.clientWidth };
+        });
+        assert.ok(g.h < 80 && g.mesmaLinha && g.aDireita && g.dentro, JSON.stringify(g));
+        assert.equal(g.ponto, 'none', 'as linhas de dentro não levam o ponto da história');
+        assert.ok(g.larga <= 0, `a folha não fica mais larga que o ecrã (${g.larga})`);
+        // ouvir uma das que saíram: o ▶ dela fica marcado
+        await cmp.locator('li', { hasText: 'Teardrop' }).locator('[data-onda^="ouvir"]').click();
+        await cmp.locator('li', { hasText: 'Teardrop' }).locator('.mu-ouvir.a-tocar[aria-pressed="true"]').waitFor();
+        // voltar a pô-la: entra no fim (na app e no Tidal), sai das que saíram, e a lista continua aberta
+        await cmp.locator('li', { hasText: 'Teardrop' }).getByRole('button', { name: 'Voltar a pôr «Teardrop»' }).click();
+        await page.locator('#mu-aviso').getByText('Voltou a entrar, no fim da playlist.').waitFor();
+        await page.waitForFunction(() => document.querySelectorAll('.mu-folha .mu-cmp li').length === 2);
+        assert.equal(await hist.locator('.mu-cmp-n').innerText(), 'Das 5 do Tidal ficaram 3 · entraram 2 novas');
+        assert.equal(await cmp.locator('summary').innerText(), 'Ouvir as 2 do Tidal que saíram');
+        assert.equal(await cmp.evaluate((d) => d.open), true, 'a lista das que saíram continua aberta');
+        assert.deepEqual(await naFolha(page), ['101', '105', '200', '201', '106']);
+        assert.deepEqual(sim.listas['uuid-nova'].map((x) => x.id), ['101', '105', '200', '201', '106'], 'também no Tidal');
+        // as linhas das que saíram não são linhas da playlist (sem arrastar para tirar, sem o ⇄)
+        assert.equal(await cmp.locator('li[data-esq]').count(), 0);
+        assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
+        if (SHOTS) { await cmp.scrollIntoViewIfNeeded(); await page.screenshot({ path: path.join(SHOTS, 'tidal-maestro.png') }); }
+    } finally { await ctx.close(); }
+});
