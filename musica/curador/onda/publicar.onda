@@ -411,6 +411,9 @@
   = c pb_l1 l = r 0
   W && c ~ r { = x jg c $"id" ? && == jtipo x 5 tigual jtxt x @ 5 { = r c 0 } 0 = c jprox c }
   ? ~ r { = m tx "O pedido " tpor @ 5 " não existe." O 0 falha m 0 } 0
+  # (com o Maestro chamado na hora pode haver duas corridas: a segunda não publica o mesmo pedido outra vez)
+  = e jg r $"estado"
+  ? ~ && == jtipo e 5 tigual jtxt e $"pendente" { = m tx "O pedido " tpor @ 5 " já foi tratado (por outra corrida): não se publica outra vez." O 0 falha m 0 } 0
   ? ~ tlen @ 12 { = x jg r $"texto" ! 13 ? x x -1 0 } 0
   pb_resolve }
 

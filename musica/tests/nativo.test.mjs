@@ -35,7 +35,9 @@ test('app nativa: os ficheiros vão dentro da app (não abre o site); o login do
     assert.match(plist, /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/, 'só usa HTTPS: a loja não pergunta pela cifra em cada envio');
     const versao = ler('package.json').version;
     assert.equal(versao, JSON.parse(readFileSync(join(AQUI, '..', 'package.json'), 'utf8')).version);
-    assert.ok(readFileSync(join(NATIVO, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8').includes(`MARKETING_VERSION = ${versao};`), 'a versão da loja é a da app');
+    const pbx = readFileSync(join(NATIVO, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8');
+    assert.ok(pbx.includes(`MARKETING_VERSION = ${versao};`), 'a versão da loja é a da app');
+    assert.deepEqual(pbx.match(/TARGETED_DEVICE_FAMILY = [^;]+;/g), ['TARGETED_DEVICE_FAMILY = 1;', 'TARGETED_DEVICE_FAMILY = 1;'], 'só iPhone (sem capturas de iPad na loja; o iPad pode juntar-se depois)');
 });
 
 test('app nativa: a app montada abre sozinha (sem o site) e fala com o conector', { skip: !chromium && 'sem Playwright' }, async () => {
@@ -72,7 +74,8 @@ test('app nativa: a app montada abre sozinha (sem o site) e fala com o conector'
         // as páginas de privacidade e de apoio vão dentro da app, e voltam a ela
         await page.getByRole('link', { name: 'Privacidade' }).click();
         await page.getByRole('heading', { name: 'Privacidade' }).waitFor();
-        await page.getByText('O Maestro é uma inteligência artificial').waitFor();
+        await page.getByText('O Maestro é uma inteligência artificial', { exact: true }).waitFor();
+        await page.getByRole('heading', { name: 'A tua autorização' }).waitFor();
         await page.getByRole('link', { name: '← Voltar à Música' }).click();
         await page.getByRole('heading', { name: 'Música' }).waitFor();
         await page.goto(`http://127.0.0.1:${srv.address().port}/apoio.html`);

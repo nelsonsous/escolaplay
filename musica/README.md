@@ -53,7 +53,11 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   candidatas) e o Worker monta a versão (`POST /api/playlists/:id/versoes`), na app e no Tidal.
   A casca [`musica.js`](musica.js) só trata do que a Onda não tem como porta: a chave do aparelho nos pedidos, os
   pedidos que escrevem ("MÉTODO caminho" + corpo), sair para o login do Tidal ("IR url") e o regresso dele.
-- **A tua conta e a App Store** — nos Ajustes, «A tua conta» diz o que se guarda e tem **«Apagar a minha conta»**
+- **O Maestro na hora** — com o gatilho «API» da tarefa agendada ligado ao conector (dois segredos no Cloudflare:
+  ver «Agilidade» no [`PLANO.md`](PLANO.md)), um pedido chama o Maestro logo, sem corridas a dobrar; a app vai ver
+  sozinha se ele já acabou. Sem os segredos, os pedidos esperam pelas 07:44 e pelas 18:44, como sempre.
+- **A tua conta e a App Store** — antes de ligar o Tidal a app diz que o Maestro é uma IA de terceiros e pede a
+  autorização («Concordo e ligar»; fica registada); o que a loja pede está em [`loja/LEIA.md`](loja/LEIA.md). Nos Ajustes, «A tua conta» diz o que se guarda e tem **«Apagar a minha conta»**
   (`DELETE /api/conta`: o conector apaga tudo o que guarda da pessoa; as playlists do Tidal ficam). As páginas de
   [privacidade](privacidade.html) e de [apoio](apoio.html) vão com a app. A **app nativa** ([`nativo/`](nativo/LEIA.md),
   Capacitor) leva os ficheiros da app lá dentro — `nativo/montar.mjs`, chamado pelo `npm run onda` — e o login do

@@ -146,9 +146,12 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.getByRole('button', { name: 'Guardar e continuar' }).click();
     await page.getByRole('heading', { name: 'Liga o teu Tidal' }).waitFor();
     assert.equal(await env.KV.get('config:tidal_client_id'), 'ClienteTidal123');
-    await page.getByRole('button', { name: 'Ligar ao Tidal' }).click();
+    // antes de ligar, a app diz que o Maestro é uma IA de terceiros e o que ela lê; quem liga, autoriza (fica registado)
+    await page.getByText('O Maestro é uma inteligência artificial (o Claude, da Anthropic). Para escolher música para ti, lê as tuas favoritas, os artistas que segues, as tuas playlists e o teu nome de utilizador do Tidal.').waitFor();
+    await page.getByRole('button', { name: 'Concordo e ligar ao Tidal', exact: true }).click();
     await page.getByText('Ainda não há playlists').waitFor();
     await page.locator('#mu-aviso').getByText('Tidal ligado').waitFor();
+    assert.match(JSON.parse(await env.KV.get('tidal:tokens')).iaConsentidaEm, /^\d{4}-\d\d-\d\dT/, 'a autorização fica registada, com a data');
     assert.ok(await page.evaluate(() => localStorage.getItem('musica:chave')), 'guarda a chave');
     assert.equal(await page.evaluate(() => localStorage.getItem('musica:codigo')), null, 'esquece o código');
     assert.match(await page.locator('.mu-pill').textContent(), /nelson/);
@@ -553,12 +556,21 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('#aj-motor-r').filter({ hasText: 'faixas escolhidas de 60' }).waitFor();
     await foto('4-ajustes');
     // a tua conta (apagar tudo pede-se aqui; ao dono avisa que é quem montou a app) — «Não» não apaga nada
-    await page.locator('.mu-conta').getByRole('button', { name: 'Apagar a minha conta', exact: true }).click();
-    await page.locator('.mu-conta').getByText(/És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo\.$/).waitFor();
+    await page.locator('#mu-body .mu-conta').getByRole('button', { name: 'Apagar a minha conta', exact: true }).click();
+    await page.locator('#mu-body .mu-conta').getByText(/És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo\.$/).waitFor();
     await foto('8-conta');
-    await page.locator('.mu-conta').getByRole('button', { name: 'Não', exact: true }).click();
-    await page.locator('.mu-conta').getByRole('button', { name: 'Apagar a minha conta', exact: true }).waitFor();
+    await page.locator('#mu-body .mu-conta').getByRole('button', { name: 'Não', exact: true }).click();
+    await page.locator('#mu-body .mu-conta').getByRole('button', { name: 'Apagar a minha conta', exact: true }).waitFor();
     assert.ok(await env.KV.get('tidal:tokens'), 'o Tidal continua ligado');
+    // a autorização para a IA: quem ligou pelo botão «Concordo e ligar» já a deu; quem estava ligado de antes dá-a aqui
+    await page.locator('#mu-body .mu-conta').getByText('Autorizaste o Maestro (uma IA) a ler o teu perfil de gosto.').waitFor();
+    { const t = JSON.parse(await env.KV.get('tidal:tokens')); delete t.iaConsentidaEm; await env.KV.put('tidal:tokens', JSON.stringify(t)); }
+    await nav(5);
+    await page.locator('#mu-body .mu-conta').getByText(/^O Maestro é uma inteligência artificial \(o Claude, da Anthropic\)\./).waitFor();
+    await page.locator('#mu-body .mu-conta').getByRole('button', { name: 'Concordo', exact: true }).click();
+    await page.locator('#mu-aviso').getByText('Autorização guardada.').waitFor();
+    await page.locator('#mu-body .mu-conta').getByText('Autorizaste o Maestro (uma IA) a ler o teu perfil de gosto.').waitFor();
+    assert.ok(JSON.parse(await env.KV.get('tidal:tokens')).iaConsentidaEm);
 
     // 6) um pedido ao Maestro
     await nav(3);
@@ -1177,4 +1189,61 @@ test('convidar: o dono cria o convite nos Ajustes; a convidada liga o seu Tidal 
     await c.close();
     assert.deepEqual(erros, []);
     await b.close();
+});
+
+test('o Maestro na hora: o pedido chama-o, a app diz «uns minutos» e vai ver sozinha se ele já acabou', { skip: !chromium && 'sem Playwright' }, async () => {
+    // (com os segredos do gatilho da tarefa agendada no conector; no simulador, a chamada fica em sim.maestro)
+    Object.assign(env, { MAESTRO_FIRE_URL: 'https://api.anthropic.com/v1/claude_code/routines/trig_01UI/fire', MAESTRO_TOKEN: 'segredo-ui', MAESTRO_ESPERA_MS: 0 });
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
+    try {
+        await env.KV.put('codigo:ligacao', createHash('sha256').update('HORA-789').digest('hex'));
+        await env.KV.put('pedidos', '[]');
+        const page = await ctx.newPage();
+        await page.clock.install(); // (o tempo corre normalmente; mais abaixo salta-se 45 s de uma vez)
+        const erros = [];
+        page.on('pageerror', (e) => erros.push(String(e)));
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('HORA-789');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        await page.locator('#mu-body .mu-pl').first().waitFor();
+        await page.locator('#mu-nav [data-onda="ir\t3"]').click();
+        await page.getByText('O Maestro é chamado logo e cria a playlist em poucos minutos, no teu Tidal.').waitFor();
+        await page.locator('[data-onda="ptx"]').fill('Bossa nova para o fim da tarde');
+        const n = sim.maestro.length;
+        await page.getByRole('button', { name: 'Pedir ao Maestro' }).click();
+        await page.locator('#mu-aviso').getByText('Pedido feito — o Maestro já foi chamado: costuma demorar uns minutos.').waitFor();
+        const espera = page.locator('#mu-body .mu-espera');
+        await espera.getByText('«Bossa nova para o fim da tarde»').waitFor();
+        await espera.getByText('O Maestro é chamado quando pedes: costuma demorar uns minutos. As playlists aparecem aqui e no teu Tidal.').waitFor();
+        for (let i = 0; i < 50 && sim.maestro.length === n; i++) await new Promise((ok) => setTimeout(ok, 20));
+        assert.equal(sim.maestro.length, n + 1, 'o conector chamou a tarefa agendada');
+        assert.equal(sim.maestro.at(-1).authorization, 'Bearer segredo-ui');
+        // ainda nada mudou: a app vai ver (45 s depois) e fica como está, sem piscar nem avisar
+        const pedidos = [];
+        page.on('request', (r) => { if (/\/api\/(pedidos|playlists)$/.test(new URL(r.url()).pathname)) pedidos.push(new URL(r.url()).pathname); });
+        await page.clock.fastForward(46000);
+        await page.waitForFunction(() => true);
+        for (let i = 0; i < 50 && !pedidos.length; i++) await new Promise((ok) => setTimeout(ok, 20));
+        assert.deepEqual(pedidos, ['/api/pedidos'], 'vai ver só os pedidos (as playlists só quando algum acaba)');
+        assert.equal(await page.locator('#mu-aviso .mu-toast').filter({ hasText: 'O Maestro acabou' }).count(), 0);
+        // o Maestro acaba: cria a playlist (logo no Tidal) e dá o pedido por feito
+        const ag = await env.KV.get('agente:chave');
+        const api = (p, init = {}) => worker.fetch(new Request(WORKER + p, { ...init, headers: { authorization: `Bearer ${ag}`, 'content-type': 'application/json' } }), env, { waitUntil() {} });
+        const ped = JSON.parse(await env.KV.get('pedidos')).find((x) => x.texto === 'Bossa nova para o fim da tarde');
+        const nova = await (await api('/api/playlists', { method: 'POST', body: JSON.stringify({ nome: 'Bossa ao fim da tarde', pedido: ped.texto, tidal: true, faixas: [{ id: '101', titulo: 'So What', artistas: ['Miles Davis'], duracao: 200 }] }) })).json();
+        await api(`/api/pedidos/${ped.id}?playlist=${nova.id}`, { method: 'DELETE' });
+        // sem tocar em nada: na vez seguinte a app dá por isso, avisa e mostra a playlist; o relógio pára
+        await page.clock.fastForward(46000);
+        await page.locator('#mu-aviso').getByText('O Maestro acabou: a playlist já está na lista.').waitFor();
+        await page.locator('#mu-body .mu-pl', { hasText: 'Bossa ao fim da tarde' }).waitFor();
+        await espera.waitFor({ state: 'detached' });
+        pedidos.length = 0;
+        await page.clock.fastForward(120000);
+        await new Promise((ok) => setTimeout(ok, 300));
+        assert.deepEqual(pedidos.filter((x) => x === '/api/pedidos'), [], 'sem pedidos à espera, a app deixa de ir ver');
+        assert.deepEqual(erros, []);
+    } finally {
+        delete env.MAESTRO_FIRE_URL; delete env.MAESTRO_TOKEN; delete env.MAESTRO_ESPERA_MS;
+        await ctx.close();
+    }
 });
