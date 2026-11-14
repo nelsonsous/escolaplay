@@ -1,6 +1,6 @@
 {
   "name": "musica-nativo",
-  "version": "2.31.0",
+  "version": "2.32.0",
   "private": true,
   "description": "A Música como app nativa de teste (Capacitor): abre a app do site em ecrã inteiro, para o simulador do Xcode e o iPhone.",
   "type": "module",

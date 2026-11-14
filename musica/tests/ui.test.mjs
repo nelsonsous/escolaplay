@@ -506,8 +506,26 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
         sim.tabelas.pt = lista;
         await recolher(env, Date.parse('2026-11-01T04:23:00Z') + d * 864e5);
     }
-    await nav(4);
+    // o teu gosto: já não é um separador (são três: Música, Pedir e Ajustes) — é um cartão dos Ajustes, fechado até se
+    // querer ver; só ao abrir se pedem o perfil e as tendências ao conector
+    assert.deepEqual(await page.locator('#mu-nav button span').allTextContents(), ['Música', 'Pedir', 'Ajustes']);
+    assert.deepEqual(await page.evaluate(() => { const n = document.getElementById('mu-nav').getBoundingClientRect(); return [...document.querySelectorAll('#mu-nav button')].map((b) => Math.round(b.getBoundingClientRect().width * 3 / n.width)); }), [1, 1, 1], 'cada separador ocupa um terço da barra');
+    const pedidosGosto = [];
+    const ouvirGosto = (r) => { if (/\/api\/(perfil|tendencias)$/.test(new URL(r.url()).pathname)) pedidosGosto.push(new URL(r.url()).pathname); };
+    page.on('request', ouvirGosto);
+    await nav(5);
+    const gosto = page.getByRole('button', { name: /^O teu gosto/ });
+    await gosto.waitFor();
+    assert.equal(await gosto.getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.getByRole('heading', { name: 'Artistas que mais aparecem' }).count(), 0);
+    await page.waitForLoadState('networkidle');
+    assert.deepEqual(pedidosGosto, [], 'fechado, não pede nada');
+    await gosto.click();
     await page.getByRole('heading', { name: 'Artistas que mais aparecem' }).waitFor();
+    assert.equal(await gosto.getAttribute('aria-expanded'), 'true');
+    assert.deepEqual(pedidosGosto.sort(), ['/api/perfil', '/api/tendencias']);
+    page.off('request', ouvirGosto);
+    assert.match(await gosto.textContent(), /^O teu gosto\d+ favoritas · atualizado /);
     assert.ok(await page.getByText('So What').count());
     await page.getByRole('heading', { name: 'O que se está a ouvir' }).waitFor();
     const paraTi = page.locator('.mu-card', { has: page.getByRole('heading', { name: 'Para ti' }) });
@@ -515,8 +533,22 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(await paraTi.locator('.mu-tocar').first().getAttribute('href'), 'https://tidal.com/search?q=Nina%20Simone+Feeling%20Good');
     assert.ok(await page.getByRole('heading', { name: 'Mundo (Deezer)' }).count());
     await foto('3-gosto');
-    await nav(5);
-    await page.getByText('nelson (PT)').waitFor();
+    // os ajustes continuam por baixo; fechar o cartão esconde o gosto
+    await page.getByRole('heading', { name: 'As tuas playlists no Tidal' }).waitFor();
+    await gosto.click();
+    await page.getByRole('heading', { name: 'Artistas que mais aparecem' }).waitFor({ state: 'detached' });
+    assert.equal(await gosto.getAttribute('aria-expanded'), 'false');
+    await page.locator('#mu-body').getByText('nelson (PT)').waitFor();
+    // se o perfil não vier (o conector em baixo), diz porquê e o cartão fecha-se em vez de ficar «A carregar…»
+    await nav(5); // (tocar outra vez no separador esquece o que estava em memória: o perfil volta a pedir-se)
+    await gosto.waitFor();
+    await page.route('**/api/perfil', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: '{"erro":"indisponivel","mensagem":"O conector está em baixo."}' }));
+    await gosto.click();
+    await page.locator('#mu-aviso').getByText(/.+/).waitFor();
+    await page.waitForFunction(() => document.querySelector('.mu-gosto-a').getAttribute('aria-expanded') === 'false');
+    assert.equal(await page.locator('#mu-body .mu-a-carregar').count(), 0);
+    await page.unroute('**/api/perfil');
+    for (let i = erros.length - 1; i >= 0; i--) if (/status of 503/.test(erros[i])) erros.splice(i, 1); // (o 503 deste passo é o esperado)
     await page.getByRole('button', { name: 'Testar o motor' }).click();
     await page.locator('#aj-motor-r').filter({ hasText: 'faixas escolhidas de 60' }).waitFor();
     await foto('4-ajustes');
@@ -585,9 +617,9 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
         return r;
     });
     assert.match(meio.tf, /^translateX\(-51px\)/, 'segue o dedo a 85 % (60 px → 51 px)');
-    // o que espreita é a página do Gosto como vai aparecer (o título verdadeiro), só para ver: sem ids nem ações
-    assert.deepEqual([meio.visivel, meio.nome, meio.ids], [true, 'O teu gosto', 0]);
-    assert.ok(meio.i > 1 && meio.i < 2, `a marca a caminho do Gosto (${meio.i})`);
+    // o que espreita é a página dos Ajustes como vai aparecer (o título verdadeiro), só para ver: sem ids nem ações
+    assert.deepEqual([meio.visivel, meio.nome, meio.ids], [true, 'Ajustes', 0]);
+    assert.ok(meio.i > 1 && meio.i < 2, `a marca a caminho dos Ajustes (${meio.i})`);
     await page.waitForFunction(() => document.getElementById('mu-espreita').hidden && document.querySelector('#mu-nav').style.getPropertyValue('--i') === '1');
     assert.equal(await separador(), 'ir\t3', 'arrastar pouco e devagar não muda');
     // para a direita, as Playlists (já vistas): espreita a página verdadeira, com o título «Música» e os cartões

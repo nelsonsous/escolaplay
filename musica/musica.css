@@ -35,7 +35,7 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 
 /* navegação */
 .mu-nav {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(3, 1fr);
     height: calc(var(--nav) + env(safe-area-inset-bottom)); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     background: rgba(0, 0, 0, .82); backdrop-filter: saturate(160%) blur(20px); -webkit-backdrop-filter: saturate(160%) blur(20px); border-top: 1px solid var(--line);
 }
@@ -262,7 +262,7 @@ html, body { overflow-x: clip; }
 #mu-espreita .mu-retrato { min-height: 100%; }
 #mu-body { transform-origin: 50% 30vh; }
 /* a marca do separador ativo: um fundo que desliza na barra (com o dedo, e com um pequeno ressalto ao chegar) */
-.mu-nav::before { content: ""; position: absolute; top: 6px; left: 10px; width: calc(25% - 20px); height: calc(var(--nav) - 12px); border-radius: 14px;
+.mu-nav::before { content: ""; position: absolute; top: 6px; left: 10px; width: calc(100% / 3 - 20px); height: calc(var(--nav) - 12px); border-radius: 14px;
     background: rgba(255, 255, 255, .09); transform: translateX(calc(var(--i, 0) * (100% + 20px))); transition: transform .34s cubic-bezier(.3, 1.25, .5, 1); pointer-events: none; }
 .mu-nav.a-arrastar::before { transition: none; }
 .mu-nav:empty::before { display: none; }
@@ -361,6 +361,13 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-xf-mais { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 0 6px 58px; }
 .mu-xf-mais .mu-nota { margin: 0; flex: 1 1 160px; }
 .mu-sobre { margin: 0 0 4px; border-bottom: 1px solid var(--line); }
+/* o teu gosto: um cartão dos Ajustes (era um separador); aberto, mostra por baixo o perfil e as tendências */
+.mu-gosto-a { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 0; margin: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mu-gosto-a .tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mu-gosto-a .tx b { font-size: 17px; line-height: 1.3; font-weight: 700; letter-spacing: -.01em; }
+.mu-gosto-a .tx span { color: var(--mut); font-size: 14px; }
+.mu-gosto-a .chev { width: 20px; height: 20px; flex: none; fill: none; stroke: var(--mut); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
+.mu-gosto-a[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .mu-sobre > summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; list-style: none; cursor: pointer; padding: 12px 2px; font-size: 15px; font-weight: 650; }
 .mu-sobre > summary::-webkit-details-marker { display: none; }
 .mu-sobre > summary .chev { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--mut); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
