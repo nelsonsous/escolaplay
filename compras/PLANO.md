@@ -89,9 +89,9 @@ Se um dia o bot fizer falta, liga-se ao mesmo conector sem mexer no resto.
 |---|---|---|
 | **A app** (`compras/`) | Três separadores: Lista, Semana e Casa. É uma PWA instalável que abre sem rede, com a lógica em Onda, feita a partir do `onda/molde`. | GitHub Pages (`…/escolaplay/compras/`) |
 | **O motor** (`compras/onda/`) | Faz as contas: preço por kg e por litro, que embalagens chegam, onde compro, o ritmo da despensa e a poupança. São as mesmas contas na app e nos scripts, com testes de paridade como na Música. | no telemóvel (wasm) e no Node |
-| **O conector** (`compras/proxy/`, Worker `compras`) | Guarda a casa e os telemóveis (só o hash do segredo de cada um), a lista partilhada, os talões, os pedidos e as notificações. Não faz contas: guarda e passa dados. | Cloudflare (plano grátis) |
+| **O conector** (`compras/proxy/`, Worker `compras`) | Lê os sites das cadeias e os folhetos, aos poucos e pelo cron, como a Meteo lê pelo conector o que o browser não pode ler. Guarda a casa e os telemóveis (só o hash do segredo de cada um), a lista partilhada, os talões, os pedidos e as notificações. Não faz contas: guarda e passa dados. | Cloudflare (plano grátis) |
 | **A IA na hora** (Workers AI, no conector) | Lê uma lista escrita à pressa («2 leites, pão, fruta p/ semana»), lê um talão e faz o rascunho de uma ementa. | Cloudflare (grátis até 10 000 «Neurons» por dia, partilhados com a Música) |
-| **O Ecónomo** (tarefa do Claude, `ECONOMO.md`, scripts em `compras/economo/`) | Recolhe os preços do dia, lê os folhetos, decide que produtos são o mesmo entre cadeias, revê os talões duvidosos e faz as ementas pedidas. | a tua subscrição do Claude, uma corrida de cada vez |
+| **O Ecónomo** (tarefa do Claude, `ECONOMO.md`, scripts em `compras/economo/`) | Revê os preços que o conector recolheu, lê os folhetos, decide que produtos são o mesmo entre cadeias, revê os talões duvidosos e faz as ementas pedidas. | a tua subscrição do Claude, uma corrida de cada vez |
 | **A base de dados** | Guarda os preços e o histórico, a casa, a lista e os talões. A D1 é a recomendada (explicação abaixo). | Cloudflare |
 
 **O Claude escolhe e o motor faz as contas.** O Ecónomo decide os pratos, os produtos e as equivalências. Os totais,
@@ -114,7 +114,7 @@ funcionam na loja sem rede. Como se recolhe só uma parte pequena de cada catál
 
 | Cadeia | De onde | O que a volta 1 tem de provar |
 |---|---|---|
-| Continente, Pingo Doce, Auchan, Intermarché, Minipreço | a loja online de cada uma, 1× por dia e devagar | se os sites deixam ler (proteção contra robôs), os termos de uso e o tamanho de cada pedido |
+| Continente, Pingo Doce, Auchan, Intermarché, Minipreço | a loja online de cada uma, lida pelo conector aos poucos, ao longo do dia | se os sites deixam ler (proteção contra robôs), os termos de uso e o tamanho de cada pedido |
 | Lidl, Aldi | os folhetos da semana (imagens ou PDF), lidos pelo Ecónomo; o resto vem dos talões | onde estão os folhetos e quando saem |
 | Mercadona | só os talões (tanto quanto se sabe, não faz folhetos nem promoções) | quantos talões são precisos para haver preço |
 | Todas | os **talões** das casas: o preço real daquela loja, naquele dia | se cada cadeia tem um talão que se lê bem |
@@ -139,7 +139,7 @@ Ganha a combinação mais barata. É uma conta exata, sem adivinhar, e faz-se nu
 
 Segue o `ECONOMO.md`, como o Analista segue o `ANALISTA.md`:
 
-1. `NODE_USE_ENV_PROXY=1 node compras/economo/dados.mjs` recolhe os preços do dia (a parte mecânica), descarrega os
+1. `NODE_USE_ENV_PROXY=1 node compras/economo/dados.mjs` lê do conector os preços do dia, descarrega por ele os
    folhetos novos e mostra o que precisa de cabeça: produtos novos sem par, linhas de talão duvidosas e pedidos de
    ementa (com a casa, a despensa e as promoções nas lojas dela).
 2. O Claude lê os folhetos (imagens, com `limit: 1`), decide os pares, revê as linhas e escreve as ementas em
@@ -156,9 +156,9 @@ guarda lições sobre cada local.
 
 | # | O que muda para ti | Por dentro |
 |---|---|---|
-| **1** | Nada à vista: fica a saber-se que cadeias entram. | `economo/fontes/*.mjs`, uma por cadeia, experimentadas a partir da tarefa do Claude e do Worker. As respostas ficam gravadas para os testes. Este plano ganha a tabela «O que cada cadeia deixa», como na Música há «O que o Tidal deixa». Precisa da rede aberta às cadeias (aparece-te um pedido de aprovação). |
+| **1** | Nada à vista: fica a saber-se que cadeias entram. | O Worker `compras`, publicado em teste com o teu OK, com uma fonte por cadeia (`proxy/src/fontes/*.js`). As respostas ficam gravadas para os testes. Este plano ganha a tabela «O que cada cadeia deixa», como na Música há «O que o Tidal deixa». O ambiente do Claude só precisa de chegar ao endereço do Worker (um pedido de aprovação, uma vez). Se uma cadeia recusar o Worker, experimenta-se a partir da tarefa do Claude, e essa cadeia tem de ser aprovada no ambiente. |
 | **2** | **A lista da casa:** escreves ou ditas como te sai («2 leites, pão») e a IA arruma. Partilha-se com um código e abre sem rede. «Partilhar no WhatsApp» manda a lista para o grupo da família. No iPhone, o Atalho da Siri junta à lista sem abrir a app. Separadores **Lista · Semana · Casa**. | `onda/molde` → `compras/`. Conector 1.0.0: casa, telemóveis e lista com as gravações juntas. Workers AI para ler o texto. O Atalho fala com o conector com a chave do telemóvel. Os atalhos do ícone (Android) ficam no manifesto. Testes de interface no Chromium. |
-| **3** | Cada produto da lista mostra **o preço em cada cadeia**, por kg ou por litro, com a origem e a data. Escolhes «qualquer marca», «marca branca serve» ou «esta marca». | Primeiro `ECONOMO.md` (só preços e pares) e `recolher.mjs`. O universo fica na base e no telemóvel. Os pares entre cadeias fazem-se pelo código de barras e pelo nome; o resto decide o Ecónomo. |
+| **3** | Cada produto da lista mostra **o preço em cada cadeia**, por kg ou por litro, com a origem e a data. Escolhes «qualquer marca», «marca branca serve» ou «esta marca». | A recolha fica no cron do conector (o universo, aos poucos) e sai o primeiro `ECONOMO.md` (só pares e revisão). O universo fica na base e no telemóvel. Os pares entre cadeias fazem-se pelo código de barras e pelo nome; o resto decide o Ecónomo. |
 | **4** | **Onde compro:** a melhor combinação das tuas lojas, com a deslocação e os cartões. A lista arruma-se por loja e por corredor para ires às compras. | O motor em Onda (`onde.onda`), com testes de paridade em JavaScript. As tuas lojas e os teus cartões ficam na Casa. |
 | **5** | **Talões:** tiras uma fotografia, revês o que a app leu, e ficam o gasto, a loja e o preço real. Os produtos riscam-se da lista e entram na despensa. | `/api/talao` no conector, com uma IA que lê imagens; se não chegar, o talão vai ao Ecónomo. O QR da fatura confere a loja, a data e o total, onde o telemóvel o lê. O NIF de quem compra nunca se guarda. Cada linha confirmada ensina um nome de talão («LT UHT MG MIM 1L»). |
 | **6** | **Folhetos e promoções para ti:** o que está em promoção nas tuas lojas, entre o que costumas comprar, com avisos no telemóvel. | O Ecónomo lê os folhetos do Lidl e do Aldi (e os das outras, se as lojas online não chegarem). As promoções têm validade. Os avisos usam o `push.js` como na Meteo e o cron do conector. |
@@ -172,7 +172,7 @@ guarda lições sobre cada local.
 | O quê | Quando |
 |---|---|
 | Escolher o nome (Compras?) | antes da volta 2 |
-| Aprovar a abertura da rede do ambiente aos sites das cadeias (o pedido aparece-te aqui) | volta 1 |
+| Dar o OK para publicar o Worker `compras` em teste, e aprovar que o ambiente do Claude chegue ao endereço dele (`compras.mercados-proxy.workers.dev`; o pedido aparece-te aqui) | volta 1 |
 | Dar ao token da Cloudflare a permissão D1 (Edit) | volta 2 ou 3 |
 | Criar a tarefa do Ecónomo em `claude.ai/code/routines` e o gatilho «API». Os segredos `ECONOMO_FIRE_URL` e `ECONOMO_TOKEN` ficam no Worker, como na Música | volta 3 |
 | Dizer as tuas lojas e os teus cartões, e dar uns talões reais para os testes | voltas 4 e 5 |
@@ -182,7 +182,8 @@ guarda lições sobre cada local.
 
 | Risco | O que se faz |
 |---|---|
-| Uma cadeia bloqueia a leitura do site (proteção contra robôs), ou os termos de uso proíbem-na | A volta 1 diz quem deixa ler; quem não deixa fica pelos folhetos e pelos talões. Recolhe-se pouco (o universo), devagar e uma vez por dia. Antes de abrir ao público, parecer jurídico: no caso Ryanair c. PR Aviation (C-30/14) o tribunal da UE decidiu que os termos de uso podem proibir a recolha. |
+| Uma cadeia bloqueia a leitura do site (proteção contra robôs), ou os termos de uso proíbem-na | A volta 1 diz quem deixa o Worker ler. Quem não deixa experimenta-se a partir da tarefa do Claude e, se também recusar, fica pelos folhetos e pelos talões. Recolhe-se pouco (o universo) e devagar. Antes de abrir ao público, parecer jurídico: no caso Ryanair c. PR Aviation (C-30/14) o tribunal da UE decidiu que os termos de uso podem proibir a recolha. |
+| O Worker grátis só dá 10 ms de CPU e 50 pedidos de fora por chamada | A recolha faz-se em lotes pequenos pelo cron, ao longo do dia, como a Música fala com o Tidal em lotes pequenos. |
 | O preço online não é o da loja | Os talões dizem a diferença, loja a loja, e a app mostra de onde vem cada preço. |
 | Erros ao juntar o mesmo produto entre cadeias | Usa-se o código de barras quando existe. O resto junta-se pelo nome e pela embalagem, e o Ecónomo decide os casos duvidosos. Testa-se com o cabaz da DECO. |
 | As gravações da KV (1000 por dia, da conta toda) acabarem e pararem as outras apps | A lista e os preços vão para a D1; a KV fica só com o pouco do costume. |
