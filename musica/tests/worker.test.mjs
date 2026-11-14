@@ -4,7 +4,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import worker from '../proxy/src/worker.js';
-import { simulador, kv } from './simulador.mjs';
+import { simulador, kv, FAIXAS } from './simulador.mjs';
 import { b64u, b64uDecode } from '../proxy/src/push.js';
 
 const ORIGIN = 'https://musica.example.workers.dev';
@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.27.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.29.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -591,6 +591,63 @@ test('pesquisa: as do Tidal com capa e 30 s de pré-escuta; com «unicas», cada
     assert.deepEqual((await q('Canção Forte')).faixas.map((f) => f.id), ['107', '108']);
     // canções diferentes do mesmo artista continuam todas
     assert.deepEqual((await q('So What Feeling Good Teardrop', true)).faixas.map((f) => f.id), ['101', '102', '106']);
+    // o karaoke de outro artista (mais ouvido que a original) e o enchimento do Tidal (uma faixa sem nada a ver) saem
+    // na música de partida; na pesquisa toda continuam
+    FAIXAS['901'] = { title: 'So What', version: 'Karaoke Version', artists: ['a6'], album: ['al7', '2025-01-01', ['LOSSLESS']], popularity: 0.95, duration: 'PT3M' };
+    const de = globalThis.fetch;
+    globalThis.fetch = async (u, init) => {
+        const r = await de(u, init);
+        if (!String(u).includes('/v2/searchResults')) return r;
+        const j = await r.json();
+        j.data?.[0]?.relationships?.tracks?.data?.push({ id: '105', type: 'tracks' });
+        return new Response(JSON.stringify(j), { status: r.status, headers: { 'content-type': 'application/vnd.api+json' } });
+    };
+    try {
+        assert.deepEqual((await q('So What')).faixas.map((f) => f.id), ['101', '901', '105']);
+        assert.deepEqual((await q('So What', true)).faixas.map((f) => f.id), ['101']);
+        // só versões (aqui, só o karaoke): mostram-se, que é o que há
+        delete FAIXAS['101'];
+        assert.deepEqual((await q('So What', true)).faixas.map((f) => f.id), ['901']);
+    } finally {
+        globalThis.fetch = de; delete FAIXAS['901'];
+        FAIXAS['101'] = { title: 'So What', artists: ['a1'], album: ['al1', '1959-08-17', ['HIRES_LOSSLESS']], key: 'D', keyScale: 'DORIAN', bpm: 136.2, popularity: 0.81, duration: 'PT9M22S' };
+    }
+});
+
+test('a IA da Cloudflare (em experiência, só para o Maestro): sugere músicas de partida para um pedido, e o Tidal confirma-as', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const pede = (texto) => post('/api/ia/sementes', { texto }, agente);
+    // sem a IA ligada ao conector, diz-se
+    assert.equal((await (await pede('Jazz modal')).json()).erro, 'A IA da Cloudflare não está ligada ao conector.');
+    // a IA: o primeiro modelo já não existe no catálogo, o segundo responde (com texto à volta do JSON)
+    const vistos = [];
+    env.AI = { run: async (modelo, entrada) => {
+        vistos.push([modelo, entrada.messages[1].content]);
+        if (modelo.includes('llama-3.3')) throw new Error('No such model');
+        return { response: 'Aqui vai:\n{"nome": "Modal ao fim do dia", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}, {"artista": "Nina Simone", "titulo": "Feeling Good"}, {"artista": "Ninguém", "titulo": "Não Existe"}, {"artista": "", "titulo": "Sem artista"}, {"artista": "Daft Punk", "titulo": "Título Inventado"}]}' };
+    } };
+    const r = await (await pede('Jazz modal para o fim do dia')).json();
+    assert.equal(r.modelo, '@cf/meta/llama-4-scout-17b-16e-instruct');
+    assert.deepEqual(vistos.map((v) => v[1]), ['Jazz modal para o fim do dia', 'Jazz modal para o fim do dia']);
+    assert.equal(r.nome, 'Modal ao fim do dia');
+    // a inventada de um artista que existe dá a canção mais ouvida dele (de estúdio: não a ao vivo); a de quem não existe, nada
+    assert.deepEqual(r.musicas.map((x) => [x.artista, x.titulo, x.tidal?.id || null, !!x.porArtista]),
+        [['Miles Davis', 'So What', '101', false], ['Nina Simone', 'Feeling Good', '102', false], ['Ninguém', 'Não Existe', null, false], ['Daft Punk', 'Título Inventado', '103', true]]);
+    assert.match(r.erros[0], /llama-3\.3.*No such model/);
+    // uma resposta sem músicas passa ao modelo seguinte; nenhum responde: diz-se
+    env.AI = { run: async () => ({ response: 'não sei' }) };
+    const nada = await (await pede('Jazz modal')).json();
+    assert.equal(nada.erro, 'A IA não respondeu.');
+    assert.equal(nada.erros.length, 5);
+    // um modelo escolhido nas variáveis do Worker: só esse
+    env.IA_MODELO = '@cf/x/y'; vistos.length = 0;
+    env.AI = { run: async (modelo) => { vistos.push(modelo); return { response: { nome: 'X', musicas: [{ artista: 'Miles Davis', titulo: 'So What' }] } }; } };
+    assert.equal((await (await pede('Jazz')).json()).modelo, '@cf/x/y');
+    assert.deepEqual(vistos, ['@cf/x/y']);
+    // só o Maestro (ainda em experiência)
+    assert.equal((await post('/api/ia/sementes', { texto: 'Jazz' }, chave)).status, 403);
+    delete env.AI; delete env.IA_MODELO;
 });
 
 test('juntar playlists: uma faixa de cada, à vez, sem repetidas; vai logo para o Tidal; pelo menos 2', async () => {

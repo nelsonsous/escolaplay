@@ -9,7 +9,7 @@ import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.27.0';
+const VERSION = '1.29.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -86,6 +86,13 @@ async function route(req, env, url) {
     if (p === '/api/perfil' && m === 'GET') return json(await perfil(ue, url.searchParams.has('fresco')));
     if (p === '/api/resolver' && m === 'POST') return json(await resolver(ue, await corpo(req)));
     if (p === '/api/pesquisa' && m === 'GET') return json(await pesquisa(ue, url.searchParams.get('q'), url.searchParams.has('unicas')));
+    // (em experiência, só para o Maestro: o que a IA da Cloudflare sugere para um pedido, e o que o Tidal confirma)
+    if (p === '/api/ia/sementes' && m === 'POST') {
+        if (quem.tipo !== 'agente') throw new Erro(403, 'so_maestro', 'Ainda em experiência.');
+        const c = await corpo(req), t0 = Date.now();
+        const s = await iaSementes(/^@cf\/[\w./-]+$/.test(c?.modelo || '') ? { ...env, IA_MODELO: c.modelo } : env, txt(c?.texto, 500));
+        return json({ ...s, ms: Date.now() - t0, musicas: s.musicas?.length ? await iaConfirmar(ue, s.musicas, c?.limpa === true) : [] });
+    }
     if (p === '/api/playlists' && m === 'GET') return json((await ue.KV.get('playlists', 'json')) || []);
     if (p === '/api/playlists' && m === 'POST') return json(await guardar(ue, await corpo(req), quem), 201);
     if (p === '/api/ideias' && m === 'GET') return json((await ue.KV.get('ideias', 'json')) || { ideias: [] });
@@ -573,7 +580,7 @@ async function pesquisar(env, q, pais) {
 // uma com a capa e os 30 s de pré-escuta, para se reconhecer a certa. Com «unicas» (a música de partida), cada canção
 // aparece uma vez, na melhor versão: a de estúdio mais ouvida — o Tidal dá a mesma canção em várias (ao vivo,
 // remisturas, aceleradas, karaoke, só em Dolby Atmos…), e na lista pareciam repetidas
-const VARIANTE = /\b(live|ao vivo|en vivo|remix|remixed|mix|sped up|slowed|extended|karaoke|instrumental|acoustic|acustica|piano version|demo|edit|sequence|take \d+|outtake|rehearsal|alternate|version|versao)\b/;
+const VARIANTE = /\b(live|ao vivo|en vivo|remix|remixed|mix|sped up|slowed|extended|karaoke|instrumental|acoustic|acustica|piano version|cover|covers|tribute|originally performed|made famous|demo|edit|sequence|take \d+|outtake|rehearsal|alternate|version|versao)\b/;
 const variante = (f) => VARIANTE.test(`${f.titulo} ${f.versao || ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())
     || ((f.tags || []).includes('DOLBY_ATMOS') && !(f.tags || []).some((x) => /LOSSLESS/.test(x)));
 async function pesquisa(env, q, unicas = false) {
@@ -585,15 +592,21 @@ async function pesquisa(env, q, unicas = false) {
     const detalhe = await porIds(env, ids, pais);
     let faixas = ids.map((id) => detalhe.get(id)).filter(Boolean);
     if (unicas) {
+        // só as que têm a ver com o que se escreveu (uma palavra no título ou no artista): o Tidal enche a lista com outras
+        const pal = normal(q).split(' ').filter((w) => w.length >= 3);
+        const tem = (f) => !pal.length || normal(`${f.titulo} ${f.artistas.join(' ')}`).split(' ').some((w) => pal.includes(w));
         // (a canção: o título sem o que vem entre parênteses e o artista principal; pela ordem em que o Tidal a deu)
         const grupos = new Map();
-        for (const f of faixas) { const k = `${normal(f.titulo)}|${normal(f.artistas[0] || '')}`; grupos.set(k, [...(grupos.get(k) || []), f]); }
+        for (const f of faixas.filter(tem)) { const k = `${normal(f.titulo)}|${normal(f.artistas[0] || '')}`; grupos.set(k, [...(grupos.get(k) || []), f]); }
         const peso = (f) => (variante(f) ? 0 : 1e6) + (Number(f.popularidade) || 0);
-        faixas = [...grupos.values()].map((g) => g.reduce((a, b) => (peso(b) > peso(a) ? b : a))).slice(0, 8);
+        let melhores = [...grupos.values()].map((g) => g.reduce((a, b) => (peso(b) > peso(a) ? b : a)));
+        // karaoke, versões de piano, «cover», ao vivo… só se não houver outra coisa
+        if (melhores.some((f) => !variante(f))) melhores = melhores.filter((f) => !variante(f));
+        faixas = melhores.slice(0, 8);
     }
     const capas = await capasTidal(env, faixas).catch(() => ({}));
     let n = 0;
-    const pv = await Promise.all(faixas.map((f) => previaDeezer(f, () => ++n <= 12).catch(() => null)));
+    const pv = await Promise.all(faixas.map((f) => previaDeezer(f, () => ++n <= 2 * faixas.length).catch(() => null)));
     return { faixas: faixas.map((f, i) => ({ ...f, capa: capas[f.id] || pv[i]?.c || '', previa: pv[i]?.p || '' })) };
 }
 
@@ -1292,6 +1305,54 @@ async function pedir(env, c, quem) {
     lista.unshift(p);
     await env.KV.put('pedidos', JSON.stringify(lista.slice(0, 60)));
     return p;
+}
+
+// ---------- a IA da Cloudflare (Workers AI): do texto de um pedido, as músicas de partida ----------
+// Para «Pedir» sem música de partida: a IA lê o pedido e propõe músicas (artista e título) que o respondam; o Tidal
+// confirma cada uma (as que não existem saem). Corre na Cloudflare, onde o conector já está, e a Cloudflare não usa o
+// que lá passa para treinar modelos. O plano gratuito dá 10 000 «Neurons» por dia (um pedido gasta poucas dezenas);
+// passado isso a IA recusa e o pedido fica para o Maestro, como antes. O catálogo de modelos muda: tenta-se pela ordem
+// (IA_MODELO, nas variáveis do Worker, escolhe um).
+const IA_MODELOS = ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/mistralai/mistral-small-3.1-24b-instruct', '@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.1-8b-instruct'];
+const IA_SISTEMA = `És um curador de música. Recebes o pedido de uma pessoa para uma playlist, escrito em português.
+Escolhe 4 músicas que sejam o melhor ponto de partida para essa playlist: gravações reais, de artistas reais, que existam no serviço de streaming TIDAL, e que respondam ao género, à época, ao ambiente, ao momento e à idade de quem vai ouvir.
+Se o pedido nomear artistas ou músicas, começa por eles.
+Prefere as gravações de estúdio mais conhecidas a versões ao vivo, remisturas ou versões de outros artistas.
+Responde só com JSON, sem mais nada:
+{"nome": "nome curto para a playlist, em português de Portugal", "musicas": [{"artista": "...", "titulo": "..."}]}`;
+async function iaSementes(env, texto) {
+    if (!env.AI?.run) return { erro: 'A IA da Cloudflare não está ligada ao conector.' };
+    if (texto.length < 3) return { erro: 'Pedido vazio.' };
+    const erros = [];
+    for (const modelo of env.IA_MODELO ? [env.IA_MODELO] : IA_MODELOS) {
+        let r;
+        try {
+            r = await env.AI.run(modelo, { messages: [{ role: 'system', content: IA_SISTEMA }, { role: 'user', content: texto }], max_tokens: 400, temperature: 0.3 });
+        } catch (e) { erros.push(`${modelo}: ${txt(e?.message, 120)}`); continue; }
+        const out = r?.response ?? r?.choices?.[0]?.message?.content ?? r?.result?.response ?? '';
+        const j = typeof out === 'object' ? out : (() => { try { return JSON.parse((/\{[\s\S]*\}/.exec(String(out)) || ['null'])[0]); } catch { return null; } })();
+        const musicas = (Array.isArray(j?.musicas) ? j.musicas : []).map((x) => ({ artista: txt(x?.artista, 120), titulo: txt(x?.titulo, 160) })).filter((x) => x.artista && x.titulo).slice(0, 6);
+        if (!musicas.length) { erros.push(`${modelo}: a resposta não trouxe músicas`); continue; }
+        return { modelo, nome: txt(j.nome, 60), musicas, ...(erros.length ? { erros } : {}) };
+    }
+    return { erro: 'A IA não respondeu.', erros };
+}
+// o Tidal confirma as músicas sugeridas. A IA às vezes inventa o título (o artista está certo): então fica a canção mais
+// ouvida desse artista que o Tidal tenha (a versão de estúdio), sem repetir
+async function iaConfirmar(env, musicas, limpa) {
+    const r = await resolver(env, { faixas: musicas, limpa });
+    const pais = (await acesso(env)).pais || 'PT';
+    const ja = new Set(r.faixas.filter(Boolean).map((f) => f.id));
+    const out = [];
+    for (const [i, m] of musicas.entries()) {
+        if (r.faixas[i]) { out.push({ ...m, tidal: r.faixas[i] }); continue; }
+        const det = await porIds(env, (await pesquisar(env, m.artista, pais).catch(() => [])).slice(0, 10), pais);
+        const doArtista = [...det.values()].filter((f) => normal(f.artistas[0] || '') === normal(m.artista) && !ja.has(f.id) && !(limpa && f.explicita));
+        const f = doArtista.find((x) => !variante(x)) || doArtista[0] || null;
+        if (f) ja.add(f.id);
+        out.push({ ...m, tidal: f, ...(f ? { porArtista: true } : {}) });
+    }
+    return out;
 }
 
 // ---------- avisos no telemóvel (Web Push; a cifra e o VAPID estão em push.js, os mesmos da Meteo) ----------
