@@ -18,7 +18,7 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
 ```
 
 - **Maestro** — como o Conselheiro dos Mercados e o Analista do Meteo, uma **tarefa agendada do Claude** segue
-  [`CURADOR.md`](CURADOR.md) às 07:44 e às 18:44: lê o teu gosto (favoritas, artistas seguidos, playlists), pesquisa
+  [`CURADOR.md`](CURADOR.md) quando a app o chama: lê o teu gosto (favoritas, artistas seguidos, playlists), pesquisa
   na web o que está a dar e tem qualidade (crítica, tabelas, cena portuguesa, jazz, clássica, reedições, gravações de
   referência), escreve uma proposta com 2,5× a 3× as faixas necessárias, e publica: os pedidos que fizeste na app —
   **cada pedido dá uma playlist, logo no teu Tidal** (revês depois na app: trocar faixas, mudar o estilo, afinar; as
@@ -55,7 +55,7 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   pedidos que escrevem ("MÉTODO caminho" + corpo), sair para o login do Tidal ("IR url") e o regresso dele.
 - **O Maestro na hora** — com o gatilho «API» da tarefa agendada ligado ao conector (dois segredos no Cloudflare:
   ver «Agilidade» no [`PLANO.md`](PLANO.md)), um pedido chama o Maestro logo, sem corridas a dobrar; a app vai ver
-  sozinha se ele já acabou. Sem os segredos, os pedidos esperam pelas 07:44 e pelas 18:44, como sempre.
+  sozinha se ele já acabou. A tarefa não tem horário: sem os segredos, os pedidos ficam à espera.
 - **A tua conta e a App Store** — antes de ligar o Tidal a app diz que o Maestro é uma IA de terceiros e pede a
   autorização («Concordo e ligar»; fica registada); o que a loja pede está em [`loja/LEIA.md`](loja/LEIA.md). Nos Ajustes, «A tua conta» diz o que se guarda e tem **«Apagar a minha conta»**
   (`DELETE /api/conta`: o conector apaga tudo o que guarda da pessoa; as playlists do Tidal ficam). As páginas de

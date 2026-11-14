@@ -139,7 +139,7 @@
     W c { Se ped_novo c { = op c.opcoes
         `<div class="mu-pedido" data-chave="{ esct txt c.id }" data-esq="cancelar&#9;{ esct txt c.id }" data-esq-rotulo="Cancelar"><div><div class="tx">«{ esct txt c.texto }»</div><div class="mt">pedido a { pdia txt c.criadoEm } · { N int op.faixas } faixas · { nome_estilo idx_estilo txt op.estilo }</div></div><button type="button" class="mu-btn sec peq" data-onda="cancelar&#9;{ esct txt c.id }">Cancelar</button></div>` }
       = c seg c }
-    `</div><p class="mu-nota">{ ? == tipo _ar_get @ 3 $"naHora" 3 "O Maestro é chamado quando pedes: costuma demorar uns minutos." "O Maestro trata deles às 07:44 e às 18:44." } As playlists aparecem aqui e no teu Tidal.</p></section>` } }
+    `</div><p class="mu-nota">{ ? == tipo _ar_get @ 3 $"naHora" 3 "O Maestro é chamado quando pedes: costuma demorar uns minutos." "O Maestro ainda não está ligado: os pedidos ficam à espera." } As playlists aparecem aqui e no teu Tidal.</p></section>` } }
 # a playlist (id) tem uma afinação pedida, ainda à espera do Maestro?
 : afina_pend i>i id { = r 0 = c pri @ 5 W && c ~ r { Se && mesmo txt c.estado $"pendente" mesmo txt c.afinar.playlist id = r ? == tipo c.afinar.rever 3 2 1 = c seg c } r }
 # arrastar um cartão para a esquerda (a casca) pede para o apagar: a pergunta aparece no lugar do cartão
@@ -812,9 +812,9 @@
   # o botao logo a seguir ao texto: com o teclado aberto (iPhone) fica a vista
   = pt pd_tem @ 19 = nh == tipo _ar_get @ 3 $"naHora" 3 = ia == tipo _ar_get @ 3 $"iaCf" 3 = iap == tipo _ar_get @ 3 $"iaCfPode" 3
   `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? acesso 0 " disabled" }>{ ic 2 }{ ? || pt ia "Criar já no Tidal" "Pedir ao Maestro" }</button>{ Se && ia ~ pt `<button type="button" class="mu-btn sec" data-onda="pedir_m"{ ? acesso 0 " disabled" }>Só o Maestro</button>` }</div><p class="mu-nota">`
-  ? pt `A playlist nasce já no teu Tidal com as parecidas da música de partida. O Maestro revê-a com o teu pedido { ? nh "daqui a poucos minutos" "às 07:44 ou às 18:44" }, no mesmo link, e dá-lhe nome.`
-    { ? ia `«Criar já»: a IA ({ ? mesmo txt _ar_get @ 3 $"iaEscolha" $"gemini" "Gemini, a tua conta Google" ? mesmo txt _ar_get @ 3 $"iaEscolha" $"mistral" "Mistral avançada, a tua conta" "Mistral, na Cloudflare" }) escolhe as músicas de partida e a playlist nasce já no teu Tidal; o Maestro (Claude) revê-a com o teu pedido { ? nh "daqui a poucos minutos" "às 07:44 ou às 18:44" }, no mesmo link, e dá-lhe nome. «Só o Maestro»: sem a IA, só o Claude.`
-      `{ ? nh "O Maestro é chamado logo e cria a playlist em poucos minutos, no teu Tidal." "O Maestro cria a playlist às 07:44 ou às 18:44 e põe-na logo no teu Tidal." } Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.{ Se iap ` <button type="button" class="mu-ligacao" data-onda="iacf&#9;1">Ligar a playlist na hora</button>: a IA da Cloudflare lê o texto do pedido e a playlist nasce logo.` }` }
+  ? pt `A playlist nasce já no teu Tidal com as parecidas da música de partida. O Maestro revê-a com o teu pedido { ? nh "daqui a poucos minutos" "quando for chamado" }, no mesmo link, e dá-lhe nome.`
+    { ? ia `«Criar já»: a IA ({ ? mesmo txt _ar_get @ 3 $"iaEscolha" $"gemini" "Gemini, a tua conta Google" ? mesmo txt _ar_get @ 3 $"iaEscolha" $"mistral" "Mistral avançada, a tua conta" "Mistral, na Cloudflare" }) escolhe as músicas de partida e a playlist nasce já no teu Tidal; o Maestro (Claude) revê-a com o teu pedido { ? nh "daqui a poucos minutos" "quando for chamado" }, no mesmo link, e dá-lhe nome. «Só o Maestro»: sem a IA, só o Claude.`
+      `{ ? nh "O Maestro é chamado logo e cria a playlist em poucos minutos, no teu Tidal." "O Maestro ainda não está ligado: o pedido fica à espera até ser chamado." } Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.{ Se iap ` <button type="button" class="mu-ligacao" data-onda="iacf&#9;1">Ligar a playlist na hora</button>: a IA da Cloudflare lê o texto do pedido e a playlist nasce logo.` }` }
   `</p>{ pd_partida }`
   # as opcoes ficam escondidas (uma linha com o resumo); "Mudar" mostra-as
   ? @ 39 {
@@ -1052,7 +1052,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.42.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.42.1 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»
