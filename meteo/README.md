@@ -146,7 +146,8 @@ Os locais dos outros seguem a «Análise dos outros» (desligada: nunca; 1× por
 1. Em `claude.ai/code/routines`, abre a tarefa **«Meteo — análise do Claude»** → **Edit** → na linha **Trigger** carrega
    em **+** → **API** → **Generate token**. Copia o endereço («Fire URL») e o token (só aparece uma vez).
 2. No painel do Cloudflare: **Workers** → `meteo` → **Settings** → **Variables and Secrets** → junta dois, do tipo
-   **Secret**: `METEO_FIRE_URL` (o endereço) e `METEO_TOKEN` (o token).
+   **Secret**: `METEO_FIRE_URL` (o endereço) e `METEO_TOKEN` (o token). Têm de ser **Secret**: como texto simples, a publicação
+   seguinte do conector apagava-os (aconteceu a 14/11 com o endereço; desde então `keep_vars = true` no `wrangler.toml`).
 3. Abre a app: em Análise passa a dizer «ao abrir a app, se tiver mais de 6 h». Depois tiram-se as horas marcadas da
    tarefa (até lá continuam, para nunca ficar sem análise).
 
