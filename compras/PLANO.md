@@ -1,4 +1,4 @@
-# Compras — plano das onze voltas
+# Compras — plano das dez voltas
 
 O pedido: analisar melhor a PlanMyMeals (a app portuguesa de ementas e preços que, segundo a CNN Portugal de
 14/11/2026, esteve uma semana à frente do ChatGPT nas instalações) e fazer melhor, como a Mercados, a Meteo e a
@@ -10,8 +10,8 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 **Nome provisório: Compras**, o nome do assunto, como nas outras três. «Cabaz» fica de fora porque é quase igual ao
 Kabaz, do KuantoKusta.
 
-**O formato:** a família só usa o WhatsApp, por isso é lá que se fala com a Compras. A app fica para ver e riscar
-(secção «O formato»).
+**O formato:** tudo na app, como nas outras três: a app, o conector no Worker e o Claude pela tua subscrição. Não há
+API paga nem bot. O WhatsApp só entra para partilhar a lista ou a ementa no grupo da família.
 
 ## A PlanMyMeals a fundo
 
@@ -63,56 +63,34 @@ Compras.
 | Preços estimados no meio dos reais | Cada preço diz **de onde vem e de quando** (online, folheto ou talão). Um cabaz só é «o mais barato» quando há preço para quase tudo, e o que falta é indicado. |
 | Dividir por lojas, sem mais nada | **Onde compro:** a melhor combinação de 1, 2 ou 3 das tuas lojas, contando o custo de ir a mais uma, os cartões e as promoções válidas no dia em que vais. Corre no telemóvel, sem rede. |
 | Não se sabe se a promoção é verdadeira | **Promoção verdadeira?** Mostra o preço mais baixo dos últimos 30 dias, tirado do nosso histórico, ao lado do «antes» da loja (a regra do Decreto-Lei 109-G/2021). Fica fiável ao fim de 30 dias de recolha. |
-| Não se sabe quanto se gastou | **Talões:** mandas a fotografia ao bot do WhatsApp (ou tiras na app) e a Compras fica a saber o que compraste, quanto pagaste e onde. A despensa e o gasto do mês atualizam-se sozinhos. |
+| Não se sabe quanto se gastou | **Talões:** com uma fotografia, a app fica a saber o que compraste, quanto pagaste e onde. A despensa e o gasto do mês atualizam-se sozinhos. |
 | A poupança contada pelo «preço antes da promoção» | **Poupança honesta:** compara o que pagaste com o que o mesmo cabaz custaria na tua loja de sempre, no mesmo dia. |
 | Ementas de molde | **A Semana com o Ecónomo:** a ementa nasce das promoções desta semana nas tuas lojas e do que tens na despensa, e respeita quem come e o tempo que há para cozinhar. Trocar um prato é na hora (⇄), como trocar uma faixa na Música. Aprende com o que gostas e com o que compras. |
-| Uma lista numa app que é preciso abrir | **No WhatsApp, onde a família já está:** «acabou o azeite» numa mensagem ou num áudio, e a lista da casa atualiza-se para todos. Na loja, a app abre sem rede e arruma a lista por loja e por corredor. |
+| Uma lista para uma pessoa | **Lista da casa:** partilhada entre telemóveis, abre sem rede na loja e fica arrumada por loja e por corredor. O botão «Partilhar no WhatsApp» manda-a para o grupo da família. |
 
-## O formato: o WhatsApp para falar, a app para ver e riscar
+## O formato: tudo na app
 
-A família só usa o WhatsApp, por isso a conversa é lá. A app fica para o que precisa de ecrã.
+A interação é toda na app, como na Mercados, na Meteo e na Música. Não há bot no WhatsApp, porque precisava de uma
+conta na Meta e de um número próprio, os avisos pagavam-se à mensagem e as mensagens passavam pelos servidores da Meta.
 
-| Momento | Onde | Porquê |
-|---|---|---|
-| «Acabou o azeite», dito por qualquer pessoa da casa | WhatsApp, por mensagem ou áudio | Mandar uma mensagem é mais rápido do que abrir uma app. |
-| O talão depois das compras | WhatsApp, por fotografia | É um gesto que toda a gente já faz. |
-| Pedir a ementa da semana | WhatsApp | «Somos 5 no sábado, sem carne na sexta, 70 €». O bot avisa quando a ementa estiver pronta. |
-| Avisos de promoções | WhatsApp, ou a notificação da app para quem a instalar | Chegam a toda a gente sem instalar nada. |
-| Na loja, a riscar | app | Tem de abrir sem rede e riscar com um toque. |
-| Onde compro, histórico de preços, despensa | app (o WhatsApp manda o resumo e o link) | São tabelas e gráficos. |
+| Momento | Na app |
+|---|---|
+| «Acabou o azeite» | A app abre do ecrã principal direto na lista. Escreve-se, ou dita-se pelo microfone do teclado, e a IA arruma. No iPhone, um Atalho da Siri («junta azeite à lista») manda o texto ao conector sem abrir a app. No Android, carregar no ícone da app dá «Juntar à lista». |
+| O talão depois das compras | Fotografa-se com a câmara na app. No Android, a fotografia também se pode partilhar da galeria para a app. |
+| Pedir a ementa | Pede-se na Semana, e a app avisa quando o Ecónomo acabar. |
+| Avisos de promoções | Chegam como notificações da app, como na Meteo. No iPhone, só com a app adicionada ao ecrã principal. |
+| O grupo da família no WhatsApp | O botão «Partilhar no WhatsApp» manda a lista ou a ementa como texto, pelo WhatsApp de cada pessoa, sem API e sem custo. |
 
-**Como funciona.** O bot é um número próprio, ligado ao conector pela API oficial da Meta (WhatsApp Cloud API). A Meta
-manda cada mensagem ao Worker, que confere a assinatura e responde na hora: junta à lista, mostra a lista, diz onde
-comprar. O que precisa de cabeça, como a ementa ou um talão difícil, vai ao Ecónomo, e o bot avisa quando estiver
-pronto. Um áudio também serve: a IA da Cloudflare passa-o a texto. Cada pessoa liga-se à casa uma vez: a app mostra um
-código e a pessoa manda-o ao bot.
+Se um dia o bot fizer falta, liga-se ao mesmo conector sem mexer no resto.
 
-O que o WhatsApp obriga:
-- **O bot não pode entrar no grupo da família.** A API de grupos da Meta só existe para contas oficiais (as verificadas
-  pela Meta) e para grupos até 8 pessoas. Por isso cada pessoa fala com o bot à parte, e a lista é a mesma para todos.
-  Para o grupo da família, a app tem o botão **«Partilhar no WhatsApp»**, que manda a lista ou a ementa como texto, sem
-  API e sem custo.
-- **Custa uns cêntimos por mês.** Responder a quem escreveu, nas 24 horas seguintes, é grátis ou quase. Os avisos que
-  partem do bot são modelos aprovados pela Meta e pagam-se à mensagem. Na tabela da Europa Ocidental de outubro de
-  2026, segundo os fornecedores, custam cerca de 1,4 cêntimos os de utilidade e 4,9 cêntimos os de marketing (a
-  confirmar na tabela da Meta). Para uma casa, a estimativa é de menos de 2 € por mês. Quem quiser os avisos grátis
-  instala a app e recebe-os como notificação.
-- **Precisa de um número só para o bot**, que não esteja em nenhum WhatsApp (um cartão pré-pago ou um eSIM servem), e
-  de uma conta de programador na Meta. Para começar, a Meta dá um número de teste grátis que fala com até 5 números, o
-  que chega para experimentar.
-- **As mensagens para o bot passam pelos servidores da Meta**, que aloja a API. As conversas da família entre si não
-  passam. Quem não quiser mandar o talão por lá usa a app.
-- **A restrição da Meta às IAs (2026) é para os assistentes de uso geral.** Um bot de compras de uma casa não é isso.
-
-## Como fica feita (igual às outras três, com mais uma porta)
+## Como fica feita (igual às outras três)
 
 | Peça | O que faz | Onde corre |
 |---|---|---|
 | **A app** (`compras/`) | Três separadores: Lista, Semana e Casa. É uma PWA instalável que abre sem rede, com a lógica em Onda, feita a partir do `onda/molde`. | GitHub Pages (`…/escolaplay/compras/`) |
 | **O motor** (`compras/onda/`) | Faz as contas: preço por kg e por litro, que embalagens chegam, onde compro, o ritmo da despensa e a poupança. São as mesmas contas na app e nos scripts, com testes de paridade como na Música. | no telemóvel (wasm) e no Node |
 | **O conector** (`compras/proxy/`, Worker `compras`) | Guarda a casa e os telemóveis (só o hash do segredo de cada um), a lista partilhada, os talões, os pedidos e as notificações. Não faz contas: guarda e passa dados. | Cloudflare (plano grátis) |
-| **A IA na hora** (Workers AI, no conector) | Lê uma lista escrita à pressa («2 leites, pão, fruta p/ semana»), passa um áudio a texto, lê um talão e faz o rascunho de uma ementa. | Cloudflare (grátis até 10 000 «Neurons» por dia, partilhados com a Música) |
-| **A conversa** (WhatsApp, no conector) | Recebe as mensagens, os áudios e as fotografias de cada pessoa e responde: juntar à lista, «lista», «onde compro?», talões, ementas e avisos. | Cloudflare, com a WhatsApp Cloud API da Meta |
+| **A IA na hora** (Workers AI, no conector) | Lê uma lista escrita à pressa («2 leites, pão, fruta p/ semana»), lê um talão e faz o rascunho de uma ementa. | Cloudflare (grátis até 10 000 «Neurons» por dia, partilhados com a Música) |
 | **O Ecónomo** (tarefa do Claude, `ECONOMO.md`, scripts em `compras/economo/`) | Recolhe os preços do dia, lê os folhetos, decide que produtos são o mesmo entre cadeias, revê os talões duvidosos e faz as ementas pedidas. | a tua subscrição do Claude, uma corrida de cada vez |
 | **A base de dados** | Guarda os preços e o histórico, a casa, a lista e os talões. A D1 é a recomendada (explicação abaixo). | Cloudflare |
 
@@ -169,25 +147,25 @@ Segue o `ECONOMO.md`, como o Analista segue o `ANALISTA.md`:
 3. `node compras/economo/publicar.mjs` valida (preços que existem, datas, restrições da casa, contas do motor) e grava.
 
 Corre uma vez por dia, de madrugada, para os preços e os folhetos. Corre também **na hora** quando alguém pede uma
-ementa, pelo gatilho «API» da tarefa, como o Maestro e a Meteo. Faz uma corrida de cada vez, no máximo 4 por hora e 12
+ementa, pelo gatilho «API» da tarefa, como o Maestro e a Meteo. Esse gatilho é um endereço da própria tarefa agendada e
+corre na tua subscrição: não é a API paga do Claude. Faz uma corrida de cada vez, no máximo 4 por hora e 12
 por dia. Guarda **lições** sobre cada casa (o que se come, o que se deita fora, a marca que não se troca), como a Meteo
 guarda lições sobre cada local.
 
-## As onze voltas
+## As dez voltas
 
 | # | O que muda para ti | Por dentro |
 |---|---|---|
 | **1** | Nada à vista: fica a saber-se que cadeias entram. | `economo/fontes/*.mjs`, uma por cadeia, experimentadas a partir da tarefa do Claude e do Worker. As respostas ficam gravadas para os testes. Este plano ganha a tabela «O que cada cadeia deixa», como na Música há «O que o Tidal deixa». Precisa da rede aberta às cadeias (aparece-te um pedido de aprovação). |
-| **2** | **A lista da casa** na app: escreves como te sai («2 leites, pão») e a IA arruma. Partilha-se com um código e abre sem rede. **«Partilhar no WhatsApp»** manda a lista para o grupo da família. Separadores **Lista · Semana · Casa**. | `onda/molde` → `compras/`. Conector 1.0.0: casa, telemóveis e lista com as gravações juntas. Workers AI para ler o texto. Testes de interface no Chromium. |
-| **3** | **O bot no WhatsApp:** juntas à lista por mensagem ou por áudio e pedes «lista». Cada pessoa liga-se à casa uma vez, com um código. Começa com o número de teste da Meta (até 5 números). | `/whatsapp` no conector: a verificação do endereço pela Meta, a assinatura de cada chamada (`X-Hub-Signature-256`) e as respostas pela Cloud API. Os áudios passam a texto pela Workers AI. Testes com mensagens da Meta gravadas. Se a conta da Meta ainda não estiver pronta, esta volta troca com a 4. |
-| **4** | Cada produto da lista mostra **o preço em cada cadeia**, por kg ou por litro, com a origem e a data. Escolhes «qualquer marca», «marca branca serve» ou «esta marca». | Primeiro `ECONOMO.md` (só preços e pares) e `recolher.mjs`. O universo fica na base e no telemóvel. Os pares entre cadeias fazem-se pelo código de barras e pelo nome; o resto decide o Ecónomo. |
-| **5** | **Onde compro:** a melhor combinação das tuas lojas, com a deslocação e os cartões. A lista arruma-se por loja e por corredor para ires às compras. Se perguntares «onde compro?» ao bot, ele responde com o resumo e o link. | O motor em Onda (`onde.onda`), com testes de paridade em JavaScript. As tuas lojas e os teus cartões ficam na Casa. |
-| **6** | **Talões:** mandas a fotografia ao bot ou tiras na app, revês o que foi lido, e ficam o gasto, a loja e o preço real. Os produtos riscam-se da lista e entram na despensa. | `/api/talao` no conector (a fotografia do WhatsApp chega pela Meta), com uma IA que lê imagens; se não chegar, o talão vai ao Ecónomo. O QR da fatura confere a loja, a data e o total, onde o telemóvel o lê. O NIF de quem compra nunca se guarda. Cada linha confirmada ensina um nome de talão («LT UHT MG MIM 1L»). |
-| **7** | **Folhetos e promoções para ti:** o que está em promoção nas tuas lojas, entre o que costumas comprar, com avisos no WhatsApp ou na app. | O Ecónomo lê os folhetos do Lidl e do Aldi (e os das outras, se as lojas online não chegarem). As promoções têm validade. No WhatsApp, os avisos são modelos aprovados pela Meta; na app, usam o `push.js` como na Meteo. O cron do conector manda-os. |
-| **8** | **Promoção verdadeira?** e o gráfico do preço de cada produto. Podes pedir um aviso quando o azeite baixar de X. | Histórico na base (só as mudanças). A regra dos 30 dias fica no motor. O gráfico usa o `onda/lib/grafico.onda`. |
-| **9** | **A Semana:** pedes no WhatsApp ou na app («somos 4, 70 €, sem peixe»), e a ementa nasce das promoções e da despensa. ⇄ troca um prato na hora e a lista sai feita, com as quantidades certas. Podes importar uma receita por link ou por fotografia. | Pedido → rascunho na hora (Workers AI) → revisão do Ecónomo, também na hora (gatilho «API»). A ementa chega ao WhatsApp com o link para a Semana. O Ecónomo deixa 2 ou 3 pratos de reserva por refeição, para o ⇄ não precisar dele. Cada 👍/👎 num prato vira lição. |
-| **10** | **A despensa:** o que tens, o que está a acabar (entra sozinho na lista) e o que está a passar do prazo, mais «o que faço com o que tenho». | O ritmo de cada produto sai dos talões (motor). Os prazos são opcionais. O pedido «com o que tenho» vai ao Ecónomo. |
-| **11** | **A poupança honesta** do mês, também no WhatsApp, e tudo revisto. | O painel compara o que pagaste com o mesmo cabaz na tua loja de sempre. Auditoria e limpeza: sem funções por usar, sem marcas nos textos onde não é preciso, documentação conferida com o que a app faz. Notas para a loja da Apple, se a app for para o público. |
+| **2** | **A lista da casa:** escreves ou ditas como te sai («2 leites, pão») e a IA arruma. Partilha-se com um código e abre sem rede. «Partilhar no WhatsApp» manda a lista para o grupo da família. No iPhone, o Atalho da Siri junta à lista sem abrir a app. Separadores **Lista · Semana · Casa**. | `onda/molde` → `compras/`. Conector 1.0.0: casa, telemóveis e lista com as gravações juntas. Workers AI para ler o texto. O Atalho fala com o conector com a chave do telemóvel. Os atalhos do ícone (Android) ficam no manifesto. Testes de interface no Chromium. |
+| **3** | Cada produto da lista mostra **o preço em cada cadeia**, por kg ou por litro, com a origem e a data. Escolhes «qualquer marca», «marca branca serve» ou «esta marca». | Primeiro `ECONOMO.md` (só preços e pares) e `recolher.mjs`. O universo fica na base e no telemóvel. Os pares entre cadeias fazem-se pelo código de barras e pelo nome; o resto decide o Ecónomo. |
+| **4** | **Onde compro:** a melhor combinação das tuas lojas, com a deslocação e os cartões. A lista arruma-se por loja e por corredor para ires às compras. | O motor em Onda (`onde.onda`), com testes de paridade em JavaScript. As tuas lojas e os teus cartões ficam na Casa. |
+| **5** | **Talões:** tiras uma fotografia, revês o que a app leu, e ficam o gasto, a loja e o preço real. Os produtos riscam-se da lista e entram na despensa. | `/api/talao` no conector, com uma IA que lê imagens; se não chegar, o talão vai ao Ecónomo. O QR da fatura confere a loja, a data e o total, onde o telemóvel o lê. O NIF de quem compra nunca se guarda. Cada linha confirmada ensina um nome de talão («LT UHT MG MIM 1L»). |
+| **6** | **Folhetos e promoções para ti:** o que está em promoção nas tuas lojas, entre o que costumas comprar, com avisos no telemóvel. | O Ecónomo lê os folhetos do Lidl e do Aldi (e os das outras, se as lojas online não chegarem). As promoções têm validade. Os avisos usam o `push.js` como na Meteo e o cron do conector. |
+| **7** | **Promoção verdadeira?** e o gráfico do preço de cada produto. Podes pedir um aviso quando o azeite baixar de X. | Histórico na base (só as mudanças). A regra dos 30 dias fica no motor. O gráfico usa o `onda/lib/grafico.onda`. |
+| **8** | **A Semana:** dizes quem come, o orçamento e o tempo, e a ementa nasce das promoções e da despensa. ⇄ troca um prato na hora e a lista sai feita, com as quantidades certas. Podes importar uma receita por link ou por fotografia. | Pedido → rascunho na hora (Workers AI) → revisão do Ecónomo, também na hora (gatilho «API»). A app avisa quando a ementa estiver pronta, e «Partilhar no WhatsApp» manda-a para o grupo da família. O Ecónomo deixa 2 ou 3 pratos de reserva por refeição, para o ⇄ não precisar dele. Cada 👍/👎 num prato vira lição. |
+| **9** | **A despensa:** o que tens, o que está a acabar (entra sozinho na lista) e o que está a passar do prazo, mais «o que faço com o que tenho». | O ritmo de cada produto sai dos talões (motor). Os prazos são opcionais. O pedido «com o que tenho» vai ao Ecónomo. |
+| **10** | **A poupança honesta** do mês, e tudo revisto. | O painel compara o que pagaste com o mesmo cabaz na tua loja de sempre. Auditoria e limpeza: sem funções por usar, sem marcas nos textos onde não é preciso, documentação conferida com o que a app faz. Notas para a loja da Apple, se a app for para o público. |
 
 ## O que precisa de ti
 
@@ -195,12 +173,9 @@ guarda lições sobre cada local.
 |---|---|
 | Escolher o nome (Compras?) | antes da volta 2 |
 | Aprovar a abertura da rede do ambiente aos sites das cadeias (o pedido aparece-te aqui) | volta 1 |
-| Dar ao token da Cloudflare a permissão D1 (Edit) | volta 2 |
-| Criar uma conta de programador na Meta e uma app com o WhatsApp (o número de teste vem com ela). O token e o segredo da app ficam como segredos no Worker (`WHATSAPP_TOKEN`, `WHATSAPP_APP_SECRET`) | volta 3 |
-| Arranjar um número só para o bot (cartão pré-pago ou eSIM, fora de qualquer WhatsApp) e escolher o nome que aparece, que a Meta aprova | antes de deixar o número de teste |
-| Criar a tarefa do Ecónomo em `claude.ai/code/routines` e o gatilho «API». Os segredos `ECONOMO_FIRE_URL` e `ECONOMO_TOKEN` ficam no Worker, como na Música | volta 4 |
-| Dizer as tuas lojas e os teus cartões, e dar uns talões reais para os testes | voltas 5 e 6 |
-| Pôr um método de pagamento na conta do WhatsApp, para os avisos (uns cêntimos por mês) | volta 7 |
+| Dar ao token da Cloudflare a permissão D1 (Edit) | volta 2 ou 3 |
+| Criar a tarefa do Ecónomo em `claude.ai/code/routines` e o gatilho «API». Os segredos `ECONOMO_FIRE_URL` e `ECONOMO_TOKEN` ficam no Worker, como na Música | volta 3 |
+| Dizer as tuas lojas e os teus cartões, e dar uns talões reais para os testes | voltas 4 e 5 |
 | Decidir se a app fica para a casa e os convidados ou vai para o público. Para o público é preciso um parecer jurídico sobre a recolha de preços e, provavelmente, a API do Claude | antes de abrir |
 
 ## Riscos
@@ -213,8 +188,6 @@ guarda lições sobre cada local.
 | As gravações da KV (1000 por dia, da conta toda) acabarem e pararem as outras apps | A lista e os preços vão para a D1; a KV fica só com o pouco do costume. |
 | A IA grátis da Cloudflare não ler bem os talões | O talão vai ao Ecónomo (o Claude lê imagens). |
 | Cada pedido de ementa gasta da tua subscrição | Faz-se um rascunho na hora pela IA grátis, o Ecónomo só entra quando se pede, e há limites por hora e por dia. Para o público, usa-se a API, paga por utilização. |
-| O bot não pode estar no grupo da família (a API de grupos da Meta é só para contas oficiais) | Cada pessoa fala com o bot à parte e a lista é a mesma para todos. O botão «Partilhar no WhatsApp» leva a lista ou a ementa ao grupo. |
-| A Meta muda os preços ou as regras (desde outubro de 2026 os avisos de utilidade pagam-se sempre) | Só se mandam os avisos que cada pessoa pede, e quem os quiser grátis recebe-os pela app. O resto da Compras não depende do WhatsApp. |
 
 ## Agilidade: três degraus
 
@@ -223,6 +196,22 @@ guarda lições sobre cada local.
 | **1. A IA grátis, na hora** | Workers AI no conector: ler a lista, o talão e o rascunho da ementa | segundos | grátis até ao limite diário |
 | **2. O Ecónomo na hora** | o conector chama a tarefa pelo gatilho «API» | uns minutos | a tua subscrição do Claude |
 | **3. Pela API do Claude** | o conector fala diretamente com o Claude | um a poucos minutos | paga-se por utilização (só se a app for para o público) |
+
+**Para a casa não é precisa a API do Claude.** Os degraus 1 e 2 chegam, como na Música e na Meteo. O degrau 3 só entra
+se a app for para o público, porque aí cada pedido de um desconhecido gastaria da tua subscrição.
+
+## Quanto custa
+
+| O quê | Custo |
+|---|---|
+| A app (GitHub Pages), o conector (Worker), a base de dados (D1 ou KV), a IA da Cloudflare e as notificações | **Grátis**, dentro dos limites do plano grátis. Passado o limite, o serviço recusa em vez de cobrar. A KV e a IA são partilhadas com as outras apps. |
+| O Ecónomo (o Claude) | **Já pago:** usa a tua subscrição, sem custo extra, e conta para os limites de uso dela. |
+| Preços das lojas e Open Food Facts | **Grátis.** |
+| «Partilhar no WhatsApp» | **Grátis:** é o WhatsApp de cada pessoa. |
+
+Para a casa e os convidados: **0 €**. Só se a app for para o público aparecem custos: a API do Claude (paga por
+utilização), talvez o plano pago da Cloudflare (5 $/mês), o parecer jurídico sobre a recolha de preços e, para a App
+Store, o programa de programador da Apple.
 
 ## Regras de cada volta
 
@@ -233,8 +222,6 @@ guarda lições sobre cada local.
 - **Os dados de cada casa são dela.** Os talões perdem o NIF. O preço que um talão ensina entra na base sem dizer de
   quem veio.
 - **Segredos só no Worker** (como segredos do Cloudflare): nunca no código nem na app.
-- **Do WhatsApp, só a Meta entra.** O Worker recusa qualquer chamada sem a assinatura da Meta e só responde a números
-  ligados a uma casa.
 - **Poucas gravações.** A KV da conta é partilhada com as outras três apps.
 - **Publicar e juntar ao `main` só com o teu OK.**
 
@@ -249,5 +236,3 @@ guarda lições sobre cada local.
 - QR code das faturas: [Portaria 195/2020](https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_195_2020.pdf), [especificações técnicas da AT](https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/Novas_regras_faturacao/Documents/Especificacoes_Tecnicas_Codigo_QR.pdf)
 - Ryanair c. PR Aviation (C-30/14): [Pinsent Masons](https://www.pinsentmasons.com/out-law/news/website-operators-can-prohibit-screen-scraping-of-unprotected-data-via-terms-and-conditions-says-eu-court-in-ryanair-case)
 - Open Food Facts em Portugal: [wiki](https://wiki.openfoodfacts.org/Country_Support_-_Portugal)
-- WhatsApp Cloud API: [começar](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/), [números de telefone](https://developers.facebook.com/documentation/business-messaging/whatsapp/business-phone-numbers/phone-numbers/), [preços (Meta)](https://developers.facebook.com/docs/whatsapp/pricing), [tabela de 2026 (SleekFlow)](https://sleekflow.io/blog/whatsapp-business-price), [o estado da API de grupos em 2026 (Kapso)](https://kapso.com/blog/whatsapp-groups-api-state-2026)
-- A restrição da Meta às IAs no WhatsApp e a investigação da UE: [TechCrunch, 04/12/2025](https://techcrunch.com/2025/12/04/eu-investigating-meta-over-policy-change-that-bans-rival-ai-chatbots-from-whatsapp/)
