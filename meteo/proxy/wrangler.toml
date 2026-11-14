@@ -1,6 +1,9 @@
 name = "meteo"
 main = "src/worker.js"
 compatibility_date = "2026-10-01"
+# não apagar as variáveis postas no painel do Cloudflare a cada publicação (14/11/2026: o METEO_FIRE_URL posto como
+# texto desapareceu no deploy seguinte; os segredos — METEO_FIRE_URL, METEO_TOKEN, OWNER_CODE — ficam sempre)
+keep_vars = true
 
 # Locais, análises do Claude, lições e histórico de observações
 # (criado com: POST /accounts/:id/storage/kv/namespaces {"title":"meteo-METEO"})
