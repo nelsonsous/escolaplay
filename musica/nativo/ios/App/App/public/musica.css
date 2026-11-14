@@ -543,3 +543,9 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-perg > p { margin: 0 0 8px; font-size: 14px; font-weight: 650; }
 .mu-chips-r { display: flex; flex-wrap: wrap; gap: 8px; }
 .mu-convite-perfil { display: block; margin: 0 2px 12px; text-align: left; }
+
+/* 2.46.1 — os dois caminhos um por baixo do outro, a toda a largura: o nome à esquerda, o tempo à direita (cabem) */
+.mu-duo { grid-template-columns: 1fr; gap: 8px; }
+.mu-duo-b { flex-direction: row; justify-content: space-between; align-items: center; gap: 12px; min-height: 52px; padding: 12px 18px; border-radius: 16px; text-align: left; }
+.mu-duo-b b { white-space: nowrap; }
+.mu-duo-b span { white-space: nowrap; text-align: right; }
