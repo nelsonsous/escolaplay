@@ -12,7 +12,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 let env, sim;
-const ctx = { waitUntil() {} };
+// (o que o Worker deixa a correr depois de responder fica aqui: `await depois()` espera por tudo)
+const pendentes = [];
+const ctx = { waitUntil(p) { pendentes.push(Promise.resolve(p)); } };
+const depois = async () => { while (pendentes.length) await pendentes.shift(); };
 beforeEach(() => {
     env = { KV: kv(), TIDAL_CLIENT_ID: 'CLIENTE', APP_URL: 'https://nelsonsous.github.io/escolaplay/musica/' };
     sim = simulador();
@@ -39,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.22.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.23.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -556,6 +559,128 @@ test('a app nativa (os ficheiros vão dentro dela): o login do Tidal volta à ap
     assert.doesNotMatch(st3, /^app-/);
     assert.equal((await call(`/tidal/retorno?code=CODIGO-BOM&state=${st3}`)).headers.get('location'), 'https://nelsonsous.github.io/escolaplay/musica/#ligado=1');
     assert.match((await call('/tidal/retorno?code=X&state=expirado')).headers.get('location'), /^https:\/\/nelsonsous\.github\.io\/escolaplay\/musica\/#erro=/);
+});
+
+test('o Maestro na hora: com os segredos no Worker, um pedido novo chama a tarefa agendada — sem corridas a dobrar nem chamadas à toa; sem eles, nada muda', async () => {
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    const chamadas = async () => JSON.parse((await env.KV.get('maestro:chamadas')) || '[]');
+    const peds = async () => JSON.parse(await env.KV.get('pedidos'));
+    // sem os segredos: o pedido fica à espera da corrida seguinte, como sempre
+    const p0 = await (await post('/api/pedidos', { texto: 'Jazz calmo' }, chave)).json();
+    await depois();
+    assert.equal(p0.naHora, undefined);
+    assert.deepEqual(sim.maestro, []);
+    assert.equal((await (await get('/api/estado', chave)).json()).naHora, undefined);
+    await env.KV.put('pedidos', '[]');
+    // com os segredos (postos no painel do Cloudflare, nunca no código); as horas agendadas ficam de fora deste teste
+    Object.assign(env, { MAESTRO_FIRE_URL: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', MAESTRO_TOKEN: 'segredo-de-teste', MAESTRO_ESPERA_MS: 30, MAESTRO_AGENDADAS: '' });
+    assert.equal((await (await get('/api/estado', chave)).json()).naHora, true);
+    const p1 = await (await post('/api/pedidos', { texto: 'Fado para o jantar' }, chave)).json();
+    assert.equal(p1.naHora, true, 'a app fica a saber que o Maestro foi chamado');
+    await depois();
+    assert.equal(sim.maestro.length, 1);
+    assert.deepEqual(sim.maestro[0], { url: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', metodo: 'POST', authorization: 'Bearer segredo-de-teste',
+        beta: 'experimental-cc-routine-2026-04-01', versao: '2023-06-01', corpo: { text: 'Corrida pedida pela app Música: há pedidos à espera.' } });
+    assert.ok(!JSON.stringify(sim.maestro[0]).includes('Fado'), 'nada do que a pessoa escreveu segue na chamada');
+    assert.deepEqual((await peds()).map((x) => x.chamadas), [1]);
+    // outro pedido logo a seguir: há uma corrida a decorrer (a que acabou de ser chamada), que o vê antes de acabar
+    const p2 = await (await post('/api/pedidos', { texto: 'Soul dos 70' }, chave)).json();
+    await depois();
+    assert.equal(p2.naHora, true);
+    assert.equal(sim.maestro.length, 1, 'não se chama outra corrida por cima da que está a decorrer');
+    // a app vai pedindo a lista (a espera viva): enquanto a corrida decorre, nada
+    await get('/api/pedidos', chave);
+    await depois();
+    assert.equal(sim.maestro.length, 1);
+    // 16 minutos depois o segundo pedido continua à espera (a corrida já tinha feito a última ronda): a vigia chama —
+    // quando é a app a pedir a lista, não o Maestro
+    const recuar = async (min) => { await env.KV.put('maestro:chamadas', JSON.stringify((await chamadas()).map((x) => x - min * 60000)));
+        await env.KV.put('pedidos', JSON.stringify((await peds()).map((x) => ({ ...x, criadoEm: new Date(Date.parse(x.criadoEm) - min * 60000).toISOString() })))); };
+    await recuar(16);
+    await get('/api/pedidos', agente);
+    await depois();
+    assert.equal(sim.maestro.length, 1, 'os pedidos do Maestro à lista não o chamam a ele próprio');
+    await get('/api/pedidos', chave);
+    await depois();
+    assert.equal(sim.maestro.length, 2);
+    assert.deepEqual((await peds()).map((x) => [x.texto, x.chamadas]), [['Soul dos 70', 1], ['Fado para o jantar', 2]]);
+    // cada pedido conta no máximo 2 chamadas: um pedido que o Maestro não consegue tratar não fica a chamá-lo para sempre
+    await recuar(16);
+    await get('/api/pedidos', chave);
+    await depois();
+    assert.equal(sim.maestro.length, 3, 'o segundo pedido ainda só tinha uma');
+    await recuar(16);
+    await get('/api/pedidos', chave);
+    await depois();
+    assert.equal(sim.maestro.length, 3, 'já tiveram as duas: fica para a corrida agendada');
+    // três pedidos ao mesmo tempo (um pedido, uma afinação e um «Mais como esta»): uma só chamada, depois do último
+    await env.KV.delete('maestro:chamadas');
+    await env.KV.put('pedidos', '[]');
+    const f = [{ id: '101', titulo: 'So What', artistas: ['Miles Davis'], duracao: 200 }];
+    const pl = await (await post('/api/playlists', { nome: 'Base', faixas: f }, chave)).json();
+    const [a, b, c] = await Promise.all([post('/api/pedidos', { texto: 'Bossa nova' }, chave), post(`/api/playlists/${pl.id}/afinar`, { texto: 'mais calma' }, chave), post('/api/mais', { faixa: '101' }, chave)]);
+    assert.deepEqual([a.status, b.status, c.status], [201, 201, 201]);
+    assert.equal((await c.json()).naHora, true);
+    await depois();
+    assert.equal(sim.maestro.length, 4, 'vários pedidos seguidos dão uma só corrida');
+    // se o gatilho recusar (token revogado), o pedido fica feito na mesma; a tentativa conta (não se martela)
+    await env.KV.delete('maestro:chamadas');
+    sim.maestroStatus = 401;
+    assert.equal((await post('/api/pedidos', { texto: 'Clássica' }, chave)).status, 201);
+    await depois();
+    assert.equal(sim.maestro.length, 5);
+    assert.equal((await chamadas()).length, 1);
+    sim.maestroStatus = 200;
+    // no máximo 6 chamadas por hora: daí em diante os pedidos esperam pela corrida agendada
+    await env.KV.put('maestro:chamadas', JSON.stringify(Array.from({ length: 6 }, (_, i) => Date.now() - (20 + i) * 60000)));
+    const pz = await (await post('/api/pedidos', { texto: 'Mais um' }, chave)).json();
+    await depois();
+    assert.equal(pz.naHora, undefined);
+    assert.equal(sim.maestro.length, 5, 'passado o limite, não chama');
+    // à volta das corridas agendadas (de 3 min antes a 15 min depois) não se chama: é essa corrida que trata do pedido
+    await env.KV.delete('maestro:chamadas');
+    const lx = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+    env.MAESTRO_AGENDADAS = `03:00,${lx}`;
+    const pa = await (await post('/api/pedidos', { texto: 'À hora da corrida' }, chave)).json();
+    await depois();
+    assert.equal(pa.naHora, true);
+    assert.equal(sim.maestro.length, 5);
+    env.MAESTRO_AGENDADAS = '';
+    // um endereço que não é o do gatilho não serve (não se chama outro sítio com o token)
+    env.MAESTRO_FIRE_URL = 'https://exemplo.com/fire';
+    assert.equal((await (await post('/api/pedidos', { texto: 'Outro' }, chave)).json()).naHora, undefined);
+    await depois();
+    assert.equal(sim.maestro.length, 5);
+});
+
+test('o Maestro é uma IA de terceiros: quem liga o Tidal autoriza no botão; quem já estava ligado autoriza nos Ajustes; renovar a sessão não a perde', async () => {
+    // ligado à antiga (sem o botão novo): sem autorização registada
+    const { chave } = await ligarPrimeiraVez();
+    const agente = await env.KV.get('agente:chave');
+    assert.equal((await (await get('/api/estado', chave)).json()).ia, false);
+    assert.equal((await post('/api/consentir', {}, agente)).status, 403, 'só a própria pessoa autoriza');
+    const r = await (await post('/api/consentir', {}, chave)).json();
+    assert.ok(r.ok && /^\d{4}-\d\d-\d\dT/.test(r.em));
+    assert.equal((await (await get('/api/estado', chave)).json()).ia, true);
+    assert.equal((await (await post('/api/consentir', {}, chave)).json()).em, r.em, 'a data é a da primeira vez');
+    // ligar outra vez (sem voltar a carregar no botão) mantém-na
+    const st = new URL((await (await post('/api/ligar', {}, chave)).json()).url).searchParams.get('state');
+    await call(`/tidal/retorno?code=CODIGO-BOM&state=${st}`);
+    assert.equal(JSON.parse(await env.KV.get('tidal:tokens')).iaConsentidaEm, r.em);
+    // renovar a sessão do Tidal também
+    const t = JSON.parse(await env.KV.get('tidal:tokens'));
+    await env.KV.put('tidal:tokens', JSON.stringify({ ...t, expira: Date.now() - 1000 }));
+    assert.equal((await get('/api/perfil?fresco=1', chave)).status, 200);
+    assert.equal(JSON.parse(await env.KV.get('tidal:tokens')).iaConsentidaEm, r.em);
+    // uma convidada que liga pelo botão «Concordo e ligar»: fica logo registada
+    const cv = await (await post('/api/convites', {}, chave)).json();
+    const st2 = new URL((await (await post('/api/ligar', { codigo: cv.codigo, nome: 'Ana', consente: true })).json()).url).searchParams.get('state');
+    const chaveAna = decodeURIComponent((await call(`/tidal/retorno?code=CODIGO-ANA&state=${st2}`)).headers.get('location').split('#chave=')[1]);
+    assert.equal((await (await get('/api/estado', chaveAna)).json()).ia, true);
+    // sem o Tidal ligado não há o que autorizar
+    await post('/api/desligar', {}, chaveAna);
+    assert.equal((await post('/api/consentir', {}, chaveAna)).status, 409);
 });
 
 test('para o Maestro: as tuas mixes do Tidal e as novidades dos artistas que segues', async () => {

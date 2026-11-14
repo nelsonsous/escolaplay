@@ -100,6 +100,14 @@ test('dados → proposta → ensaio → publicar com pedido', async () => {
     assert.equal(sim.criadas.length, 1);
     assert.equal(sim.criadas[0].name, 'Jazz e soul para o carro');
     assert.equal(sim.itens.length, 5);
+    // o pedido já está feito: outra corrida (o Maestro chamado na hora pode cruzar-se com a agendada) não o publica
+    // outra vez — nem a versão em Onda nem a de JavaScript
+    for (const nome of ['publicar.mjs', join('js', 'publicar.mjs')]) {
+        const outra = await script(nome, [join(dir, 'proposta.json'), '--pedido', 'q1abc', '--modelo', 'modelo-teste']);
+        assert.equal(outra.code, 1, nome);
+        assert.match(outra.stderr, /O pedido q1abc já foi tratado \(por outra corrida\): não se publica outra vez\./, nome);
+    }
+    assert.equal(sim.criadas.length, 1, 'nada de playlists a dobrar');
     assert.equal(new Set(sim.itens).size, 5);
     const idx = JSON.parse(await env.KV.get('playlists'));
     const doc = JSON.parse(await env.KV.get('playlist:' + idx[0].id));

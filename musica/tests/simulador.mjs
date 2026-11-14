@@ -46,8 +46,20 @@ export function simulador() {
     // os serviços de notificações (Web Push): guarda o que chegou; sim.pushStatus[endpoint] simula uma assinatura caducada (410)
     sim.pushes = [];
     sim.pushStatus = {};
-    sim.fetch = async (u, init = {}) => pushSimulado(sim, u, init) || tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
+    // o gatilho «API» da tarefa agendada do Maestro: guarda o que chegou; sim.maestroStatus simula uma recusa
+    sim.maestro = [];
+    sim.maestroStatus = 200;
+    sim.fetch = async (u, init = {}) => maestroSimulado(sim, u, init) || pushSimulado(sim, u, init) || tabelaSimulada(sim, u) || tidalSimulado(sim, u, init);
     return sim;
+}
+
+function maestroSimulado(sim, u, init) {
+    const h = String(u);
+    if (!h.startsWith('https://api.anthropic.com/')) return null;
+    const headers = new Headers(init.headers);
+    sim.maestro.push({ url: h, metodo: init.method, authorization: headers.get('authorization'), beta: headers.get('anthropic-beta'), versao: headers.get('anthropic-version'), corpo: JSON.parse(init.body) });
+    return new Response(JSON.stringify(sim.maestroStatus === 200 ? { type: 'routine_fire', claude_code_session_id: 'session_x', claude_code_session_url: 'https://claude.ai/code/session_x' } : { error: 'x' }),
+        { status: sim.maestroStatus, headers: { 'content-type': 'application/json' } });
 }
 
 function pushSimulado(sim, u, init) {

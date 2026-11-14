@@ -21,6 +21,7 @@
 #     60 a faixa que está a ser trocada (posição + 1) e 61 a candidata que entra (0: espera-se uma parecida do Tidal),
 #     6 o afinar (0 fechado, 1 aberto, 2 com mudanças; ver «afinar na folha»), 62 a procura de «acrescentar uma faixa»
 #   da vista (a zero ao navegar): 3 estado, 4 dados da vista, 5 pedidos, 12 a vista que está desenhada (ver `render`),
+#     35 o relógio da espera viva e 0 até quando (ver `espera_viva`),
 #     19 a procura de faixas, 28 a confirmar,
 #     31 ocupado, 33 ms do motor, 34 escrita em curso; o afinar (na folha): 6 7 8 9 10 11 13 14 15 16 17 32 37
 
@@ -124,7 +125,7 @@
         `<p class="mu-nota">Depois abre o link de ligação que recebeste (termina em <code>?ligar=…</code>) para colares aqui o Client ID.</p>`
       "</div>" }
     { ? && ch ~ e.tu `<div class="mu-card boas"><h3>Este aparelho perdeu o acesso</h3><p>A chave guardada já não é válida. Cola aqui um código de ligação novo.</p>{ campo_codigo }</div>`
-      ? cod `<div class="mu-card boas"><h3>Liga o teu Tidal</h3><p>Vais à página de login do Tidal, autorizas, e voltas aqui. As playlists passam a ser criadas na tua conta e o Maestro — uma IA — passa a ler o teu gosto (as tuas favoritas, os artistas que segues e as tuas playlists). <a href="privacidade.html">Privacidade</a></p><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="ligar">{ ic 1 }Ligar ao Tidal</button></div></div>`
+      ? cod `<div class="mu-card boas"><h3>Liga o teu Tidal</h3><p>Vais à página de login do Tidal, autorizas, e voltas aqui. As playlists passam a ser criadas na tua conta.</p><p>{ txt_ia } <a href="privacidade.html">Privacidade</a></p><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="ligar_c">{ ic 1 }Concordo e ligar ao Tidal</button></div></div>`
       `<div class="mu-card boas"><h3>{ ? ligado "Liga este aparelho" "Liga o teu Tidal" }</h3><p>Num aparelho onde já entraste, vai a Ajustes → <b>Ligar outro aparelho</b> e cola aqui o código. Se é a primeira vez, abre o link do convite.</p>{ campo_codigo }</div>` } }
 
 # ===== Playlists =====
@@ -139,7 +140,7 @@
     W c { Se ped_novo c { = op c.opcoes
         `<div class="mu-pedido" data-chave="{ esct txt c.id }" data-esq="cancelar&#9;{ esct txt c.id }" data-esq-rotulo="Cancelar"><div><div class="tx">«{ esct txt c.texto }»</div><div class="mt">pedido a { pdia txt c.criadoEm } · { N int op.faixas } faixas · { nome_estilo idx_estilo txt op.estilo }</div></div><button type="button" class="mu-btn sec peq" data-onda="cancelar&#9;{ esct txt c.id }">Cancelar</button></div>` }
       = c seg c }
-    `</div><p class="mu-nota">O Maestro trata deles às 07:44 e às 18:44, e as playlists aparecem aqui e no teu Tidal.</p></section>` } }
+    `</div><p class="mu-nota">{ ? == tipo _ar_get @ 3 $"naHora" 3 "O Maestro é chamado quando pedes: costuma demorar uns minutos." "O Maestro trata deles às 07:44 e às 18:44." } As playlists aparecem aqui e no teu Tidal.</p></section>` } }
 # a playlist (id) tem uma afinação pedida, ainda à espera do Maestro?
 : afina_pend i>i id { = r 0 = c pri @ 5 W && c ~ r { Se && mesmo txt c.estado $"pendente" mesmo txt c.afinar.playlist id = r ? == tipo c.afinar.rever 3 2 1 = c seg c } r }
 # arrastar um cartão para a esquerda (a casca) pede para o apagar: a pergunta aparece no lugar do cartão
@@ -596,10 +597,14 @@
       = r _tx_abre + 600 * 7 _tx_len @ 20 `POST /api/pedidos{ P 10 }\{"texto":{ pjs @ 20 },"opcoes":\{"faixas":{ N @ 24 },"maxArtista":{ N @ 25 },"estilo":"{ estilo_json @ 26 }","arco":"{ arco_json @ 27 }"{ Se @ 45 `,"limpa":true` }\}\}`
       pede _tx_fecha r 6 0 } }
 : cancelar_ped i>i b ? ocupado 0 { pede`DELETE /api/pedidos/{ purl b }` 7 0 }
-: ligar_enviar >i ? ocupado 0 {
+# c = 1: a pessoa carregou em «Concordo e ligar» (autoriza o Maestro, uma IA de terceiros, a ler o seu perfil de gosto)
+: ligar_enviar i>i c ? ocupado 0 {
     = cod _an_ler $"codigo"
-    = r _tx_abre + 400 * 7 _tx_len cod `POST /api/ligar{ P 10 }\{"codigo":{ ? cod pjs cod "null" },"nome":"app Música"\}`
+    = r _tx_abre + 400 * 7 _tx_len cod `POST /api/ligar{ P 10 }\{"codigo":{ ? cod pjs cod "null" },"nome":"app Música"{ Se c `,"consente":true` }\}`
     pede _tx_fecha r 2 0 }
+# o que se diz antes de pedir a autorização (aqui diz-se quem é a IA: é a quem os dados vão)
+: txt_ia >i "O Maestro é uma inteligência artificial (o Claude, da Anthropic). Para escolher música para ti, lê as tuas favoritas, os artistas que segues, as tuas playlists e o teu nome de utilizador do Tidal."
+: consentir_enviar >i ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{\}` 25 0 }
 : config_enviar >i ? ocupado 0 {
     ? ~ _tx_len @ 21 { aviso $"Cola o Client ID." 0 } {
       = cod _an_ler $"codigo"
@@ -639,7 +644,7 @@
       # (os pedidos também: o cartão da playlist passa a dizer «afinação pedida»)
       _an_buscar $"/api/pedidos" $"lido_ped"
       Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp"
-      aviso $"Pedido de afinação enviado: o Maestro refá-la na próxima corrida." 0 }
+      aviso ? == tipo r.naHora 3 $"Pedido de afinação enviado: o Maestro já foi chamado." $"Pedido de afinação enviado: o Maestro refá-la na próxima corrida." 0 }
     ? == modo 16 { ! 51 r ! 28 0 refolha 3 _an_buscar $"/api/playlists" $"lido_pl" aviso ? == tipo r.tidal 7 $"Nome mudado na app e no Tidal." $"Nome mudado." 0 }
     ? == modo 15 { ! 51 r refolha 2 _an_buscar $"/api/playlists" $"lido_pl" aviso ? == tipo r.renovar 3 $"Passa a atualizar-se sozinha toda a semana." $"Deixa de se atualizar sozinha." 0 }
     # «mais como esta»: a playlist nova abre-se logo, na lista
@@ -648,10 +653,12 @@
     ? == modo 5 { ir 1 aviso $"Apagada da app." 0 }
     ? == modo 11 { ir 1 aviso $"Apagada no Tidal e na app." 0 }
     # pedido feito: vai-se para a lista das playlists, onde ele fica à espera (no cimo)
-    ? == modo 6 { tvazio @ 20 ir 1 aviso $"Pedido feito — o Maestro trata dele na próxima corrida." 0 }
+    # (o `ir` solta o monte, e a resposta com ele: o que se quer dela lê-se antes)
+    ? == modo 6 { = nh == tipo r.naHora 3 tvazio @ 20 ir 1 aviso ? nh $"Pedido feito — o Maestro já foi chamado: costuma demorar uns minutos." $"Pedido feito — o Maestro trata dele na próxima corrida." 0 }
     # cancelado: sai da lista; se era uma afinação, sai também da folha da playlist
     ? == modo 7 { _an_buscar $"/api/pedidos" $"lido_ped" Se _tx_len @ 50 _an_buscar`/api/playlists/{ purl @ 30 }` $"lido_exp" aviso $"Pedido cancelado." 0 }
     ? == modo 8 { ir 5 aviso $"Tidal desligado." 0 }
+    ? == modo 25 { _an_buscar $"/api/estado" $"lido_estado" aviso $"Autorização guardada." 0 }
     ? == modo 24 { _an_gravar $"chave" 0 ! 28 0 ir 1 aviso $"Conta apagada: o conector já não guarda nada sobre ti." 0 }
     Se == modo 10 { = ch txt r.chave Se ch { _an_gravar $"chave" ch tvazio @ 38 ir 1 aviso $"Este aparelho fica com acesso." } } }
     { ! 28 0 ! 60 0 ! 61 0 tvazio @ 54
@@ -667,7 +674,7 @@
   Se && @ 3 ~ acesso boas_vindas
   `<div class="mu-card"><h3>O que te apetece ouvir?</h3><label class="mu-campo"><span class="sr">Pedido</span><textarea data-onda="ptx" maxlength="500" placeholder="Ex.: jazz dos anos 60 bem gravado para a viagem de sábado">{ esct @ 20 }</textarea></label>`
   # o botao logo a seguir ao texto: com o teclado aberto (iPhone) fica a vista
-  `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? acesso 0 " disabled" }>{ ic 2 }Pedir ao Maestro</button></div><p class="mu-nota">O Maestro cria a playlist às 07:44 ou às 18:44 e põe-na logo no teu Tidal. Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.</p>`
+  `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? acesso 0 " disabled" }>{ ic 2 }Pedir ao Maestro</button></div><p class="mu-nota">{ ? == tipo _ar_get @ 3 $"naHora" 3 "O Maestro é chamado logo e cria a playlist em poucos minutos, no teu Tidal." "O Maestro cria a playlist às 07:44 ou às 18:44 e põe-na logo no teu Tidal." } Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.</p>`
   # as opcoes ficam escondidas (uma linha com o resumo); "Mudar" mostra-as
   ? @ 39 {
       `<div class="mu-opcoes"><span>Opções</span><button type="button" class="mu-mais" data-onda="opcoes">Fechar</button></div>`
@@ -881,10 +888,12 @@
     # a conta: o que se guarda, e apagar tudo (pede-se aqui, na app)
     Se && ch e.tu {
       `<div class="mu-card mu-conta"><h3>A tua conta</h3><p>A Música guarda a ligação ao teu Tidal, o teu perfil de gosto, as playlists da app e os teus pedidos.</p>`
+      Se ligado ? == tipo e.ia 3 `<p class="mu-nota">Autorizaste o Maestro (uma IA) a ler o teu perfil de gosto.</p>`
+        `<p>{ txt_ia }</p><div class="mu-acoes"><button type="button" class="mu-btn sec" data-onda="consentir">Concordo</button></div>`
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.33.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.34.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ===== navegacao e desenho =====
@@ -907,6 +916,7 @@
 : ir i>i v {
   # tocar outra vez no separador em que se está atualiza (esquece o que estava em memória)
   Se == v @ 1 _an_esquecer
+  espera_para
   _me_solta @ 2
   = q 3 W <= q 19 { ! q 0 = q + q 1 }
   ! 28 0 = q 31 W <= q 35 { ! q 0 = q + q 1 } ! 37 0 ! 40 0 ! 48 0 ! 51 0 ! 52 0 ! 60 0 ! 61 0 ! 62 0 tvazio @ 50 tvazio @ 54 ! 56 0 tvazio @ 58
@@ -928,7 +938,23 @@
 : lido_pl ii>i t s Se == @ 1 1 ? == s 200 { ! 4 _ar_json t ? _tx_len @ 50 refolha 7 render 0 } { erro_ped t s 0 }
 # os pedidos (para a lista das playlists): com a folha aberta não se redesenha a página (a folha voltava a subir);
 # vêem-se ao fechá-la
-: lido_ped ii>i t s Se && == @ 1 1 == s 200 { ! 5 _ar_json t Se ~ _tx_len @ 50 render }
+: lido_ped ii>i t s Se && == @ 1 1 == s 200 { ! 5 _ar_json t Se ~ _tx_len @ 50 render espera_viva }
+# a espera viva: com o Maestro na hora (o conector chama-o) e pedidos à espera, a app vai ver sozinha se ele já
+# acabou — de 45 em 45 s, até 15 minutos — em vez de se ter de puxar a lista. @35 o relógio, @0 até quando.
+: n_pend >i { = n 0 = c pri @ 5 W c { Se mesmo txt c.estado $"pendente" = n + n 1 = c seg c } n }
+: espera_para >i { Se @ 35 { _an_parar @ 35 ! 35 0 } 0 }
+: espera_viva >i {
+  = n n_pend
+  ? && && == tipo _ar_get @ 3 $"naHora" 3 n ~ @ 35 { ! 0 + _an_agora 900000 ! 35 _an_relogio 45000 $"espera_tic" 0 }
+    Se ~ n espera_para }
+: espera_tic i>i z {
+  ? || != @ 1 1 > _an_agora @ 0 espera_para
+    Se && ~ _tx_len @ 50 ~ @ 56 _an_buscar $"/api/pedidos" $"lido_ped_tic" }
+: lido_ped_tic ii>i t s Se && && == @ 1 1 == s 200 @ 35 {
+  = antes n_pend
+  ! 5 _ar_json t
+  Se < n_pend antes { _an_buscar $"/api/playlists" $"lido_pl" aviso $"O Maestro acabou: a playlist já está na lista." }
+  Se ~ n_pend { espera_para Se ~ _tx_len @ 50 render } }
 # (se o perfil não vier — o Tidal desligado, sem rede —, o cartão fecha-se em vez de ficar «A carregar…»)
 : lido_perfil ii>i t s Se == @ 1 5 ? == s 200 { ! 4 _ar_json t render 0 } { Se ~ @ 4 { ! 18 0 render } erro_ped t s 0 }
 : exp_doc ii>i t mem { = d _ar_json t Se mesmo txt d.id @ 50 { Se ~ mem { _an_guardar`/api/playlists/{ purl @ 50 }` t } ! 51 d refolha 575 } }
@@ -999,7 +1025,9 @@
   ? mesmo a $"idea" { = c idx _ar_get @ 48 $"ideias" _tx_int b Se c { tcopia @ 20 txt c.texto 1990 = e txt c.estilo Se e ! 26 idx_estilo e = q txt c.arco Se q ! 27 idx_arco q render } }
   ? mesmo a $"pedir" { pedir_enviar 0 }
   ? mesmo a $"cancelar" { cancelar_ped b 0 }
-  ? mesmo a $"ligar" { ligar_enviar 0 }
+  ? mesmo a $"ligar" { ligar_enviar 0 0 }
+  ? mesmo a $"ligar_c" { ligar_enviar 1 0 }
+  ? mesmo a $"consentir" { consentir_enviar 0 }
   ? mesmo a $"config" { config_enviar 0 }
   ? mesmo a $"gosto" { gosto_alternar 0 }
   ? mesmo a $"atualizar" { _an_buscar $"/api/perfil?fresco=1" $"lido_perfil" aviso $"A ler do Tidal…" 0 }

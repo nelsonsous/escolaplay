@@ -23,6 +23,7 @@ const renovarId = arg('--renovar');
 if (pedidoId) {
     const pedido = (await api('/api/pedidos')).find((x) => x.id === pedidoId);
     if (!pedido) { console.error(`O pedido ${pedidoId} não existe.`); process.exit(1); }
+    if (pedido.estado !== 'pendente') { console.error(`O pedido ${pedidoId} já foi tratado (por outra corrida): não se publica outra vez.`); process.exit(1); }
     if (!p.pedido) p.pedido = pedido.texto;
 }
 

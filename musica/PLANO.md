@@ -32,8 +32,34 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 | **6** ✔ | Cada pedido dá **uma** playlist, logo no Tidal (o aviso diz «já está no teu Tidal»). Juntar playlists também vai logo para lá. As antigas que só estão na app (propostas, juntadas) são cartões como os outros, com «só na app» e o botão «Pôr no Tidal». **«Mais como esta»** continua a aparecer na hora, com as parecidas do Tidal, e fica um pedido para o Maestro a rever na corrida seguinte, na mesma playlist e no mesmo link: o cartão diz «o Maestro vai revê-la» e depois «✓ revista». | `CURADOR.md`: uma decisão por pedido (as candidatas dos outros ângulos ficam guardadas para o ⇄ e o estilo) e os pedidos de revisão; sai o `--variante` dos scripts e o grupo «Propostas para escolher» da app. Worker 1.21.0. |
 | **7** ✔ | **Três separadores: Música · Pedir · Ajustes.** «O teu gosto» é o primeiro cartão dos Ajustes, fechado até se querer ver: aberto, mostra o mesmo que o separador mostrava (o que se está a ouvir, artistas, décadas, géneros, qualidade, favoritas, as tuas playlists no Tidal e «Atualizar do Tidal»). | Sai a vista 4 como separador (`cartao_gosto`); o perfil e as tendências só se pedem ao conector quando o cartão se abre; a barra e os gestos passam a três. |
 | **8** ✔ | App Store (1): a app nativa leva a app lá dentro (abre sem rede, não depende do site) e o login do Tidal volta a ela. Nos Ajustes, **«A tua conta»**: o que se guarda e **«Apagar a minha conta»** (pergunta primeiro; as playlists do Tidal ficam). Páginas de **privacidade** e de **apoio**. Os textos dizem «uma IA» em vez de marcas de terceiros. | `nativo/montar.mjs` monta a app em `www/` e no projeto iOS (o «npm run onda» chama-o; os testes conferem que está em dia e que a app montada abre sozinha). Worker 1.22.0: `DELETE /api/conta` e o regresso do login à app (`capacitor://localhost`). Não foi experimentado num iPhone. |
-| **9** | App Store (2) e agilidade: avisos nativos, o que a loja pede (textos, ecrãs), e o Maestro a correr logo depois de um pedido. | APNs no Worker (com segredos); o Worker chama o Maestro; o caminho para a API fica escrito. |
+| **9** ✔ | **O Maestro na hora**: com o gatilho da tarefa agendada ligado ao conector, um pedido chama-o logo e a playlist fica pronta em minutos; a app diz «uns minutos» e vai ver sozinha se já acabou. **Autorização para a IA** antes de ligar o Tidal («Concordo e ligar»). **O que a loja pede** está em [`loja/LEIA.md`](loja/LEIA.md): textos, formulário de privacidade, notas para a revisão, ecrãs. Os **avisos nativos não foram feitos** (precisam do programa pago e de um Mac). | Worker 1.23.0: chama o gatilho «API» da tarefa (segredos `MAESTRO_FIRE_URL` e `MAESTRO_TOKEN`), sem corridas a dobrar; `POST /api/consentir`. Os scripts recusam um pedido já tratado. O caminho para a API está em «Agilidade», mais abaixo. |
 | **10** | Nada à vista: limpeza. | Os scripts do Maestro na Onda fluida e na biblioteca nova (sai o `lib/app.onda`), o que ficou sem uso fora, documentação e auditoria. |
+
+## Agilidade: três degraus
+
+O Maestro é uma tarefa agendada do Claude. Um pedido pode ser tratado de três maneiras, da mais simples à mais rápida:
+
+| Degrau | Como | Quanto demora | Quem paga | Estado |
+|---|---|---|---|---|
+| **1. À hora marcada** | A tarefa corre às 07:44 e às 18:44 e trata do que estiver à espera. | até 12 horas | a tua subscrição do Claude | sempre ligado |
+| **2. Na hora** | O conector chama a mesma tarefa logo depois de um pedido (o gatilho «API» da tarefa). | uns minutos | a tua subscrição (cada corrida conta; no máximo 6 por hora) | feito; falta ligar (ver abaixo) |
+| **3. Pela API** | O conector fala diretamente com o Claude pela API, sem tarefa agendada: um agente alojado pela Anthropic (Managed Agents) com as mesmas instruções e ferramentas, ou o conector a conduzir a conversa (API de mensagens com pesquisa na web). | um a poucos minutos | paga-se por utilização, por cada playlist — com uma chave de API guardada no conector | por fazer; só vale a pena se a app for para o público |
+
+**Para ligar o degrau 2** (uma vez, e nada disto passa pelo código nem por esta conversa):
+
+1. Em `claude.ai/code/routines`, abre a tarefa do Maestro → **Edit** → na linha **Trigger** carrega em **+** → **API** →
+   **Generate token**. Copia o endereço («Fire URL») e o token (só aparece uma vez).
+2. No painel do Cloudflare: **Workers** → `musica` → **Settings** → **Variables and Secrets** → junta dois, do tipo
+   **Secret**: `MAESTRO_FIRE_URL` (o endereço) e `MAESTRO_TOKEN` (o token). Como «Secret» ficam guardados entre
+   publicações; como texto simples desapareciam na seguinte.
+3. Abre a app: no separador Pedir passa a dizer «O Maestro é chamado logo».
+
+Para desligar, apaga os dois segredos (ou o token, na página da tarefa).
+
+**Quando passar ao degrau 3.** A subscrição serve para ti e para quem convidas. Se a app for para a loja e para
+desconhecidos, cada pedido deles gastaria da tua subscrição, e as tarefas agendadas têm limites por hora: aí é
+preciso a API, onde cada playlist tem um custo que se mede antes de decidir (depende do modelo e de quanta pesquisa
+faz) e alguém o paga. O que já existe serve na mesma: as instruções (`CURADOR.md`), os scripts, o motor e o conector.
 
 ## Regras de cada volta
 
