@@ -115,10 +115,10 @@
     `<div class="dec-p"><small>Média das fontes{ Se hz ` · prazo { ? == hz 1 "curto" ? == hz 2 "médio" "longo" }` }</small>{ an_barv @f + r 8 }</div>`
     `<div class="dec-voz">{ dv_voz r }</div>`
     `<ul class="dec-f">` L i @ r dv_fonte r i `</ul>`
-    # como se lê: a nota de cada fonte e o que quer dizer o lado de cada uma
-    `<p class="dec-leg">Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. `
+    # como se lê: a nota de cada fonte e o que quer dizer o lado de cada uma (fechado; abre-se quando é preciso)
+    `<details class="dec-leg"><summary>Como ler este cartão</summary><p>Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. `
     `<b>Decide</b>: quem manda (o Claude, se analisou o ativo). <b>A favor</b> ou <b>contra</b>: diz o mesmo ou o contrário. `
-    `<b>Ao lado</b>: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.</p>`
+    `<b>Ao lado</b>: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.</p></details>`
     Se quantos es.lv {
       `<ul class="cl-lv">`
       = n pri es.lv

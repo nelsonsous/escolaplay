@@ -82,9 +82,9 @@ function cartao(s) {
         + (s.act ? `<div class="adv-nu">${esc(s.act)}</div>` : '') + desde(s)
         + `<div class="dec-p"><small>Média das fontes${{ short: ' · prazo curto', mid: ' · prazo médio', long: ' · prazo longo' }[ob(s.d).hz] || ''}</small>${barra(d.p)}</div><div class="dec-voz">${voz(d)}</div>`
         + `<ul class="dec-f">${d.f.map((x, i) => fonte(s, d, x, i)).join('')}</ul>`
-        + '<p class="dec-leg">Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. '
+        + '<details class="dec-leg"><summary>Como ler este cartão</summary><p>Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. '
         + '<b>Decide</b>: quem manda (o Claude, se analisou o ativo). <b>A favor</b> ou <b>contra</b>: diz o mesmo ou o contrário. '
-        + '<b>Ao lado</b>: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.</p>'
+        + '<b>Ao lado</b>: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.</p></details>'
         + (arr(s.lv).length ? `<ul class="cl-lv">${arr(s.lv).map((l) => { const o = ob(l); return `<li class="${esc(o.f)}"><small>${esc(o.l)}</small><b class="num">${esc(o.px)}</b><span class="num">${esc(o.d)}</span></li>`; }).join('')}</ul>` : '')
         + (s.hoje ? `<div class="adv-why"><b>Porquê ${s.desce ? 'desce' : 'sobe'} hoje:</b> ${esc(s.hoje)}</div>` : '')
         + (s.why ? `<div class="adv-txt">${esc(s.why)}</div>` : '')
@@ -161,7 +161,7 @@ test('o cartão diz o que a decisão diz, em instantâneos ao acaso', () => {
 });
 
 // a legenda do cartão, como fica sem as etiquetas
-const LEG = 'Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. |Decide|: quem manda (o Claude, se analisou o ativo). |A favor| ou |contra|: diz o mesmo ou o contrário. |Ao lado|: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.|';
+const LEG = 'Como ler este cartão|Cada fonte dá uma nota de 0 (vender) a 100 (comprar); 50 é neutro, e a nota pesa os prazos curto, médio e longo. |Decide|: quem manda (o Claude, se analisou o ativo). |A favor| ou |contra|: diz o mesmo ou o contrário. |Ao lado|: nem uma coisa nem outra (não conta para a confiança). A técnica é o sinal automático da app.|';
 test('casos lidos à mão', () => {
     // uma ação com as seis fontes: o Claude, os analistas e os fundamentos a favor; as outras ao lado
     const h = O.ecra.decisao({

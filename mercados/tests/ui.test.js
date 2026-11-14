@@ -671,7 +671,8 @@ function proxyBody(u) {
     assert.deepEqual(fontes[1].slice(1), ['Compra forte', 'a favor', '97', '58 analistas · alvo +17,60% · revisões 12↑ 2↓'], 'os analistas: a recomendação, quantos, o alvo e as revisões das estimativas');
     assert.deepEqual(fontes[2].slice(1), ['fortes', 'a favor', '65', 'P/E 28,4 · vendas +60% · margem 55%'], 'os fundamentos: o P/E, as vendas e a margem');
     assert.match(fontes[3][4], /^curto \d+ · médio \d+ · longo \d+$/, 'a técnica: as pontuações por prazo');
-    assert.match(await page.locator(adv + ' .dec-leg').textContent(), /^Cada fonte dá uma nota de 0 \(vender\) a 100 \(comprar\)/, 'a legenda: como se lê o cartão');
+    assert.match(await page.locator(adv + ' .dec-leg').textContent(), /^Como ler este cartãoCada fonte dá uma nota de 0 \(vender\) a 100 \(comprar\)/, 'a legenda: como se lê o cartão');
+    assert.equal(await page.locator(adv + ' details.dec-leg:not([open])').count(), 1, 'a legenda fechada: abre-se quando é preciso');
     assert.deepEqual(fontes.map((x) => x[2]), dec.d.f.map((x, i) => (i === 0 ? 'decide' : x.d > 0 ? 'a favor' : x.d < 0 ? 'contra' : 'ao lado')), 'de que lado fica cada uma');
     assert.deepEqual(fontes[4].slice(1), ['positivas', 'a favor', '72', 'lidas pelo Claude'], 'as notícias: o tom que o Claude leu (news 72), em vez do dos títulos');
     assert.equal(dec.e.news, (72 - 50) / 50, 'o tom do Claude entra na decisão de -1 a 1');
