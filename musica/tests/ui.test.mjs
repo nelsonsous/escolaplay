@@ -258,7 +258,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await deslizarEm('.mu-folha .mu-xf li[data-esq]', 330, 60);
     await page.locator('.mu-folha .mu-xf-nota').getByText(`Tiraste «${doc.faixas[0].titulo}».`).waitFor();
     assert.deepEqual(await naFolha(page), doc.faixas.slice(1).map((f) => f.id));
-    assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), /^3 faixas · /, 'o cabeçalho acompanha');
+    assert.match(await page.locator('.mu-folha .mu-fo-tx > p').textContent(), /^3 faixas · /, 'o cabeçalho acompanha');
     assert.deepEqual(JSON.parse(await env.KV.get('playlist:' + doc.id)).rejeitadas, [doc.faixas[0].id]);
     await page.locator('.mu-folha .mu-xf-nota').getByRole('button', { name: 'Repor' }).click();
     await page.locator('.mu-folha .mu-xf-nota').waitFor({ state: 'detached' });
@@ -268,7 +268,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     assert.equal(await page.getByRole('button', { name: 'Abrir' }).count(), 0);
     assert.deepEqual(await naFolha(page), doc.faixas.map((f) => f.id), 'a ordem guardada');
     assert.equal(await page.locator('.mu-folha .mu-xf .why, .mu-folha .mu-xf .m, .mu-folha .mu-xf .mot').count(), 0, 'sem pormenores por faixa');
-    assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), /^4 faixas · .* · Claude$/);
+    assert.match(await page.locator('.mu-folha .mu-fo-tx > p').textContent(), /^4 faixas · .* · Claude$/);
     assert.equal(await page.locator('.mu-folha .mu-resumo').isVisible(), false);
     await foto('1-folha');
     // (a folha cabe no ecrã: nada sai pelos lados)
@@ -476,15 +476,15 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await page.locator('#mu-body .mu-pl').first().locator('.mu-pl-a').click();
     await page.locator('.mu-folha .mu-xf button.tx').first().click();
     await page.getByRole('button', { name: 'Mais como esta' }).click();
-    await page.locator('#mu-aviso').getByText('Criada no Tidal — já a podes ouvir. Se quiseres, o Maestro revê-a.').waitFor();
+    await page.locator('#mu-aviso').getByText('Criada no Tidal — já a podes ouvir. Se quiseres, o Claude revê-a.').waitFor();
     await page.locator('.mu-folha').getByRole('heading', { name: /^Parecidas com / }).waitFor();
     assert.equal(sim.criadas.length, 2);
     assert.match(sim.criadas[1].name, /^Parecidas com /);
     // quem escolheu foi o Tidal: a folha di-lo; a revisão do Maestro só se a pedires (e pode cancelar-se)
-    assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), / · Tidal/);
+    assert.match(await page.locator('.mu-folha .mu-fo-tx > p').textContent(), / · Tidal/);
     assert.equal(await page.locator('.mu-folha .mu-hist li.espera').count(), 0, 'sem revisão pedida sozinha');
-    await page.locator('.mu-folha').getByRole('button', { name: 'Rever com o Maestro' }).click();
-    await page.locator('#mu-aviso').getByText('Pedido enviado: o Maestro revê-a quando estiver ligado.').waitFor();
+    await page.locator('.mu-folha').getByRole('button', { name: '✦ Rever com o Claude' }).click();
+    await page.locator('#mu-aviso').getByText('Pedido enviado: o Claude revê-a quando estiver ligado.').waitFor();
     await page.locator('.mu-folha .mu-hist li.espera').getByText('Rever as parecidas do Tidal').waitFor();
     assert.match(await page.locator('.mu-folha .mu-hist li.espera').textContent(), /Revisão · à espera do Maestro · Cancelar$/);
     await foto('6-parecidas');
@@ -513,7 +513,7 @@ test('a app em Onda: ligar, playlist do Maestro, afinar com o juiz, juntar, envi
     await parecidas.locator('.mu-pl-a').click();
     await page.locator('.mu-folha .mu-hist li').getByText('Rever as parecidas do Tidal').waitFor();
     assert.match(await page.locator('.mu-folha .mu-hist li').last().textContent(), /Revisão · feita a /);
-    assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), / · Claude/);
+    assert.match(await page.locator('.mu-folha .mu-fo-tx > p').textContent(), / · Claude/);
     await page.locator('.mu-folha .mu-fechar').click();
     await page.locator('.mu-folha').waitFor({ state: 'detached' });
     // as tendências: 9 dias de tabelas (a Nina Simone, que segues, a subir em Portugal)
@@ -1036,7 +1036,7 @@ test('trocar uma faixa (⇄): o motor escolhe a substituta no telemóvel, vê-se
     await page.locator('.mu-folha .mu-xf-mais').getByRole('button', { name: 'Tirar' }).click();
     await page.locator('.mu-folha .mu-xf-nota').getByText(`Tiraste «${d4.faixas[o].titulo}».`).waitFor();
     assert.deepEqual(noTidal(), d4.faixas.filter((_, i) => i !== o).map((f) => f.id));
-    assert.match(await page.locator('.mu-folha .mu-fo-tx p').textContent(), /^3 faixas · /);
+    assert.match(await page.locator('.mu-folha .mu-fo-tx > p').textContent(), /^3 faixas · /);
     assert.deepEqual(await mesmasLinhas(page), [true, true, true], 'tirar uma faixa não mexe nas outras linhas');
     await page.locator('.mu-folha .mu-xf-nota').getByRole('button', { name: 'Repor' }).click();
     await page.locator('.mu-folha .mu-xf-nota').getByText(/^Trocaste «/).waitFor();
@@ -1471,7 +1471,7 @@ test('pedir com música de partida: procurar, escolher, criar já no Tidal (abre
         await escolhida.waitFor();
         const antes = sim.criadas.length;
         await corpo.locator('[data-onda="pedir"]').click();
-        await page.locator('#mu-aviso').getByText('Já está no teu Tidal. Se quiseres, o Maestro revê-a: «Rever com o Maestro».').waitFor();
+        await page.locator('#mu-aviso').getByText('Já está no teu Tidal e aberta aqui. Se quiseres, o Claude revê-a: «Rever com o Claude».').waitFor();
         // a playlist está no Tidal e abre-se logo, nas «Novas»; nada fica à espera do Maestro (a revisão é se a pedires)
         assert.equal(sim.criadas.length, antes + 1);
         assert.equal(JSON.parse((await env.KV.get('pedidos')) || '[]').filter((x) => x.texto === texto).length, 0);
@@ -1481,13 +1481,13 @@ test('pedir com música de partida: procurar, escolher, criar já no Tidal (abre
         const id = await page.locator('.mu-pl.aberta').getAttribute('data-chave');
         const doc = JSON.parse(await env.KV.get('playlist:' + id));
         assert.deepEqual([doc.pedido, doc.origem, doc.faixas[0].id, doc.textoRever], [texto, 'parecidas', '101', texto]);
-        assert.match(await folha.locator('.mu-fo-tx p').innerText(), / · Tidal/, 'quem a fez: o Tidal (as parecidas)');
+        assert.match(await folha.locator('.mu-fo-tx > p').innerText(), / · Tidal/, 'quem a fez: o Tidal (as parecidas)');
         // pedir a revisão: o pedido leva o texto da pessoa; o botão sai e, na lista, o cartão diz que o Maestro a vai rever
-        await folha.getByRole('button', { name: 'Rever com o Maestro' }).click();
-        await page.locator('#mu-aviso').getByText('Pedido enviado: o Maestro revê-a quando estiver ligado.').waitFor();
+        await folha.getByRole('button', { name: '✦ Rever com o Claude' }).click();
+        await page.locator('#mu-aviso').getByText('Pedido enviado: o Claude revê-a quando estiver ligado.').waitFor();
         const ped = JSON.parse(await env.KV.get('pedidos')).find((x) => x.afinar?.playlist === id);
         assert.deepEqual([ped.texto, ped.afinar.rever, ped.estado], [texto, true, 'pendente']);
-        await folha.getByRole('button', { name: 'Rever com o Maestro' }).waitFor({ state: 'detached' });
+        await folha.getByRole('button', { name: '✦ Rever com o Claude' }).waitFor({ state: 'detached' });
         await page.keyboard.press('Escape');
         await folha.waitFor({ state: 'detached' });
         const cartao = page.locator('#mu-body .mu-pl', { has: page.locator(`[data-onda="exp\t${id}"]`) });
@@ -1510,12 +1510,12 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
     const t = JSON.parse(await env.KV.get('tidal:tokens'));
     delete t.iaCfEm;
     await env.KV.put('tidal:tokens', JSON.stringify(t));
-    let pedidosIA = 0;
+    let pedidosIA = 0, falhaMelhorar = false;
     const MELHORADO = 'Jazz modal calmo para o fim do dia, energia baixa: Miles Davis, John Coltrane e Bill Evans.';
     env.AI = { run: async (modelo, entrada) => {
         pedidosIA++;
-        if (/^És um curador de música\. Uma pessoa escreveu/.test(entrada.messages[0].content)) return { response: JSON.stringify({ texto: MELHORADO, porque: 'Juntei a energia e três exemplos.' }) };
-        return { response: '{"nome": "Modal ao fim do dia", "musicas": [{"artista": "Miles Davis", "titulo": "So What"}, {"artista": "Nina Simone", "titulo": "Feeling Good"}]}' };
+        if (/^És um curador de música\. Uma pessoa escreveu/.test(entrada.messages[0].content)) return { response: falhaMelhorar ? 'não sei' : JSON.stringify({ texto: MELHORADO, porque: 'Juntei a energia e três exemplos.' }) };
+        return { response: JSON.stringify({ nome: falhaMelhorar ? 'Fado ao jantar' : 'Modal ao fim do dia', musicas: [{ artista: 'Miles Davis', titulo: 'So What' }, { artista: 'Nina Simone', titulo: 'Feeling Good' }] }) };
     } };
     await env.KV.put('codigo:ligacao', createHash('sha256').update('NAHORA-1').digest('hex'));
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', hasTouch: true });
@@ -1537,43 +1537,64 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         // ligar em «Pedir»
         await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).click();
         await page.locator('#mu-aviso').getByText('Autorização guardada.').waitFor();
-        await page.waitForFunction(() => document.querySelector('#mu-body [data-onda="pedir"]')?.innerText === 'Criar já no Tidal');
-        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^Criar já — em segundos, no teu Tidal\. A IA \(Mistral, na Cloudflare\) escolhe as músicas\. Depois, se quiseres, o Maestro revê-a e dá-lhe nome\.\nSó o Maestro — o Claude pesquisa e cria-a de raiz \(quando estiver ligado\)\.$/);
-        assert.equal(await corpo.getByRole('button', { name: 'Só o Maestro' }).count(), 1, 'e dá para escolher só o Maestro');
+        // dois caminhos iguais: já, com a IA (em segundos), ou com o Claude (em minutos, mais apurada)
+        await page.waitForFunction(() => (document.querySelector('#mu-body .mu-duo [data-onda="pedir"]')?.innerText || '').startsWith('⚡ Já, com o Mistral Small'));
+        assert.equal((await corpo.locator('.mu-duo [data-onda="pedir_m"]').innerText()).replace(/\s+/g, ' '), '✦ Com o Claude em minutos · mais apurada');
+        assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Mistral Small escolhe 4 músicas de partida e o Tidal junta as parecidas: fica no teu Tidal em segundos\. Depois, se quiseres, o Claude revê-a\.\n✦ Com o Claude — o Maestro \(Claude\) pesquisa e escolhe todas as faixas, com critério \(quando estiver ligado\)\.$/);
+        assert.equal(await corpo.locator('.mu-duo [data-onda="pedir_m"]').count(), 1, 'e dá para escolher o Claude');
         assert.equal(await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).count(), 0);
         assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), texto, 'o texto fica');
         assert.ok(JSON.parse(await env.KV.get('tidal:tokens')).iaCfEm, 'a autorização fica registada');
-        // melhorar o pedido: a IA da playlist na hora reescreve o texto; «Manter o meu» esquece a sugestão, «Usar esta» troca-o
-        const melhorar = corpo.getByRole('button', { name: '✦ Melhorar o pedido com a IA' });
-        await melhorar.click();
+        // criar: primeiro, a sugestão da IA para o texto. «Ajustar» põe-na no texto (o toque seguinte já cria)
         const sug = corpo.locator('.mu-sugestao');
+        const ja = corpo.locator('.mu-duo [data-onda="pedir"]');
+        await ja.click();
         await sug.waitFor();
-        assert.equal(await sug.locator('.mu-sug-q').innerText(), 'Sugestão · Mistral Small');
+        assert.equal(await sug.locator('.mu-sug-q').innerText(), 'Antes de criar, o Mistral Small sugere:');
         assert.equal(await sug.locator('.mu-sug-t').innerText(), MELHORADO);
-        await sug.getByRole('button', { name: 'Manter o meu' }).click();
-        await sug.waitFor({ state: 'detached' });
-        assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), texto);
-        await melhorar.click();
-        await sug.getByRole('button', { name: 'Usar esta' }).click();
-        await page.locator('#mu-aviso').getByText('Pedido melhorado: revê-o e cria.').waitFor();
+        assert.equal(await sug.locator('.mu-nota').innerText(), 'Juntei a energia e três exemplos.');
+        await sug.getByRole('button', { name: 'Ajustar' }).click();
+        await page.locator('#mu-aviso').getByText('Ajusta o texto e toca outra vez em criar.').waitFor();
         assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), MELHORADO);
         assert.equal(await sug.count(), 0);
-        await corpo.locator('[data-onda="ptx"]').fill(texto); // (o de antes, para o resto do teste)
+        // mudar de vista esquece a sugestão; ao voltar, outra vez: «Criar com esta» cria já com o texto sugerido
+        await nav(1);
+        await nav(3);
+        await corpo.locator('[data-onda="ptx"]').fill(texto);
+        await ja.click();
+        await sug.waitFor();
         const iaAntes = pedidosIA;
+        await sug.getByRole('button', { name: 'Criar com esta' }).click();
         // criar já: enquanto a IA escolhe, o botão diz «A criar no Tidal…»; depois a playlist abre-se, com o nome que a IA
         // deu e quem a fez (o Mistral Small, na Cloudflare); nada fica à espera do Maestro
-        await corpo.locator('[data-onda="pedir"]').click();
-        await page.locator('#mu-aviso').getByText('Já está no teu Tidal. Se quiseres, o Maestro revê-a: «Rever com o Maestro».').waitFor();
+        await page.locator('#mu-aviso').getByText('Já está no teu Tidal e aberta aqui. Se quiseres, o Claude revê-a: «Rever com o Claude».').waitFor();
         assert.equal(pedidosIA, iaAntes + 1);
         assert.equal(JSON.parse((await env.KV.get('pedidos')) || '[]').filter((x) => x.estado === 'pendente' && x.texto === texto).length, 0);
         const folha = page.locator('.mu-folha');
         await folha.waitFor();
         assert.match(await folha.locator('.mu-fo-tx h2').innerText(), /Modal ao fim do dia/);
-        assert.match(await folha.locator('.mu-fo-tx p').innerText(), / · Mistral Small/);
-        await folha.getByRole('button', { name: 'Rever com o Maestro' }).waitFor();
+        assert.match(await folha.locator('.mu-fo-tx > p').innerText(), / · Mistral Small/);
+        // o cartão diz quem a fez, para que pedido, e como começou; e tem o «Rever com o Claude»
+        const feita = folha.locator('.mu-feita');
+        assert.equal(await feita.locator('.q').innerText(), `✦ Feita pelo Mistral Small para o teu pedido «${MELHORADO}»`);
+        assert.match(await feita.locator('.mu-nota').innerText(), /^Começou com «So What», «Feeling Good» e as parecidas do Tidal\.$/);
+        assert.equal(await feita.getByRole('button', { name: '✦ Rever com o Claude' }).count(), 1);
+        await folha.getByRole('button', { name: '✦ Rever com o Claude' }).waitFor();
         await page.keyboard.press('Escape');
         await folha.waitFor({ state: 'detached' });
         assert.match(await page.locator('#mu-body .mu-novas .mu-pl', { hasText: 'Modal ao fim do dia' }).innerText(), /Mistral Small/);
+        // se a IA não conseguir sugerir, cria logo, com o texto da pessoa (não fica parado)
+        falhaMelhorar = true;
+        await nav(3);
+        await corpo.locator('[data-onda="ptx"]').fill('Fado para o jantar');
+        await corpo.locator('.mu-duo [data-onda="pedir"]').click();
+        await page.locator('.mu-folha .mu-feita').waitFor();
+        const idFado = await page.locator('.mu-pl.aberta').getAttribute('data-chave');
+        assert.equal(JSON.parse(await env.KV.get('playlist:' + idFado)).pedido, 'Fado para o jantar');
+        await page.keyboard.press('Escape');
+        await page.locator('.mu-folha').waitFor({ state: 'detached' });
+        falhaMelhorar = false;
+        for (let i = erros.length - 1; i >= 0; i--) if (/status of 502/.test(erros[i])) erros.splice(i, 1); // (o 502 deste passo é o esperado)
         // desligar nos Ajustes
         await nav(5);
         const linha = corpo.locator('.mu-iacf');
@@ -1736,6 +1757,16 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         await esc.waitFor();
         assert.equal(await esc.getByRole('button', { name: 'Cloudflare', exact: true }).getAttribute('aria-pressed'), 'true', 'por omissão, a da Cloudflare');
         assert.deepEqual(await esc.locator('.mu-seg button').allInnerTexts(), ['Cloudflare', 'Mistral avançada', 'Gemini']);
+        // a IA só vê os artistas que ouves se deixares (desligado por omissão)
+        const gosto = corpo.locator('.mu-ia-gosto');
+        assert.match(await gosto.innerText(), /Desligado: a IA só vê o pedido e as opções\./);
+        await gosto.getByRole('button', { name: 'Ligar' }).click();
+        await page.locator('#mu-aviso').getByText('A IA passa a ver os artistas que ouves.').waitFor();
+        await page.waitForFunction(() => /Ligado\./.test(document.querySelector('#mu-body .mu-ia-gosto')?.innerText || ''));
+        assert.ok(JSON.parse(await env.KV.get('tidal:tokens')).iaGostoEm);
+        await corpo.locator('.mu-ia-gosto').getByRole('button', { name: 'Desligar' }).click();
+        await page.locator('#mu-aviso').getByText('A IA deixa de ver os artistas que ouves.').waitFor();
+        assert.equal(JSON.parse(await env.KV.get('tidal:tokens')).iaGostoEm, undefined);
         // a avançada, sem a conta ligada: aparece o «Liga a tua conta Mistral»
         await esc.getByRole('button', { name: 'Mistral avançada' }).click();
         const liga = corpo.locator('.mu-mistral');
@@ -1753,7 +1784,7 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         // «Pedir» diz que IA vai começar
         await nav(3);
         await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
-        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^Criar já — em segundos, no teu Tidal\. A IA \(Mistral avançada, a tua conta\)/);
+        assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Mistral Large escolhe 4 músicas de partida/);
         // o Gemini: a conta Google, ligada da mesma maneira
         await nav(5);
         await corpo.locator('.mu-ia-esc').getByRole('button', { name: 'Gemini' }).click();
@@ -1767,7 +1798,7 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         assert.ok(!(await page.content()).includes('AIzaUiBoa'), 'a chave nunca volta à app');
         await nav(3);
         await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
-        assert.match(await corpo.locator('.mu-acoes + .mu-nota').first().innerText(), /^Criar já — em segundos, no teu Tidal\. A IA \(Gemini, a tua conta Google\)/);
+        assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Gemini escolhe 4 músicas de partida/);
         await nav(5);
         await corpo.getByRole('button', { name: 'Desligar a conta Google' }).click();
         await page.locator('#mu-aviso').getByText('Conta Google desligada.').waitFor();

@@ -501,3 +501,14 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-sug-q { margin: 0 0 6px; color: var(--mut); font-size: 13px; font-weight: 650; }
 .mu-sug-t { margin: 0 0 6px; font-size: 15.5px; line-height: 1.4; }
 .mu-sugestao .mu-acoes { margin-top: 10px; }
+
+/* 2.45.0 — dois caminhos iguais em «Pedir»; quem fez a playlist e porquê */
+.mu-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.mu-duo-b { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 64px; padding: 10px 8px; text-align: center; }
+.mu-duo-b b { font-size: 15.5px; font-weight: 700; }
+.mu-duo-b span { font-size: 12.5px; font-weight: 500; opacity: .75; }
+.mu-feita { margin: 12px 0 2px; padding: 12px 14px; border-radius: 14px; background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line2); text-align: left; }
+.mu-feita .q { margin: 0 0 6px; font-weight: 650; font-size: 14.5px; }
+.mu-feita .pq { margin: 0 0 6px; font-size: 14.5px; line-height: 1.4; }
+.mu-feita .mu-nota { margin: 0 0 8px; }
+.mu-feita .mu-btn { margin-top: 2px; }

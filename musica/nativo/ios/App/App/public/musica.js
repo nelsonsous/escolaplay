@@ -522,4 +522,21 @@
     // ao abrir outra vez, começa no topo (o iOS repunha o scroll e o título ficava por baixo das horas)
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+    // versões novas: no iPhone a app quase nunca se recarrega de raiz (volta do segundo plano), e o service worker só
+    // procura uma versão nova ao recarregar. Por isso: ao voltar à app procura-a; quando o service worker novo toma
+    // conta, a app recarrega — logo, se foi agora a abrir ou a voltar (ou se está escondida); senão, ao voltar a ela
+    if ('serviceWorker' in navigator && typeof navigator.serviceWorker.addEventListener === 'function') {
+        const tinha = !!navigator.serviceWorker.controller;
+        let voltouEm = Date.now(), nova = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!tinha) return; // (a primeira instalação não é uma versão nova)
+            if (document.visibilityState === 'hidden' || Date.now() - voltouEm < 15000) location.reload(); else nova = true;
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            if (nova) { location.reload(); return; }
+            voltouEm = Date.now();
+            navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+        });
+    }
 })();
