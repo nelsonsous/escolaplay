@@ -1541,6 +1541,12 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         // dois caminhos iguais: já, com a IA (em segundos), ou com o Claude (em minutos, mais apurada)
         await page.waitForFunction(() => (document.querySelector('#mu-body .mu-duo [data-onda="pedir"]')?.innerText || '').startsWith('⚡ Já, com o Mistral Small'));
         assert.equal((await corpo.locator('.mu-duo [data-onda="pedir_m"]').innerText()).replace(/\s+/g, ' '), '✦ Com o Claude em minutos · mais apurada');
+        // num iPhone (390 px): um por baixo do outro, a toda a largura, cada um numa só linha (o texto cabe)
+        const [b1, b2] = await page.$$eval('#mu-body .mu-duo .mu-duo-b', (bs) => bs.map((b) => { const r = b.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: r.height, w: r.width, cabe: b.scrollWidth <= b.clientWidth }; }));
+        assert.ok(b2.top >= b1.bottom, 'um por baixo do outro');
+        assert.ok(b1.h < 60 && b2.h < 60, `cada um numa linha (${b1.h}px, ${b2.h}px)`);
+        assert.ok(b1.cabe && b2.cabe && b1.w === b2.w, 'o texto cabe; a mesma largura');
+        if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'pedir-dois-caminhos.png') });
         assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Mistral Small escolhe 4 músicas de partida e o Tidal junta as parecidas: fica no teu Tidal em segundos\. Depois, se quiseres, o Claude revê-a\.\n✦ Com o Claude — o Maestro \(Claude\) pesquisa e escolhe todas as faixas, com critério \(quando estiver ligado\)\.$/);
         assert.equal(await corpo.locator('.mu-duo [data-onda="pedir_m"]').count(), 1, 'e dá para escolher o Claude');
         assert.equal(await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).count(), 0);
