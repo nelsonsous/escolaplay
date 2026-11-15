@@ -849,6 +849,9 @@
   = r 0 = q _an_ler texto`esc{ N k }`
   # a escolha à mão («Outras opções»), se ainda passa nos filtros; senão o mais barato
   Se q { = p pri tp.produtos W && p ~ r { Se && && mesmo txt p.c cadeia k mesmo txt p.id q passa p fe fm = r p = p seg p } }
+  # «Escolher por: ⭐ Melhor nota» (ord, no vinho): o de nota mais alta que passa nos filtros (no empate, o mais barato,
+  # que vem primeiro); sem nenhum com nota, o mais barato
+  Se && ~ r _an_ler $"ord" { = mn 0 = p pri tp.produtos W p { Se && && mesmo txt p.c cadeia k passa p fe fm > int p.nt mn { = r p = mn int p.nt } = p seg p } }
   Se ~ r { = p pri tp.produtos W && p ~ r { Se && mesmo txt p.c cadeia k passa p fe fm = r p = p seg p } }
   r }
 # quantos produtos do supermercado k passam nos filtros
@@ -1004,7 +1007,12 @@
       W x { `<button class="chip{ Se && fm mesmo fm txt x.m ` on` }" data-onda="fm:{ N i }">{ esc x.m }</button>` = x seg x = i + i 1 }
       `</div>`
       dmelhores tp
-      `<h3>O mais barato em cada supermercado</h3><ul class="melhores">`
+      # no vinho, escolher em cada supermercado pelo preço ou pela nota dos críticos (fica para os próximos tipos)
+      = ord _an_ler $"ord"
+      Se mesmo txt tp.fam $"vinho" {
+        `<h3>Escolher por</h3><div class="chips"><button class="chip{ Se ~ ord ` on` }" data-onda="ord:0">💶 Mais barato</button>`
+        `<button class="chip{ Se ord ` on` }" data-onda="ord:1">⭐ Melhor nota</button></div>` }
+      ? && ord mesmo txt tp.fam $"vinho" `<h3>O melhor cotado em cada supermercado</h3><ul class="melhores">` `<h3>O mais barato em cada supermercado</h3><ul class="melhores">`
       # só se comparam os preços na unidade do tipo (o quilo, o litro): o mais barato fica marcado; em grande o preço
       # por quilo, e por baixo o que se paga e por quanto
       = ub ? tp.ub txt tp.ub 0
@@ -1254,6 +1262,7 @@
   Se eacao t $"cost" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt x.t },"q":1\}` }
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
+  Se eacao t $"ord" { ? v _an_gravar $"ord" $"1" _an_gravar $"ord" 0 }
   Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v _an_gravar $"opc" 0 _an_gravar $"opc" texto`{ N v }` }
   # escolher outra opção: a lista fica aberta (vê-se a barra azul mudar) e um aviso diz o que ficou
   Se eacao t $"esco" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id aviso texto`✓ No { crut nomecad / v 1000 }: { crut txt x.nome }` } }
