@@ -652,6 +652,12 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         const nomes = await a.locator('#folha .melhores > li small').allTextContents();
         assert.ok(nomes.filter((t) => /Douro|DOURO/.test(t)).length >= 3 && !nomes.some((t) => /Alentejo|ALENTEJO/.test(t)), nomes.join(' | '));
         assert.match(await a.getAttribute('#folha a.vivino >> nth=0', 'href'), /^https:\/\/www\.vivino\.com\/search\/wines\?q=.*Douro/i);
+        assert.match(await a.getAttribute('#folha a.vivino >> nth=1', 'href'), /^https:\/\/www\.wine-searcher\.com\/find\/.*\/1\/portugal$/);
+        // as melhores compras pelo rótulo: o Seleção mais barato, depois o Reserva (e quanto custa a mais)
+        const bc = await a.locator('#folha .bc li').allTextContents();
+        assert.equal(bc.length, 2);
+        assert.match(bc[0], /Monte Velho.*Premium/);
+        assert.match(bc[1], /ALENTEJO RESERVA.*Reserva.*para subir de gama/);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
