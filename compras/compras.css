@@ -248,3 +248,7 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .bc li small { grid-column: 1 / -1; color: var(--fraco); }
 .bc li[data-onda] { cursor: pointer; }
 .bc a.fonte { color: #e8c35a; text-decoration: underline; }
+
+/* volta 13: o histórico (desceu / subiu desde o preço anterior) */
+.desce { color: var(--verde); font-weight: 600; }
+.sobe { color: var(--vermelho); font-weight: 600; }

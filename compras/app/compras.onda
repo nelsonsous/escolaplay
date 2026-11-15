@@ -872,7 +872,7 @@
 : dop1 iiii>i p k j e {
   `<button class="op{ Se mesmo txt p.id txt e.id ` on` }" data-onda="esco:{ N + * k 1000 j }"><b>{ esc p.nome }</b>`
   `<span class="uc">{ ? p.uc `{ eur int p.uc }<i>/{ crut txt p.ub }</i>` `{ eur int p.cent }` }</span>`
-  `<span class="pr">{ Se mesmo txt p.id txt e.id `✓ escolhido · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }</span>`
+  `<span class="pr">{ Se mesmo txt p.id txt e.id `✓ escolhido · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }{ dvar p }</span>`
   dsinais p
   `</button>` 0 }
 : dopcoes iiiii>i tp k fe fm e {
@@ -933,6 +933,8 @@
   0 }
 # gramas em quilos, com vírgula («1,2»)
 : kgtxt i>i g { = k / g 1000 = r / % g 1000 100 ? r texto`{ N k },{ N r }` texto`{ N k }` }
+# quanto o preço desceu ou subiu desde o preço anterior (o histórico, nos últimos 30 dias)
+: dvar i>i p ? p.vd ` · <b class="desce">↓ { N int p.vd }%</b>` { ? p.vs ` · <b class="sobe">↑ { N int p.vs }%</b>` `` }
 # o índice de uma cadeia (o contrário de «cadeia»: continente 0, pingodoce 1, auchan 2, lidl 3)
 : icad i>i c ? mesmo c $"continente" 0 ? mesmo c $"pingodoce" 1 ? mesmo c $"auchan" 2 3
 # a nota ★ e, se houver, a ligação para a notícia (abre fora da app; não escolhe o produto)
@@ -1049,7 +1051,7 @@
             ? u `<li{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.uc }<i>/{ crut ub }</i></span>`
               `<li><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
             # ao quilo (uma peça inteira): o que se paga é aproximado, pelo peso médio da peça
-            `<small><b class="emb">Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { Se int p.aq `≈ ` }{ esc p.emb }` }</b>{ Se int p.aq ` · vende-se ao quilo` }`
+            `<small><b class="emb">Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { Se int p.aq `≈ ` }{ esc p.emb }` }</b>{ Se int p.aq ` · vende-se ao quilo` }{ dvar p }`
             Se u { ? == int p.uc mu ` · o mais barato por { crut unidade ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade ub }` 0 } }
             ` · { esc p.nome }{ Se p.nt ` · ★ { N int p.nt }` }</small>`
             dsinais p

@@ -350,6 +350,22 @@ export function mesmaMarca(produtos, loja, et, k, nome = '') {
     }).sort((a, b) => a.uc - b.uc);
     return ms.length ? { c: ms[0].c, uc: ms[0].uc, ub: 'kg', nome: ms[0].nome, ...(pesoKg(ms[0].emb) ? { kg: String(pesoKg(ms[0].emb)).replace('.', ',') } : {}) } : null;
 }
+// a variação de preço de cada produto do tipo k: Map «cadeia id» → % (negativa: desceu) entre o preço anterior e o
+// atual, se o anterior é mais recente do que desde
+export async function variacoes(db, k, desde) {
+    const { results } = await db.prepare(`SELECT h.cadeia AS c, h.id, h.cent, h.quando FROM preco_historico h
+        JOIN preco p ON p.cadeia = h.cadeia AND p.id = h.id WHERE p.tipo = ? ORDER BY h.cadeia, h.id, h.quando`).bind(k).all();
+    const r = new Map(), por = new Map();
+    for (const h of results) { const c = `${h.c} ${h.id}`; (por.get(c) ?? por.set(c, []).get(c)).push(h); }
+    for (const [c, hs] of por) {
+        if (hs.length < 2) continue;
+        const ult = hs[hs.length - 1], ant = hs[hs.length - 2];
+        if (ult.quando < desde || !(ant.cent > 0)) continue;
+        const v = Math.round(((ult.cent - ant.cent) / ant.cent) * 100);
+        if (Math.abs(v) >= 1) r.set(c, v);
+    }
+    return r;
+}
 export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     const t = await db.prepare('SELECT k, nome FROM tipo WHERE k = ?').bind(k).first();
     if (!t) return null;
@@ -402,6 +418,10 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         const notas = prepararNotas((await db.prepare('SELECT palavras, fora, nota, resumo, fontes FROM vinho_nota').all()).results);
         if (notas.length) for (const x of produtos) { const r = notaDoProduto(notas, x.nome); if (r) { x.nt = r.nota; x.nr = r.resumo; if (r.url) x.nu = r.url; } }
     }
+    // o histórico (preco_historico, a migração 0012): quanto desceu (vd) ou subiu (vs) cada produto desde o preço anterior,
+    // nos últimos 30 dias, em % (só a partir de 1 %)
+    const variacao = await variacoes(db, k, new Date(agora.getTime() - 30 * 24 * HORA).toISOString());
+    for (const x of produtos) { const v = variacao.get(`${x.c} ${x.id}`); if (v > 0) x.vs = v; else if (v < 0) x.vd = -v; }
     // a unidade de medida do tipo (a mais comum: kg, l ou un): só se comparam os preços por unidade nessa
     const nu = new Map();
     for (const p of results) if (p.uc != null && p.ub) nu.set(p.ub, (nu.get(p.ub) ?? 0) + 1);

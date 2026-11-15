@@ -217,6 +217,7 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 - Cada secção como a loja da especialidade: garrafeira (região, gama, casta, preço da garrafa, mais vinhos, ligação ao Vivino), azeite, queijo, frutaria, padaria, presunto.
 
 **Em curso / próximo**
+0. ✓ 0.49.0: o histórico dos preços (tabela preco_historico, escrita por um gatilho da D1 só quando o preço muda); na escolha, cada produto diz quanto desceu (↓) ou subiu (↑) desde o preço anterior, nos últimos 30 dias.
 0. ✓ 0.47.0: juntar depressa: o que se escreve e é concreto («bifes de frango», «azeite») junta logo o mais barato de cada loja; o geral («frango», «pão») abre a escolha; tocar numa coisa da lista abre a escolha com os filtros dela (Guardar / 🗑 Tirar); 🗑 e deslizar para a esquerda tiram da lista.
 0. ✓ 0.46.0–0.46.1: o Lidl no catálogo: os produtos com preço no site (223 de 532 com tipo, com sinónimos para a fruta, os legumes, o peixe, o marisco e o talho; os outros não são de supermercado ou não têm tipo claro), com a embalagem e o preço por litro ou quilo; entra na folha do tipo e na escolha da lista. ✓ 0.48.0: o folheto da semana do Lidl: o Ecónomo lê as páginas (imagens) e as promoções entram no catálogo até ao fim da promoção.
 0. ✓ 0.45.0: quantas pessoas em casa (na Casa): no talho e na peixaria, o mais barato escolhe-se entre as embalagens do tamanho certo (2 refeições de 200 g por pessoa: 2 pessoas, até 800 g), na folha e na lista; o tamanho escolhido à mão e as outras opções continuam.
