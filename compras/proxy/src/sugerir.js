@@ -5,7 +5,7 @@
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida, pecaAoPeso } from './precos.js';
-import { familiaDe, atributos, palavrasAtributos, filasDaFamilia, candidatosMelhores, maisCotados } from './atributos.js';
+import { familiaDe, atributos, palavrasAtributos, filasDaFamilia, candidatosMelhores, maisCotados, formatoGrande } from './atributos.js';
 import { prepararNotas, notaDoProduto } from './notas.js';
 import { sinais } from './qualidade.js';
 import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS, ORDEM_CALIBRE } from './etiquetas.js';
@@ -391,6 +391,9 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     if (TALHO.has(t.k)) aoQuilo(produtos, t.k);
     // o mais barato primeiro: na unidade do tipo, por esse preço; os outros depois, pelo que se paga
     produtos.sort((a, b) => (a.ub === ub ? 0 : 1) - (b.ub === ub ? 0 : 1) || (a.ub === ub ? a.uc - b.uc : a.cent - b.cent));
+    // no vinho, as garrafas primeiro: o bag-in-box e o garrafão (2 L ou mais) são sempre os mais baratos por litro e
+    // não se comparam com uma garrafa (o mais barato de cada loja é uma garrafa, a não ser que se escolha o tamanho)
+    if (fam === 'vinho') produtos.sort((a, b) => formatoGrande(a) - formatoGrande(b));
     return {
         // a secção (o primeiro nível da árvore: o caminho na escolha volta a ela)
         k: t.k, nome: t.nome, s: seccaoDoTipo(t), sn: nomeSeccao(seccaoDoTipo(t)),

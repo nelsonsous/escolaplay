@@ -66,3 +66,18 @@ test('as melhores compras no vinho seguem a nota, e os mais bem cotados vêm do 
     assert.ok(!candidatosMelhores('vinho', bib).some((x) => x.i === 0));
     assert.ok(!maisCotados(bib).includes(0));
 });
+
+test('no vinho, as garrafas vêm antes do bag-in-box (o mais barato de cada loja é uma garrafa)', async () => {
+    const { d1 } = await import('./d1.mjs');
+    const { guardarCatalogo } = await import('../proxy/src/catalogo.js');
+    const { produtosDoTipo, esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('vinho-tinto', 'Vinho tinto', 3, 1);`);
+    const p = (id, nome, preco, emb) => ({ id, nome, preco, emb, url: 'https://www.continente.pt/' + id });
+    const agora = new Date();
+    await guardarCatalogo(db, 'continente', 'vinho-tinto', [p('a', 'Nordeste Vinho Tinto', 5.19, '5 lt'), p('b', 'Papa Figos Douro Vinho Tinto', 6.99, '75 cl'),
+        p('c', 'Monte Velho Alentejo Vinho Tinto', 4.49, '75 cl')], agora);
+    esquecerTipos();
+    const tp = await produtosDoTipo(db, 'vinho-tinto', agora);
+    assert.deepEqual(tp.produtos.map((x) => x.id), ['c', 'b', 'a']);
+});
