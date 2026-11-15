@@ -234,7 +234,7 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 
 | Família | Loja | Como está | Próximo passo |
 |---|---|---|---|
-| Vinhos | Vinha (vinha.pt) | ✔ deixa ler `/vinho/`; preço no JSON-LD; mostra a média do Vivino («4/5») e notas de prova | no catálogo (iteração 3) |
+| Vinhos | Vinha (vinha.pt) | ✔ deixa ler `/vinho/`; preço no JSON-LD; mostra a média do Vivino («4/5») e notas de prova | **no catálogo (0.50.0):** os vinhos que também há nos supermercados (≈190 dos 4 335), com a Vivino, os portes (4,99 €, grátis acima de 70 €), a mesma garrafa no supermercado mais barato, e as notas dos críticos da página juntas às notas dos vinhos (`economo/vinha.mjs`) |
 | Vinhos | Onwine, Garrafeira Soares | robots.txt deixa; páginas de produto por ver | ver o mapa do site |
 | Vinhos | Garrafeira Nacional, Portugal Vineyards, Wine House | bloqueiam robôs (validação humana, Cloudflare) | não se leem |
 | Vinhos | Vinho em Casa | o site não responde (530) | — |
