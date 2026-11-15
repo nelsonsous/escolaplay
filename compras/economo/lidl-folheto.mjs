@@ -12,7 +12,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { d1, sonda } from './comum.mjs';
-import { classificador, porSinonimo, FORA } from './lidl.mjs';
+import { classificador, tipoDoLidl, FORA } from './lidl.mjs';
 import { porUnidade, medida, normaliza, rotulo } from '../proxy/src/precos.js';
 
 const PAGINA_FOLHETOS = 'https://www.lidl.pt/c/folhetos/s10020672';
@@ -74,7 +74,7 @@ async function gravar(ficheiros) {
             if (!p?.nome || !(p.preco > 0)) continue;
             const slug = String(p.nome).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             if (FORA.test(slug)) continue;
-            const tipo = tipoDe(slug.replace(/-/g, ' ')) ?? porSinonimo(slug);
+            const tipo = tipoDoLidl(slug, tipoDe);
             if (!tipo) { sem++; continue; }
             linhas.push(linhaDaPromocao(p, tipo, agora));
         }

@@ -46,7 +46,7 @@ export function classificador(linhas) {
 }
 // o que o Lidl vende no site e não é de supermercado (bricolage, casa, roupa, animais, plantas): fica de fora
 // (e os preparados: rissóis, croquetes, folhados, alheiras, pizzas, tábuas, que não são o tipo do ingrediente)
-export const FORA = /^(parkside|livarno|esmara|crivit|lupilu|silvercrest|tronic|auriol|florabest|ultimate-speed|pepperts|ernesto|miomare|melinera|powerfix|meradiso|playtive|max-mila|max-s-world|zoofari|bellarom-maquina)|ramo-de|crisantemo|sansevieria|orquidea|planta|vaso|para-cao|para-gato|calendario|rosas|flores|maquina|limpeza|rissois|croquete|folhado|alheira|tabua|gratinado|massa-quebrada|farinha-lactea|bola-de|pizza-com|decoracao|massa-folhada|salmao-fumado/;
+export const FORA = /^(parkside|livarno|esmara|crivit|lupilu|silvercrest|tronic|auriol|florabest|ultimate-speed|pepperts|ernesto|miomare|melinera|powerfix|meradiso|playtive|max-mila|max-s-world|zoofari|bellarom-maquina)|ramo-de|crisantemo|sansevieria|orquidea|planta|vaso|para-cao|para-gato|calendario|rosas|flores|maquina|limpeza|rissois|croquete|folhado|alheira|tabua|gratinado|massa-quebrada|farinha-lactea|bola-de|pizza-com|decoracao|massa-folhada|salmao-fumado|rolo-de-carne|tamaras-com/;
 
 // os nomes do Lidl que não trazem as palavras do tipo («Clementina Nacional», «Camarão 60/80», «Combino Laços»): o tipo
 // por sinónimos, quando o classificador não decide (palavras inteiras do nome; a primeira regra que bate ganha)
@@ -82,8 +82,28 @@ export const SINONIMOS = [
     [w('azeitonas?'), 'azeitona-pickl-tremoco'],
     [w('gin|vodka'), 'gin-vodka-tequila'],
     [w('amendoins|mixed-nuts|noz|amendoas|cajus'), 'frutos-secos'],
+    [w('vaca-que-ri'), 'queijo-barrar'],
+    [w('queijo-prato|queijo-de-ovelha'), 'queijo-fatiado'],
+    [w('bresaola|salame|presunto|chourico|paio'), 'presunto'],
+    [w('colgate|pasta-de-dentes'), 'pasta-de-dentes'],
+    [/(^|-)detergente-.*manual|^fairy-/, 'detergente-loica'],
+    [w('mistolin|casa-de-banho|madeiras'), 'limpeza-especifica'],
+    [w('trufas-de-chocolate|ferrero-prestige|schoko-bons|napolitanas|pai-natal-de-chocolate|dinheiro-de-chocolate|figuras-de-natal'), 'bombom'],
+    [w('profiteroles|creme-brulee|petit-gateau|pudim'), 'sobremesa'],
+    [w('sunny-delight'), 'nectares'],
 ];
 export const porSinonimo = (slug) => { for (const [re, k] of SINONIMOS) if (re.test(slug)) return k; return null; };
+// as correções, antes do classificador (os erros que ele faz: o patê de azeitonas não é azeitona; as malaguetas em
+// azeite e o moinho de sal não são azeite nem sal): o tipo certo, ou null para ficar de fora
+export const CORRECOES = [
+    [/(^|-)(pate|pates)(-|$)/, 'pate-pasta'],
+    [/(^|-)(malaguetas|moinho|pesto)(-|$)/, null],
+];
+// o tipo de um produto do Lidl (pelo slug do nome): as correções, o classificador e os sinónimos, por esta ordem
+export function tipoDoLidl(slug, tipoDe) {
+    for (const [re, k] of CORRECOES) if (re.test(slug)) return k;
+    return tipoDe(slug.replace(/-/g, ' ')) ?? porSinonimo(slug);
+}
 
 const titulo = (s) => String(s ?? '').toLowerCase().replace(/(^|\s)\S/g, (l) => l.toUpperCase());
 
@@ -92,7 +112,7 @@ async function main() {
     const lidl = texto.split('\n').filter((l) => l && !l.startsWith('#')).map((l) => { const [slug, id] = l.split('\t'); return { slug, id }; });
     const base = await d1(`SELECT nome, tipo FROM preco WHERE cadeia IN ('continente', 'pingodoce', 'auchan') AND tipo IS NOT NULL AND suspeito IS NULL`);
     const tipoDe = classificador(base);
-    const comTipo = lidl.filter((p) => !FORA.test(p.slug)).map((p) => ({ ...p, tipo: tipoDe(p.slug.replace(/-/g, ' ')) ?? porSinonimo(p.slug) }))
+    const comTipo = lidl.filter((p) => !FORA.test(p.slug)).map((p) => ({ ...p, tipo: tipoDoLidl(p.slug, tipoDe) }))
         .filter((p) => p.tipo).slice(0, max);
     console.log(`${lidl.length} produtos no índice do Lidl; ${comTipo.length} com tipo`);
     if (args.includes('--so-tipos')) {
