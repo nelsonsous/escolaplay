@@ -73,7 +73,18 @@ export function porUnidade(produto) {
 // - ao balcão (fiambre, queijo fatiado…), ao peso no Pingo Doce («2,49 €/Kg»: aoPeso) e, no Continente, nos
 //   produtos de peso variável (carne, fruta), o preço que a cadeia mostra é o do quilo e o «por unidade» é o da porção (≈ preço × peso): paga-se a porção;
 // - com a embalagem em peso ou volume, o preço por quilo ou por litro (nunca «por unidade»).
+// as peças inteiras do Continente vendidas ao quilo sem o peso no nome (o bacalhau seco inteiro): o preço é o do quilo e
+// o «por unidade» é o da peça (34,99 € e «104,97 €/un»: uma peça de ≈ 3 kg). Num produto normal o «por unidade» nunca
+// passa o preço; aqui passa (de 1,3 a 12 vezes). Paga-se ≈ a peça e compara-se ao quilo.
+export function pecaAoPeso({ cadeia, cent: c, uc, ub, emb }) {
+    if (cadeia !== 'continente' || ub !== 'un' || !(c > 0) || !(uc > c * 1.3) || uc > c * 12) return null;
+    if (emb && !/^1\s*un/i.test(emb)) return null;
+    const kg = Math.round((uc / c) * 100) / 100;
+    return { cent: uc, uc: c, ub: 'kg', emb: `≈ ${String(kg).replace('.', ',')} kg`, aq: 1 };
+}
 export function normaliza({ cadeia, nome, cent: c, uc, ub, m, aoPeso = false }) {
+    const pc = (!m || (m.ub === 'un' && m.q === 1)) ? pecaAoPeso({ cadeia, cent: c, uc, ub, emb: null }) : null;
+    if (pc) return { cent: pc.cent, uc: pc.uc, ub: pc.ub, emb: pc.emb };
     // vendido ao quilo, sem peso («FIAMBRE … FATIADO NO BALCÃO KG», no Auchan): o preço é o de um quilo
     if (c != null && !m && /\bkg\.?\s*$/i.test(nome ?? '')) return { cent: c, uc: c, ub: 'kg', emb: '1 kg' };
     if (c == null || !m || !(m.q > 0) || m.ub === 'un') return { cent: c, uc, ub };

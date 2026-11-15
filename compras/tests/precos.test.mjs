@@ -3,6 +3,7 @@
 import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { UA } from '../proxy/src/worker.js';
+import { pecaAoPeso } from '../proxy/src/precos.js';
 import { precisa, refrescar, medida, porUnidade, normaliza, rotulo, VALE_H } from '../proxy/src/precos.js';
 import { kv } from './kv.mjs';
 import { d1 } from './d1.mjs';
@@ -186,6 +187,11 @@ test('preços comparáveis: ao balcão e ao peso paga-se a porção; com peso ou
     assert.equal(medida(nm), null);
     assert.deepEqual(normaliza({ cadeia: 'auchan', nome: nm, cent: 2599, uc: null, ub: null, m: medida(nm) }), { cent: 2599, uc: 2599, ub: 'kg', emb: '1 kg' });
     assert.deepEqual(medida('6 x 1,5 L'), { q: 9, ub: 'l' });
+    // o bacalhau inteiro do Continente: 34,99 € é o quilo e o «por unidade» (104,97 €) a peça de ≈ 3 kg
+    assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Bacalhau Especial Islândia Seco Lugrade', cent: 3499, uc: 10497, ub: 'un', m: medida('1 un') }), { cent: 10497, uc: 3499, ub: 'kg', emb: '≈ 3 kg' });
+    // um pack (6 un, o «por unidade» abaixo do preço) e o Pingo Doce ficam como estão
+    assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Ovos M', cent: 199, uc: 33, ub: 'un', m: medida('6 un') }), { cent: 199, uc: 33, ub: 'un' });
+    assert.equal(pecaAoPeso({ cadeia: 'pingodoce', cent: 3499, uc: 10497, ub: 'un' }), null);
     // o resto fica igual
     assert.deepEqual(normaliza({ cadeia: 'pingodoce', nome: 'Água', cent: 96, uc: 16, ub: 'l', m: medida('6 L') }), { cent: 96, uc: 16, ub: 'l' });
     assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Ovos', cent: 249, uc: 21, ub: 'un', m: medida('12 un') }), { cent: 249, uc: 21, ub: 'un' });
