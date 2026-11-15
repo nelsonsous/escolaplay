@@ -202,7 +202,8 @@ test('«carne» é um grupo: o talho todo (também o frango e o peru) e os corte
     assert.deepEqual(r[0], { sec: 2, nome: 'Talho e peixaria' });
     // os tipos do talho (sem os da peixaria nem os «noodles» com carne no nome), os da casa primeiro
     // (e sem os cruzados que repetem um da casa: «Novilho, vitela e vitelão»)
-    assert.deepEqual(r.filter((t) => t.k && !t.corte).map((t) => t.k), ['carne-novilho', 'frango', 'porco']);
+    // os ramos da árvore, pela ordem: Carne (vaca, porco, frango…)
+    assert.deepEqual(r.filter((t) => t.k && !t.corte).map((t) => [t.k, t.gr]), [['carne-novilho', 'Carne'], ['porco', 'Carne'], ['frango', 'Carne']]);
     // os cortes: cada um no tipo onde há mais produtos com ele
     // pelas etiquetas do Ecónomo: a picanha é de grelhar e assar, o peito de grelhar e fritar (os usos primeiro)
     const cortes = r.filter((t) => t.corte).map((t) => [t.corte, t.k, t.w]);
@@ -231,7 +232,12 @@ test('as etiquetas do Ecónomo: animal, corte e usos pelo nome; no tipo, as esco
     assert.deepEqual(etiquetas('Novilho para Estufar Continente', 'carne-novilho'), { animal: 'novilho', corte: null, usos: ['estufar'] });
     assert.deepEqual(etiquetas('Dourada Média Fresca', 'peixe-fresco'), { animal: 'dourada', corte: null, usos: ['grelhar', 'assar'] });
     const ws = palavrasDoTalho('carne-novilho', ['Picanha de Bovino', 'Picanha Fatiada', 'Acém de Novilho', 'Acém de Vitela', 'Vazia de Bovino'].map((nome) => ({ nome })));
-    assert.deepEqual(ws.map((x) => [x.g, x.r]), [['uso', 'para grelhar'], ['uso', 'para assar'], ['uso', 'para estufar'], ['uso', 'para cozer'], ['corte', 'picanha'], ['corte', 'acém']]); // só um animal com dois ou mais: não há fila do animal
+    // por níveis: o corte e depois o uso (o animal, primeiro, só se há mais de um)
+    assert.deepEqual(ws.map((x) => [x.g, x.r]), [['corte', 'picanha'], ['corte', 'acém'], ['uso', 'para grelhar'], ['uso', 'para assar'], ['uso', 'para estufar'], ['uso', 'para cozer']]);
+    // com dois animais, a fila do animal vem primeiro e cada corte diz em que animais há
+    const ws2 = palavrasDoTalho('peixe-fresco', ['Carapau Fresco', 'Carapau Grande', 'Posta de Pescada', 'Pescada Inteira', 'Posta de Salmão'].map((nome) => ({ nome })));
+    assert.deepEqual(ws2.slice(0, 2).map((x) => [x.g, x.w]), [['animal', 'carapau'], ['animal', 'pescada']]);
+    assert.deepEqual(ws2.find((x) => x.w === 'posta').a.sort(), ['pescada', 'salmao']); // só um animal com dois ou mais: não há fila do animal
 });
 
 test('peças inteiras ao quilo: uma picanha de 1,8 kg a «17,99 €» é 17,99 €/kg e paga-se ≈ 32,38 €', async (t) => {

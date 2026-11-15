@@ -35,39 +35,50 @@ async function tipos(db) {
 // palavras que são um grupo de tipos e não um tipo: «carne» é o talho todo (frango, peru, porco…), «peixe» a peixaria.
 // Mostram a secção, os tipos do grupo e os cortes mais comuns nos nomes dos produtos («picanha», «para estufar»…), cada
 // um no tipo onde há mais produtos com ele (tocar abre esse tipo com o corte já escolhido)
-const PEIXE = /peix|bacalhau|marisco|polvo|lula|choco|camar|salm|pescad|sardinh|atum|dourad|robal/;
 const PARA = new Set(['estufar', 'grelhar', 'assar', 'cozer', 'fritar']);
+// o talho e a peixaria em ramos (a árvore: secção › ramo › tipo › espécie › corte ou uso); os tipos cruzados
+// automaticamente desta secção não entram (repetiam os da casa ou tinham nomes trocados)
+export const RAMOS = [
+    ['Carne', ['carne-novilho', 'porco', 'frango', 'peru', 'borrego-cabrito']],
+    ['Picada e preparados', ['carne-picada', 'hamburguer', 'espetada', 'salsicha']],
+    ['Peixe', ['peixe-fresco', 'peixe-congelado', 'bacalhau', 'pescada']],
+    ['Marisco', ['marisco', 'polvo-lulas']],
+];
 export const GRUPOS = {
-    carne: { s: 2, tipo: (t) => !PEIXE.test(t.k) },
-    peixe: { s: 2, tipo: (t) => PEIXE.test(t.k) && PEIXE.test(t.w.join(' ')), especie: true },
+    carne: { s: 2, ramos: ['Carne', 'Picada e preparados'] },
+    peixe: { s: 2, ramos: ['Peixe', 'Marisco'], especie: true },
 };
+// os tipos dos ramos (os que têm produtos), por ordem, com o ramo (gr)
+async function dosRamos(db, ramos) {
+    const porK = new Map((await tipos(db)).map((t) => [t.k, t]));
+    return RAMOS.filter(([r]) => ramos.includes(r)).flatMap(([gr, ks]) => ks.filter((k) => porK.has(k)).map((k) => ({ ...porK.get(k), gr })));
+}
 const CORTES = new Map(); // o grupo → { quando, lista } (uma hora)
 async function grupo(db, g, nome) {
-    const todos = (await tipos(db)).filter((t) => t.s === g.s && g.tipo(t)).sort((a, b) => (b.casa ? 1 : 0) - (a.casa ? 1 : 0) || b.n - a.n);
-    // os cruzados que repetem um da casa («Peru», «Novilho, vitela e vitelão») não aparecem
-    const daCasa = new Set(todos.filter((t) => t.casa).flatMap((t) => t.w).filter((w) => w !== 'carne'));
-    const nomes = new Set();
-    const ts = todos.filter((t) => (t.casa || !t.w.some((w) => daCasa.has(w))) && !nomes.has(t.nome) && nomes.add(t.nome));
+    const ts = await dosRamos(db, g.ramos);
     let c = CORTES.get(nome);
     if (!c || Date.now() - c.quando > HORA) {
         const ks = ts.map((t) => t.k);
         const { results } = ks.length ? await db.prepare(`SELECT tipo, nome FROM preco WHERE cent IS NOT NULL AND tipo IN (${ks.map(() => '?').join(', ')})`).bind(...ks).all() : { results: [] };
         const conta = new Map(); // corte → tipo → n
+        const animais = new Set();
         for (const r of results) {
             // as etiquetas do Ecónomo (etiquetas.js): os usos e o corte (e, na peixaria, a espécie)
             const e = etiquetas(r.nome, r.tipo);
             const ws = e ? [...e.usos, e.corte, ...(g.especie ? [e.animal] : [])].filter(Boolean) : [];
+            if (g.especie && e?.animal) animais.add(e.animal);
             for (const w of ws) { const m = conta.get(w) ?? new Map(); m.set(r.tipo, (m.get(r.tipo) ?? 0) + 1); conta.set(w, m); }
         }
         const porK = new Map(ts.map((t) => [t.k, t]));
         const lista = [...conta].map(([w, m]) => { const [k, n] = [...m].sort((a, b) => b[1] - a[1])[0]; return { w, k, n }; })
             // os usos («para estufar») primeiro, que as cadeias quase não os escrevem; depois os cortes com mais produtos
             .filter((x) => x.n >= 3 && porK.has(x.k)).sort((a, b) => (PARA.has(b.w) ? 1 : 0) - (PARA.has(a.w) ? 1 : 0) || b.n - a.n).slice(0, 14)
-            .map((x) => ({ k: x.k, nome: porK.get(x.k).nome, w: x.w, corte: nomeEtiqueta(x.w), s: g.s }));
+            // a espécie (ga) escolhe-se no nível do animal; o corte e o uso no seguinte
+            .map((x) => ({ k: x.k, nome: porK.get(x.k).nome, w: x.w, corte: nomeEtiqueta(x.w), s: g.s, ...(animais.has(x.w) ? { ga: 1 } : {}) }));
         c = { quando: Date.now(), lista };
         CORTES.set(nome, c);
     }
-    return [{ sec: g.s, nome: nomeSeccao(g.s) }, ...ts.slice(0, 12).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: t.s })), ...c.lista];
+    return [{ sec: g.s, nome: nomeSeccao(g.s) }, ...ts.map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: t.s, gr: t.gr })), ...c.lista];
 }
 
 // os tipos que correspondem ao que se escreveu: cada palavra escrita é o início de uma palavra do tipo
@@ -118,6 +129,7 @@ export async function sugerir(db, q, max = 8) {
 
 // os tipos de uma secção (os que têm produtos), os com mais produtos primeiro
 export async function tiposDaSeccao(db, sx) {
+    if (sx === 2) return (await dosRamos(db, RAMOS.map(([r]) => r))).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: 2, gr: t.gr }));
     return (await tipos(db)).filter((t) => t.s === sx).sort((a, b) => b.n - a.n).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: t.s }));
 }
 
@@ -137,23 +149,28 @@ export function palavrasDoTipo(k, produtos, max = 10) {
     return [...conta].filter(([, n]) => n >= 2 && n < produtos.length).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, max).map(([w, n]) => ({ w, n }));
 }
 
-// no talho e na peixaria, as escolhas vêm das etiquetas do Ecónomo, em três grupos (g): para quê (o uso), o corte e
-// o animal ou a espécie (só se há mais de um); r é o nome para ler, w a palavra para filtrar
+// no talho e na peixaria, as escolhas vêm das etiquetas do Ecónomo, por níveis (g): primeiro o animal ou a espécie (só
+// se há mais de um: o carapau, a pescada), depois o corte e o uso (grelhar…). r é o nome para ler, w a palavra para
+// filtrar; no corte e no uso, a: os animais onde há produtos com ele (escolhido o carapau, só aparecem os do carapau)
 export function palavrasDoTalho(k, produtos) {
     const conta = { uso: new Map(), corte: new Map(), animal: new Map() };
+    const com = new Map(); // corte ou uso → animais
     const mais = (m, w) => m.set(w, (m.get(w) ?? 0) + 1);
     for (const p of produtos) {
         const e = etiquetas(p.nome, k);
         if (!e) continue;
-        for (const u of e.usos) mais(conta.uso, u);
-        if (e.corte) mais(conta.corte, e.corte);
+        for (const w of [...e.usos, e.corte].filter(Boolean)) {
+            mais(e.usos.includes(w) ? conta.uso : conta.corte, w);
+            if (e.animal) { if (!com.has(w)) com.set(w, new Set()); com.get(w).add(e.animal); }
+        }
         if (e.animal) mais(conta.animal, e.animal);
     }
     const lista = (g, max) => [...conta[g]].filter(([, n]) => n >= 2 && n < produtos.length + (g === 'uso' ? 0 : 1))
         .sort((a, b) => (g === 'uso' ? USOS.indexOf(a[0]) - USOS.indexOf(b[0]) : b[1] - a[1])).slice(0, max)
         .map(([w, n]) => ({ w, r: nomeEtiqueta(w), n, g }));
-    const animais = lista('animal', 8);
-    return [...lista('uso', 5), ...lista('corte', 14), ...(animais.length > 1 ? animais : [])];
+    const animais = lista('animal', 12);
+    const comA = (x) => (animais.length > 1 && com.has(x.w) ? { ...x, a: [...com.get(x.w)] } : x);
+    return [...(animais.length > 1 ? animais : []), ...lista('corte', 14).map(comA), ...lista('uso', 5).map(comA)];
 }
 
 // as peças inteiras vendidas ao peso (uma picanha de 1,8 kg) vêm com o preço do quilo onde devia estar o da peça, e o
