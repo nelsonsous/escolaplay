@@ -4,6 +4,8 @@
 // produto foi escolhido à mão (e.mao), fica como está.
 // A Mercadona não deixa ler preços (a API está fechada no robots.txt): para ela, a estimativa é a mediana do preço da
 // marca branca do mesmo tipo e tamanho nas outras cadeias, marcada «≈» na app (est, em cêntimos por unidade da coisa).
+import { palavras } from './sugerir.js';
+
 const DIA = 24 * 3600e3;
 export const CADEIAS_ESCOLHA = ['continente', 'pingodoce', 'auchan'];
 const recente = (agora) => new Date(agora.getTime() - 10 * DIA).toISOString();
@@ -15,7 +17,12 @@ export async function melhores(db, e, agora = new Date()) {
           AND (?4 IS NULL OR (?4 = 'branca' AND propria = 1) OR (?4 <> 'branca' AND lower(marca) = lower(?4)))
         ORDER BY uc IS NULL, uc, cent, id`).bind(e.k, recente(agora), e.emb ?? null, e.m ?? null).all();
     const r = {};
-    for (const p of results) if (CADEIAS_ESCOLHA.includes(p.cadeia) && !r[p.cadeia]) r[p.cadeia] = { id: p.id, nome: p.nome, url: p.url };
+    const w = e.w ? ` ${e.w} ` : null;
+    for (const p of results) {
+        if (!CADEIAS_ESCOLHA.includes(p.cadeia) || r[p.cadeia]) continue;
+        if (w && !` ${palavras(p.nome).join(' ')} `.includes(w)) continue; // a palavra escolhida (o corte, a variante)
+        r[p.cadeia] = { id: p.id, nome: p.nome, url: p.url };
+    }
     return r;
 }
 

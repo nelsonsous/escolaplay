@@ -38,7 +38,33 @@ export async function sugerir(db, q, max = 8) {
         const pontos = (t.w[0].startsWith(ws[0]) ? 1e6 : 0) + (t.casa ? 1e5 : 0) + Number(t.n);
         bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos });
     }
+    // também pelos nomes dos produtos («picanha», «estufar», «carne»): os tipos onde há produtos com essas palavras
+    if (bons.length < max && ws.every((w) => w.length >= 3)) {
+        const { results } = await db.prepare(`SELECT tipo, count(*) AS n FROM preco WHERE tipo IS NOT NULL AND cent IS NOT NULL
+            AND ${ws.map(() => 'nome LIKE ?').join(' AND ')} GROUP BY tipo ORDER BY n DESC LIMIT ?`).bind(...ws.map((w) => `%${w}%`), max).all();
+        const porK = new Map((await tipos(db)).map((t) => [t.k, t]));
+        for (const r of results) {
+            const t = porK.get(r.tipo);
+            if (t && !bons.some((b) => b.k === t.k)) bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: -1e6 + Number(r.n), w: ws.join(' ') });
+        }
+    }
     return bons.sort((a, b) => b.pontos - a.pontos).slice(0, max).map(({ pontos, ...t }) => t);
+}
+
+// as palavras que distinguem os produtos de um tipo («picada», «bife», «estufar», «meio gordo»…): as mais comuns nos
+// nomes, sem as do tipo, as das marcas e as das medidas, que apareçam em pelo menos dois produtos
+const FORA = new Set(['com', 'sem', 'para', 'emb', 'embalagem', 'pack', 'kg', 'gr', 'lt', 'unid', 'cada', 'aprox', 'continente', 'pingo', 'doce', 'auchan', 'polegar', 'marca']);
+export function palavrasDoTipo(k, produtos, max = 10) {
+    const doTipo = new Set(palavras(k.replace(/-/g, ' ')));
+    const marcas = new Set(produtos.flatMap((p) => palavras(p.mk ?? '')));
+    const conta = new Map();
+    for (const p of produtos) {
+        for (const w of new Set(palavras(p.nome))) {
+            if (w.length < 4 || /\d/.test(w) || FORA.has(w) || doTipo.has(w) || marcas.has(w)) continue;
+            conta.set(w, (conta.get(w) ?? 0) + 1);
+        }
+    }
+    return [...conta].filter(([, n]) => n >= 2 && n < produtos.length).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, max).map(([w, n]) => ({ w, n }));
 }
 
 // os produtos de um tipo, com os tamanhos e as marcas que há (os mais comuns primeiro)
@@ -103,6 +129,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         if (p.emb) x.emb = p.emb;
         if (p.uc != null && p.ub) { x.uc = Number(p.uc); x.ub = p.ub; }
         if (p.antes != null) x.antes = Number(p.antes);
+        x.nk = palavras(p.nome).join(' '); // o nome sem acentos nem maiúsculas, para filtrar pelas palavras
         return x;
     });
     return {
@@ -110,6 +137,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         tamanhos: conta((p) => p.emb).slice(0, 8).map(([e, n]) => ({ e, n })),
         marcas: conta((p) => (p.pr || !p.marca ? null : nomeMarca(p.marca))).slice(0, 10).map(([m, n]) => ({ m, n })),
         brancas: results.filter((p) => p.pr).length,
+        palavras: palavrasDoTipo(t.k, produtos),
         est: estimativasDoTipo(results),
         reais: await reaisDoTipo(db, casa, k),
         produtos,

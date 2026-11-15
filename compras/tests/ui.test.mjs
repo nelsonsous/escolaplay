@@ -296,7 +296,10 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.click('#sug .chip >> nth=0');
         await a.waitForSelector('#folha .escolha h2:has-text("Água sem gás")');
         assert.deepEqual(await a.locator('#folha .chips >> nth=0 >> .chip').allTextContents(), ['Todos', '10 L', '6 L', '6 × 1,5 L', '7 L', '5 L', '5,4 L']);
-        assert.deepEqual((await a.locator('#folha .chips >> nth=1 >> .chip').allTextContents()).slice(0, 3), ['Qualquer', '🏷 Marca branca', 'Luso']);
+        // o corte ou a variante: as palavras que distinguem os produtos («garrafao», «alcalina»…)
+        assert.equal(await a.textContent('#folha .chips >> nth=1 >> .chip >> nth=0'), 'Todos');
+        assert.ok((await a.locator('#folha .chips >> nth=1 >> .chip').allTextContents()).includes('garrafao'));
+        assert.deepEqual((await a.locator('#folha .chips >> nth=2 >> .chip').allTextContents()).slice(0, 3), ['Qualquer', '🏷 Marca branca', 'Luso']);
         // sem filtro: o mais barato por litro de cada um; o melhor fica marcado
         assert.deepEqual(await linhas(), [
             ['', 'Continente', '1,99 €', 'Água sem Gás Garrafão Luso · 7 L · 0,28 €/l'],

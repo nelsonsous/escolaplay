@@ -1,102 +1,626 @@
 {
   "nota": "Os tipos do cabaz da casa, feitos à mão pelo Ecónomo: as categorias das cadeias não têm o mesmo detalhe (o Continente tem «Leites» numa só, o Pingo Doce separa magro e meio-gordo), por isso o cruzamento automático (tipos.mjs) não as junta. Cada caminho é uma categoria ou uma secção (entram as categorias de baixo). Continente: depois de /supermercado/; Auchan: depois de /pt/; Pingo Doce: depois de /home/produtos/. «fora»: categorias de baixo que não entram.",
   "tipos": [
-    { "k": "agua-sem-gas", "nome": "Água sem gás",
-      "continente": ["bebidas-e-garrafeira/agua/agua-sem-gas"], "auchan": ["bebidas-e-garrafeira/aguas/aguas-sem-gas"], "pingodoce": ["aguas-sumos-e-refrigerantes/aguas/aguas-sem-gas"] },
-    { "k": "agua-com-gas", "nome": "Água com gás",
-      "continente": ["bebidas-e-garrafeira/agua/agua-com-gas"], "auchan": ["bebidas-e-garrafeira/aguas/aguas-com-gas"], "pingodoce": ["aguas-sumos-e-refrigerantes/aguas/aguas-com-gas"] },
-    { "k": "leite", "nome": "Leite",
-      "continente": ["laticinios-e-ovos/leites"],
-      "auchan": ["alimentacao/produtos-lacteos/leites/leite-uht", "alimentacao/produtos-lacteos/leites/leite-do-dia", "alimentacao/produtos-lacteos/sem-lactose/leite-sem-lactose"],
-      "pingodoce": ["leite-e-bebidas-vegetais/leite/leite-magro", "leite-e-bebidas-vegetais/leite/leite-meio-gordo-e-gordo", "leite-e-bebidas-vegetais/leite/leite-sem-lactose", "leite-e-bebidas-vegetais/leite/leite-fresco"] },
-    { "k": "ovos", "nome": "Ovos",
-      "continente": ["laticinios-e-ovos/ovos"], "auchan": ["alimentacao/produtos-lacteos/ovos"], "pingodoce": ["ovos"],
-      "fora": ["claras-de-ovos", "ovos-de-codorniz"] },
-    { "k": "pao-de-forma", "nome": "Pão de forma",
-      "continente": ["padaria-e-pastelaria/pao-de-forma-e-embalado"], "auchan": ["produtos-frescos/padaria/pao-de-forma-e-embalados", "alimentacao/mercearia/tostas-e-pao-embalado/pao-embalado"],
-      "pingodoce": ["padaria-e-pastelaria/pao-embalado/pao-de-forma-e-embalado"] },
-    { "k": "arroz", "nome": "Arroz",
-      "continente": ["mercearia/arroz-massa-e-farinha/arroz"], "auchan": ["alimentacao/mercearia/arroz-e-massa/arroz"], "pingodoce": ["mercearia/arroz-massa-e-leguminosas/arroz"] },
-    { "k": "massa", "nome": "Massa",
-      "continente": ["mercearia/arroz-massa-e-farinha/massa"],
-      "auchan": ["alimentacao/mercearia/arroz-e-massa/esparguete-aletria-e-meadas", "alimentacao/mercearia/arroz-e-massa/cotovelos-espiral-e-massinhas", "alimentacao/mercearia/arroz-e-massa/tagliatelli-e-macarrao"],
-      "pingodoce": ["mercearia/arroz-massa-e-leguminosas/massa"] },
-    { "k": "azeite", "nome": "Azeite",
-      "continente": ["mercearia/azeite-oleo-e-vinagre/azeite"], "auchan": ["alimentacao/mercearia/azeite-oleo-e-vinagre/azeite", "alimentacao/mercearia/azeite-oleo-e-vinagre/azeite-virgem-e-extra-virgem"],
-      "pingodoce": ["mercearia/azeite-oleo-e-vinagre/azeite"] },
-    { "k": "oleo", "nome": "Óleo",
-      "continente": ["mercearia/azeite-oleo-e-vinagre/oleo"], "auchan": ["alimentacao/mercearia/azeite-oleo-e-vinagre/oleo-girassol-amendoim-e-vegetal"], "pingodoce": ["mercearia/azeite-oleo-e-vinagre/oleo"] },
-    { "k": "acucar", "nome": "Açúcar",
-      "continente": ["mercearia/acucar-e-sobremesas/acucar-e-adocante"], "auchan": ["alimentacao/mercearia/acucar-e-adocante/acucar"], "pingodoce": ["mercearia/farinha-fermento-e-acucar/acucar-e-adocante"] },
-    { "k": "farinha", "nome": "Farinha",
-      "continente": ["mercearia/arroz-massa-e-farinha/farinhas"], "auchan": ["alimentacao/mercearia/farinha/farinha-trigo"], "pingodoce": ["mercearia/farinha-fermento-e-acucar/farinha-fermento-e-pao-ralado"] },
-    { "k": "sal", "nome": "Sal",
-      "continente": ["mercearia/molhos-temperos-e-sal/sal"], "auchan": ["alimentacao/mercearia/sal-ervas-e-temperos/sal"], "pingodoce": ["mercearia/temperos-e-molhos/sal"] },
-    { "k": "cafe-moido", "nome": "Café moído e em grão",
-      "continente": ["mercearia/cafe-cha-e-soluveis/cafe-torrado"], "auchan": ["alimentacao/mercearia/cafe-cha-e-infusao/cafe-de-maquina-grao-e-pastilhas"], "pingodoce": ["cafe-cha-e-achocolatados/cafe-moido-e-grao"] },
-    { "k": "cafe-capsulas", "nome": "Café em cápsulas",
-      "continente": ["mercearia/cafe-cha-e-soluveis/cafe-em-capsulas"],
-      "auchan": ["alimentacao/mercearia/cafe-cha-e-infusao/capsulas-compativeis-nespresso", "alimentacao/mercearia/cafe-cha-e-infusao/capsula-delta-q-e-compativeis", "alimentacao/mercearia/cafe-cha-e-infusao/capsula-dolce-gusto-e-compativeis"],
-      "pingodoce": ["cafe-cha-e-achocolatados/capsulas-de-cafe"] },
-    { "k": "manteiga", "nome": "Manteiga",
-      "continente": ["laticinios-e-ovos/manteigas-e-cremes/manteigas"], "auchan": ["alimentacao/produtos-lacteos/manteiga-cremes-e-margarina/manteiga"], "pingodoce": ["manteiga-margarina-e-natas/manteiga-e-margarina"] },
-    { "k": "iogurtes", "nome": "Iogurtes",
-      "continente": ["laticinios-e-ovos/iogurtes-e-outros-lacteos"], "auchan": ["alimentacao/produtos-lacteos/iogurtes"], "pingodoce": ["iogurtes-e-sobremesas/iogurtes"],
-      "fora": ["kefir", "infantis", "infantis-e-crianca", "iogurtes-infantis", "iogurtes-de-base-vegetal"] },
-    { "k": "queijo-fatiado", "nome": "Queijo fatiado",
-      "continente": ["charcutaria-e-queijos/queijo-flamengo"], "auchan": ["alimentacao/produtos-lacteos/queijaria/queijo-fatiado-e-barra"], "pingodoce": ["charcutaria-e-queijos/queijos/queijo-fatiado-e-bola"] },
-    { "k": "queijo-fresco", "nome": "Queijo fresco",
-      "continente": ["charcutaria-e-queijos/queijos-frescos/queijo-fresco"], "auchan": ["alimentacao/produtos-lacteos/queijaria/queijo-frescomagrorequeijaomozzarella"], "pingodoce": ["charcutaria-e-queijos/queijos/queijo-fresco-e-requeijao"] },
-    { "k": "fiambre", "nome": "Fiambre",
-      "continente": ["charcutaria-e-queijos/fiambre-e-mortadela/fiambre-de-frango", "charcutaria-e-queijos/fiambre-e-mortadela/fiambre-de-peru", "charcutaria-e-queijos/fiambre-e-mortadela/fiambre-de-porco"],
-      "auchan": ["produtos-frescos/charcutaria/fiambre-de-peru-e-frango", "produtos-frescos/charcutaria/fiambre-de-porco"], "pingodoce": ["charcutaria-e-queijos/charcutaria/fiambre-mortadela-e-chouricao"] },
-    { "k": "atum", "nome": "Atum em conserva",
-      "continente": ["mercearia/conservas/atum"], "auchan": ["alimentacao/mercearia/conservas/atum"], "pingodoce": ["mercearia/conservas/atum"] },
-    { "k": "feijao-grao", "nome": "Feijão e grão",
-      "continente": ["mercearia/conservas/feijao-e-grao-de-bico"], "auchan": ["alimentacao/mercearia/conservas/cogumelo-milho-ervilha-feijao-e-outros"], "pingodoce": ["mercearia/conservas/feijao-grao-e-outros"] },
-    { "k": "polpa-tomate", "nome": "Polpa e tomate pelado",
-      "continente": ["mercearia/conservas/tomate-polpa-pelado-e-seco"], "auchan": ["alimentacao/mercearia/polpas-caldos-e-temperos/polpa-tomate"], "pingodoce": ["mercearia/temperos-e-molhos/polpas-e-concentrados"] },
-    { "k": "cereais", "nome": "Cereais",
-      "continente": ["mercearia/cereais-e-barras"], "auchan": ["alimentacao/mercearia/cereais-e-barras"], "pingodoce": ["bolachas-cereais-e-guloseimas/cereais-barras-e-bolsas-de-fruta"],
-      "fora": ["barras-de-cereais", "barras-cereais", "bolsas-de-fruta", "cereais-e-barras-infantis"] },
-    { "k": "bolachas", "nome": "Bolachas",
-      "continente": ["mercearia/bolachas-e-biscoitos"], "auchan": ["alimentacao/mercearia/bolachas-e-bolos"], "pingodoce": ["bolachas-cereais-e-guloseimas/bolachas-e-biscoitos"],
-      "fora": ["bolos-napolitanas-queques", "bolos-recheados", "bolos-tortas-madalenas-e-queques", "croissants-e-paes-de-leite", "tostas-gressinos-e-croutons-2", "tostas-gressinos-e-croutons"] },
-    { "k": "nectares", "nome": "Sumos e néctares",
-      "continente": ["bebidas-e-garrafeira/sumos-e-refrigerantes/nectares", "bebidas-e-garrafeira/sumos-e-refrigerantes/sumos-de-fruta"],
-      "auchan": ["bebidas-e-garrafeira/sumos-e-nectares/nectares", "bebidas-e-garrafeira/sumos-e-nectares/100-fruta"], "pingodoce": ["aguas-sumos-e-refrigerantes/sumos-e-refrigerantes/nectares"] },
-    { "k": "refrigerantes", "nome": "Refrigerantes",
-      "continente": ["bebidas-e-garrafeira/sumos-e-refrigerantes/refrigerantes-com-gas", "bebidas-e-garrafeira/sumos-e-refrigerantes/refrigerantes-sem-gas"],
-      "auchan": ["bebidas-e-garrafeira/refrigerantes"], "pingodoce": ["aguas-sumos-e-refrigerantes/sumos-e-refrigerantes/refrigerantes-com-gas", "aguas-sumos-e-refrigerantes/sumos-e-refrigerantes/refrigerantes-sem-gas"] },
-    { "k": "cerveja", "nome": "Cerveja",
-      "continente": ["bebidas-e-garrafeira/cervejas-e-sidras/cerveja-tradicional"], "auchan": ["bebidas-e-garrafeira/cervejas-e-sidras/cerveja-nacional"], "pingodoce": ["cervejas-e-sidras/cervejas-nacionais"] },
-    { "k": "papel-higienico", "nome": "Papel higiénico",
-      "continente": ["limpeza/papel-higienico"], "auchan": ["beleza-e-higiene/papel-higienico-e-lencos-papel/papel-higienico"], "pingodoce": ["limpeza/wc/papel-higienico"],
-      "fora": ["papel-higienico-humido"] },
-    { "k": "rolos-de-cozinha", "nome": "Rolos de cozinha",
-      "continente": ["limpeza/guardanapos-e-rolos/rolos-de-cozinha"], "auchan": ["limpeza-e-cuidados-do-lar/limpeza-cozinha/rolos-de-cozinha-e-guardanapos"] },
-    { "k": "detergente-roupa", "nome": "Detergente da roupa",
-      "continente": ["limpeza/roupa/detergente-maquina"], "auchan": ["limpeza-e-cuidados-do-lar/limpeza-e-tratamento-de-roupa/detergente-maquina-roupa"], "pingodoce": ["limpeza/roupa/detergentes"] },
-    { "k": "amaciador", "nome": "Amaciador da roupa",
-      "continente": ["limpeza/roupa/amaciador-e-intensificador-perfume"], "auchan": ["limpeza-e-cuidados-do-lar/limpeza-e-tratamento-de-roupa/amaciadores-e-intensificadores-perfume"],
-      "pingodoce": ["limpeza/roupa/amaciadores-e-perfumadores"], "fora": ["perolas-e-intensificador-de-perfume"] },
-    { "k": "detergente-loica", "nome": "Detergente da loiça (à mão)",
-      "continente": ["limpeza/cozinha/detergente-manual-loica"], "auchan": ["limpeza-e-cuidados-do-lar/limpeza-cozinha/detergente-manual-loica"], "pingodoce": ["limpeza/loica/detergentes-manuais"] },
-    { "k": "detergente-maquina-loica", "nome": "Detergente da máquina da loiça",
-      "continente": ["limpeza/cozinha/detergente-maquina-loica"], "auchan": ["limpeza-e-cuidados-do-lar/limpeza-cozinha/detergente-maquina-loica"], "pingodoce": ["limpeza/loica/detergentes-maquina"] },
-    { "k": "lixivia", "nome": "Lixívia",
-      "continente": ["limpeza/chao-e-superficies/lixivias"], "auchan": ["limpeza-e-cuidados-do-lar/limpeza-casa/lixivia"], "pingodoce": ["limpeza/casa/lixivias"] },
-    { "k": "sacos-do-lixo", "nome": "Sacos do lixo",
-      "continente": ["limpeza/sacos-e-baldes-do-lixo/sacos-do-lixo"], "auchan": ["limpeza-e-cuidados-do-lar/sacos-e-baldes-de-lixo/sacos-do-lixo"], "pingodoce": ["limpeza/sacos-do-lixo"] },
-    { "k": "gel-de-banho", "nome": "Gel de banho",
-      "continente": ["higiene-e-cuidado-pessoal/corpo/gel-de-banho"],
-      "auchan": ["beleza-e-higiene/gel-de-banho-e-sabonete/gel-formato-grande", "beleza-e-higiene/gel-de-banho-e-sabonete/gel-formato-medio", "beleza-e-higiene/gel-de-banho-e-sabonete/gel-formato-pequeno"],
-      "pingodoce": ["higiene-pessoal-e-beleza/corpo/gel-de-banho"] },
-    { "k": "champo", "nome": "Champô",
-      "continente": ["higiene-e-cuidado-pessoal/cabelo/champos", "higiene-e-cuidado-pessoal/cabelo/champos-cabelo-normal", "higiene-e-cuidado-pessoal/cabelo/champos-cabelo-pintado"],
-      "auchan": ["beleza-e-higiene/champo-e-coloracao/cabelos-normais", "beleza-e-higiene/champo-e-coloracao/cabelos-pintados", "beleza-e-higiene/champo-e-coloracao/champo-tratamento"],
-      "pingodoce": ["higiene-pessoal-e-beleza/cabelo/champo"] },
-    { "k": "pasta-de-dentes", "nome": "Pasta de dentes",
-      "auchan": ["beleza-e-higiene/higiene-oral/pastas-dentifricas"], "pingodoce": ["higiene-pessoal-e-beleza/higiene-oral/pastas-de-dentes"] }
+    {
+      "k": "agua-sem-gas",
+      "nome": "Água sem gás",
+      "continente": [
+        "bebidas-e-garrafeira/agua/agua-sem-gas"
+      ],
+      "auchan": [
+        "bebidas-e-garrafeira/aguas/aguas-sem-gas"
+      ],
+      "pingodoce": [
+        "aguas-sumos-e-refrigerantes/aguas/aguas-sem-gas"
+      ]
+    },
+    {
+      "k": "agua-com-gas",
+      "nome": "Água com gás",
+      "continente": [
+        "bebidas-e-garrafeira/agua/agua-com-gas"
+      ],
+      "auchan": [
+        "bebidas-e-garrafeira/aguas/aguas-com-gas"
+      ],
+      "pingodoce": [
+        "aguas-sumos-e-refrigerantes/aguas/aguas-com-gas"
+      ]
+    },
+    {
+      "k": "leite",
+      "nome": "Leite",
+      "continente": [
+        "laticinios-e-ovos/leites"
+      ],
+      "auchan": [
+        "alimentacao/produtos-lacteos/leites/leite-uht",
+        "alimentacao/produtos-lacteos/leites/leite-do-dia",
+        "alimentacao/produtos-lacteos/sem-lactose/leite-sem-lactose"
+      ],
+      "pingodoce": [
+        "leite-e-bebidas-vegetais/leite/leite-magro",
+        "leite-e-bebidas-vegetais/leite/leite-meio-gordo-e-gordo",
+        "leite-e-bebidas-vegetais/leite/leite-sem-lactose",
+        "leite-e-bebidas-vegetais/leite/leite-fresco"
+      ]
+    },
+    {
+      "k": "ovos",
+      "nome": "Ovos",
+      "continente": [
+        "laticinios-e-ovos/ovos"
+      ],
+      "auchan": [
+        "alimentacao/produtos-lacteos/ovos"
+      ],
+      "pingodoce": [
+        "ovos"
+      ],
+      "fora": [
+        "claras-de-ovos",
+        "ovos-de-codorniz"
+      ]
+    },
+    {
+      "k": "pao-de-forma",
+      "nome": "Pão de forma",
+      "continente": [
+        "padaria-e-pastelaria/pao-de-forma-e-embalado"
+      ],
+      "auchan": [
+        "produtos-frescos/padaria/pao-de-forma-e-embalados",
+        "alimentacao/mercearia/tostas-e-pao-embalado/pao-embalado"
+      ],
+      "pingodoce": [
+        "padaria-e-pastelaria/pao-embalado/pao-de-forma-e-embalado"
+      ]
+    },
+    {
+      "k": "arroz",
+      "nome": "Arroz",
+      "continente": [
+        "mercearia/arroz-massa-e-farinha/arroz"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/arroz-e-massa/arroz"
+      ],
+      "pingodoce": [
+        "mercearia/arroz-massa-e-leguminosas/arroz"
+      ]
+    },
+    {
+      "k": "massa",
+      "nome": "Massa",
+      "continente": [
+        "mercearia/arroz-massa-e-farinha/massa"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/arroz-e-massa/esparguete-aletria-e-meadas",
+        "alimentacao/mercearia/arroz-e-massa/cotovelos-espiral-e-massinhas",
+        "alimentacao/mercearia/arroz-e-massa/tagliatelli-e-macarrao"
+      ],
+      "pingodoce": [
+        "mercearia/arroz-massa-e-leguminosas/massa"
+      ]
+    },
+    {
+      "k": "azeite",
+      "nome": "Azeite",
+      "continente": [
+        "mercearia/azeite-oleo-e-vinagre/azeite"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/azeite-oleo-e-vinagre/azeite",
+        "alimentacao/mercearia/azeite-oleo-e-vinagre/azeite-virgem-e-extra-virgem"
+      ],
+      "pingodoce": [
+        "mercearia/azeite-oleo-e-vinagre/azeite"
+      ]
+    },
+    {
+      "k": "oleo",
+      "nome": "Óleo",
+      "continente": [
+        "mercearia/azeite-oleo-e-vinagre/oleo"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/azeite-oleo-e-vinagre/oleo-girassol-amendoim-e-vegetal"
+      ],
+      "pingodoce": [
+        "mercearia/azeite-oleo-e-vinagre/oleo"
+      ]
+    },
+    {
+      "k": "acucar",
+      "nome": "Açúcar",
+      "continente": [
+        "mercearia/acucar-e-sobremesas/acucar-e-adocante"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/acucar-e-adocante/acucar"
+      ],
+      "pingodoce": [
+        "mercearia/farinha-fermento-e-acucar/acucar-e-adocante"
+      ]
+    },
+    {
+      "k": "farinha",
+      "nome": "Farinha",
+      "continente": [
+        "mercearia/arroz-massa-e-farinha/farinhas"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/farinha/farinha-trigo"
+      ],
+      "pingodoce": [
+        "mercearia/farinha-fermento-e-acucar/farinha-fermento-e-pao-ralado"
+      ]
+    },
+    {
+      "k": "sal",
+      "nome": "Sal",
+      "continente": [
+        "mercearia/molhos-temperos-e-sal/sal"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/sal-ervas-e-temperos/sal"
+      ],
+      "pingodoce": [
+        "mercearia/temperos-e-molhos/sal"
+      ]
+    },
+    {
+      "k": "cafe-moido",
+      "nome": "Café moído e em grão",
+      "continente": [
+        "mercearia/cafe-cha-e-soluveis/cafe-torrado"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/cafe-cha-e-infusao/cafe-de-maquina-grao-e-pastilhas"
+      ],
+      "pingodoce": [
+        "cafe-cha-e-achocolatados/cafe-moido-e-grao"
+      ]
+    },
+    {
+      "k": "cafe-capsulas",
+      "nome": "Café em cápsulas",
+      "continente": [
+        "mercearia/cafe-cha-e-soluveis/cafe-em-capsulas"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/cafe-cha-e-infusao/capsulas-compativeis-nespresso",
+        "alimentacao/mercearia/cafe-cha-e-infusao/capsula-delta-q-e-compativeis",
+        "alimentacao/mercearia/cafe-cha-e-infusao/capsula-dolce-gusto-e-compativeis"
+      ],
+      "pingodoce": [
+        "cafe-cha-e-achocolatados/capsulas-de-cafe"
+      ]
+    },
+    {
+      "k": "manteiga",
+      "nome": "Manteiga",
+      "continente": [
+        "laticinios-e-ovos/manteigas-e-cremes/manteigas"
+      ],
+      "auchan": [
+        "alimentacao/produtos-lacteos/manteiga-cremes-e-margarina/manteiga"
+      ],
+      "pingodoce": [
+        "manteiga-margarina-e-natas/manteiga-e-margarina"
+      ]
+    },
+    {
+      "k": "iogurtes",
+      "nome": "Iogurtes",
+      "continente": [
+        "laticinios-e-ovos/iogurtes-e-outros-lacteos"
+      ],
+      "auchan": [
+        "alimentacao/produtos-lacteos/iogurtes"
+      ],
+      "pingodoce": [
+        "iogurtes-e-sobremesas/iogurtes"
+      ],
+      "fora": [
+        "kefir",
+        "infantis",
+        "infantis-e-crianca",
+        "iogurtes-infantis",
+        "iogurtes-de-base-vegetal"
+      ]
+    },
+    {
+      "k": "queijo-fatiado",
+      "nome": "Queijo fatiado",
+      "continente": [
+        "charcutaria-e-queijos/queijo-flamengo"
+      ],
+      "auchan": [
+        "alimentacao/produtos-lacteos/queijaria/queijo-fatiado-e-barra"
+      ],
+      "pingodoce": [
+        "charcutaria-e-queijos/queijos/queijo-fatiado-e-bola"
+      ]
+    },
+    {
+      "k": "queijo-fresco",
+      "nome": "Queijo fresco",
+      "continente": [
+        "charcutaria-e-queijos/queijos-frescos/queijo-fresco"
+      ],
+      "auchan": [
+        "alimentacao/produtos-lacteos/queijaria/queijo-frescomagrorequeijaomozzarella"
+      ],
+      "pingodoce": [
+        "charcutaria-e-queijos/queijos/queijo-fresco-e-requeijao"
+      ]
+    },
+    {
+      "k": "fiambre",
+      "nome": "Fiambre",
+      "continente": [
+        "charcutaria-e-queijos/fiambre-e-mortadela/fiambre-de-frango",
+        "charcutaria-e-queijos/fiambre-e-mortadela/fiambre-de-peru",
+        "charcutaria-e-queijos/fiambre-e-mortadela/fiambre-de-porco"
+      ],
+      "auchan": [
+        "produtos-frescos/charcutaria/fiambre-de-peru-e-frango",
+        "produtos-frescos/charcutaria/fiambre-de-porco"
+      ],
+      "pingodoce": [
+        "charcutaria-e-queijos/charcutaria/fiambre-mortadela-e-chouricao"
+      ]
+    },
+    {
+      "k": "atum",
+      "nome": "Atum em conserva",
+      "continente": [
+        "mercearia/conservas/atum"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/conservas/atum"
+      ],
+      "pingodoce": [
+        "mercearia/conservas/atum"
+      ]
+    },
+    {
+      "k": "feijao-grao",
+      "nome": "Feijão e grão",
+      "continente": [
+        "mercearia/conservas/feijao-e-grao-de-bico"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/conservas/cogumelo-milho-ervilha-feijao-e-outros"
+      ],
+      "pingodoce": [
+        "mercearia/conservas/feijao-grao-e-outros"
+      ]
+    },
+    {
+      "k": "polpa-tomate",
+      "nome": "Polpa e tomate pelado",
+      "continente": [
+        "mercearia/conservas/tomate-polpa-pelado-e-seco"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/polpas-caldos-e-temperos/polpa-tomate"
+      ],
+      "pingodoce": [
+        "mercearia/temperos-e-molhos/polpas-e-concentrados"
+      ]
+    },
+    {
+      "k": "cereais",
+      "nome": "Cereais",
+      "continente": [
+        "mercearia/cereais-e-barras"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/cereais-e-barras"
+      ],
+      "pingodoce": [
+        "bolachas-cereais-e-guloseimas/cereais-barras-e-bolsas-de-fruta"
+      ],
+      "fora": [
+        "barras-de-cereais",
+        "barras-cereais",
+        "bolsas-de-fruta",
+        "cereais-e-barras-infantis"
+      ]
+    },
+    {
+      "k": "bolachas",
+      "nome": "Bolachas",
+      "continente": [
+        "mercearia/bolachas-e-biscoitos"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/bolachas-e-bolos"
+      ],
+      "pingodoce": [
+        "bolachas-cereais-e-guloseimas/bolachas-e-biscoitos"
+      ],
+      "fora": [
+        "bolos-napolitanas-queques",
+        "bolos-recheados",
+        "bolos-tortas-madalenas-e-queques",
+        "croissants-e-paes-de-leite",
+        "tostas-gressinos-e-croutons-2",
+        "tostas-gressinos-e-croutons"
+      ]
+    },
+    {
+      "k": "nectares",
+      "nome": "Sumos e néctares",
+      "continente": [
+        "bebidas-e-garrafeira/sumos-e-refrigerantes/nectares",
+        "bebidas-e-garrafeira/sumos-e-refrigerantes/sumos-de-fruta"
+      ],
+      "auchan": [
+        "bebidas-e-garrafeira/sumos-e-nectares/nectares",
+        "bebidas-e-garrafeira/sumos-e-nectares/100-fruta"
+      ],
+      "pingodoce": [
+        "aguas-sumos-e-refrigerantes/sumos-e-refrigerantes/nectares"
+      ]
+    },
+    {
+      "k": "refrigerantes",
+      "nome": "Refrigerantes",
+      "continente": [
+        "bebidas-e-garrafeira/sumos-e-refrigerantes/refrigerantes-com-gas",
+        "bebidas-e-garrafeira/sumos-e-refrigerantes/refrigerantes-sem-gas"
+      ],
+      "auchan": [
+        "bebidas-e-garrafeira/refrigerantes"
+      ],
+      "pingodoce": [
+        "aguas-sumos-e-refrigerantes/sumos-e-refrigerantes/refrigerantes-com-gas",
+        "aguas-sumos-e-refrigerantes/sumos-e-refrigerantes/refrigerantes-sem-gas"
+      ]
+    },
+    {
+      "k": "cerveja",
+      "nome": "Cerveja",
+      "continente": [
+        "bebidas-e-garrafeira/cervejas-e-sidras/cerveja-tradicional"
+      ],
+      "auchan": [
+        "bebidas-e-garrafeira/cervejas-e-sidras/cerveja-nacional"
+      ],
+      "pingodoce": [
+        "cervejas-e-sidras/cervejas-nacionais"
+      ]
+    },
+    {
+      "k": "papel-higienico",
+      "nome": "Papel higiénico",
+      "continente": [
+        "limpeza/papel-higienico"
+      ],
+      "auchan": [
+        "beleza-e-higiene/papel-higienico-e-lencos-papel/papel-higienico"
+      ],
+      "pingodoce": [
+        "limpeza/wc/papel-higienico"
+      ],
+      "fora": [
+        "papel-higienico-humido"
+      ]
+    },
+    {
+      "k": "rolos-de-cozinha",
+      "nome": "Rolos de cozinha",
+      "continente": [
+        "limpeza/guardanapos-e-rolos/rolos-de-cozinha"
+      ],
+      "auchan": [
+        "limpeza-e-cuidados-do-lar/limpeza-cozinha/rolos-de-cozinha-e-guardanapos"
+      ]
+    },
+    {
+      "k": "detergente-roupa",
+      "nome": "Detergente da roupa",
+      "continente": [
+        "limpeza/roupa/detergente-maquina"
+      ],
+      "auchan": [
+        "limpeza-e-cuidados-do-lar/limpeza-e-tratamento-de-roupa/detergente-maquina-roupa"
+      ],
+      "pingodoce": [
+        "limpeza/roupa/detergentes"
+      ]
+    },
+    {
+      "k": "amaciador",
+      "nome": "Amaciador da roupa",
+      "continente": [
+        "limpeza/roupa/amaciador-e-intensificador-perfume"
+      ],
+      "auchan": [
+        "limpeza-e-cuidados-do-lar/limpeza-e-tratamento-de-roupa/amaciadores-e-intensificadores-perfume"
+      ],
+      "pingodoce": [
+        "limpeza/roupa/amaciadores-e-perfumadores"
+      ],
+      "fora": [
+        "perolas-e-intensificador-de-perfume"
+      ]
+    },
+    {
+      "k": "detergente-loica",
+      "nome": "Detergente da loiça (à mão)",
+      "continente": [
+        "limpeza/cozinha/detergente-manual-loica"
+      ],
+      "auchan": [
+        "limpeza-e-cuidados-do-lar/limpeza-cozinha/detergente-manual-loica"
+      ],
+      "pingodoce": [
+        "limpeza/loica/detergentes-manuais"
+      ]
+    },
+    {
+      "k": "detergente-maquina-loica",
+      "nome": "Detergente da máquina da loiça",
+      "continente": [
+        "limpeza/cozinha/detergente-maquina-loica"
+      ],
+      "auchan": [
+        "limpeza-e-cuidados-do-lar/limpeza-cozinha/detergente-maquina-loica"
+      ],
+      "pingodoce": [
+        "limpeza/loica/detergentes-maquina"
+      ]
+    },
+    {
+      "k": "lixivia",
+      "nome": "Lixívia",
+      "continente": [
+        "limpeza/chao-e-superficies/lixivias"
+      ],
+      "auchan": [
+        "limpeza-e-cuidados-do-lar/limpeza-casa/lixivia"
+      ],
+      "pingodoce": [
+        "limpeza/casa/lixivias"
+      ]
+    },
+    {
+      "k": "sacos-do-lixo",
+      "nome": "Sacos do lixo",
+      "continente": [
+        "limpeza/sacos-e-baldes-do-lixo/sacos-do-lixo"
+      ],
+      "auchan": [
+        "limpeza-e-cuidados-do-lar/sacos-e-baldes-de-lixo/sacos-do-lixo"
+      ],
+      "pingodoce": [
+        "limpeza/sacos-do-lixo"
+      ]
+    },
+    {
+      "k": "gel-de-banho",
+      "nome": "Gel de banho",
+      "continente": [
+        "higiene-e-cuidado-pessoal/corpo/gel-de-banho"
+      ],
+      "auchan": [
+        "beleza-e-higiene/gel-de-banho-e-sabonete/gel-formato-grande",
+        "beleza-e-higiene/gel-de-banho-e-sabonete/gel-formato-medio",
+        "beleza-e-higiene/gel-de-banho-e-sabonete/gel-formato-pequeno"
+      ],
+      "pingodoce": [
+        "higiene-pessoal-e-beleza/corpo/gel-de-banho"
+      ]
+    },
+    {
+      "k": "champo",
+      "nome": "Champô",
+      "continente": [
+        "higiene-e-cuidado-pessoal/cabelo/champos",
+        "higiene-e-cuidado-pessoal/cabelo/champos-cabelo-normal",
+        "higiene-e-cuidado-pessoal/cabelo/champos-cabelo-pintado"
+      ],
+      "auchan": [
+        "beleza-e-higiene/champo-e-coloracao/cabelos-normais",
+        "beleza-e-higiene/champo-e-coloracao/cabelos-pintados",
+        "beleza-e-higiene/champo-e-coloracao/champo-tratamento"
+      ],
+      "pingodoce": [
+        "higiene-pessoal-e-beleza/cabelo/champo"
+      ]
+    },
+    {
+      "k": "pasta-de-dentes",
+      "nome": "Pasta de dentes",
+      "auchan": [
+        "beleza-e-higiene/higiene-oral/pastas-dentifricas"
+      ],
+      "pingodoce": [
+        "higiene-pessoal-e-beleza/higiene-oral/pastas-de-dentes"
+      ]
+    },
+    {
+      "k": "carne-picada",
+      "nome": "Carne picada",
+      "continente": [
+        "talho/pronto-a-cozinhar/carne-picada"
+      ],
+      "auchan": [
+        "produtos-frescos/talho/hamburgueres-e-carne-picada"
+      ],
+      "pingodoce": [
+        "talho/especialidades-picados-e-salsichas"
+      ]
+    },
+    {
+      "k": "carne-novilho",
+      "nome": "Carne de novilho e vitela",
+      "continente": [
+        "talho/novilho-vitela-e-vitelao"
+      ],
+      "auchan": [
+        "produtos-frescos/talho/vitela-e-novilho"
+      ],
+      "pingodoce": [
+        "talho/vitela-vitelao-e-bovino"
+      ]
+    },
+    {
+      "k": "frango",
+      "nome": "Frango",
+      "continente": [
+        "talho/frango"
+      ],
+      "auchan": [
+        "produtos-frescos/talho/frango-e-galinha"
+      ],
+      "pingodoce": [
+        "talho/aves/frango"
+      ]
+    },
+    {
+      "k": "porco",
+      "nome": "Carne de porco",
+      "continente": [
+        "talho/porco"
+      ],
+      "auchan": [
+        "produtos-frescos/talho/porco"
+      ],
+      "pingodoce": [
+        "talho/porco"
+      ]
+    },
+    {
+      "k": "peru",
+      "nome": "Peru",
+      "continente": [
+        "talho/peru"
+      ],
+      "auchan": [
+        "produtos-frescos/talho/peru"
+      ],
+      "pingodoce": [
+        "talho/aves/peru"
+      ]
+    },
+    {
+      "k": "borrego-cabrito",
+      "nome": "Borrego e cabrito",
+      "continente": [
+        "talho/cabrito-e-borrego"
+      ],
+      "auchan": [
+        "produtos-frescos/talho/borrego-e-cabrito"
+      ],
+      "pingodoce": [
+        "talho/borrego-cabrito-e-coelho"
+      ]
+    }
   ]
 }

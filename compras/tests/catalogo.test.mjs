@@ -134,12 +134,17 @@ test('escrever e encontrar: os tipos pelo que se escreve, e os produtos de um ti
     assert.deepEqual((await api('/api/sugerir?q=%C3%A1g')).tipos, [{ k: 'agua-sem-gas', nome: 'Água sem gás', n: 12 }]);
     assert.deepEqual((await api('/api/sugerir?q=AGUA%20s')).tipos.map((x) => x.k), ['agua-sem-gas']);
     assert.deepEqual((await api('/api/sugerir?q=leite')).tipos, []);
+    // pelos nomes dos produtos: «alcalina» não é um tipo, mas há águas alcalinas (a palavra vem com o tipo)
+    assert.deepEqual((await api('/api/sugerir?q=alcalina')).tipos, [{ k: 'agua-sem-gas', nome: 'Água sem gás', n: 12, w: 'alcalina' }]);
     const tp = await api('/api/tipo?k=agua-sem-gas');
     assert.equal(tp.nome, 'Água sem gás');
     assert.equal(tp.produtos.length, 12);
     // o mais barato por litro primeiro (empate: pela cadeia)
-    assert.deepEqual(tp.produtos[0], { c: 'auchan', id: '255397', nome: 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L', url: AU + 'agua-auchan-da-nascente-garrafao-6l/255397.html', cent: 96, mk: 'Auchan', pr: 1, emb: '6 L', uc: 16, ub: 'l' });
+    assert.deepEqual(tp.produtos[0], { c: 'auchan', id: '255397', nome: 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L', url: AU + 'agua-auchan-da-nascente-garrafao-6l/255397.html', cent: 96, mk: 'Auchan', pr: 1, emb: '6 L', uc: 16, ub: 'l', nk: 'agua auchan nascente garrafao 6l' });
     assert.deepEqual(tp.produtos[1].c + ' ' + tp.produtos[1].id, 'pingodoce 868788');
+    // as palavras que distinguem os produtos (em pelo menos dois, e não em todos)
+    assert.ok(tp.palavras.some((x) => x.w === 'garrafao'));
+    assert.ok(!tp.palavras.some((x) => ['agua', 'gas', 'luso'].includes(x.w)));
     // primeiro os tamanhos que há em mais cadeias
     assert.deepEqual(tp.tamanhos.slice(0, 3), [{ e: '10 L', n: 3 }, { e: '6 L', n: 3 }, { e: '6 × 1,5 L', n: 2 }]);
     assert.ok(tp.marcas.some((m) => m.m === 'Luso'));
