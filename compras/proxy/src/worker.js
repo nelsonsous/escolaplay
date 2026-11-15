@@ -16,6 +16,7 @@
 //   POST /api/talao   {imagem}         a fotografia de um talão (data URL JPEG): a IA lê-o, guarda-se e risca-se na lista
 //                                      o que lá vem: { id, loja, dia, total, linhas, riscadas } (talao.js)
 //   GET  /api/costume                  o que costumas comprar (dos talões) e não está na lista: { coisas } (costume.js)
+//   POST /api/receita { url, legenda? } ou { texto }  a ligação de um vídeo de receita (TikTok, YouTube): { prato, ingredientes: [{ t, n }] }
 //   GET  /api/natal?modo=qualidade|equilibrio|preco&teto=€&partes=…  o Cabaz de Natal: 3 opções por parte
 //   GET  /api/sugerir?q=…              os tipos de produto que começam pelo que se escreveu: { tipos: [{ k, nome, n }] }
 //   GET  /api/seccao?s=…              os tipos de uma secção (seccoes.js): { sec, tipos }
@@ -29,6 +30,7 @@
 //   GET /sonda?url=…                   a resposta da cadeia tal e qual (estado, tempo e cabeçalhos à parte)
 //   GET /sonda/produto?cadeia=…&url=…  o produto lido pela fonte da cadeia (src/fontes/); ou &id=…, onde há endereço por número
 //   GET /sonda/catalogo?url=…          lê já uma página do catálogo (só as da tabela pagina) e guarda os produtos
+//   GET /sonda/receita?url=…            lê uma receita (o mesmo que /api/receita, para o Ecónomo experimentar)
 //   GET /sonda/saude                    a saúde da base: páginas lidas e a falhar por cadeia, preços recentes, suspeitos…
 //   GET /sonda/revisao?de=0&n=20        revê os tipos (os suspeitos e os nomes: revisao.js); ?k=… os suspeitos de um tipo
 // Regras da sonda: só GET, só https, só os domínios das cadeias (SONDA_HOSTS) e só com o segredo, para o conector não
@@ -39,6 +41,7 @@
 import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
 import { cabazDeNatal } from './natal.js';
+import { lerReceita } from './receita.js';
 import { Erro, novoAparelho, aparelhoDe, casaDe, gravarLojas, gravarCp, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
 import { lojasDaCasa, lojasDe } from './lojas.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
@@ -53,7 +56,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.31.0';
+export const VERSION = '0.32.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -292,6 +295,10 @@ async function api(request, env, url) {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
     }
     if (caminho === '/api/saude' && metodo === 'GET') return json(await saudeCurta(db));
+    if (caminho === '/api/receita' && metodo === 'POST') {
+        // a ligação de um vídeo de receita (TikTok, YouTube): os ingredientes para juntar à lista
+        return json(await lerReceita(env, await corpoJSON(request)));
+    }
     if (caminho === '/api/natal' && metodo === 'GET') {
         // o Cabaz de Natal: as cadeias da casa (ou as pedidas), o modo, o teto e as partes
         const lista = (n) => String(url.searchParams.get(n) ?? '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 12);
@@ -330,12 +337,17 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 10: o Cabaz de Natal' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'ciclo 3: receitas de um link' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);
         if (url.pathname === '/sonda/revisao') return sondaRevisao(request, env);
         if (url.pathname === '/sonda/zona') return sondaZona(request, env);
+        if (url.pathname === '/sonda/receita') {
+            const nao = await recusa(request, env);
+            if (nao) return nao;
+            try { return json(await lerReceita(env, { url: url.searchParams.get('url'), texto: url.searchParams.get('texto') })); } catch (e) { return json({ erro: e.message }, e.status ?? 500); }
+        }
         if (url.pathname === '/sonda/saude') { const nao = await recusa(request, env); return nao ?? json(await saude(env.DB)); }
         return json({ erro: 'não existe' }, 404);
     },

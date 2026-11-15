@@ -567,3 +567,33 @@ test('o Cabaz de Natal: as partes com 3 opções, o modo, escolher outra, tirar 
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('a receita: colar um link do TikTok abre a folha; sem legenda, cola-se o texto, tira-se o que há em casa e junta-se', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const br = await pw.chromium.launch();
+    try {
+        const ctx = await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' });
+        // o TikTok (no telemóvel e no conector) responde sem a legenda, como a um centro de dados
+        await ctx.route('https://www.tiktok.com/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"version":"1.0","type":"video"}' }));
+        const a = await ctx.newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        await a.fill('[data-onda="junta"]', 'https://www.tiktok.com/@terapianofogo/video/7316138102043479329?is_from_webapp=1');
+        await a.press('[data-onda="junta"]', 'Enter');
+        await a.waitForSelector('#folha .cartao.receita');
+        await a.waitForSelector('#folha .cartao.receita .nota:has-text("Cola"), #folha .cartao.receita .aviso');
+        assert.equal(await a.locator('.item').count(), 0); // o link não entrou na lista como uma coisa
+        await a.fill('#folha [data-onda="rctx"]', 'Bacalhau com natas\n- 2 postas de bacalhau\n- 1 L leite\n- 100 g manteiga\n- 200 ml natas');
+        await a.click('#folha [data-onda="rct:0"]');
+        await a.waitForSelector('#folha .chips.rc .chip >> nth=3');
+        assert.deepEqual(await a.locator('#folha .chips.rc .chip').allTextContents(), ['✓ postas de bacalhau 2', '✓ leite 1 L', '✓ manteiga 100 g', '✓ natas 200 ml']);
+        await a.click('#folha .chips.rc .chip:has-text("leite")'); // já há leite em casa
+        await a.click('#folha [data-onda="rcj:0"]:has-text("Juntar 3")');
+        await a.waitForSelector('.item >> nth=2');
+        assert.equal(await a.locator('#folha .cartao.receita').count(), 0);
+        assert.deepEqual((await a.locator('.item .texto b').allTextContents()).sort(), ['manteiga', 'natas', 'postas de bacalhau']);
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});

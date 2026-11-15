@@ -33,10 +33,21 @@
         const chave = ls.get('chave');
         if (chave) headers.authorization = `Bearer ${chave}`;
         if (corpo) headers['content-type'] = 'application/json';
-        return fetch((ls.get('proxy') || PROXY) + alvo, { method: metodo, headers, body: corpo || undefined });
+        const ir = (b) => fetch((ls.get('proxy') || PROXY) + alvo, { method: metodo, headers, body: b || undefined });
+        if (alvo === '/api/receita') return legendaAqui(corpo).then(ir, () => ir(corpo));
+        return ir(corpo);
+    }
+    // a receita de um vídeo do TikTok: a legenda lê-se aqui, no telemóvel, pela ligação oficial (oEmbed), porque o
+    // TikTok responde sem ela ao conector (um centro de dados); se não der, o conector tenta e diz-o
+    function legendaAqui(corpo) {
+        const c = JSON.parse(corpo || '{}');
+        if (!c.url || !/^https:\/\/([a-z]+\.)?tiktok\.com\//i.test(c.url)) return Promise.resolve(corpo);
+        return fetch('https://www.tiktok.com/oembed?url=' + encodeURIComponent(c.url), { signal: AbortSignal.timeout(8000) })
+            .then((r) => (r.ok ? r.json() : {}))
+            .then((o) => (o && o.title ? JSON.stringify({ ...c, legenda: o.title, autor: o.author_name }) : corpo), () => corpo);
     }
 
-    fetch('app/compras.wasm?v=0.31.0')
+    fetch('app/compras.wasm?v=0.32.0')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })

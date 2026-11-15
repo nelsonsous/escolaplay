@@ -230,3 +230,6 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .cartao.natal .parte .op-x { margin: 0; }
 .cartao.natal .total { font-size: 18px; margin: 16px 0 4px; }
 .cartao.natal .total small { color: #ffd60a; font-size: 13px; }
+/* a receita (ciclo 3) */
+.cartao.receita textarea { width: 100%; box-sizing: border-box; margin: 10px 0 6px; padding: 10px; border-radius: 10px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font: inherit; font-size: 15px; }
+.cartao.receita .chips.rc .chip:not(.on) { opacity: .55; text-decoration: line-through; }
