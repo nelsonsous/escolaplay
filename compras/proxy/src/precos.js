@@ -5,6 +5,8 @@
 //     lista, no máximo um por cadeia de cada vez (cada site recebe no máximo um pedido a cada dez minutos).
 // Um pedido que falha espera antes de se repetir (meia hora, uma hora, duas… até um dia).
 // A lista vai para a app com o preço ao lado de cada produto escolhido (juntarPrecos): em cêntimos.
+// Volta 4: também o preço por quilo, por litro ou por unidade (porUnidade), para comparar embalagens; e os preços dos
+// produtos parecidos de uma procura (precosDe), para a app mostrar o mais barato por quilo ou por litro.
 import { FONTES } from './fontes/index.js';
 import { pedir } from './rede.js';
 
@@ -13,6 +15,35 @@ const HORA = 3600e3;
 
 const cent = (v) => (v == null || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 100));
 const unid = (u) => (u && u.valor != null ? `${u.valor.toFixed(2).replace('.', ',')} €/${u.unidade}` : null);
+
+// as medidas em quilos, litros ou unidades
+const MEDIDA = { kg: ['kg', 1], g: ['kg', 1e-3], gr: ['kg', 1e-3], l: ['l', 1], lt: ['l', 1], ml: ['l', 1e-3], cl: ['l', 1e-2], un: ['un', 1], uni: ['un', 1], unid: ['un', 1], unidades: ['un', 1] };
+const NUM = '(\\d+(?:[.,]\\d+)?)';
+const VEZES = new RegExp(`(\\d+)\\s*[x×]\\s*${NUM}\\s*(kg|gr?|lt?|ml|cl)\\b`, 'i');
+const UMA = new RegExp(`${NUM}\\s*(kg|gr?|lt?|ml|cl|unid(?:ades)?|uni?)\\b\\.?`, 'i');
+const n = (s) => Number(String(s).replace(',', '.'));
+// quanto tem uma embalagem («emb. 6 x 1 lt», «500 g», «12 un»): { q, ub } em quilos, litros ou unidades
+export function medida(s) {
+    const t = String(s ?? '');
+    let m = t.match(VEZES);
+    if (m) { const [b, f] = MEDIDA[m[3].toLowerCase()]; return { q: n(m[1]) * n(m[2]) * f, ub: b }; }
+    m = t.match(UMA);
+    if (m && MEDIDA[m[2].toLowerCase()]) { const [b, f] = MEDIDA[m[2].toLowerCase()]; return { q: n(m[1]) * f, ub: b }; }
+    return null;
+}
+// o preço por quilo, por litro ou por unidade, em cêntimos: { uc, ub } (ou nulos). Usa o que a cadeia mostra; se
+// não mostra, a embalagem ou o nome do produto.
+export function porUnidade(produto) {
+    const preco = cent(produto?.preco);
+    const pu = produto?.precoUnidade;
+    if (pu && pu.valor != null && MEDIDA[pu.unidade]) {
+        const [b, f] = MEDIDA[pu.unidade];
+        return { uc: Math.round((pu.valor * 100) / f), ub: b };
+    }
+    const m = medida(produto?.embalagem) ?? medida(produto?.nome);
+    if (preco == null || !m || !(m.q > 0)) return { uc: null, ub: null };
+    return { uc: Math.round(preco / m.q), ub: m.ub };
+}
 // quanto se espera depois de f pedidos falhados seguidos
 const espera = (f) => (f > 0 ? Math.min(24 * HORA, HORA / 2 * 2 ** (f - 1)) : 0);
 
@@ -35,7 +66,8 @@ export async function lerPreco(cadeia, p, ms) {
     if (r.status !== 200) { await r.body?.cancel(); return { estado: r.status, produto: null }; }
     let produto = null;
     try { produto = fonte.lerProduto(await r.text(), url); } catch { produto = null; }
-    return { estado: 200, produto: produto && produto.preco != null ? produto : null };
+    // um preço de 0 € é um produto sem preço (o Pingo Doce mostra-o assim quando não o vende)
+    return { estado: 200, produto: produto && produto.preco > 0 ? produto : null };
 }
 
 export function guardarPreco(db, cadeia, p, { produto }, agora = new Date()) {
@@ -46,14 +78,15 @@ export function guardarPreco(db, cadeia, p, { produto }, agora = new Date()) {
             .bind(cadeia, p.id, p.url, p.nome ?? null, quando).run();
     }
     const antes = cent(produto.antes);
-    return db.prepare(`INSERT INTO preco (cadeia, id, url, nome, marca, cent, antes, unid, emb, esgotado, ate, visto, tentado, falhas)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    const { uc, ub } = porUnidade({ ...produto, nome: produto.nome ?? p.nome });
+    return db.prepare(`INSERT INTO preco (cadeia, id, url, nome, marca, cent, antes, unid, emb, esgotado, ate, visto, tentado, falhas, uc, ub)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
         ON CONFLICT (cadeia, id) DO UPDATE SET url = excluded.url, nome = excluded.nome, marca = excluded.marca,
             cent = excluded.cent, antes = excluded.antes, unid = excluded.unid, emb = excluded.emb, esgotado = excluded.esgotado,
-            ate = excluded.ate, visto = excluded.visto, tentado = excluded.tentado, falhas = 0`)
+            ate = excluded.ate, visto = excluded.visto, tentado = excluded.tentado, falhas = 0, uc = excluded.uc, ub = excluded.ub`)
         .bind(cadeia, p.id, p.url, (produto.nome ?? p.nome ?? '').slice(0, 160) || null, produto.marca ?? null,
             cent(produto.preco), antes != null && antes > cent(produto.preco) ? antes : null, unid(produto.precoUnidade),
-            produto.embalagem ?? null, produto.disponivel === false ? 1 : 0, produto.ate ?? null, quando, quando)
+            produto.embalagem ?? null, produto.disponivel === false ? 1 : 0, produto.ate ?? null, quando, quando, uc, ub)
         .run();
 }
 
@@ -92,10 +125,27 @@ export async function juntarPrecos(db, lista) {
                 if (r.unid) x.unid = r.unid;
                 if (r.esgotado) x.esgotado = 1;
                 if (r.visto) x.visto = r.visto.slice(0, 10);
+                if (r.uc != null && r.ub) { x.uc = Number(r.uc); x.ub = r.ub; }
                 return [c, x];
             })),
         })),
     };
+}
+
+// os preços dos produtos de uma procura numa cadeia ({ id, url, nome }, já verificados): os que se conhecem e, dos que
+// faltam ou estão velhos, lê-se no máximo POR_PEDIDO; [{ id, cent, antes, uc, ub, esgotado }] dos que têm preço
+export async function precosDe(db, cadeia, produtos, agora = new Date()) {
+    const lista = produtos.map((p) => ({ cadeia, ...p }));
+    let m = await linhas(db, lista);
+    const ler = lista.filter((p) => precisa(m.get(cadeia + ' ' + p.id), agora)).slice(0, POR_PEDIDO);
+    if (ler.length) { await lerEGuardar(db, ler, agora, 6000); m = await linhas(db, lista); }
+    return lista.map((p) => m.get(cadeia + ' ' + p.id)).filter((r) => r && r.cent != null).map((r) => {
+        const x = { id: r.id, cent: Number(r.cent) };
+        if (r.antes != null) x.antes = Number(r.antes);
+        if (r.uc != null && r.ub) { x.uc = Number(r.uc); x.ub = r.ub; }
+        if (r.esgotado) x.esgotado = 1;
+        return x;
+    });
 }
 
 // lê já os produtos escolhidos agora (nas operações 'p') que ainda não têm preço recente

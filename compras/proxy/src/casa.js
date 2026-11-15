@@ -75,7 +75,7 @@ async function gravarLista(db, casa, lista, antes) {
 const texto = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const quantidade = (q) => Math.min(99, Math.max(1, Math.round(Number(q)) || 1));
 
-function produto(c, p) {
+export function produto(c, p) {
     if (p == null) return null;
     let u;
     try { u = new URL(String(p.url)); } catch { throw new Erro(400, 'produto sem endereço'); }

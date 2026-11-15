@@ -4,6 +4,8 @@
 # telemóveis da casa (o código da casa) e abre sem rede.
 # Volta 3: o preço de cada produto escolhido (o conector lê-o no site da cadeia) e o «Mais barato»: o total da lista em
 # cada supermercado e se compensa dividir por duas lojas (as contas estão em app/onde.onda).
+# Volta 4: o preço por quilo, por litro ou por unidade, e na folha o preço dos produtos parecidos, com o mais barato
+# por quilo ou por litro à vista (para trocar de marca ou de embalagem); «Vou a este» arruma a lista por uma loja.
 # Monta-se com a biblioteca da Onda (compras/compilar.mjs). A casca (compras.js) só trata do que a Onda não tem como
 # porta: a chave do aparelho nos pedidos ao conector e os pedidos que escrevem («MÉTODO caminho» + nova linha + corpo).
 #
@@ -14,6 +16,7 @@
 #   pend              as mudanças por enviar (uma lista JSON de operações; ver compras/proxy/src/casa.js)
 #   envio             as que vão no pedido em curso (se falhar, voltam para a frente da fila)
 #   aberto            o id da coisa aberta na folha;  p:<cadeia>  a última procura nessa cadeia (o JSON do conector)
+#   q:<cadeia>        os preços dos produtos dessa procura (/api/precos);  loja  a cadeia escolhida em «Vou a este»
 #   entrar            um código de casa vindo de um link (?casa=…);  url  o endereço da app (para o convite)
 # GLOBAIS: 1 separador (0 lista, 1 mais barato, 2 casa)  3 um pedido de mudanças em curso  5 o campo «juntar»
 #   (texto fixo, 400 bytes)  6 o campo do código (40 bytes)  7 o relógio  8 a última ida à rede falhou
@@ -68,6 +71,7 @@
   Se m.unid `,"unid":{ pjs txt m.unid }`
   Se int m.esgotado `,"esgotado":1`
   Se m.visto `,"visto":{ pjs txt m.visto }`
+  Se m.uc `,"uc":{ N int m.uc },"ub":{ pjs txt m.ub }`
   `\}` }
 : pitem iiiiii>i c qq ff pc pn sep {
   Se sep P 44
@@ -192,9 +196,24 @@
 # a procura de uma coisa nos quatro supermercados (uma cadeia por pedido: o conector tem 10 ms de CPU para cada)
 : procura i>i t L k 4 {
   _an_gravar texto`p:{ crut cadeia k }` 0
+  _an_gravar texto`q:{ crut cadeia k }` 0
   _an_buscar`/api/procurar?cadeia={ crut cadeia k }&q={ _tx_uri t }` $"lido_proc" }
+# com a procura de uma cadeia, pedem-se os preços dos produtos dela
 : lido_proc ii>i t estado {
-  Se == estado 200 { = r _ar_json t Se && r txt r.cadeia { _an_gravar texto`p:{ crut txt r.cadeia }` t dfolha } }
+  Se == estado 200 { = r _ar_json t Se && r txt r.cadeia {
+    _an_gravar texto`p:{ crut txt r.cadeia }` t
+    = p pri r.produtos
+    Se p {
+      = h _tx_abre + 100 _tx_len t
+      `POST /api/precos{ P 10 }\{"cadeia":{ pjs txt r.cadeia },"produtos":[`
+      = s 0 W p { Se s P 44 pprod p = s 1 = p seg p }
+      `]\}`
+      _tx_fecha h
+      _an_buscar h $"lido_precos" }
+    dfolha } }
+  _me_solta t }
+: lido_precos ii>i t estado {
+  Se == estado 200 { = r _ar_json t Se && r txt r.cadeia { _an_gravar texto`q:{ crut txt r.cadeia }` t dfolha } }
   _me_solta t }
 
 # o relógio: de 15 em 15 s, envia o que falta ou vê se a casa mudou alguma coisa
@@ -238,24 +257,42 @@
   _tx_fecha t
   _tx_uri t }
 
+# a loja escolhida em «Vou a este» (o número da cadeia), ou -1
+: loja >i { = l _an_ler $"loja" = r -1 Se l L k 4 Se mesmo l cadeia k = r k r }
+# uma coisa da lista (o nó c, no lugar i); lj a loja escolhida (-1: nenhuma)
+: ditem iii>i c i lj {
+  = f int c.f
+  `<li class="item{ Se f ` feito` }" data-chave="{ esc c.id }">`
+  `<button class="caixa" data-onda="riscar:{ N i }" aria-label="{ ? f `Voltar a pôr` `Riscar` }">{ Se f `✓` }</button>`
+  `<button class="texto" data-onda="abre:{ N i }"><b>{ Se > int c.q 1 `{ N int c.q } × ` }{ esc c.t }</b><small>`
+  ? < lj 0 escolhas c { = p pc c lj ? >= p 0 `{ crut nomecad lj } { eur p }` `Sem preço no { crut nomecad lj }: toca para escolher` 0 }
+  `</small></button></li>` }
 : dlista >i {
   = its itens
   = n ? its quantos its 0
+  = lj loja
   = h _ht_ini + 4000 * 800 n
   `<section class="lista">`
   `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="O que falta? (ex.: 2 leites, pão, ovos)" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
   `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
   ? == n 0 `<p class="vazio">A lista está vazia. Escreve o que falta em casa, separado por vírgulas.</p>` {
+    Se >= lj 0 {
+      = nr porriscar = c cobre lj
+      `<div class="loja"><p><b>Vais ao { crut nomecad lj }: { eur total lj }</b>`
+      Se < c nr `<small>{ N - nr c } { ? == - nr c 1 `coisa sem preço` `coisas sem preço` } aqui</small>`
+      `</p><button class="botao fraco" data-onda="loja:9">Mudar</button></div>` }
     `<ul class="itens">`
-    = c pri its = i 0 = feitos 0
-    W c {
-      = f int c.f
-      = feitos + feitos f
-      `<li class="item{ Se f ` feito` }" data-chave="{ esc c.id }">`
-      `<button class="caixa" data-onda="riscar:{ N i }" aria-label="{ ? f `Voltar a pôr` `Riscar` }">{ Se f `✓` }</button>`
-      `<button class="texto" data-onda="abre:{ N i }"><b>{ Se > int c.q 1 `{ N int c.q } × ` }{ esc c.t }</b><small>{ escolhas c }</small></button></li>`
-      = c seg c = i + i 1 }
+    = feitos 0
+    # com uma loja escolhida: primeiro o que tem preço lá, depois o resto
+    L passo ? < lj 0 1 2 {
+      = c pri its = i 0
+      W c {
+        = f int c.f
+        Se == passo 0 = feitos + feitos f
+        = tem ? < lj 0 1 >= pc c lj 0
+        Se == tem == passo 0 ditem c i lj
+        = c seg c = i + i 1 } }
     `</ul><div class="acoes">`
     Se feitos `<button class="botao fraco" data-onda="limpar:0">Tirar os riscados ({ N feitos })</button>`
     `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ partilha its }">Partilhar no WhatsApp</a></div>`
@@ -292,9 +329,11 @@
           `<li class="{ ? < pt 0 `melhor` `tudo` }"><b>{ crut nomecad k }</b><span class="total">{ eur t }</span>`
           ? < pt 0 { = pt t `<small>{ ? > completos 1 `Mais barato` `O único com preço para tudo` }</small>` 0 }
             `<small>mais { eur - t pt }</small>`
-          `</li>` 0 }
+          `<button class="ir" data-onda="loja:{ N k }">Vou a este</button></li>` 0 }
         { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">{ ? c eur t `—` }</span>`
-          `<small>{ ? c `só { N c } de { N n } coisas com preço` `sem produtos escolhidos` }</small></li>` 0 } }
+          `<small>{ ? c `só { N c } de { N n } coisas com preço` `sem produtos escolhidos` }</small>`
+          Se c `<button class="ir" data-onda="loja:{ N k }">Vou a este</button>`
+          `</li>` 0 } }
     `</ul>`
     ddividir n pt
     Se == completos 0 `<p class="nota">Para comparar, toca em cada coisa da lista e escolhe o produto de cada supermercado.</p>`
@@ -320,23 +359,54 @@
 
 : dvista >i ? == @ 1 0 dlista ? == @ 1 1 dmais dcasa
 
-# o preço de um produto escolhido, para a folha («<s>1,05 €</s> 0,89 € (0,89 €/l) · »)
+# o preço de um produto (o nó m, escolhido ou de uma procura), para a folha («<s>1,05 €</s> 0,89 € · 0,89 €/l»)
 : dpreco i>i m {
-  ? m.cent {
+  ? && m m.cent {
       Se m.antes `<s>{ eur int m.antes }</s> `
-      `{ eur int m.cent }{ Se m.unid ` ({ esc m.unid })` }{ Se int m.esgotado ` · esgotado no site` } · ` 0 }
-    `a ver o preço… · `
-  0 }
+      eur int m.cent
+      ? m.uc ` · { eur int m.uc }/{ crut txt m.ub }` { Se m.unid ` · { esc m.unid }` 0 }
+      Se int m.esgotado ` · esgotado no site` 1 }
+    0 }
+# o preço de um produto (pelo id) nos preços q de uma procura (o nó com .produtos), ou 0
+: qpreco ii>i q id { = r 0 Se q { = p pri q.produtos W && p ~ r { Se mesmo txt p.id id = r p = p seg p } } r }
+: unidade i>i ub ? mesmo ub $"kg" $"quilo" ? mesmo ub $"l" $"litro" $"unidade"
+# o mais barato por quilo/litro/unidade entre o escolhido (ep, com o preço) e os da procura: o id dele, ou 0 (se
+# não há pelo menos dois com a mesma medida para comparar)
+: mais_barato iii>i ep r q {
+  = ub 0 = melhor 0 = mu 0 = quantos 0
+  Se && ep ep.uc { = ub txt ep.ub = melhor txt ep.id = mu int ep.uc = quantos 1 }
+  = p ? r pri r.produtos 0
+  W p {
+    = x qpreco q txt p.id
+    Se && x x.uc {
+      Se ~ ub = ub txt x.ub
+      Se && mesmo txt x.ub ub ~ && ep mesmo txt p.id txt ep.id {
+        = quantos + quantos 1
+        Se || ~ melhor < int x.uc mu { = melhor txt p.id = mu int x.uc } } }
+    = p seg p }
+  ? > quantos 1 melhor 0 }
 # a folha de uma coisa: a quantidade e o produto de cada supermercado
 : dcadeia ii>i c k {
   = ep _ar_get c.p cadeia k
   `<h3>{ crut nomecad k }</h3><div class="prods">`
-  Se ep `<button class="prod on" data-onda="esc:{ N + * k 100 99 }">✓ { esc ep.nome }<small>{ dpreco ep }tocar para tirar</small></button>`
   = r _ar_json _an_ler texto`p:{ crut cadeia k }`
+  = q _ar_json _an_ler texto`q:{ crut cadeia k }`
+  = mb mais_barato ep r q
+  Se ep {
+    `<button class="prod on" data-onda="esc:{ N + * k 100 99 }">✓ { esc ep.nome }<small>`
+    ? ep.cent { dpreco ep ` · ` 0 } `a ver o preço… · `
+    `tocar para tirar</small>`
+    Se && mb mesmo mb txt ep.id `<em>o mais barato por { crut unidade txt ep.ub }</em>`
+    `</button>` }
   ? && r mesmo txt r.q txt c.t {
       = p pri r.produtos = j 0
       ? p { W p {
-              Se ~ && ep mesmo txt p.id txt ep.id `<button class="prod" data-onda="esc:{ N + * k 100 j }">{ esc p.nome }</button>`
+              Se ~ && ep mesmo txt p.id txt ep.id {
+                = x qpreco q txt p.id
+                `<button class="prod" data-onda="esc:{ N + * k 100 j }">{ esc p.nome }`
+                Se x `<small>{ dpreco x }</small>`
+                Se && mb mesmo mb txt p.id `<em>o mais barato por { crut unidade txt x.ub }</em>`
+                `</button>` }
               = p seg p = j + j 1 } 0 }
           `<p class="nota">Nada parecido neste supermercado.</p>`
       0 }
@@ -349,7 +419,7 @@
     `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }">`
     `<h2>{ esc c.t }</h2>`
     `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
-    `<p class="nota">Escolhe o produto de cada supermercado: o preço é o do site, por unidade.</p>`
+    `<p class="nota">Escolhe o produto de cada supermercado. O preço é o do site; o preço por quilo ou por litro serve para comparar embalagens e marcas.</p>`
     L k 4 dcadeia c k
     `<div class="acoes"><button class="botao fraco" data-onda="tirar:0">Tirar da lista</button><button class="botao" data-onda="fecha:0">Fechar</button></div></div>` }
   _ht_muda $"#folha" h }
@@ -408,6 +478,7 @@
   Se eacao t $"esc" escolhe v
   Se eacao t $"entrar" Se _tx_len @ 6 entrar @ 6
   Se eacao t $"registar" registar
+  Se eacao t $"loja" { _an_gravar $"loja" ? < v 4 cadeia v 0 ! 1 0 _an_rolar 0 }
   desenha
   _me_solta t }
 : escreve i>i t {

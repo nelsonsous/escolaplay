@@ -3,7 +3,7 @@
 import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { UA } from '../proxy/src/worker.js';
-import { precisa, refrescar, VALE_H } from '../proxy/src/precos.js';
+import { precisa, refrescar, medida, porUnidade, VALE_H } from '../proxy/src/precos.js';
 import { kv } from './kv.mjs';
 import { d1 } from './d1.mjs';
 import { PRECOS, instalar, desinstalar } from './cadeias.mjs';
@@ -45,7 +45,7 @@ test('escolher um produto lê logo o preço no site da cadeia, e a lista vem com
     assert.equal(pedidos.length, 2);
     // o preço guardado não leva nada da casa (é de todos)
     assert.deepEqual(Object.keys(env.DB.linhas('SELECT * FROM preco')[0]).sort(),
-        ['antes', 'ate', 'cadeia', 'cent', 'emb', 'esgotado', 'falhas', 'id', 'marca', 'nome', 'tentado', 'unid', 'url', 'visto']);
+        ['antes', 'ate', 'cadeia', 'cent', 'emb', 'esgotado', 'falhas', 'id', 'marca', 'nome', 'tentado', 'ub', 'uc', 'unid', 'url', 'visto']);
 });
 
 test('o Auchan lê-se pelo JSON do produto (pelo número); no máximo dois produtos novos por pedido', async () => {
@@ -59,6 +59,14 @@ test('o Auchan lê-se pelo JSON do produto (pelo número); no máximo dois produ
     assert.equal(l.itens[0].p.lidl.cent, 85);
     assert.equal(l.itens[0].p.continente.cent, undefined); // fica para o cron
     assert.equal(pedidos.length, 2);
+});
+
+test('um preço de 0 € conta como sem preço', async () => {
+    PRECOS.set('pingodoce 501', { preco: 0 });
+    const { chave } = await novo();
+    const l = await ops(chave, [{ o: 'j', id: 'aaaa', t: 'leite' }, escolher('aaaa', 'pingodoce')]);
+    assert.equal(l.itens[0].p.pingodoce.cent, undefined);
+    assert.deepEqual(env.DB.linhas('SELECT cent, falhas FROM preco'), [{ cent: null, falhas: 1 }]);
 });
 
 test('um produto que a cadeia já não tem: fica sem preço e não se volta a pedir logo', async () => {
@@ -123,4 +131,40 @@ test('o cron do Worker chama o refrescar', async () => {
     await worker.scheduled({ scheduledTime: Date.now() + 3600e3 }, env, { waitUntil: (p) => espera.push(p) });
     await Promise.all(espera);
     assert.equal(env.DB.linhas('SELECT cent FROM preco')[0].cent, 85);
+});
+
+test('o preço por quilo, por litro ou por unidade: o que a cadeia mostra, ou pela embalagem e pelo nome', () => {
+    assert.deepEqual(medida('emb. 6 x 1 lt'), { q: 6, ub: 'l' });
+    assert.deepEqual(medida('Iogurte natural 4x125g'), { q: 0.5, ub: 'kg' });
+    assert.deepEqual(medida('Azeite virgem extra 75cl'), { q: 0.75, ub: 'l' });
+    assert.deepEqual(medida('Ovos classe M 12 un'), { q: 12, ub: 'un' });
+    assert.deepEqual(medida('Leite agros uht meio gordo 1l'), { q: 1, ub: 'l' });
+    assert.equal(medida('Mimosa leite meio gordo'), null);
+    assert.deepEqual(porUnidade({ preco: 2.5, precoUnidade: { valor: 2.52, unidade: 'kg' } }), { uc: 252, ub: 'kg' });
+    assert.deepEqual(porUnidade({ preco: 1.2, precoUnidade: { valor: 0.24, unidade: 'g' } }), { uc: 24000, ub: 'kg' }); // €/g → €/kg
+    assert.deepEqual(porUnidade({ preco: 1, embalagem: '1 lt', nome: 'Leite 6 x 1 l' }), { uc: 100, ub: 'l' }); // a embalagem primeiro
+    assert.deepEqual(porUnidade({ preco: 5.4, nome: 'Leite meio gordo 6 x 1 l' }), { uc: 90, ub: 'l' });
+    assert.deepEqual(porUnidade({ preco: 6.89, nome: 'Mimosa leite meio gordo' }), { uc: null, ub: null });
+});
+
+test('os preços de uma procura: os conhecidos logo, e dos que faltam lê-se no máximo dois', async () => {
+    PRECOS.set('continente 1', { preco: 0.79, nome: 'Leite meio gordo Continente 1 l' });
+    PRECOS.set('continente 2', { preco: 5.4, nome: 'Leite meio gordo Mimosa 6 x 1 l' });
+    PRECOS.set('continente 3', { preco: 0.95, nome: 'Leite meio gordo Mimosa 1 l' });
+    const { chave } = await novo();
+    const prods = [1, 2, 3, 4].map((i) => ({ id: String(i), nome: `Leite ${i}`, url: `https://www.continente.pt/produto/leite-${i}.html` }));
+    const pedir = async (produtos) => (await call('/api/precos', { metodo: 'POST', chave, corpo: { cadeia: 'continente', produtos } })).json();
+    let r = await pedir(prods);
+    assert.deepEqual(r, { cadeia: 'continente', produtos: [{ id: '1', cent: 79, uc: 79, ub: 'l' }, { id: '2', cent: 540, uc: 90, ub: 'l' }] });
+    assert.equal(pedidos.length, 2);
+    r = await pedir(prods);
+    assert.deepEqual(r.produtos.map((p) => p.id), ['1', '2', '3']); // o 4 não existe no site: falha e fica à espera
+    assert.equal(pedidos.length, 4);
+    r = await pedir(prods);
+    assert.equal(pedidos.length, 4);
+    for (const mau of [{ cadeia: 'mercadona', produtos: [] }, { cadeia: 'continente', produtos: Array(9).fill(prods[0]) },
+        { cadeia: 'continente', produtos: [{ id: '1', nome: 'x', url: 'https://exemplo.com/1' }] }]) {
+        assert.equal((await call('/api/precos', { metodo: 'POST', chave, corpo: mau })).status, 400);
+    }
+    assert.equal((await call('/api/precos', { metodo: 'POST', corpo: { cadeia: 'continente', produtos: [] } })).status, 401);
 });
