@@ -624,6 +624,42 @@ test('a receita: colar um link do TikTok abre a folha; sem legenda, cola-se o te
     } finally { await br.close(); await s.fechar(); }
 });
 
+test('o Afinar: com muitos vinhos, uma pergunta de cada vez (para quê → o preço, depois a região) até ficarem poucos', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const agora = new Date().toISOString();
+    s.env.DB.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('vinho-tinto', 'Vinho tinto', 12, 1)").run();
+    const ins = (cadeia, id, nome, cent) => s.env.DB.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, emb, q, tipo, visto, falhas)
+        VALUES (?, ?, ?, ?, ?, ?, 'l', '75 cl', 0.75, 'vinho-tinto', ?, 0)`).run(cadeia, id, `https://www.${cadeia}.pt/p/${id}.html`, nome, cent, Math.round(cent / 0.75), agora);
+    const regioes = ['Douro', 'Alentejo', 'Dão'], cs = ['continente', 'pingodoce', 'auchan'];
+    for (let i = 0; i < 12; i++) ins(cs[i % 3], 'w' + i, `Vinho Tinto ${regioes[i % 3]} Marca${i}${i % 2 ? ' Reserva' : ''}`, [399, 699, 899, 1299][i % 4]);
+    esquecerTipos();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        await a.fill('[data-onda="junta"]', 'vinho');
+        await a.waitForSelector('#sug .chip:has-text("Vinho tinto")');
+        await a.click('#sug .chip:has-text("Vinho tinto")');
+        await a.waitForSelector('#folha .afinar');
+        assert.match(await a.textContent('#folha .afinar'), /12 opções.*Para quê é o vinho/s);
+        // «Tanto faz» no preço: passa à região (ainda 12)
+        await a.click('#folha .afinar .chip:has-text("Tanto faz")');
+        await a.waitForSelector('#folha .afinar .q:has-text("Região")');
+        assert.match(await a.textContent('#folha .afinar .t'), /12 opções/);
+        // o Douro: ficam 4 (8 ou menos): o Afinar dá lugar ao resumo, e o filtro fica no caminho
+        await a.click('#folha .afinar .chip:has-text("Douro")');
+        await a.waitForSelector('#folha .afinado');
+        assert.equal(await a.locator('#folha .afinar').count(), 0);
+        assert.match(await a.textContent('#folha .afinado'), /Ficam 4 opções/);
+        assert.equal(await a.locator('#folha .caminho button:has-text("Douro")').count(), 1);
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});
+
 test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro» filtra, e a ligação para a nota no Vivino', { skip: !pw && 'sem playwright' }, async () => {
     const s = await abrir();
     const { esquecerTipos } = await import('../proxy/src/sugerir.js');
