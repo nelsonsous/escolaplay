@@ -125,3 +125,28 @@ test('«até 16/11» é deste ano; «até 05/01» lido em dezembro é do ano seg
     assert.equal(dataCurta('até 02/11', HOJE), '2026-11-02'); // acabada há pouco: continua deste ano
     assert.equal(dataCurta('sem data'), null);
 });
+
+test('o folheto do Lidl: os folhetos de promoções da página, a promoção lida em linha da tabela e o fim da promoção', async () => {
+    const { folhetosDaPagina, DE_PROMOCOES, linhaDaPromocao, idPromocao } = await import('../economo/lidl-folheto.mjs');
+    const html = '<a href="https://www.lidl.pt/l/pt/folhetos/promocoes-semanais-a-partir-de-16-11/ar/0"></a><a href="/l/pt/folhetos/folheto-especial-natal/ar/0">'
+        + '<a href="https://www.lidl.pt/l/pt/folhetos/promocoes-semanais-a-partir-de-16-11/view/flyer/page/3">';
+    assert.deepEqual(folhetosDaPagina(html).filter((id) => DE_PROMOCOES.test(id)), ['promocoes-semanais-a-partir-de-16-11']);
+    const p = { folheto: 'promocoes-semanais-a-partir-de-16-11', pagina: 2, nome: 'Uva Branca sem Grainha Selecionada', preco: 2.19, antes: 2.79,
+        emb: '500 g', uc: 4.38, ub: 'kg', plus: true, numero: 'nº80533', ate: '2026-11-22' };
+    assert.equal(idPromocao(p), 'f80533p'); // com Lidl Plus
+    const l = linhaDaPromocao(p, 'fruta-epoca', '2026-11-15T22:00:00Z');
+    assert.deepEqual([l.id, l.nome, l.cent, l.antes, l.uc, l.ub, l.ate], ['f80533p', 'Uva Branca sem Grainha Selecionada (Lidl Plus)', 219, 279, 438, 'kg', '2026-11-22']);
+    assert.match(l.url, /folhetos\/promocoes-semanais-a-partir-de-16-11\/view\/flyer\/page\/2$/);
+    // vendido ao quilo, sem preço riscado
+    const k = linhaDaPromocao({ folheto: 'x', nome: 'Clementina Nacional', preco: 1.49, emb: '1 kg', uc: 1.49, ub: 'kg', ate: '2026-11-22' }, 'fruta-epoca', 'agora');
+    assert.deepEqual([k.cent, k.uc, k.antes], [149, 149, null]);
+    // acabada a promoção, sai da folha do tipo
+    const { d1 } = await import('./d1.mjs');
+    const { produtosDoTipo, esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('fruta-epoca', 'Fruta da época', 1, 1);`);
+    db.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, emb, tipo, ate, visto, falhas) VALUES ('lidl', 'f80533', 'u', 'Uva', 219, 438, 'kg', '500 g', 'fruta-epoca', '2026-11-22', ?, 0)`).run(new Date('2026-11-16T10:00:00Z').toISOString());
+    esquecerTipos();
+    assert.equal((await produtosDoTipo(db, 'fruta-epoca', new Date('2026-11-20T10:00:00Z'))).produtos.length, 1);
+    assert.equal((await produtosDoTipo(db, 'fruta-epoca', new Date('2026-11-23T10:00:00Z'))).produtos.length, 0);
+});

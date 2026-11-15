@@ -356,7 +356,9 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     const fam = familiaDe(t.k, seccaoDoTipo(t)); // vinho, azeite, queijo, presunto, fruta, padaria (atributos.js)
     const desde = new Date(agora.getTime() - 10 * 24 * HORA).toISOString();
     const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, uc, ub, emb, q
-        FROM preco WHERE tipo = ? AND cent IS NOT NULL AND suspeito IS NULL AND visto > ? ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde).all();
+        FROM preco WHERE tipo = ? AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?
+          AND NOT (cadeia = 'lidl' AND id LIKE 'f%' AND ate < ?) ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde, agora.toISOString().slice(0, 10)).all();
+    // (as promoções do folheto do Lidl, economo/lidl-folheto.mjs: só até ao fim da promoção)
     // as peças do Continente ao quilo guardadas antes de se perceber (o «por unidade» é a peça): corrigem-se ao ler
     for (const p of results) { const pc = pecaAoPeso({ ...p, cadeia: p.c }); if (pc) Object.assign(p, pc); }
     for (const p of results) if (String(p.emb ?? '').startsWith('≈')) { p.emb = p.emb.replace(/^≈\s*/, ''); p.aq = 1; }
