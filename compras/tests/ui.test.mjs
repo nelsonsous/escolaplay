@@ -465,11 +465,19 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         // o que distingue cada produto: os sinais do nome (fresco) e a marca
         assert.match(await a.locator('#folha .melhores li >> nth=0 >> .sinais').textContent(), /✚ fresco/);
         assert.match(linhas[2], /CARAPAU MEDIO/);
+        // outras opções no Continente: os dois carapaus; escolher o pequeno fica à mão («escolhido por ti»)
+        await a.click('#folha [data-onda="opc:0"]');
+        assert.equal(await a.locator('#folha .opcoes .op').count(), 2);
+        await a.click('#folha .opcoes .op:has-text("Carapau Pequeno")');
+        assert.equal(await a.locator('#folha .opcoes').count(), 0);
+        assert.match(await a.locator('#folha .melhores > li >> nth=0').textContent(), /Carapau Pequeno Fresco.*escolhido por ti/);
         await a.click('#folha [data-onda="juntat:0"]');
         await a.waitForSelector('.item');
         assert.deepEqual(await a.locator('.item .texto b').allTextContents(), ['Peixe fresco (carapau, para grelhar)']);
         const l = await s.api('/api/lista', await a.evaluate(() => localStorage.getItem('compras:chave')));
         assert.equal(l.itens[0].e.w, 'carapau grelhar');
+        assert.equal(l.itens[0].p.continente.nome, 'Carapau Pequeno Fresco');
+        assert.equal(l.itens[0].e.mao, 1); // escolhido à mão: a troca de hora a hora não o muda
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
