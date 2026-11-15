@@ -450,6 +450,8 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         assert.deepEqual(caminho, ['Todas', 'Talho e peixaria', 'Peixe fresco', 'carapau', 'para grelhar']);
         const linhas = await a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => x.querySelector('small').textContent));
         assert.match(linhas[0], /Carapau Médio Fresco/);
+        // o que distingue cada produto: os sinais do nome (fresco) e a marca
+        assert.match(await a.locator('#folha .melhores li >> nth=0 >> .sinais').textContent(), /✚ fresco/);
         assert.match(linhas[2], /CARAPAU MEDIO/);
         await a.click('#folha [data-onda="juntat:0"]');
         await a.waitForSelector('.item');

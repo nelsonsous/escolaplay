@@ -162,3 +162,9 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .item small.cam i { font-style: normal; }
 .item small.cam .n1 { color: var(--n1); }
 .item small.cam .n2 { color: var(--n2); }
+
+/* o que distingue cada produto na comparação: a marca e os sinais do nome */
+.melhores .sinais { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.melhores .sinais i { font-style: normal; font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--linha); color: var(--fraco); }
+.melhores .sinais i.p { color: var(--verde); border-color: #2d6a3e; }
+.melhores .sinais i.n { color: #ff9f0a; border-color: #6b4a1e; }
