@@ -41,7 +41,11 @@ export function rotulo(s) {
     let m = t.match(VEZES);
     if (m) return `${n(m[1])} × ${v(m[2])} ${u(m[3])}`;
     m = t.match(UMA);
-    return m && u(m[2]) ? `${v(m[1])} ${u(m[2])}` : null;
+    if (!m || !u(m[2])) return null;
+    const x = n(m[1]), un = u(m[2]);
+    if (un === 'kg' && x < 1) return `${Math.round(x * 1000)} g`;
+    if (un === 'L' && x < 1) return `${Math.round(x * 1000)} ml`;
+    return `${v(m[1])} ${un}`;
 }
 // o preço por quilo, por litro ou por unidade, em cêntimos: { uc, ub } (ou nulos). Usa o que a cadeia mostra; se
 // não mostra, a embalagem ou o nome do produto.
@@ -55,6 +59,22 @@ export function porUnidade(produto) {
     const m = medida(produto?.embalagem) ?? medida(produto?.nome);
     if (preco == null || !m || !(m.q > 0)) return { uc: null, ub: null };
     return { uc: Math.round(preco / m.q), ub: m.ub };
+}
+// o que se paga e o preço por quilo ou por litro, iguais em todas as cadeias (m: a medida da embalagem):
+// - ao balcão (fiambre, queijo fatiado…), ao peso no Pingo Doce («2,49 €/Kg»: aoPeso) e, no Continente, nos
+//   produtos de peso variável (carne, fruta), o preço que a cadeia mostra é o do quilo e o «por unidade» é o da porção (≈ preço × peso): paga-se a porção;
+// - com a embalagem em peso ou volume, o preço por quilo ou por litro (nunca «por unidade»).
+export function normaliza({ cadeia, nome, cent: c, uc, ub, m, aoPeso = false }) {
+    // vendido ao quilo, sem peso («FIAMBRE … FATIADO NO BALCÃO KG», no Auchan): o preço é o de um quilo
+    if (c != null && !m && /\bkg\.?\s*$/i.test(nome ?? '')) return { cent: c, uc: c, ub: 'kg', emb: '1 kg' };
+    if (c == null || !m || !(m.q > 0) || m.ub === 'un') return { cent: c, uc, ub };
+    const porcao = Math.round(c * m.q);
+    if (m.ub === 'kg' && m.q < 1 && (aoPeso || /balc[aã]o/i.test(nome ?? '')
+        || (cadeia === 'continente' && ub === 'un' && m.q >= 0.05 && uc != null && Math.abs(uc - porcao) <= Math.max(2, porcao * 0.03)))) {
+        return { cent: porcao, uc: c, ub: 'kg' };
+    }
+    if (ub !== m.ub || uc == null) return { cent: c, uc: Math.round(c / m.q), ub: m.ub };
+    return { cent: c, uc, ub };
 }
 // quanto se espera depois de f pedidos falhados seguidos
 const espera = (f) => (f > 0 ? Math.min(24 * HORA, HORA / 2 * 2 ** (f - 1)) : 0);
@@ -89,16 +109,20 @@ export function guardarPreco(db, cadeia, p, { produto }, agora = new Date()) {
             ON CONFLICT (cadeia, id) DO UPDATE SET tentado = excluded.tentado, falhas = preco.falhas + 1`)
             .bind(cadeia, p.id, p.url, p.nome ?? null, quando).run();
     }
-    const antes = cent(produto.antes);
-    const { uc, ub } = porUnidade({ ...produto, nome: produto.nome ?? p.nome });
+    const nome = produto.nome ?? p.nome;
+    const pu = porUnidade({ ...produto, nome });
+    // o que se paga e o preço por quilo ou litro, como no catálogo (normaliza)
+    const { cent: c, uc, ub, emb: embKg } = normaliza({ cadeia, nome, cent: cent(produto.preco), uc: pu.uc, ub: pu.ub, m: medida(produto.embalagem) ?? medida(nome) });
+    let antes = cent(produto.antes);
+    if (antes != null && c != null && c !== cent(produto.preco)) antes = Math.round(antes * c / cent(produto.preco));
     return db.prepare(`INSERT INTO preco (cadeia, id, url, nome, marca, cent, antes, unid, emb, esgotado, ate, visto, tentado, falhas, uc, ub)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
         ON CONFLICT (cadeia, id) DO UPDATE SET url = excluded.url, nome = excluded.nome, marca = excluded.marca,
             cent = excluded.cent, antes = excluded.antes, unid = excluded.unid, emb = excluded.emb, esgotado = excluded.esgotado,
             ate = excluded.ate, visto = excluded.visto, tentado = excluded.tentado, falhas = 0, uc = excluded.uc, ub = excluded.ub`)
         .bind(cadeia, p.id, p.url, (produto.nome ?? p.nome ?? '').slice(0, 160) || null, produto.marca ?? null,
-            cent(produto.preco), antes != null && antes > cent(produto.preco) ? antes : null, unid(produto.precoUnidade),
-            produto.embalagem ?? null, produto.disponivel === false ? 1 : 0, produto.ate ?? null, quando, quando, uc, ub)
+            c, antes != null && antes > c ? antes : null, unid(produto.precoUnidade),
+            rotulo(produto.embalagem) ?? produto.embalagem ?? embKg ?? null, produto.disponivel === false ? 1 : 0, produto.ate ?? null, quando, quando, uc, ub)
         .run();
 }
 
