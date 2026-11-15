@@ -696,6 +696,7 @@
   `</button>` 0 }
 : dopcoes iiiii>i tp k fe fm e {
   `<div class="opcoes">`
+  Se _an_ler texto`esc{ N k }` `<button class="op-x" data-onda="escx:{ N k }">↺ Voltar ao mais barato</button>`
   # os cortes que há (pela ordem em que aparecem, que é a do mais barato)
   = crs $"|" = p pri tp.produtos
   W p { Se && && mesmo txt p.c cadeia k passa p fe fm p.cr { Se ~ tem_e crs txt p.cr = crs texto`{ crut crs }{ crut txt p.cr }|` } = p seg p }
@@ -976,7 +977,9 @@
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
   Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v _an_gravar $"opc" 0 _an_gravar $"opc" texto`{ N v }` }
-  Se eacao t $"esco" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id _an_gravar $"opc" 0 } }
+  # escolher outra opção: a lista fica aberta (vê-se a barra azul mudar) e um aviso diz o que ficou
+  Se eacao t $"esco" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id aviso texto`✓ No { crut nomecad / v 1000 }: { crut txt x.nome }` } }
+  Se eacao t $"escx" { _an_gravar texto`esc{ N v }` 0 aviso texto`↺ No { crut nomecad v }: o mais barato outra vez` }
   Se eacao t $"fp" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fp" 0 _an_gravar $"fpr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fp" txt x.w _an_gravar $"fpr" txt ? x.r x.r x.w } 0 } }
   Se eacao t $"fa" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fa" 0 _an_gravar $"far" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fa" txt x.w _an_gravar $"far" txt ? x.r x.r x.w } 0 } }
   Se eacao t $"fw" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fw" 0 _an_gravar $"fwr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fw" txt x.w _an_gravar $"fwr" txt ? x.r x.r x.w } 0 } }
