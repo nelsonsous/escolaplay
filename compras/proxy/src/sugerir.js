@@ -7,6 +7,7 @@ import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida, pecaAoPeso } from './precos.js';
 import { familiaDe, atributos, palavrasAtributos, filasDaFamilia, candidatosMelhores, maisCotados, formatoGrande } from './atributos.js';
 import { prepararNotas, notaDoProduto } from './notas.js';
+import { limiteGramas, gramasDe } from './porcoes.js';
 import { sinais } from './qualidade.js';
 import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS, ORDEM_CALIBRE } from './etiquetas.js';
 
@@ -354,7 +355,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     if (!t) return null;
     const fam = familiaDe(t.k, seccaoDoTipo(t)); // vinho, azeite, queijo, presunto, fruta, padaria (atributos.js)
     const desde = new Date(agora.getTime() - 10 * 24 * HORA).toISOString();
-    const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, uc, ub, emb
+    const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, uc, ub, emb, q
         FROM preco WHERE tipo = ? AND cent IS NOT NULL AND suspeito IS NULL AND visto > ? ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde).all();
     // as peças do Continente ao quilo guardadas antes de se perceber (o «por unidade» é a peça): corrigem-se ao ler
     for (const p of results) { const pc = pecaAoPeso({ ...p, cadeia: p.c }); if (pc) Object.assign(p, pc); }
@@ -382,6 +383,8 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         if (p.aq) x.aq = 1; // a peça ao quilo: paga-se ≈
         if (p.uc != null && p.ub) { x.uc = Number(p.uc); x.ub = p.ub; }
         if (p.antes != null) x.antes = Number(p.antes);
+        // o peso da embalagem em gramas (porcoes.js), no talho e na peixaria: para o tamanho certo para a casa
+        if (TALHO.has(t.k)) { const g = gramasDe(p); if (g) x.g = g; }
         // o nome sem acentos nem maiúsculas, para filtrar pelas palavras; no talho e na peixaria, com as etiquetas
         // do Ecónomo (o uso, o corte, o animal: «grelhar picanha vaca»)
         const et = TALHO.has(t.k) ? etiquetas(p.nome, t.k) : null;
@@ -410,7 +413,11 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     // no vinho, as garrafas primeiro: o bag-in-box e o garrafão (2 L ou mais) são sempre os mais baratos por litro e
     // não se comparam com uma garrafa (o mais barato de cada loja é uma garrafa, a não ser que se escolha o tamanho)
     if (fam === 'vinho') produtos.sort((a, b) => formatoGrande(a) - formatoGrande(b));
+    // as pessoas da casa: no talho e na peixaria, o limite das embalagens para o mais barato (porcoes.js)
+    const pes = casa ? (await db.prepare('SELECT pessoas FROM casa WHERE id = ?').bind(casa).first())?.pessoas : null;
+    const lim = limiteGramas(t.k, pes);
     return {
+        ...(lim ? { lim, pes: Number(pes) } : {}),
         // a secção (o primeiro nível da árvore: o caminho na escolha volta a ela)
         k: t.k, nome: t.nome, s: seccaoDoTipo(t), sn: nomeSeccao(seccaoDoTipo(t)),
         tamanhos,
