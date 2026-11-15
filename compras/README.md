@@ -87,6 +87,7 @@ da sonda e, para o wrangler, `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`):
 | Produtos do talho/peixaria sem corte ou animal | `node economo/etiquetas.mjs` lista-os; acrescentar regras em `src/etiquetas.js` |
 | Os artigos do SPAR | `node economo/spar.mjs` (uma vez por mês chega) |
 | Um preço estranho | `curl -H "authorization: Bearer $(cat …)" …/sonda/revisao?k=TIPO` mostra os suspeitos desse tipo |
+| «exceeded D1's free tier daily row write limit» | a D1 grátis escreve no máximo 100 mil linhas por dia (volta a zero à meia-noite UTC); o catálogo só escreve o que mudou, por isso basta não correr `economo/normalizar.mjs`, `spar.mjs` ou `tipos.mjs` várias vezes no mesmo dia |
 | Mudar o esquema da D1 | uma migração nova em `proxy/migrations/`, `npx wrangler d1 migrations apply compras --remote`, publicar |
 | Publicar o conector | `cd proxy && npx wrangler deploy` (depois de `npm test`) |
 | Publicar a app | juntar ao `main` (o GitHub Pages serve a pasta); subir a versão em `compras.js` (`?v=`) e em `sw.js` (`CACHE`) |

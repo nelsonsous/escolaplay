@@ -136,8 +136,11 @@ export function nomeDoTipo(cat) {
 const cent = (v) => (v == null || !Number.isFinite(Number(v)) || Number(v) <= 0 ? null : Math.round(Number(v) * 100));
 
 // grava os produtos de uma página do tipo k na tabela preco (um a um, numa só ida à base de dados)
+// Só escreve o que mudou (preço, nome, tamanho, tipo…) ou o que não se vê há mais de 3 dias: a D1 grátis tem um limite
+// de 100 mil linhas escritas por dia, e reescrever o catálogo inteiro a cada leitura passava-o (15/11).
+export const REFRESCA_DIAS = 3;
 export function guardarCatalogo(db, cadeia, k, produtos, agora = new Date()) {
-    const quando = agora.toISOString();
+    const quando = agora.toISOString(), limiar = new Date(agora.getTime() - REFRESCA_DIAS * 24 * HORA).toISOString();
     const frases = produtos.map((p) => {
         const pu = porUnidade({ preco: p.preco, precoUnidade: p.precoUnidade, embalagem: p.emb, nome: p.nome });
         const m = medida(p.emb) ?? medida(p.nome);
@@ -149,9 +152,13 @@ export function guardarCatalogo(db, cadeia, k, produtos, agora = new Date()) {
             ON CONFLICT (cadeia, id) DO UPDATE SET url = excluded.url, nome = excluded.nome, marca = excluded.marca,
                 cent = excluded.cent, antes = excluded.antes, emb = excluded.emb, uc = excluded.uc, ub = excluded.ub,
                 q = excluded.q, tipo = excluded.tipo, propria = excluded.propria, visto = excluded.visto,
-                tentado = excluded.tentado, falhas = 0`)
+                tentado = excluded.tentado, falhas = 0
+            WHERE preco.cent IS NOT excluded.cent OR preco.antes IS NOT excluded.antes OR preco.nome IS NOT excluded.nome
+                OR preco.uc IS NOT excluded.uc OR preco.emb IS NOT excluded.emb OR preco.tipo IS NOT excluded.tipo
+                OR preco.marca IS NOT excluded.marca OR preco.url IS NOT excluded.url OR preco.falhas > 0
+                OR preco.visto IS NULL OR preco.visto < ?`)
             .bind(cadeia, p.id, p.url, String(p.nome ?? '').slice(0, 160), p.marca ?? null, c, a != null && c != null && a > c ? a : null,
-                rotulo(p.emb) ?? rotulo(p.nome) ?? embKg ?? null, uc, ub, m?.q ?? (embKg ? 1 : null), k, propria(cadeia, p.marca), quando, quando);
+                rotulo(p.emb) ?? rotulo(p.nome) ?? embKg ?? null, uc, ub, m?.q ?? (embKg ? 1 : null), k, propria(cadeia, p.marca), quando, quando, limiar);
     });
     return frases.length ? db.batch(frases) : Promise.resolve([]);
 }
@@ -198,7 +205,8 @@ export async function lerPagina(db, pagina, agora = new Date()) {
     await db.batch([
         db.prepare('UPDATE pagina SET visto = ?1, tentado = ?1, falhas = 0, n = ?2 WHERE url = ?3').bind(quando, produtos.length, pagina.url),
         db.prepare(`UPDATE tipo SET n = (SELECT count(*) FROM preco WHERE tipo = ?1),
-            nome = CASE WHEN casa = 0 AND ?2 IS NOT NULL THEN ?2 ELSE nome END WHERE k = ?1`).bind(pagina.tipo, nome),
+            nome = CASE WHEN casa = 0 AND ?2 IS NOT NULL THEN ?2 ELSE nome END
+            WHERE k = ?1 AND (n IS NOT (SELECT count(*) FROM preco WHERE tipo = ?1) OR (casa = 0 AND ?2 IS NOT NULL AND nome IS NOT ?2))`).bind(pagina.tipo, nome),
     ]);
     // e revê o tipo: os suspeitos e o nome (revisao.js)
     await revisarTipo(db, pagina.tipo);

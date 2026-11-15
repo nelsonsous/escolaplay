@@ -372,6 +372,7 @@
   `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="{ ? sp `Ou escreve (o 🎤 do teclado deixa falar)` `O que falta? (ex.: 2 leites, pão, ovos)` }" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
   `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
   Se ~ sp { `<div id="sug">` psug `</div>` }
+  `<button class="botao natal" data-onda="natal:0">🎄 Cabaz de Natal <small>o melhor bacalhau, Porto, bolo-rei…</small></button>`
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
   ? == n 0 { `<p class="vazio">A lista está vazia. { ? sp `Toca numa secção ou no que costumas comprar.` `Escreve o que falta em casa, separado por vírgulas.` }</p>` Se ~ sp pcostume 0 } {
     Se >= lj 0 {
@@ -559,11 +560,83 @@
       0 }
     { ? @ 8 `<p class="nota">Sem ligação.</p>` `<p class="nota">A procurar…</p>` 0 }
   `</div>` }
+# ---------- o Cabaz de Natal (volta 10): 3 opções por parte, pela qualidade, pelo equilíbrio ou pelo preço ----------
+: ntmodo >i { = m _an_ler $"ntm" ? m _tx_int m 1 }
+: ntteto >i { = t _an_ler $"ntt" ? t _tx_int t 0 }
+: ntteto_e i>i k ? == k 1 60 ? == k 2 100 ? == k 3 150 0
+: ntloja i>i c ? mesmo c $"lugrade" $"Lugrade (produtor)" nomec c
+: pede_natal >i {
+  = m ntmodo = k ntteto
+  _an_buscar texto`/api/natal?modo={ ? == m 0 `qualidade` { ? == m 2 `preco` `equilibrio` } }{ Se k `&teto={ N ntteto_e k }` }` $"lido_natal" 0 }
+: lido_natal ii>i t estado {
+  Se == estado 200 { _an_gravar $"nt" t L k 12 _an_gravar texto`ntc{ N k }` 0 desenha }
+  _me_solta t }
+# a opção escolhida de uma parte: a da pessoa (guardada +1) ou a que o conector pôs no cabaz
+: ntesc ii>i p i { = c _an_ler texto`ntc{ N i }` ? c - _tx_int c 1 int p.escolha }
+: ntop iiii>i o i jx e {
+  `<button class="op{ Se == jx e ` on` }" data-onda="ntc:{ N + * i 10 jx }"><b>{ esc o.nome }</b>`
+  `<span class="uc">{ ? o.uc `{ eur int o.uc }<i>/{ crut txt o.ub }</i>` `{ eur int o.cent }` }</span>`
+  `<span class="pr">{ Se == jx e `✓ no cabaz · ` }{ crut ntloja txt o.cadeia } · { eur int o.cent }{ Se o.emb ` por { esc o.emb }` }</span>`
+  `<span class="sinais">{ Se int o.propria `<i class="z">🏷 marca branca</i>` }`
+  = z pri o.porque
+  W z { = b _tx_b txt z 0 `<i class="{ ? == b 43 `p` { ? == b 226 `n` `z` } }">{ esc z }</i>` = z seg z }
+  `</span></button>` 0 }
+: dnatal >i {
+  = j _ar_json _an_ler $"nt" = m ntmodo = k ntteto
+  `<div class="veu" data-onda="ntf:0"></div><div class="cartao natal" role="dialog" aria-label="Cabaz de Natal"><button class="fechar" data-onda="ntf:0" aria-label="Fechar">✕</button>`
+  `<h2>🎄 Cabaz de Natal</h2>`
+  `<p class="nota">As 3 melhores opções de cada parte nas tuas lojas e nas lojas de produtor. Toca numa para a pôr no cabaz.</p>`
+  `<div class="chips">`
+  L x 3 `<button class="chip{ Se == x m ` on` }" data-onda="ntm:{ N x }" aria-pressed="{ ? == x m `true` `false` }">{ ? == x 0 `⭐ Qualidade` { ? == x 1 `⚖ Equilíbrio` `€ Preço` } }</button>`
+  `</div><div class="chips">`
+  L x 4 `<button class="chip{ Se == x k ` on` }" data-onda="ntt:{ N x }" aria-pressed="{ ? == x k `true` `false` }">{ ? x `até { N ntteto_e x } €` `Sem teto` }</button>`
+  `</div>`
+  ? ~ j `<p class="nota">A procurar…</p>` {
+    = p pri j.partes = i 0 = tot 0
+    W p {
+      = off _an_ler texto`nto{ N i }`
+      = e ntesc p i
+      `<div class="parte{ Se off ` fora` }"><h3>{ esc p.icone } { esc p.nome }`
+      Se pri p.opcoes `<button class="op-x" data-onda="nto:{ N i }">{ ? off `+ Pôr no cabaz` `Tirar` }</button>`
+      `</h3>`
+      Se ~ pri p.opcoes `<p class="nota">Ainda não há nas tuas lojas.</p>`
+      Se && ~ off pri p.opcoes {
+        `<div class="opcoes">`
+        = o pri p.opcoes = jx 0
+        W o { ntop o i jx e Se == jx e = tot + tot int o.cent = o seg o = jx + jx 1 }
+        `</div>` }
+      `</div>`
+      = p seg p = i + i 1 }
+    `<p class="total"><b>O cabaz: { eur tot }</b>{ Se && k > tot * 100 ntteto_e k ` <small>· acima do teto: escolhe opções mais baratas</small>` }</p>`
+    `<p class="nota">{ esc j.aviso } Os preços são os dos sites; o da loja de produtor junta-se à lista como nota.</p>`
+    0 }
+  `<div class="acoes"><button class="botao fraco" data-onda="ntf:0">Fechar</button><button class="botao" data-onda="ntj:0">Juntar o cabaz à lista</button></div></div>`
+  0 }
+: ntjunta >i {
+  = j _ar_json _an_ler $"nt"
+  Se j {
+    = p pri j.partes = i 0 = n 0
+    W p {
+      = o idx p.opcoes ntesc p i
+      Se && ~ _an_ler texto`nto{ N i }` o {
+        = id texto`{ novoid }`
+        = pr int o.produtor
+        = nm texto`{ crut txt p.nome }{ Se pr ` ({ crut ntloja txt o.cadeia }: { crut txt o.nome })` }`
+        faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nm },"q":1\}`
+        Se ~ pr faz texto`\{"o":"p","id":"{ crut id }","c":{ pjs txt o.cadeia },"p":\{"id":{ pjs txt o.id },"nome":{ pjs txt o.nome },"url":{ pjs txt o.url }\}\}`
+        = n + n 1 }
+      = p seg p = i + i 1 }
+    _an_gravar $"natal" 0
+    aviso texto`{ N n } coisas do cabaz juntas à lista.`
+    ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
+  0 }
+
 : dfolha >i {
-  = h _ht_ini + 12000 ? _an_ler $"tp" * 2 _tx_len _an_ler $"tp" 0
+  = h _ht_ini + + 12000 ? _an_ler $"tp" * 2 _tx_len _an_ler $"tp" 0 ? _an_ler $"nt" * 3 _tx_len _an_ler $"nt" 0
   = c item_aberto
   Se _an_ler $"tk" dtipo
-  Se && ~ _an_ler $"tk" c {
+  Se && _an_ler $"natal" ~ _an_ler $"tk" dnatal
+  Se && && ~ _an_ler $"tk" ~ _an_ler $"natal" c {
     `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }"><button class="fechar" data-onda="fecha:0" aria-label="Fechar">✕</button>`
     `<h2>{ esc c.t }</h2>`
     `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
@@ -1017,6 +1090,13 @@
   Se eacao t $"talao" talao v
   Se eacao t $"sec" { ? _an_ler texto`sec:{ N v }` _an_gravar texto`sec:{ N v }` 0 _an_gravar texto`sec:{ N v }` $"1" }
   Se eacao t $"cpg" gravar_cp
+  Se eacao t $"natal" { _an_gravar $"natal" $"1" _an_gravar $"nt" 0 pede_natal }
+  Se eacao t $"ntf" _an_gravar $"natal" 0
+  Se eacao t $"ntm" { _an_gravar $"ntm" texto`{ N v }` _an_gravar $"nt" 0 pede_natal }
+  Se eacao t $"ntt" { _an_gravar $"ntt" texto`{ N v }` _an_gravar $"nt" 0 pede_natal }
+  Se eacao t $"nto" { = kk texto`nto{ N v }` ? _an_ler kk _an_gravar kk 0 _an_gravar kk $"1" }
+  Se eacao t $"ntc" _an_gravar texto`ntc{ N / v 10 }` texto`{ N + % v 10 1 }`
+  Se eacao t $"ntj" ntjunta
   Se eacao t $"simples" { ? _an_ler $"simples" _an_gravar $"simples" 0 _an_gravar $"simples" $"1" }
   Se eacao t $"carr" { ? _an_ler $"carrinho" _an_gravar $"carrinho" 0 _an_gravar $"carrinho" $"1" }
   Se eacao t $"qp" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }

@@ -69,6 +69,19 @@ test('guardar: na tabela preco, com o tipo, a embalagem igual em todas as cadeia
     // ler outra vez a mesma página atualiza (não duplica)
     await guardarCatalogo(db, 'auchan', 'agua-sem-gas', lerCategoria('auchan', pagina('auchan-categoria-agua.html')), agora);
     assert.equal(db.linhas('SELECT count(*) n FROM preco')[0].n, 8);
+    // e só escreve o que mudou: a mesma página no dia seguinte não escreve nada (o limite diário da D1 grátis)…
+    const prods = lerCategoria('auchan', pagina('auchan-categoria-agua.html'));
+    let antes = db.escritas;
+    await guardarCatalogo(db, 'auchan', 'agua-sem-gas', prods, new Date('2026-11-16T10:00:00Z'));
+    assert.equal(db.escritas - antes, 0);
+    // …um preço que muda escreve só esse produto…
+    antes = db.escritas;
+    await guardarCatalogo(db, 'auchan', 'agua-sem-gas', prods.map((p, i) => (i ? p : { ...p, preco: p.preco + 0.1 })), new Date('2026-11-16T12:00:00Z'));
+    assert.equal(db.escritas - antes, 1);
+    // …e passados 3 dias volta a gravar todos (o «visto» não fica velho)
+    antes = db.escritas;
+    await guardarCatalogo(db, 'auchan', 'agua-sem-gas', prods, new Date('2026-11-19T11:00:00Z'));
+    assert.equal(db.escritas - antes, prods.length);
 });
 
 // ---------- o cron, a sonda e a escrita ----------

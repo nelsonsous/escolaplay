@@ -132,9 +132,9 @@ async function main() {
     if (args.includes('--mostrar')) for (const [k, v] of t) console.log(k, JSON.stringify(Object.fromEntries(Object.entries(v.c).map(([c, us]) => [c, us.length]))));
     if (args.includes('--sem-gravar')) return;
     // os nomes da casa ficam; os automáticos só entram se o tipo é novo (o cron põe-lhes o nome com acentos)
-    await d1Linhas('INSERT INTO tipo (k, nome, casa)', [...t].filter(([, v]) => v.casa).map(([k, v]) => [k, v.nome, 1]), 'ON CONFLICT (k) DO UPDATE SET nome = excluded.nome, casa = 1');
+    await d1Linhas('INSERT INTO tipo (k, nome, casa)', [...t].filter(([, v]) => v.casa).map(([k, v]) => [k, v.nome, 1]), 'ON CONFLICT (k) DO UPDATE SET nome = excluded.nome, casa = 1 WHERE tipo.nome IS NOT excluded.nome OR tipo.casa IS NOT 1');
     await d1Linhas('INSERT INTO tipo (k, nome)', [...t].filter(([, v]) => !v.casa).map(([k, v]) => [k, v.nome[0].toUpperCase() + v.nome.slice(1)]), 'ON CONFLICT (k) DO NOTHING');
-    await d1Linhas('INSERT INTO pagina (url, cadeia, tipo, marca)', paginas, 'ON CONFLICT (url) DO UPDATE SET tipo = excluded.tipo, marca = excluded.marca');
+    await d1Linhas('INSERT INTO pagina (url, cadeia, tipo, marca)', paginas, 'ON CONFLICT (url) DO UPDATE SET tipo = excluded.tipo, marca = excluded.marca WHERE pagina.tipo IS NOT excluded.tipo OR pagina.marca IS NOT excluded.marca');
     // as páginas que já não estão em nenhum tipo saem
     const agora = new Set(paginas.map((p) => p[0]));
     const velhas = (await d1('SELECT url FROM pagina')).map((r) => r.url).filter((u) => !agora.has(u));

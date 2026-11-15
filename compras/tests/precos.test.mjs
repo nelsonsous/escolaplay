@@ -181,6 +181,11 @@ test('preços comparáveis: ao balcão e ao peso paga-se a porção; com peso ou
     assert.deepEqual(normaliza({ cadeia: 'auchan', nome: 'QUEIJO RICOTTA 250G', cent: 169, uc: 169, ub: 'un', m: medida('250G') }), { cent: 169, uc: 676, ub: 'kg' });
     // Auchan, «… FATIADO NO BALCÃO KG» sem peso: o preço é o de um quilo
     assert.deepEqual(normaliza({ cadeia: 'auchan', nome: 'FIAMBRE DE PEITO FRANGO AUCHAN FATIADO NO BALCÃO KG', cent: 1209, uc: null, ub: null, m: null }), { cent: 1209, uc: 1209, ub: 'kg', emb: '1 kg' });
+    // e com o calibre antes do «KG» («200/300 KG», «600/800 KG»): não é o peso (antes dava 0,09 €/kg)
+    const nm = 'LOMBO DE BACALHAU NORDFISH ULTRACONGELADO HIGIENIZADO 200/300 KG';
+    assert.equal(medida(nm), null);
+    assert.deepEqual(normaliza({ cadeia: 'auchan', nome: nm, cent: 2599, uc: null, ub: null, m: medida(nm) }), { cent: 2599, uc: 2599, ub: 'kg', emb: '1 kg' });
+    assert.deepEqual(medida('6 x 1,5 L'), { q: 9, ub: 'l' });
     // o resto fica igual
     assert.deepEqual(normaliza({ cadeia: 'pingodoce', nome: 'Água', cent: 96, uc: 16, ub: 'l', m: medida('6 L') }), { cent: 96, uc: 16, ub: 'l' });
     assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Ovos', cent: 249, uc: 21, ub: 'un', m: medida('12 un') }), { cent: 249, uc: 21, ub: 'un' });

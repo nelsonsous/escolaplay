@@ -29,6 +29,8 @@ const n = (s) => Number(String(s).replace(',', '.'));
 // o texto da embalagem arrumado: «&times;» é ×; nos packs de litros sem vírgula, o Auchan escreve «4X150L» (4 × 1,50 L),
 // «6X050L» (6 × 0,50 L) e «4X15L» (4 × 1,5 L), sem espaços: ninguém vende garrafas de 150 litros («2 x 10 L» fica)
 export const limpaMedida = (s) => String(s ?? '').replace(/&times;/gi, '×')
+    // o calibre do Auchan antes do «KG» («LOMBO DE BACALHAU … 200/300 KG», «SAPATEIRA 600/800 KG»): não é o peso, é ao quilo
+    .replace(/\b\d+\s?\/\s?\d+\s*(kg)\s*$/i, '$1')
     .replace(/(\d+)[x×](\d)(\d{2})(lt?)\b/gi, '$1×$2,$3 $4')
     // com dois algarismos: «15» é 1,5 L (garrafas), «33» é 0,33 L (latas): acima de 20 é de centilitros
     .replace(/(\d+)[x×](\d)(\d)(lt?)\b/gi, (_, n, a, b, u) => (Number(a + b) > 20 ? `${n}×0,${a}${b} ${u}` : `${n}×${a},${b} ${u}`));
