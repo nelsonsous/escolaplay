@@ -11,7 +11,8 @@ const LOJAS = lerLojasSpar(readFileSync(new URL('./fontes/spar-lojas.html', impo
 
 test('as lojas SPAR da página: nome, rua, código postal e localidade; a procura por localidade e por código postal', () => {
     assert.equal(LOJAS.length, 5);
-    assert.deepEqual(LOJAS[0], { n: 'SPAR Portimão (M.Albuquerque)', r: 'R. Mouzinho de Albuquerque 18', cp: '8500-510', l: 'Portimão' });
+    const { h, ...l0 } = LOJAS[0];
+    assert.deepEqual(l0, { n: 'SPAR Portimão (M.Albuquerque)', r: 'R. Mouzinho de Albuquerque 18', cp: '8500-510', l: 'Portimão' });
     assert.deepEqual(lojasDe(LOJAS, 'portimao').map((l) => l.n), ['SPAR Portimão (M.Albuquerque)']);
     assert.deepEqual(lojasDe(LOJAS, '8200').map((l) => l.n), ['SPAR Albufeira (Alexandre Herculano)']);
     assert.deepEqual(lojasDe(LOJAS, 'a'), []);
@@ -39,4 +40,11 @@ test('a casa grava a localidade e as lojas; só as cadeias conhecidas, e pelo me
     assert.deepEqual(c.lojas.cadeias, ['continente', 'spar', 'mercadona']);
     assert.equal((await api('/api/casa/lojas', { cadeias: [] })).status, 400);
     assert.deepEqual((await (await api('/api/lojas?q=Portim%C3%A3o')).json()).lojas.map((l) => l.l), ['Portimão']);
+});
+
+test('os horários das lojas SPAR (dias úteis, sábados, domingos), dos cartões da página', async () => {
+    const { lerLojasSpar } = await import('../proxy/src/lojas.js');
+    const { readFileSync } = await import('node:fs');
+    const l = lerLojasSpar(readFileSync(new URL('./fontes/spar-lojas.html', import.meta.url), 'utf8')).find((x) => /Portim/.test(x.n));
+    assert.deepEqual(l.h, { u: '8:30 - 13:30 | 15:30 - 20:00', s: '8:30 - 13:30 | 15:30 - 19:30', d: 'Encerrado' });
 });
