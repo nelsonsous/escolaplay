@@ -8,7 +8,7 @@ import { medida } from './precos.js';
 
 const HORA = 3600e3;
 const TIPOS = { lista: null, quando: 0 };
-export const esquecerTipos = () => { TIPOS.lista = null; };
+export const esquecerTipos = () => { TIPOS.lista = null; CORTES.clear(); };
 
 const PARAR = new Set(['e', 'de', 'do', 'da', 'dos', 'das', 'em', 'para', 'a', 'o', 'os', 'as', 'no', 'na', 'ou']);
 function singular(w) {
@@ -29,10 +29,48 @@ async function tipos(db) {
     return TIPOS.lista;
 }
 
+// palavras que são um grupo de tipos e não um tipo: «carne» é o talho todo (frango, peru, porco…), «peixe» a peixaria.
+// Mostram a secção, os tipos do grupo e os cortes mais comuns nos nomes dos produtos («picanha», «para estufar»…), cada
+// um no tipo onde há mais produtos com ele (tocar abre esse tipo com o corte já escolhido)
+const PEIXE = /peix|bacalhau|marisco|polvo|lula|choco|camar|salm|pescad|sardinh|atum|dourad|robal/;
+const PARA = new Set(['estufar', 'grelhar', 'assar', 'cozer', 'fritar']);
+const ACENTOS = { medalhao: 'medalhão', hamburguer: 'hambúrguer' };
+export const GRUPOS = {
+    carne: { s: 2, tipo: (t) => !PEIXE.test(t.k), cortes: ['picanha', 'bife', 'costeleta', 'febra', 'entrecosto', 'lombo', 'peito', 'coxa', 'asa', 'perna', 'estufar', 'grelhar', 'assar', 'cozer', 'espetada', 'hamburguer', 'salsicha'] },
+    peixe: { s: 2, tipo: (t) => PEIXE.test(t.k) && PEIXE.test(t.w.join(' ')), cortes: ['posta', 'lombo', 'filete', 'inteiro', 'medalhao', 'grelhar', 'cozer', 'assar', 'fritar'] },
+};
+const CORTES = new Map(); // o grupo → { quando, lista } (uma hora)
+async function grupo(db, g, nome) {
+    const todos = (await tipos(db)).filter((t) => t.s === g.s && g.tipo(t)).sort((a, b) => (b.casa ? 1 : 0) - (a.casa ? 1 : 0) || b.n - a.n);
+    // os cruzados que repetem um da casa («Peru», «Novilho, vitela e vitelão») não aparecem
+    const daCasa = new Set(todos.filter((t) => t.casa).flatMap((t) => t.w).filter((w) => w !== 'carne'));
+    const nomes = new Set();
+    const ts = todos.filter((t) => (t.casa || !t.w.some((w) => daCasa.has(w))) && !nomes.has(t.nome) && nomes.add(t.nome));
+    let c = CORTES.get(nome);
+    if (!c || Date.now() - c.quando > HORA) {
+        const ks = ts.map((t) => t.k);
+        const { results } = ks.length ? await db.prepare(`SELECT tipo, nome FROM preco WHERE cent IS NOT NULL AND tipo IN (${ks.map(() => '?').join(', ')})`).bind(...ks).all() : { results: [] };
+        const conta = new Map(); // corte → tipo → n
+        for (const r of results) {
+            const ws = new Set(palavras(r.nome));
+            for (const w of g.cortes) if (ws.has(w)) { const m = conta.get(w) ?? new Map(); m.set(r.tipo, (m.get(r.tipo) ?? 0) + 1); conta.set(w, m); }
+        }
+        const porK = new Map(ts.map((t) => [t.k, t]));
+        const lista = [...conta].map(([w, m]) => { const [k, n] = [...m].sort((a, b) => b[1] - a[1])[0]; return { w, k, n }; })
+            // os usos («para estufar») primeiro, que as cadeias quase não os escrevem; depois os cortes com mais produtos
+            .filter((x) => x.n >= 3 && porK.has(x.k)).sort((a, b) => (PARA.has(b.w) ? 1 : 0) - (PARA.has(a.w) ? 1 : 0) || b.n - a.n).slice(0, 10)
+            .map((x) => ({ k: x.k, nome: porK.get(x.k).nome, w: x.w, corte: PARA.has(x.w) ? `para ${x.w}` : ACENTOS[x.w] ?? x.w, s: g.s }));
+        c = { quando: Date.now(), lista };
+        CORTES.set(nome, c);
+    }
+    return [{ sec: g.s, nome: nomeSeccao(g.s) }, ...ts.slice(0, 12).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: t.s })), ...c.lista];
+}
+
 // os tipos que correspondem ao que se escreveu: cada palavra escrita é o início de uma palavra do tipo
 export async function sugerir(db, q, max = 8) {
     const ws = palavras(q).slice(0, 4);
     if (!ws.length) return [];
+    if (ws.length === 1 && GRUPOS[ws[0]]) return grupo(db, GRUPOS[ws[0]], ws[0]);
     const bons = [];
     for (const t of await tipos(db)) {
         if (!ws.every((w) => t.w.some((x) => x.startsWith(w)))) continue;

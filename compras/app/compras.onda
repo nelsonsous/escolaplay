@@ -621,10 +621,13 @@
         = s _ar_json _an_ler $"sug"
         Se && s pri s.tipos {
           `<div class="sug" role="list">`
-          = x pri s.tipos = i 0
-          W && x < i 8 {
+          = x pri s.tipos = i 0 = nc 0
+          W && x < i 24 {
+            # os cortes de um grupo («carne»: picanha, para estufar…) numa linha à parte, a amarelo, com o tipo por baixo
+            Se && x.corte ~ nc { `</div><p class="sug-t">Cortes</p><div class="sug" role="list">` = nc 1 }
             ? x.sec `<button class="chip n1 sec-c" data-onda="seca:{ N int x.sec }">{ esc x.nome } ›</button>`
-              `<button class="chip n2" data-onda="tipo:{ N i }">{ esc x.nome }{ Se x.w ` <small class="n3">{ esc x.w }</small>` }</button>`
+              { ? x.corte `<button class="chip n3c" data-onda="tipo:{ N i }">{ esc x.corte } <small>{ esc x.nome }</small></button>`
+                  `<button class="chip n2" data-onda="tipo:{ N i }">{ esc x.nome }{ Se x.w ` <small class="n3">{ esc x.w }</small>` }</button>` 0 }
             = x seg x = i + i 1 }
           `</div>` } 0 }
       { Se == _tx_len t 0 `<div class="sug"><button class="chip" data-onda="vsecs:1">☰ Ver por secções</button></div>`

@@ -186,3 +186,24 @@ test('Pingo Doce ao quilo: «2,49 €/Kg» e o peso médio; paga-se a peça (0,2
     assert.deepEqual(normaliza({ cadeia: 'pingodoce', nome: p.nome, cent: 249, uc: 1186, ub: 'kg', m: medida(p.emb), aoPeso: p.aoPeso }), { cent: 52, uc: 249, ub: 'kg' });
     assert.equal(lerCategoria('pingodoce', tile.replace('&euro;/Kg', '&euro;'))[0].aoPeso, undefined);
 });
+
+test('«carne» é um grupo: o talho todo (também o frango e o peru) e os cortes mais comuns; «peixe» a peixaria', async () => {
+    const { sugerir } = await import('../proxy/src/sugerir.js');
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('frango', 'Frango', 5, 1), ('carne-novilho', 'Carne de novilho e vitela', 6, 1),
+        ('porco', 'Carne de porco', 4, 1), ('peixe-fresco', 'Peixe fresco', 3, 1), ('noodles', 'Noodles', 9, 0),
+        ('novilho-vitela-e-vitelao', 'Novilho, vitela e vitelão', 7, 0), ('massas-peixe', 'Massas e gnocchis', 2, 0);`);
+    esquecerTipos();
+    const p = (id, nome, preco = 5) => ({ id, nome, preco, emb: '500 g', url: 'https://www.continente.pt/' + id });
+    await guardarCatalogo(db, 'continente', 'carne-novilho', [p('n1', 'Picanha de Novilho'), p('n2', 'Picanha Novilho Extra'), p('n3', 'Picanha de Vitela'), p('n4', 'Novilho para Estufar'), p('n5', 'Vitela para Estufar'), p('n6', 'Novilho Estufar Extra')]);
+    await guardarCatalogo(db, 'continente', 'frango', [p('f1', 'Peito de Frango'), p('f2', 'Peito de Frango Filetes'), p('f3', 'Peito Frango Campo'), p('f4', 'Coxas de Frango'), p('f5', 'Frango para Estufar')]);
+    await guardarCatalogo(db, 'continente', 'noodles', [p('x1', 'Noodles sabor carne'), p('x2', 'Noodles carne picante'), p('x3', 'Noodles de carne')]);
+    const r = await sugerir(db, 'Carnes');
+    assert.deepEqual(r[0], { sec: 2, nome: 'Talho e peixaria' });
+    // os tipos do talho (sem os da peixaria nem os «noodles» com carne no nome), os da casa primeiro
+    // (e sem os cruzados que repetem um da casa: «Novilho, vitela e vitelão»)
+    assert.deepEqual(r.filter((t) => t.k && !t.corte).map((t) => t.k), ['carne-novilho', 'frango', 'porco']);
+    // os cortes: cada um no tipo onde há mais produtos com ele
+    assert.deepEqual(r.filter((t) => t.corte).map((t) => [t.corte, t.k, t.w]), [['para estufar', 'carne-novilho', 'estufar'], ['picanha', 'carne-novilho', 'picanha'], ['peito', 'frango', 'peito']]);
+    assert.deepEqual((await sugerir(db, 'peixe')).filter((t) => t.k).map((t) => t.k), ['peixe-fresco']);
+});
