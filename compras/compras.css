@@ -238,3 +238,5 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .veredicto b { color: var(--verde); }
 .melhores small.mesmo { display: block; margin-top: 4px; color: var(--fraco); }
 .melhores small.mesmo b { color: var(--texto); }
+/* a melhor forma de comprar a quantidade (packs) */
+.item small.pack { display: block; margin-top: 3px; color: #ffd60a; font-size: 13px; }

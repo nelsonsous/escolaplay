@@ -299,10 +299,19 @@
   Se && c.e c.e.n `<small class="cam">{ Se >= lj 0 `<i class="n1">{ crut nomesec secd c }</i> › ` }<i class="n2">{ esc c.e.n }</i></small>`
   `<small>`
   ? < lj 0 resumo c { = p pc c lj ? >= p 0 `{ crut nomecad lj } { eur p }` `Sem preço no { crut nomecad lj }: toca para escolher` 0 }
-  `</small></button>`
+  `</small>`
+  Se && ~ f c.pk dpack c lj
+  `</button>`
   Se ~ f `<span class="qtd-l"><button data-onda="qm:{ N i }" aria-label="Menos">−</button><button data-onda="qp:{ N i }" aria-label="Mais">+</button></span>`
   `<button class="tira" data-onda="tirai:{ N i }" aria-label="Tirar da lista">✕</button></li>` }
 # o resumo de uma coisa na lista: o mais barato das tuas lojas, e em quantas mais há (o resto vê-se ao tocar)
+# a melhor forma de comprar a quantidade (packs.js): na loja escolhida, ou na primeira das tuas onde poupa
+: dpack ii>i c lj {
+  = k0 -1
+  ? >= lj 0 { Se _ar_get c.pk cadeia lj = k0 lj 0 } { L k 3 Se && < k0 0 && minha cadeia k _ar_get c.pk cadeia k = k0 k 0 }
+  Se >= k0 0 { = x _ar_get c.pk cadeia k0
+    `<small class="pack">💡 No { crut nomecad k0 }, leva { esc x.como }: { eur int x.cent } (poupas { eur int x.poupa })</small>` }
+  0 }
 : resumo i>i c {
   = b -1 = bp 0 = n 0
   L k 4 Se minha cadeia k { = p pc c k Se >= p 0 { = n + n 1 Se || < b 0 < p bp { = b k = bp p } } }

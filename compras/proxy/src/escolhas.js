@@ -11,6 +11,11 @@ const DIA = 24 * 3600e3;
 export const CADEIAS_ESCOLHA = ['continente', 'pingodoce', 'auchan'];
 const recente = (agora) => new Date(agora.getTime() - 10 * DIA).toISOString();
 
+// o produto tem todas as palavras escolhidas (no nome ou, no talho e na peixaria, nas etiquetas do Ecónomo)?
+export const temPalavras = (w, nome, k) => {
+    const n = ` ${palavras(`${nome} ${TALHO.has(k) ? palavrasEtiquetas(etiquetas(nome, k)).join(' ') : ''}`).join(' ')} `;
+    return w.every((x) => n.includes(x));
+};
 // o mais barato de cada cadeia para o que a coisa é: { cadeia: { id, nome, url } }
 export async function melhores(db, e, agora = new Date()) {
     const { results } = await db.prepare(`SELECT cadeia, id, nome, url FROM preco
@@ -22,7 +27,8 @@ export async function melhores(db, e, agora = new Date()) {
     for (const p of results) {
         if (!CADEIAS_ESCOLHA.includes(p.cadeia) || r[p.cadeia]) continue;
         // a palavra escolhida (o corte, a variante; no talho e na peixaria também as etiquetas do Ecónomo: «grelhar»)
-        if (w && !!((n) => w.every((x) => n.includes(x)))(` ${palavras(`${p.nome} ${TALHO.has(e.k) ? palavrasEtiquetas(etiquetas(p.nome, e.k)).join(' ') : ''}`).join(' ')} `)) continue;
+        // (antes estava ao contrário: saltava os que tinham a palavra, e a «picanha» trocava-se por «para estufar»)
+        if (w && !temPalavras(w, p.nome, e.k)) continue;
         r[p.cadeia] = { id: p.id, nome: p.nome, url: p.url };
     }
     return r;
