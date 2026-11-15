@@ -51,7 +51,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.28.1';
+export const VERSION = '0.29.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -238,7 +238,15 @@ async function api(request, env, url) {
         return json(await novoAparelho(db), 201);
     }
     const ap = await aparelhoDe(db, request);
-    if (caminho === '/api/casa' && metodo === 'GET') return json(await casaDe(db, ap));
+    if (caminho === '/api/casa' && metodo === 'GET') {
+        // com o horário da loja SPAR escolhida (da lista das lojas, na KV)
+        const c = await casaDe(db, ap);
+        if (c.lojas?.spar) {
+            const l = ((await env.KV.get('lojas:spar', { type: 'json', cacheTtl: 3600 })) ?? []).find((x) => x.n === c.lojas.spar);
+            if (l?.h) c.lojas.sparh = l.h;
+        }
+        return json(c);
+    }
     if (caminho === '/api/casa/cp' && metodo === 'POST') {
         // o código postal (autorizado pela casa): diz-se ao Continente para saber a zona; null tira
         const { cp } = await corpoJSON(request);

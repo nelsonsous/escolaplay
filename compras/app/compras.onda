@@ -484,6 +484,9 @@
       `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ convite cod }">Convidar pelo WhatsApp</a>` 0 }
     { ? @ 9 `<p>A preparar…</p>` `<p>Sem ligação ao conector.</p><button class="botao" data-onda="registar:0">Tentar outra vez</button>` 0 }
   dlojas
+  # o horário da loja SPAR escolhida (do site do SPAR)
+  = jh _ar_json _an_ler $"casa"
+  Se && && jh jh.lojas jh.lojas.sparh `<p class="horario">🕘 <b>{ esc jh.lojas.spar }</b><br>Seg. a sex.: { esc jh.lojas.sparh.u }<br>Sábados: { esc jh.lojas.sparh.s }<br>Domingos: { esc jh.lojas.sparh.d }</p>`
   # o código postal: com ele, o conector vê de hora a hora se os produtos do Continente da lista há na tua zona
   = jc _ar_json _an_ler $"casa"
   `<h3>Stock do Continente na tua zona</h3><p class="nota">Com o código postal, o conector pergunta ao Continente que loja online serve a tua zona e vê, de hora a hora, se os produtos da lista estão lá disponíveis. O código postal só se usa para isto.</p>`

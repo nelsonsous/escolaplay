@@ -8,7 +8,19 @@ const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLo
 
 // as lojas SPAR da página das lojas: [{ n: nome, r: rua, cp, l: localidade }]. A página traz a lista toda num JSON
 // (com as aspas escritas «\u0022»); se não o tiver, lê-se o texto das lojas
+// os horários das lojas, dos cartões da página: nome → { u: dias úteis, s: sábados, d: domingos }
+export function horariosSpar(html) {
+    const h = new Map();
+    const re = /class="loja-cartao-link"[^>]*>([^<]+)<\/a>[\s\S]*?data-uteis="([^"]*)"\s*data-sabados="([^"]*)"\s*data-domingos="([^"]*)"/g;
+    for (const m of String(html).matchAll(re)) h.set(m[1].replace(/\s+/g, ' ').trim(), { u: m[2].trim(), s: m[3].trim(), d: m[4].trim() });
+    return h;
+}
 export function lerLojasSpar(html) {
+    const hs = horariosSpar(html);
+    const comHora = (ls) => ls.map((l) => (hs.has(l.n) ? { ...l, h: hs.get(l.n) } : l));
+    return comHora(lerLojasSparSem(html));
+}
+function lerLojasSparSem(html) {
     const i = String(html).indexOf('[{\\u0022id\\u0022');
     if (i >= 0) {
         const f = html.indexOf('}]', i);

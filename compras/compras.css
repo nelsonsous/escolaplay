@@ -213,3 +213,5 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .saude li { padding: 6px 0; border-bottom: 1px solid var(--linha); color: var(--fraco); }
 .saude li b { color: var(--texto); margin-right: 6px; }
 .saude li.aviso { color: #ff9f0a; }
+.horario { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--linha); border-radius: 12px; font-size: 15px; color: var(--fraco); line-height: 1.5; }
+.horario b { color: var(--texto); }
