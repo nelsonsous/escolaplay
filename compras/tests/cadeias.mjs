@@ -2,6 +2,7 @@
 // do Auchan) que a fonte da cadeia sabe ler, com o preço da tabela PRECOS; um produto que lá não está dá 404.
 // instalar() troca o fetch global e devolve os pedidos que se fizeram; desinstalar() repõe-no.
 export const PRECOS = new Map(); // «cadeia id» → { preco, antes, nome }
+export const PAGINAS = new Map(); // endereço de uma página de categoria → o HTML
 
 const ld = (o) => `<script type="application/ld+json">${JSON.stringify(o)}</script>`;
 function pagina(cadeia, id, x) {
@@ -31,6 +32,7 @@ export function instalar() {
         const u = new URL(String(url));
         const cadeia = CADEIA[u.hostname];
         pedidos.push({ url: String(url), init });
+        if (PAGINAS.has(String(url))) return new Response(PAGINAS.get(String(url)), { status: 200 });
         const x = cadeia && PRECOS.get(cadeia + ' ' + idDe(cadeia, u));
         if (!x) return new Response('não há', { status: 404 });
         return new Response(pagina(cadeia, idDe(cadeia, u), x), { status: 200 });

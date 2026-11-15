@@ -6,10 +6,13 @@ A lista das compras da casa, e em que supermercado fica mais barata. O plano das
 Endereço (depois de juntar ao `main`): **https://nelsonsous.github.io/escolaplay/compras/**. No telemóvel:
 iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar app*.
 
-## O que já faz (voltas 2 a 4)
+## O que já faz (voltas 2 a 5)
 
 - **A lista da casa.** Escreve-se como sai («2 leites, pão de forma e ovos»): a app separa por vírgulas e por « e »
   e lê a quantidade à frente. Riscar, tirar os riscados, mudar a quantidade, tirar uma coisa.
+- **Escrever e encontrar.** Enquanto se escreve aparecem os tipos do catálogo («ág» → Água sem gás). Tocar num abre a
+  escolha: o tamanho, a marca ou «🏷 Marca branca», e o mais barato de cada supermercado (por litro ou por quilo).
+  «Juntar à lista» põe a coisa já com o produto de cada um.
 - **O produto de cada supermercado, com o preço.** Tocar numa coisa abre a folha com os produtos parecidos no
   Continente, no Pingo Doce, no Auchan e no Lidl, e escolhe-se o de cada um. O preço é o do site da cadeia (com o
   riscado das promoções e o preço por quilo ou por litro), lido quando se escolhe o produto e depois uma vez por dia.
@@ -29,25 +32,30 @@ iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar a
   `app/compras.wasm`. `compras.js` é a casca:
   a chave do aparelho nos pedidos ao conector e o Enter nos campos. `index.html`, `compras.css`, `sw.js`, o manifesto
   e os ícones completam a PWA.
-- `proxy/` — o conector (Worker `compras` 0.5.0, em `https://compras.mercados-proxy.workers.dev`):
+- `proxy/` — o conector (Worker `compras` 0.6.0, em `https://compras.mercados-proxy.workers.dev`):
   - a casa e a lista (`src/casa.js`), na D1 `compras` (as tabelas em `migrations/`);
   - os preços (`src/precos.js`): lidos no site da cadeia quando se escolhe um produto e pelo cron de dez em dez
     minutos (os que têm mais de 20 h, um por cadeia de cada vez), guardados na D1, com o preço por quilo ou litro;
     e os preços dos produtos de uma procura (`/api/precos`);
+  - o catálogo (`src/catalogo.js`): as páginas de categoria das cadeias, lidas pelo cron (uma a cada dois minutos, à
+    vez por cadeia), com o tipo de cada produto; e a escrita (`src/sugerir.js`: `/api/sugerir` e `/api/tipo`);
   - a procura no índice de cada cadeia (`src/indice.js`; o índice está na KV);
   - a sonda das cadeias e as fontes que leem um produto (`src/fontes/`, da volta 1). A sonda só funciona com o
     segredo `SONDA_TOKEN`, só nos domínios das cadeias e só onde o robots.txt deixa.
 - `economo/` — os scripts do Ecónomo (a tarefa do Claude). `indice.mjs` refaz o índice a partir dos mapas do site das
-  cadeias, lidos pelo conector.
+  cadeias, lidos pelo conector. `tipos.mjs` cruza as categorias das cadeias (com os tipos da casa, `tipos-casa.json`,
+  feitos à mão) e grava os tipos e as páginas na D1; `catalogo.mjs` enche o catálogo de uma vez.
 - `tests/` — o conector, as fontes (com excertos reais das páginas), o índice, os preços e a app no Chromium com o
   conector a sério (`servidor.mjs`), sobre uma D1 simulada em SQLite (`d1.mjs`) e os sites das cadeias a fingir
   (`cadeias.mjs`).
 
 ```bash
-cd compras && npm test                                         # 52 testes (a app precisa do Playwright)
+cd compras && npm test                                         # 61 testes (a app precisa do Playwright)
 node compras/compilar.mjs                                      # app/compras.onda → app/compras.wasm
 cd compras/proxy && npx wrangler d1 migrations apply compras --remote   # as tabelas da D1 (uma vez por migração)
 cd compras/proxy && npx wrangler deploy                        # publicar o conector (e o cron)
 openssl rand -hex 24 | npx wrangler secret put SONDA_TOKEN     # o segredo da sonda (sem ele, a sonda fica desligada)
 SONDA_TOKEN_FILE=… NODE_USE_ENV_PROXY=1 node compras/economo/indice.mjs   # refazer o índice (4 gravações na KV)
+SONDA_TOKEN_FILE=… NODE_USE_ENV_PROXY=1 node compras/economo/tipos.mjs    # os tipos e as páginas do catálogo (D1)
+SONDA_TOKEN_FILE=… NODE_USE_ENV_PROXY=1 node compras/economo/catalogo.mjs # encher o catálogo de uma vez
 ```

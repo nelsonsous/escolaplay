@@ -19,9 +19,10 @@ database_name = "compras"
 database_id = "1d2a2dd2-11f1-401c-86dc-32e7bc0da3fb"
 migrations_dir = "migrations"
 
-# de dez em dez minutos, os preços velhos dos produtos das listas (src/precos.js)
+# de dois em dois minutos: aos minutos redondos os preços velhos dos produtos das listas (src/precos.js); nos outros,
+# uma página de categoria de uma cadeia, à vez (src/catalogo.js)
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/2 * * * *"]
 
 [vars]
 # Só a app cria aparelhos (a origem dela)

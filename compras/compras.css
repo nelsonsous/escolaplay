@@ -92,3 +92,17 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .loja { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--verde); background: #0b1f12; }
 .loja p { margin: 0; }
 .loja small { display: block; color: var(--fraco); font-size: 14px; }
+
+/* volta 5: escrever e encontrar (as sugestões por baixo do campo e a escolha do produto) */
+.sug { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 8px 12px; border-radius: 18px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font-size: 15px; }
+.chip.on { border-color: var(--verde); background: #0f2a17; color: var(--verde); font-weight: 600; }
+.sug .chip { border-color: #2d4a35; }
+.melhores { list-style: none; padding: 0; margin: 8px 0 12px; }
+.melhores li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.melhores .total { font-weight: 700; font-variant-numeric: tabular-nums; }
+.melhores small { grid-column: 1 / -1; color: var(--fraco); font-size: 14px; overflow-wrap: anywhere; }
+.melhores li.melhor b, .melhores li.melhor .total { color: var(--verde); }
+.melhores li.parcial { color: var(--fraco); }
+.escolha h3 { margin-top: 16px; }

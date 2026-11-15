@@ -11,6 +11,8 @@ import { montarIndice } from '../proxy/src/indice.js';
 import { kv } from './kv.mjs';
 import { d1 } from './d1.mjs';
 import { PRECOS, instalar, desinstalar } from './cadeias.mjs';
+import { lerCategoria, guardarCatalogo } from '../proxy/src/catalogo.js';
+import { esquecerTipos } from '../proxy/src/sugerir.js';
 
 const RAIZ = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
@@ -39,6 +41,12 @@ export async function abrir() {
     PRECOS.clear();
     for (const [k, v] of Object.entries(PRECOS_TESTE)) PRECOS.set(k, v);
     instalar();
+    // o catálogo: a água sem gás das três cadeias (os excertos reais de tests/fontes)
+    esquecerTipos();
+    for (const c of ['continente', 'pingodoce', 'auchan']) {
+        await guardarCatalogo(env.DB, c, 'agua-sem-gas', lerCategoria(c, readFileSync(path.join(RAIZ, `compras/tests/fontes/${c}-categoria-agua.html`), 'utf8')));
+    }
+    env.DB.sql.exec("INSERT INTO tipo (k, nome, n, casa) VALUES ('agua-sem-gas', 'Água sem gás', 12, 1), ('agua-com-gas', 'Água com gás', 0, 1)");
     let falha = false;
     const srv = http.createServer(async (req, res) => {
         const u = new URL(req.url, 'http://x');

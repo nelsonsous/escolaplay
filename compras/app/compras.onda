@@ -6,6 +6,9 @@
 # cada supermercado e se compensa dividir por duas lojas (as contas estão em app/onde.onda).
 # Volta 4: o preço por quilo, por litro ou por unidade, e na folha o preço dos produtos parecidos, com o mais barato
 # por quilo ou por litro à vista (para trocar de marca ou de embalagem); «Vou a este» arruma a lista por uma loja.
+# Volta 5: escrever e encontrar. Enquanto se escreve aparecem os tipos de produto do catálogo («ág» → Água sem gás);
+# tocar num abre a escolha: o tamanho, a marca (ou a marca branca 🏷) e o mais barato de cada supermercado, e «Juntar»
+# põe na lista a coisa já com o produto de cada um.
 # Monta-se com a biblioteca da Onda (compras/compilar.mjs). A casca (compras.js) só trata do que a Onda não tem como
 # porta: a chave do aparelho nos pedidos ao conector e os pedidos que escrevem («MÉTODO caminho» + nova linha + corpo).
 #
@@ -17,10 +20,14 @@
 #   envio             as que vão no pedido em curso (se falhar, voltam para a frente da fila)
 #   aberto            o id da coisa aberta na folha;  p:<cadeia>  a última procura nessa cadeia (o JSON do conector)
 #   q:<cadeia>        os preços dos produtos dessa procura (/api/precos);  loja  a cadeia escolhida em «Vou a este»
+#   sug               os tipos sugeridos para o que se está a escrever (/api/sugerir)
+#   tk, tp            o tipo aberto na escolha e os produtos dele (/api/tipo);  fe, fm, tq  o tamanho, a marca
+#                     («branca»: a marca própria) e a quantidade escolhidos
 #   entrar            um código de casa vindo de um link (?casa=…);  url  o endereço da app (para o convite)
 # GLOBAIS: 1 separador (0 lista, 1 mais barato, 2 casa)  3 um pedido de mudanças em curso  5 o campo «juntar»
 #   (texto fixo, 400 bytes)  6 o campo do código (40 bytes)  7 o relógio  8 a última ida à rede falhou
 #   9 a registar o aparelho  10 a entrar numa casa  11 12 contadores para os campos voltarem vazios  13 o relógio do aviso
+#   14 o relógio da sugestão (espera que se pare de escrever)
 
 # ---------- textos ----------
 : minb i>i c ? && >= c 'A <= c 'Z + c 32 c
@@ -72,6 +79,7 @@
   Se int m.esgotado `,"esgotado":1`
   Se m.visto `,"visto":{ pjs txt m.visto }`
   Se m.uc `,"uc":{ N int m.uc },"ub":{ pjs txt m.ub }`
+  Se int m.pr `,"pr":1`
   `\}` }
 : pitem iiiiii>i c qq ff pc pn sep {
   Se sep P 44
@@ -242,11 +250,12 @@
 # os supermercados com produto escolhido, com o preço para a quantidade («Continente 2,85 € · Lidl 2,55 €»)
 : escolhas i>i c {
   = s 0
-  L k 4 Se _ar_get c.p cadeia k {
+  L k 4 { = m _ar_get c.p cadeia k Se m {
     Se s ` · `
     crut nomecad k
+    Se int m.pr ` 🏷`
     = p pc c k Se >= p 0 ` { eur p }`
-    = s 1 }
+    = s 1 } }
   Se ~ s `Toca para escolher os produtos` }
 # o texto para partilhar no WhatsApp (já no formato de um endereço)
 : partilha i>i its {
@@ -275,6 +284,7 @@
   `<section class="lista">`
   `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="O que falta? (ex.: 2 leites, pão, ovos)" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
   `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
+  `<div id="sug">` psug `</div>`
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
   ? == n 0 `<p class="vazio">A lista está vazia. Escreve o que falta em casa, separado por vírgulas.</p>` {
     Se >= lj 0 {
@@ -413,9 +423,10 @@
     { ? @ 8 `<p class="nota">Sem ligação.</p>` `<p class="nota">A procurar…</p>` 0 }
   `</div>` }
 : dfolha >i {
-  = h _ht_ini 12000
+  = h _ht_ini + 12000 ? _an_ler $"tp" * 2 _tx_len _an_ler $"tp" 0
   = c item_aberto
-  Se c {
+  Se _an_ler $"tk" dtipo
+  Se && ~ _an_ler $"tk" c {
     `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }">`
     `<h2>{ esc c.t }</h2>`
     `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
@@ -447,12 +458,108 @@
     = a d }
   Se < a b faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs_sub t a b },"q":{ N q }\}`
   0 }
+# ---------- escrever e encontrar (volta 5) ----------
+# há separadores no que se escreveu? (então são várias coisas, e não se sugere)
+: tem_sep i>i t { = n _tx_len t = r 0 L j n Se sep t j n = r 1 r }
+# os tipos sugeridos, para o que está no campo (sem a casca: dentro da lista e sozinho em #sug)
+: psug >i {
+  = t @ 5
+  = s ? && > _tx_len t 1 ~ tem_sep t _ar_json _an_ler $"sug" 0
+  Se && s pri s.tipos {
+    `<div class="sug" role="list">`
+    = x pri s.tipos = i 0
+    W && x < i 6 { `<button class="chip" data-onda="tipo:{ N i }">{ esc x.nome }</button>` = x seg x = i + i 1 }
+    `</div>` } }
+: dsug >i { = h _ht_ini 3000 psug _ht_muda $"#sug" h }
+# espera que se pare de escrever (300 ms) e pergunta os tipos
+: agenda >i { Se @ 14 _an_parar @ 14 ! 14 _an_relogio 300 $"sugere" }
+: sugere i>i z {
+  = m _me_marca
+  _an_parar @ 14 ! 14 0
+  = t @ 5
+  ? && > _tx_len t 1 ~ tem_sep t { _an_buscar texto`/api/sugerir?q={ _tx_uri t }` $"lido_sug" 0 } { _an_gravar $"sug" 0 dsug 0 }
+  _me_solta m }
+: lido_sug ii>i t estado {
+  Se == estado 200 { _an_gravar $"sug" t dsug }
+  _me_solta t }
+: lido_tipo ii>i t estado {
+  Se && == estado 200 _an_ler $"tk" { _an_gravar $"tp" t dfolha }
+  _me_solta t }
+# passa nos filtros? fe o tamanho, fm a marca («branca»: a marca própria)
+: passa iii>i p fe fm && || ~ fe mesmo txt p.emb fe || ~ fm ? mesmo fm $"branca" int p.pr mesmo txt p.mk fm
+# o mais barato (por unidade de medida; a lista vem já por essa ordem) do tipo no supermercado k, ou 0
+: melhor_em iiii>i tp k fe fm {
+  = r 0 = p pri tp.produtos
+  W && p ~ r { Se && mesmo txt p.c cadeia k passa p fe fm = r p = p seg p }
+  r }
+: dtipo >i {
+  = tp _ar_json _an_ler $"tp"
+  = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
+  `<div class="veu" data-onda="fechat:0"></div><div class="cartao escolha" role="dialog" aria-label="Escolher o produto">`
+  ? tp {
+      `<h2>{ esc tp.nome }</h2>`
+      `<div class="qtd"><button class="botao fraco" data-onda="tmenos:0" aria-label="Menos">−</button><b>{ ? tq crut tq `1` }</b><button class="botao fraco" data-onda="tmais:0" aria-label="Mais">+</button></div>`
+      Se pri tp.tamanhos {
+        `<h3>Tamanho</h3><div class="chips"><button class="chip{ Se ~ fe ` on` }" data-onda="fe:99">Todos</button>`
+        = e pri tp.tamanhos = i 0
+        W e { `<button class="chip{ Se && fe mesmo fe txt e.e ` on` }" data-onda="fe:{ N i }">{ esc e.e }</button>` = e seg e = i + i 1 }
+        `</div>` }
+      `<h3>Marca</h3><div class="chips"><button class="chip{ Se ~ fm ` on` }" data-onda="fm:99">Qualquer</button>`
+      Se int tp.brancas `<button class="chip{ Se && fm mesmo fm $"branca" ` on` }" data-onda="fm:98">🏷 Marca branca</button>`
+      = x pri tp.marcas = i 0
+      W x { `<button class="chip{ Se && fm mesmo fm txt x.m ` on` }" data-onda="fm:{ N i }">{ esc x.m }</button>` = x seg x = i + i 1 }
+      `</div><h3>O mais barato em cada supermercado</h3><ul class="melhores">`
+      # o mais barato de todos (por unidade de medida): fica marcado
+      = mu -1
+      L k 3 { = p melhor_em tp k fe fm Se && p p.uc Se || < mu 0 < int p.uc mu = mu int p.uc }
+      L k 3 {
+        = p melhor_em tp k fe fm
+        ? p {
+            `<li{ Se && p.uc == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
+            `<small>{ esc p.nome }{ Se p.emb ` · { esc p.emb }` }{ Se p.uc ` · { eur int p.uc }/{ crut txt p.ub }` }</small></li>` 0 }
+          { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }
+      `</ul><div class="acoes"><button class="botao fraco" data-onda="fechat:0">Fechar</button><button class="botao" data-onda="juntat:0">Juntar à lista</button></div>`
+      0 }
+    `<p class="nota">A procurar…</p>`
+  `</div>` }
+: fecha_tipo >i { _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fm" 0 _an_gravar $"tq" 0 }
+: abre_tipo i>i v {
+  = s _ar_json _an_ler $"sug"
+  = x ? s idx s.tipos v 0
+  Se x {
+    fecha_tipo
+    _an_gravar $"tk" txt x.k
+    _an_buscar texto`/api/tipo?k={ _tx_uri txt x.k }` $"lido_tipo" }
+  0 }
+# um botão de tamanho (fe) ou de marca (fm): 99 tira o filtro, 98 é a marca branca
+: filtro ii>i qual v {
+  = tp _ar_json _an_ler $"tp"
+  Se tp {
+    ? == qual 0
+      { ? == v 99 _an_gravar $"fe" 0 { = e idx tp.tamanhos v Se e _an_gravar $"fe" txt e.e 0 } 0 }
+      { ? == v 99 _an_gravar $"fm" 0 ? == v 98 _an_gravar $"fm" $"branca" { = x idx tp.marcas v Se x _an_gravar $"fm" txt x.m 0 } 0 } }
+  0 }
+: tq_muda i>i d { = q _an_ler $"tq" = n Mx 1 Mn 99 + ? q _tx_int q 1 d _an_gravar $"tq" texto`{ N n }` 0 }
+# juntar à lista a coisa escolhida, já com o produto de cada supermercado
+: juntat >i {
+  = tp _ar_json _an_ler $"tp"
+  Se tp {
+    = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
+    = id texto`{ novoid }`
+    = nome texto`{ crut txt tp.nome }{ Se fe ` { crut fe }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
+    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 }\}`
+    L k 3 { = p melhor_em tp k fe fm Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }","p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
+    fecha_tipo
+    _an_gravar $"sug" 0
+    ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
+  0 }
+
 : juntar >i {
   = t @ 5 = n _tx_len t = ini 0 = j 0
   W <= j n {
     = s ? == j n 1 sep t j n
     ? s { pedaco t ini j = ini + j s = j ini } = j + j 1 }
-  Se > n 0 { ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
+  Se > n 0 { ! @ 5 + @ 5 1 ! 11 + @ 11 1 _an_gravar $"sug" 0 }
   0 }
 : escolhe i>i v {
   = k / v 100 = j % v 100
@@ -479,12 +586,19 @@
   Se eacao t $"entrar" Se _tx_len @ 6 entrar @ 6
   Se eacao t $"registar" registar
   Se eacao t $"loja" { _an_gravar $"loja" ? < v 4 cadeia v 0 ! 1 0 _an_rolar 0 }
+  Se eacao t $"tipo" abre_tipo v
+  Se eacao t $"fe" filtro 0 v
+  Se eacao t $"fm" filtro 1 v
+  Se eacao t $"tmais" tq_muda 1
+  Se eacao t $"tmenos" tq_muda -1
+  Se eacao t $"juntat" juntat
+  Se eacao t $"fechat" fecha_tipo
   desenha
   _me_solta t }
 : escreve i>i t {
   = nome _tx_campo t 0 9
   = v _tx_campo t 1 9
-  Se mesmo nome $"junta" fixa @ 5 v 400
+  Se mesmo nome $"junta" { fixa @ 5 v 400 agenda }
   Se mesmo nome $"codigo" fixa @ 6 v 40
   _me_solta t }
 : main >i {
