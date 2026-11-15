@@ -149,3 +149,31 @@ test('a saúde da base: por cadeia, as páginas lidas e a falhar, o preço mais 
     const curta = await saudeCurta(db, agora);
     assert.deepEqual(curta.cadeias.find((c) => c.cadeia === 'continente'), { cadeia: 'continente', ultimo_preco: '2026-11-15T11:30:00Z', estado: 'ok', ha: 30 });
 });
+
+test('a zona do Continente: o código postal dá a loja online; os produtos da lista esgotados nela ficam esgotados «na tua zona»', async () => {
+    const { stockZonas, zonaContinente } = await import('../proxy/src/zona.js');
+    const { juntarPrecos } = await import('../proxy/src/precos.js');
+    const { d1 } = await import('./d1.mjs');
+    const { readFileSync } = await import('node:fs');
+    const pagina = readFileSync(new URL('./fontes/continente-leite-mimosa.html', import.meta.url), 'utf8');
+    const antes = globalThis.fetch;
+    const pedidos = [];
+    globalThis.fetch = async (u, o = {}) => {
+        pedidos.push([String(u), o.method ?? 'GET', o.headers?.cookie ?? '']);
+        if (String(u).includes('Stores-GetCoverageArea')) return new Response(JSON.stringify({ error: false, data: { storeId: 940, physicalStoreId: 940, storeID: 940, areaID: 5, name: 'Valongo - WEB - Zn 2' } }), { headers: { 'set-cookie': 'dwsid=abc; Path=/' } });
+        if (String(u).includes('Stores-SetStoreContext')) return new Response('{}', { headers: { 'set-cookie': 'sid=xyz; Path=/' } });
+        return new Response(pagina.replace(/InStock/g, 'OutOfStock'), { status: 200 });
+    };
+    try {
+        assert.equal(await zonaContinente('4780'), null); // só códigos postais completos
+        const db = d1();
+        const itens = [{ id: 'l', t: 'Leite', q: 1, f: 0, p: { continente: { id: '2210946', nome: 'Leite', url: 'https://www.continente.pt/produto/leite-2210946.html' } } }];
+        db.sql.prepare("INSERT INTO casa (id, codigo, versao, itens, cp, criada) VALUES ('c1', 'ABCD', 1, ?, '4780-521', '2026-11-15')").run(JSON.stringify(itens));
+        const r = await stockZonas(db, new Date('2026-11-15T12:50:00Z'));
+        assert.deepEqual([r.n, r.esgotados], [1, 1]);
+        // a sessão leva os cookies da zona até à página do produto
+        assert.match(pedidos.at(-1)[2], /dwsid=abc; sid=xyz/);
+        const l = await juntarPrecos(db, { itens }, 'c1');
+        assert.deepEqual([l.itens[0].p.continente.esgotado, l.itens[0].p.continente.ez], [1, 1]);
+    } finally { globalThis.fetch = antes; }
+});

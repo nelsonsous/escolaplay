@@ -160,7 +160,9 @@ export async function juntarPrecos(db, lista0, casa = null) {
     const est = await estimativas(db, lista.itens);
     // os talões da casa passam à frente das estimativas (o preço que se pagou na Mercadona e no SPAR)
     const reais = casa ? await reaisDaCasa(db, casa, lista.itens.filter((i) => i.e?.k).map((i) => i.e.k)) : new Map();
-    if (!m.size && !est.size && !reais.size) return lista;
+    // o stock na zona da casa (zona.js): os esgotados na zona contam como esgotados (ez: «na tua zona»)
+    const zona = casa ? new Set((await db.prepare("SELECT cadeia, id FROM zona_stock WHERE casa = ? AND disponivel = 0").bind(casa).all()).results.map((r) => r.cadeia + ' ' + r.id)) : new Set();
+    if (!m.size && !est.size && !reais.size && !zona.size) return lista;
     return {
         ...lista,
         itens: lista.itens.map((i) => {
@@ -174,11 +176,13 @@ export async function juntarPrecos(db, lista0, casa = null) {
                 ...(r?.spar ? { ests: r.spar.cent, estsr: r.spar.dia } : {}),
                 p: Object.fromEntries(Object.entries(i.p).map(([c, p]) => {
                     const r = m.get(c + ' ' + p.id);
-                    if (!r || r.cent == null) return [c, p];
+                    const ez = zona.has(c + ' ' + p.id) ? { esgotado: 1, ez: 1 } : {};
+                    if (!r || r.cent == null) return [c, { ...p, ...ez }];
                     const x = { ...p, cent: Number(r.cent) };
                     if (r.antes != null) x.antes = Number(r.antes);
                     if (r.unid) x.unid = r.unid;
                     if (r.esgotado) x.esgotado = 1;
+                    Object.assign(x, ez);
                     if (r.visto) x.visto = r.visto.slice(0, 10);
                     if (r.uc != null && r.ub) { x.uc = Number(r.uc); x.ub = r.ub; }
                     if (r.propria) x.pr = 1;
