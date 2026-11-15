@@ -56,7 +56,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.51.1';
+export const VERSION = '0.52.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -315,7 +315,7 @@ async function api(request, env, url) {
         let cadeias = lista('cadeias');
         if (!cadeias.length) cadeias = (await casaDe(db, ap)).lojas?.cadeias ?? [];
         return json(await cabazDeNatal(db, { modo: url.searchParams.get('modo') ?? 'equilibrio', cadeias,
-            teto: Number(url.searchParams.get('teto')) || null, partes: lista('partes') }));
+            teto: Number(url.searchParams.get('teto')) || null, partes: lista('partes') }, new Date(), env.KV));
     }
     if (caminho === '/api/seccao' && metodo === 'GET') {
         const sx = Number(url.searchParams.get('s'));

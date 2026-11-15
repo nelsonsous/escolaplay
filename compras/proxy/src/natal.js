@@ -119,21 +119,35 @@ export function caberNoTeto(partes, teto) {
 }
 
 // GET /api/natal?modo=&cadeias=a,b&teto=60&partes=bacalhau,porto
-export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, teto = null, partes = null } = {}, agora = new Date()) {
+// as linhas candidatas guardam-se 6 horas na KV (por partes): a procura pelos nomes (LIKE) lê a tabela preco inteira,
+// e o Cabaz abria-se muitas vezes (4 milhões de linhas lidas num dia, o limite grátis da D1 é 5 milhões)
+const GUARDA_NATAL = 6 * 3600;
+export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, teto = null, partes = null } = {}, agora = new Date(), kv = null) {
     if (!MODOS.includes(modo)) modo = 'equilibrio';
     const ps = PARTES.filter((p) => !partes?.length || partes.includes(p.k));
     const tipos = [...new Set(ps.flatMap((p) => p.tipos))];
     const likes = [...new Set(ps.flatMap((p) => p.like ?? []))];
     const desde = new Date(agora.getTime() - 10 * DIA).toISOString();
-    const [cat, prod] = await db.batch([
-        db.prepare(`SELECT cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, tipo, propria FROM preco
-            WHERE cent IS NOT NULL AND suspeito IS NULL AND visto > ?1
-              AND (tipo IN (SELECT value FROM json_each(?2)) OR EXISTS (SELECT 1 FROM json_each(?3) WHERE lower(preco.nome) LIKE value))
-            LIMIT 3000`).bind(desde, JSON.stringify(tipos), JSON.stringify(likes)),
-        db.prepare(`SELECT loja AS cadeia, id, url, nome || CASE WHEN variante IS NOT NULL THEN ' ' || variante ELSE '' END AS nome,
-                cent, emb, uc, ub, tipo FROM produtor_artigo
-            WHERE disponivel = 1 AND cent IS NOT NULL AND tipo IN (SELECT value FROM json_each(?1))`).bind(JSON.stringify(tipos)),
-    ]);
+    const chave = `natal:linhas:${ps.map((p) => p.k).sort().join(',')}`;
+    let guardado = null;
+    try { guardado = kv ? await kv.get(chave, 'json') : null; } catch { guardado = null; }
+    let cat, prod;
+    if (guardado) ({ cat, prod } = guardado);
+    else {
+        // os do tipo pelo índice (preco_tipo); os de nome (LIKE) numa só passagem pela tabela, com as condições juntas
+        const porNome = likes.length ? `UNION SELECT cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, tipo, propria FROM preco
+            WHERE cent IS NOT NULL AND suspeito IS NULL AND visto > ?1 AND (${likes.map((_, i) => `lower(nome) LIKE ?${i + 3}`).join(' OR ')})` : '';
+        const [a, b] = await db.batch([
+            db.prepare(`SELECT cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, tipo, propria FROM preco
+                WHERE tipo IN (SELECT value FROM json_each(?2)) AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?1
+                ${porNome} LIMIT 3000`).bind(desde, JSON.stringify(tipos), ...likes),
+            db.prepare(`SELECT loja AS cadeia, id, url, nome || CASE WHEN variante IS NOT NULL THEN ' ' || variante ELSE '' END AS nome,
+                    cent, emb, uc, ub, tipo FROM produtor_artigo
+                WHERE disponivel = 1 AND cent IS NOT NULL AND tipo IN (SELECT value FROM json_each(?1))`).bind(JSON.stringify(tipos)),
+        ]);
+        cat = { results: a.results ?? [] }; prod = { results: b.results ?? [] };
+        try { if (kv) await kv.put(chave, JSON.stringify({ cat, prod }), { expirationTtl: GUARDA_NATAL }); } catch { /* sem guardar */ }
+    }
     for (const r of cat.results ?? []) { const pc = pecaAoPeso(r); if (pc) Object.assign(r, pc); }
     const todos = [...(cat.results ?? []), ...(prod.results ?? []).map((r) => ({ ...r, produtor: 1 }))]
         .filter((r) => !cadeias?.length || r.produtor || cadeias.includes(r.cadeia));

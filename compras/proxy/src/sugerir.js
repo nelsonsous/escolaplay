@@ -327,6 +327,8 @@ export const PORTES = {
     riberalves: { cent: 0, gratis: 0, nota: 'encomenda mínima 50 €, só algumas zonas' },
     // o Vinha (perguntas frequentes da loja): 4,99 € até 70 €, grátis acima (Portugal continental, 3 a 5 dias úteis)
     vinha: { cent: 499, gratis: 7000, nota: 'grátis acima de 70 € (Portugal continental)' },
+    // a Garrafeira Soares (página do produto): grátis a partir de 49,99 €; abaixo, o custo só aparece no checkout
+    soares: { cent: null, gratis: 4999, nota: 'grátis a partir de 49,99 €; abaixo, vê-se no checkout' },
 };
 // o produto da mesma marca (a loja) num supermercado, com o mesmo calibre e a mesma origem: { c, uc, ub, nome }
 // a linha do produto (a «Seleção do Chef Diogo Rocha», a gourmet): o artigo de linha só se compara com o da mesma

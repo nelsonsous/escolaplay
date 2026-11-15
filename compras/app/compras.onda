@@ -1155,7 +1155,7 @@
   0 }
 # as lojas online de produtores (a Lugrade…): à parte das cadeias, com os mesmos filtros (espécie, origem, corte),
 # o preço por quilo e o que se paga; compra-se no site deles (com portes)
-: nomeprod i>i l ? mesmo l $"lugrade" $"Lugrade" ? mesmo l $"riberalves" $"Riberalves" ? mesmo l $"vinha" $"Vinha" l
+: nomeprod i>i l ? mesmo l $"lugrade" $"Lugrade" ? mesmo l $"riberalves" $"Riberalves" ? mesmo l $"vinha" $"Vinha" ? mesmo l $"soares" $"Garrafeira Soares" l
 : dprodutores ii>i tp mu {
   # só os que passam nos filtros (a espécie, a origem, o calibre, o corte); 3 de cada vez, os mais baratos por quilo
   # (ou, no vinho, os mais bem cotados), e o resto num botão («pdt»: todos)

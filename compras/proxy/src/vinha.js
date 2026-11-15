@@ -4,11 +4,13 @@
 // vendem nos supermercados: o preço vai para produtor_artigo (a loja «vinha»), as notas dos críticos para vinho_nota.
 import { palavras } from './sugerir.js';
 
-// o tipo pelo início do endereço («/vinho/vinho-tinto-…»)
-const TIPOS = [['vinho-tinto-', 'vinho-tinto'], ['vinho-branco-', 'vinho-branco'], ['vinho-rose-', 'vinho-rose'],
-    ['vinho-do-porto-', 'vinho-do-porto'], ['espumante-', 'espumante']];
+// o tipo pelo início do nome no endereço («/vinho/vinho-tinto-…» no Vinha, «/vinhos/vinho-tinto-…» na Soares; o vinho
+// verde conta como branco, como nos supermercados; «porto-…» é vinho do Porto)
+const TIPOS = [['vinho-tinto-', 'vinho-tinto'], ['vinho-branco-', 'vinho-branco'], ['vinho-verde-', 'vinho-branco'], ['vinho-rose-', 'vinho-rose'],
+    ['vinho-do-porto-', 'vinho-do-porto'], ['porto-', 'vinho-do-porto'], ['espumante-', 'espumante']];
+export const slugDe = (url) => String(url).replace(/\/(item_\d+\.html)?$/, '').split('/').pop() ?? '';
 export const tipoDoSlug = (url) => {
-    const s = String(url).split('/vinho/')[1] ?? '';
+    const s = slugDe(url);
     return TIPOS.find(([p]) => s.startsWith(p))?.[1] ?? null;
 };
 
@@ -41,6 +43,37 @@ export function premiosDoTexto(t) {
         r.push({ fonte, tipo: pts && CRITICOS.test(fonte) ? 'critico' : 'concurso', valor, colheita: ano ? Number(ano) : null });
     }
     return r;
+}
+
+// o produto nos dados da página (JSON-LD, Product solto ou dentro de @graph): { nome, sku, ean, cent, disponivel, p }
+export function produtoJsonLd(h) {
+    let p = null;
+    for (const m of String(h).matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)) {
+        try {
+            const j = JSON.parse(m[1]);
+            p = [].concat(j['@graph'] ?? j).find((g) => g?.['@type'] === 'Product') ?? p;
+        } catch { /* outro bloco */ }
+    }
+    if (!p) return null;
+    const of = [].concat(p.offers ?? [])[0];
+    const preco = Number([].concat(of?.priceSpecification ?? [])[0]?.price ?? of?.price);
+    if (!(preco > 0)) return null;
+    return { nome: html(p.name), sku: p.sku ?? p.productID ?? null, ean: p.gtin13 ?? p.gtin ?? null, cent: Math.round(preco * 100),
+        disponivel: /InStock/i.test(of?.availability ?? '') ? 1 : 0, p };
+}
+// o tamanho em cl pelo nome («75cl», «75 Cl», «1,5 L»)
+export function clDoNome(nome) {
+    const c = String(nome).match(/(\d+(?:[.,]\d+)?)\s*cl\b/i), l = String(nome).match(/(\d+(?:[.,]\d+)?)\s*l\b/i);
+    return c ? Number(c[1].replace(',', '.')) : l ? Math.round(Number(l[1].replace(',', '.')) * 100) : null;
+}
+// uma página de vinho da Garrafeira Soares → { id, nome, url, tipo, cent, cl, ean, disponivel } ou null (o preço e o EAN nos
+// dados da página; as avaliações dos clientes são poucas e não contam)
+export function lerSoares(h, url) {
+    const x = produtoJsonLd(h);
+    if (!x) return null;
+    return { id: String(x.sku ?? url.match(/item_(\d+)/)?.[1]), nome: x.nome.replace(/\s+\d+(?:[.,]\d+)?\s*c?l$/i, '').trim(), nomeCompleto: x.nome, url,
+        tipo: tipoDoSlug(url), cent: x.cent, cl: clDoNome(x.nome) ?? (x.p.size ? Math.round(parseFloat(x.p.size) * 100) : null), colheita: null, ean: x.ean,
+        disponivel: x.disponivel, vivino: null, votos: null, fontes: [] };
 }
 
 // uma página de vinho → { id, nome, url, tipo, cent, cl, ean, disponivel, vivino, votos, fontes } ou null
