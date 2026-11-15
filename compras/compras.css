@@ -138,3 +138,6 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .cartao .fechar { position: sticky; top: 0; float: right; z-index: 2; width: 44px; height: 44px; margin: -8px -6px 0 8px; border-radius: 50%; background: #2a2a2a; color: var(--texto); font-size: 18px; }
 .melhores .total i { font-style: normal; font-weight: 400; font-size: 14px; color: var(--fraco); }
 .melhores small .emb { color: var(--texto); font-weight: 600; }
+.sug .sec-c { border-color: #3a5bd9; color: #9db4ff; }
+.sug .volta { color: var(--fraco); }
+.sug .sec-n { align-self: center; color: var(--fraco); font-size: 14px; text-transform: uppercase; letter-spacing: .5px; }

@@ -64,7 +64,7 @@
     },
     {
       "k": "pao-de-forma",
-      "nome": "Pão de forma",
+      "nome": "Pão de forma e embalado",
       "continente": [
         "padaria-e-pastelaria/pao-de-forma-e-embalado"
       ],
@@ -620,6 +620,56 @@
       ],
       "pingodoce": [
         "talho/borrego-cabrito-e-coelho"
+      ]
+    },
+    {
+      "k": "pao-do-dia",
+      "nome": "Pão do dia e broa",
+      "continente": [
+        "padaria-e-pastelaria/pao-do-dia-e-broa"
+      ],
+      "auchan": [
+        "produtos-frescos/padaria/pao-fresco-e-broa",
+        "produtos-frescos/padaria/pao-com-chourico-e-especialidades"
+      ],
+      "pingodoce": [
+        "padaria-e-pastelaria/pao-da-nossa-padaria/pao-pequeno",
+        "padaria-e-pastelaria/pao-da-nossa-padaria/pao-familiar"
+      ]
+    },
+    {
+      "k": "pao-hamburguer",
+      "nome": "Pão de hambúrguer e cachorro",
+      "continente": [
+        "padaria-e-pastelaria/pao-de-hamburguer-e-cachorro",
+        "padaria-e-pastelaria/wraps-e-tortilhas"
+      ],
+      "pingodoce": [
+        "padaria-e-pastelaria/pao-embalado/pao-de-hamburguer-hot-dog-e-wraps"
+      ]
+    },
+    {
+      "k": "croissants",
+      "nome": "Croissants e pães de leite",
+      "continente": [
+        "padaria-e-pastelaria/croissants-e-paes-de-leite"
+      ],
+      "auchan": [
+        "alimentacao/mercearia/bolachas-e-bolos/croissants-e-paes-de-leite"
+      ]
+    },
+    {
+      "k": "tostas",
+      "nome": "Tostas e gressinos",
+      "continente": [
+        "padaria-e-pastelaria/tostas-e-gressinos"
+      ],
+      "auchan": [
+        "produtos-frescos/padaria/tostas-gressinos-e-croutons",
+        "alimentacao/mercearia/tostas-e-pao-embalado/tostas-mini-tostas-e-gressinos"
+      ],
+      "pingodoce": [
+        "bolachas-cereais-e-guloseimas/bolachas-e-biscoitos/tostas-gressinos-e-croutons"
       ]
     }
   ]

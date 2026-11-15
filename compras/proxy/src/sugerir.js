@@ -3,6 +3,7 @@
 // produtos desse tipo nas cadeias (os do catálogo, lidos há menos de 10 dias), com os tamanhos e as marcas que há,
 // para a app afinar (botões) e escolher o mais barato de cada cadeia.
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
+import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 
 const HORA = 3600e3;
 const TIPOS = { lista: null, quando: 0 };
@@ -22,7 +23,7 @@ export const palavras = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]
 async function tipos(db) {
     if (TIPOS.lista && Date.now() - TIPOS.quando < HORA) return TIPOS.lista;
     const { results } = await db.prepare('SELECT k, nome, n, casa FROM tipo WHERE n > 0').all();
-    TIPOS.lista = results.map((t) => ({ ...t, w: palavras(t.nome + ' ' + t.k.replace(/-/g, ' ')) }));
+    TIPOS.lista = results.map((t) => ({ ...t, w: palavras(t.nome + ' ' + t.k.replace(/-/g, ' ')), s: seccaoDoTipo(t) }));
     TIPOS.quando = Date.now();
     return TIPOS.lista;
 }
@@ -43,17 +44,43 @@ export async function sugerir(db, q, max = 8) {
         const { results } = await db.prepare(`SELECT tipo, count(*) AS n FROM preco WHERE tipo IS NOT NULL AND cent IS NOT NULL
             AND ${ws.map(() => 'nome LIKE ?').join(' AND ')} GROUP BY tipo ORDER BY n DESC LIMIT ?`).bind(...ws.map((w) => `%${w}%`), max).all();
         const porK = new Map((await tipos(db)).map((t) => [t.k, t]));
-        for (const r of results) {
+        // só os tipos onde a palavra é comum (um produto solto noutro tipo é ruído: «farinha» com «carne»)
+        const topo = Math.max(...results.map((r) => Number(r.n)), 0);
+        for (const r of results.filter((r) => Number(r.n) >= Math.max(2, topo * 0.2))) {
             const t = porK.get(r.tipo);
             if (t && !bons.some((b) => b.k === t.k)) bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: -1e6 + Number(r.n), w: ws.join(' ') });
         }
     }
-    return bons.sort((a, b) => b.pontos - a.pontos).slice(0, max).map(({ pontos, ...t }) => t);
+    // mais de uma palavra sem tipo que as tenha todas («pão milho»): o tipo pela primeira e as outras como variante
+    if (!bons.length && ws.length > 1) {
+        const resto = ws.slice(1).join(' ');
+        for (const t of (await tipos(db)).filter((t) => t.w.some((x) => x.startsWith(ws[0])))) {
+            const r = await db.prepare(`SELECT count(*) AS n FROM preco WHERE tipo = ? AND cent IS NOT NULL AND ${ws.slice(1).map(() => 'nome LIKE ?').join(' AND ')}`)
+                .bind(t.k, ...ws.slice(1).map((w) => `%${w}%`)).first();
+            if (Number(r?.n)) bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: Number(r.n), w: resto });
+        }
+    }
+    // a secção primeiro, quando o que se escreveu é o nome dela ou a maior parte dos tipos encontrados é dela
+    // um nome repetido (um tipo da casa e um cruzado com o mesmo nome) aparece uma vez
+    const nomes = new Set();
+    const out = bons.sort((a, b) => b.pontos - a.pontos).filter((t) => !nomes.has(t.nome) && nomes.add(t.nome)).slice(0, max).map(({ pontos, ...t }) => t);
+    const porK = new Map((await tipos(db)).map((t) => [t.k, t.s]));
+    for (const t of out) t.s = porK.get(t.k);
+    const secs = new Set(ws.length === 1 ? seccoesPorNome(ws[0]) : []);
+    const conta = new Map();
+    for (const t of out) if (!t.w) conta.set(t.s, (conta.get(t.s) ?? 0) + 1); // os achados pelo nome não contam
+    for (const [sx, n] of conta) if (n >= 2 && sx !== 11) secs.add(sx);
+    return [...[...secs].map((sx) => ({ sec: sx, nome: nomeSeccao(sx) })), ...out];
+}
+
+// os tipos de uma secção (os que têm produtos), os com mais produtos primeiro
+export async function tiposDaSeccao(db, sx) {
+    return (await tipos(db)).filter((t) => t.s === sx).sort((a, b) => b.n - a.n).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: t.s }));
 }
 
 // as palavras que distinguem os produtos de um tipo («picada», «bife», «estufar», «meio gordo»…): as mais comuns nos
 // nomes, sem as do tipo, as das marcas e as das medidas, que apareçam em pelo menos dois produtos
-const FORA = new Set(['com', 'sem', 'para', 'emb', 'embalagem', 'pack', 'kg', 'gr', 'lt', 'unid', 'cada', 'aprox', 'continente', 'pingo', 'doce', 'auchan', 'polegar', 'marca']);
+const FORA = new Set(['producao', 'propria', 'com', 'sem', 'para', 'emb', 'embalagem', 'pack', 'kg', 'gr', 'lt', 'unid', 'cada', 'aprox', 'continente', 'pingo', 'doce', 'auchan', 'polegar', 'marca']);
 export function palavrasDoTipo(k, produtos, max = 10) {
     const doTipo = new Set(palavras(k.replace(/-/g, ' ')));
     const marcas = new Set(produtos.flatMap((p) => palavras(p.mk ?? '')));
