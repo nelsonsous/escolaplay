@@ -402,6 +402,12 @@ test('as lojas de produtores: os portes (grátis acima de 100 € na Lugrade) e 
     const sel = 'Seleção Diogo Rocha Especial Islândia (islandia · 3.25 a 3.5kg)';
     assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Especial Islândia', 'bacalhau'), 'bacalhau', sel).uc, 3499);
     assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Especial Islândia', 'bacalhau'), 'bacalhau', 'Especial (islandia · 3.25 a 3.5kg)'), null);
+    // com pesos, compara-se a peça do mesmo peso, seja qual for o nome do calibre: a Seleção «Especial» do Continente
+    // tem ≈ 3 kg, que é a «Graúdo» de 2,6 a 3 kg da Lugrade, e não a «Especial» de 3,25 a 3,5 kg
+    const pc = [{ c: 'continente', nome: 'Bacalhau Especial Islândia Seco Seleção do Chef Diogo Rocha Lugrade', uc: 3499, ub: 'kg', emb: '3 kg' }];
+    assert.equal(mesmaMarca(pc, 'lugrade', etiquetas('Bacalhau Seleção Diogo Rocha Especial Islândia', 'bacalhau'), 'bacalhau', 'Seleção Diogo Rocha Especial Islândia (islandia · 3.25 a 3.5kg)'), null);
+    const gr = mesmaMarca(pc, 'lugrade', etiquetas('Bacalhau Seleção Diogo Rocha Graúdo Islândia', 'bacalhau'), 'bacalhau', 'Seleção Diogo Rocha Graúdo Islândia (islandia · 2.6kg a 3kg)');
+    assert.deepEqual([gr.uc, gr.kg], [3499, '3']);
     assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Graúdo Noruega', 'bacalhau'), 'bacalhau').uc, 2599);
     assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Crescido Noruega', 'bacalhau'), 'bacalhau'), null);
 });

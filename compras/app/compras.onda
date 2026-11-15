@@ -1087,7 +1087,7 @@
       `<small><b class="emb">Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }{ Se x.po { ? int x.po ` + { eur int x.po } de portes` ` · sem portes` } }</b>{ Se && x.uc > mu 0 { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por quilo` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por quilo` } } · { esc x.nome }</small>`
       dsinais x
       Se x.pn `<small class="mesmo">Portes: { esc x.pn }</small>`
-      Se x.mc `<small class="mesmo">A mesma marca no { crut nomec txt x.mc.c }: <b>{ eur int x.mc.uc }/kg</b>{ ? < int x.mc.uc int x.uc ` (mais barato lá)` ` (mais caro lá)` }</small>`
+      Se x.mc `<small class="mesmo">A mesma marca no { crut nomec txt x.mc.c }{ Se x.mc.kg `, peça de ≈ { esc txt x.mc.kg } kg` }: <b>{ eur int x.mc.uc }/kg</b>{ ? < int x.mc.uc int x.uc ` (mais barato lá)` ` (mais caro lá)` }</small>`
       `<a class="mais-op" href="{ esc x.url }" target="_blank" rel="noopener">Ver no site ↗</a></li>`
       = n + n 1 }
     = x seg x }
