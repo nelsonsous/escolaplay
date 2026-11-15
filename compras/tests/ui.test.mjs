@@ -634,6 +634,9 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
     ins('continente', 'v1', 'Papa Figos Douro Vinho Tinto Seleção', 699); ins('continente', 'v2', 'Monte Velho Alentejo Vinho Tinto Seleção', 449);
     ins('auchan', 'v3', 'VINHO TINTO DOURO RESERVA 0.75L', 899); ins('auchan', 'v4', 'VINHO TINTO ALENTEJO RESERVA 0.75L', 599);
     ins('pingodoce', 'v5', 'Vinho Tinto Douro Esteva', 599); ins('pingodoce', 'v6', 'Vinho Tinto Alentejo Pingo Doce', 299);
+    // a nota dos críticos (economo/notas.mjs): o Papa Figos tem 88
+    s.env.DB.sql.prepare(`INSERT INTO vinho_nota (palavras, fora, nome, nota, n, resumo, fontes, visto)
+        VALUES ('papa figos tinto', '', 'Papa Figos tinto', 88, 2, 'Revista de Vinhos 16/20', '[]', ?)`).run(agora);
     esquecerTipos();
     const br = await pw.chromium.launch();
     try {
@@ -647,11 +650,14 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         await a.click('#sug .chip:has-text("Vinho tinto")');
         await a.waitForSelector('#folha .escolha h2:has-text("Vinho tinto")');
         assert.deepEqual(await a.locator('#folha .escolha h3').allTextContents().then((h) => h.filter((t) => /Região|Gama|Variante/.test(t))), ['Região', 'Gama']);
-        // as melhores compras pelo rótulo, sem filtro: o Seleção mais barato, depois o Reserva (e quanto custa a mais)
+        // as melhores compras, sem filtro: o Reserva mais barato pelo rótulo («Seleção» é marketing: não conta),
+        // depois o Papa Figos pela nota dos críticos (e quanto custa a mais); e, à parte, os mais bem cotados
         const bc0 = await a.locator('#folha .bc li').allTextContents();
-        assert.equal(bc0.length, 2);
-        assert.match(bc0[0], /Monte Velho.*Premium/);
-        assert.match(bc0[1], /ALENTEJO RESERVA.*Reserva.*para subir de gama/);
+        assert.equal(bc0.length, 3, bc0.join(' | '));
+        assert.match(bc0[0], /ALENTEJO RESERVA.*o rótulo diz: Reserva/);
+        assert.match(bc0[1], /Papa Figos.*★ 88 · Revista de Vinhos 16\/20.*para subir de gama/);
+        assert.match(bc0[2], /Papa Figos.*★ 88/);
+        assert.ok((await a.locator('#folha h3').allTextContents()).some((t) => /Os mais bem cotados/.test(t)));
         await a.click('#folha .chip:has-text("Douro")');
         await a.waitForSelector('#folha .caminho button:has-text("Douro")');
         const nomes = await a.locator('#folha .melhores > li small').allTextContents();
@@ -661,8 +667,10 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         // escolhida a região, as melhores compras seguem-na: só os do Douro
         const bc = await a.locator('#folha .bc li').allTextContents();
         assert.equal(bc.length, 2, bc.join(' | '));
-        assert.match(bc[0], /Papa Figos/);
-        assert.match(bc[1], /DOURO RESERVA.*Reserva.*\+2,67 €\/l para subir de gama/);
+        // o Papa Figos (★ 88) é mais barato do que o Reserva sem nota: o Reserva já não vale a pena
+        assert.match(bc[0], /Papa Figos.*★ 88/);
+        assert.match(bc[1], /Papa Figos.*★ 88/); // e é o mais bem cotado
+        assert.ok(!bc.some((t) => /DOURO RESERVA/.test(t)), bc.join(' | '));
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });

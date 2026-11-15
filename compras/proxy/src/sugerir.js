@@ -5,7 +5,8 @@
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida, pecaAoPeso } from './precos.js';
-import { familiaDe, atributos, palavrasAtributos, filasDaFamilia, candidatosMelhores } from './atributos.js';
+import { familiaDe, atributos, palavrasAtributos, filasDaFamilia, candidatosMelhores, maisCotados } from './atributos.js';
+import { prepararNotas, notaDoProduto } from './notas.js';
 import { sinais } from './qualidade.js';
 import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS, ORDEM_CALIBRE } from './etiquetas.js';
 
@@ -375,6 +376,11 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         if (sq.length) x.sq = sq;
         return x;
     });
+    // no vinho, a nota dos críticos e dos concursos (notas.js; a tabela vinho_nota, do Ecónomo)
+    if (fam === 'vinho') {
+        const notas = prepararNotas((await db.prepare('SELECT palavras, fora, nota, resumo FROM vinho_nota').all()).results);
+        if (notas.length) for (const x of produtos) { const r = notaDoProduto(notas, x.nome); if (r) { x.nt = r.nota; x.nr = r.resumo; } }
+    }
     // a unidade de medida do tipo (a mais comum: kg, l ou un): só se comparam os preços por unidade nessa
     const nu = new Map();
     for (const p of results) if (p.uc != null && p.ub) nu.set(p.ub, (nu.get(p.ub) ?? 0) + 1);
@@ -399,6 +405,8 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         // mais caro, pelo índice na lista; a app tira deles a fronteira preço-rótulo só com os que passam nos filtros
         // escolhidos (a região, o preço, a casta, o tamanho, a marca)
         ...(fam ? { bcc: candidatosMelhores(fam, produtos) } : {}),
+        // no vinho, os mais bem cotados pela crítica (os índices, do melhor para o pior): as sugestões
+        ...(fam === 'vinho' ? { bnt: maisCotados(produtos) } : {}),
         ub,
         est: { ...estimativasDoTipo(results, ub, tamanhos), w: estimativasPorPalavra(produtos, escolhas, ub) },
         reais: await reaisDoTipo(db, casa, k),

@@ -123,7 +123,9 @@ export function filasDaFamilia(fam, produtos) {
 // compras» — os produtos a que nenhum outro do tipo dá mais pontos por menos dinheiro (a fronteira preço-rótulo).
 // É pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP…), não é uma nota de crítico: a app di-lo.
 const PONTOS = {
-    vinho: { gama: { grandereserva: 3, garrafeira: 3, reserva: 2, vinhasvelhas: 2, colheitasel: 1, premium: 1, bio: 0 } },
+    // «Premium», «Signature», «Seleção» são marketing (sem regra legal): não dão pontos no vinho; Reserva, Grande Reserva,
+    // Garrafeira e Colheita Selecionada têm regras mínimas
+    vinho: { gama: { grandereserva: 3, garrafeira: 3, reserva: 2, vinhasvelhas: 1, colheitasel: 1, premium: 0, bio: 0 } },
     azeite: { categoria: { virgemextra: 2, virgem: 0, azeite: -1 }, modo: { dop: 1, bio: 1, premium: 1, acidez: 1 } },
     queijo: { dop: { _: 2 }, cura: { velho: 1, curado: 1, amanteigado: 1 }, leite: { ovelha: 1, cabra: 1 } },
     presunto: { cura: { c36: 3, c24: 2, c18: 1, c12: 0 }, raca: { bolota: 2, porcopreto: 1, bisaro: 1 }, origem: { barrancos: 1 } },
@@ -150,10 +152,23 @@ export function pontosRotulo(fam, nome, cent = null) {
 // os candidatos (ciclo 4): os produtos com pelo menos 1 ponto, pelo índice na lista dada, do mais barato (por unidade,
 // senão pelo que se paga) para o mais caro: { i, p, porque }. Percorridos por esta ordem, cada um que dá mais pontos
 // do que todos os anteriores está na fronteira — é o que a app faz, só com os produtos que passam nos filtros.
+// No vinho, a nota dos críticos e dos concursos (notas.js, em x.nt e x.nr) manda: os pontos passam a ser a nota (0 a
+// 100) e ct: 1 diz que vêm da crítica; os vinhos sem nota ficam com 80 + os pontos do rótulo (até 83), abaixo de
+// quase todos os que têm nota.
 export function candidatosMelhores(fam, produtos, max = 150) {
     const preco = (x) => x.uc ?? x.cent;
-    return produtos.map((x, i) => ({ i, x, r: x.cent > 0 ? pontosRotulo(fam, x.nome, x.cent) : null }))
-        .filter((c) => c.r && c.r.p >= 1)
+    const pontos = (x) => {
+        if (!(x.cent > 0)) return null;
+        if (fam === 'vinho' && x.nt) return { p: x.nt, porque: [x.nr], ct: 1 };
+        const r = pontosRotulo(fam, x.nome, x.cent);
+        if (!r || r.p < 1) return null;
+        return fam === 'vinho' ? { p: 80 + Math.min(3, r.p), porque: r.porque } : r;
+    };
+    return produtos.map((x, i) => ({ i, x, r: pontos(x) }))
+        .filter((c) => c.r)
         .sort((a, b) => preco(a.x) - preco(b.x) || b.r.p - a.r.p)
-        .slice(0, max).map((c) => ({ i: c.i, p: c.r.p, porque: c.r.porque }));
+        .slice(0, max).map((c) => ({ i: c.i, p: c.r.p, porque: c.r.porque, ...(c.r.ct ? { ct: 1 } : {}) }));
 }
+// os vinhos com nota, do melhor para o pior (e o mais barato primeiro no empate), pelo índice: as sugestões da app
+export const maisCotados = (produtos, max = 40) => produtos.map((x, i) => ({ i, x })).filter((c) => c.x.nt && c.x.cent > 0)
+    .sort((a, b) => b.x.nt - a.x.nt || (a.x.uc ?? a.x.cent) - (b.x.uc ?? b.x.cent)).slice(0, max).map((c) => c.i);
