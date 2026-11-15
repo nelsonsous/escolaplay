@@ -10,6 +10,7 @@
 import { FONTES } from './fontes/index.js';
 import { pedir } from './rede.js';
 import { estimativas } from './escolhas.js';
+import { seccao } from './seccoes.js';
 
 export const VALE_H = 20, POR_PEDIDO = 2, POR_CRON = 4;
 const HORA = 3600e3;
@@ -121,7 +122,9 @@ async function linhas(db, produtos) {
 }
 
 // a lista com o preço de cada produto escolhido: cent, antes (o riscado), unid, esgotado (1) e visto (o dia)
-export async function juntarPrecos(db, lista) {
+export async function juntarPrecos(db, lista0) {
+    // cada coisa com a sua secção (seccoes.js), para a app agrupar a lista
+    const lista = { ...lista0, itens: lista0.itens.map((i) => ({ ...i, s: seccao(i) })) };
     const m = await linhas(db, produtosDe(lista.itens));
     const est = await estimativas(db, lista.itens);
     if (!m.size && !est.size) return lista;

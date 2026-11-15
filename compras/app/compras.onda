@@ -100,6 +100,7 @@
   Se c.e pesp c.e mm
   Se c.est `,"est":{ N int c.est }`
   Se c.ests `,"ests":{ N int c.ests }`
+  Se c.s `,"s":{ N int c.s }`
   `,"p":\{`
   = s 0 = m pri c.p
   W m {
@@ -293,8 +294,18 @@
   `<li class="item{ Se f ` feito` }" data-chave="{ esc c.id }">`
   `<button class="caixa" data-onda="riscar:{ N i }" aria-label="{ ? f `Voltar a pôr` `Riscar` }">{ Se f `✓` }</button>`
   `<button class="texto" data-onda="abre:{ N i }"><b>{ Se > int c.q 1 `{ N int c.q } × ` }{ esc c.t }</b><small>`
-  ? < lj 0 escolhas c { = p pc c lj ? >= p 0 `{ crut nomecad lj } { eur p }` `Sem preço no { crut nomecad lj }: toca para escolher` 0 }
-  `</small></button><button class="tira" data-onda="tirai:{ N i }" aria-label="Tirar da lista">✕</button></li>` }
+  ? < lj 0 resumo c { = p pc c lj ? >= p 0 `{ crut nomecad lj } { eur p }` `Sem preço no { crut nomecad lj }: toca para escolher` 0 }
+  `</small></button>`
+  Se ~ f `<span class="qtd-l"><button data-onda="qm:{ N i }" aria-label="Menos">−</button><button data-onda="qp:{ N i }" aria-label="Mais">+</button></span>`
+  `<button class="tira" data-onda="tirai:{ N i }" aria-label="Tirar da lista">✕</button></li>` }
+# o resumo de uma coisa na lista: o mais barato das tuas lojas, e em quantas mais há (o resto vê-se ao tocar)
+: resumo i>i c {
+  = b -1 = bp 0 = n 0
+  L k 4 Se minha cadeia k { = p pc c k Se >= p 0 { = n + n 1 Se || < b 0 < p bp { = b k = bp p } } }
+  ? < b 0 { ? || c.est c.ests { Se && c.est minha $"mercadona" `Mercadona ≈ { eur * Mx 1 int c.q int c.est }` Se && c.ests ~ && c.est minha $"mercadona" Se minha $"spar" `SPAR ≈ { eur * Mx 1 int c.q int c.ests }` 0 } `Tocar para escolher` 0 }
+    { = m _ar_get c.p cadeia b
+      `{ crut nomecad b }{ Se int m.pr ` 🏷` } { eur bp }{ Se > n 1 ` · mais { N - n 1 } { ? > n 2 `lojas` `loja` }` }` 0 }
+  0 }
 # o que costumas comprar (dos talões; /api/costume): o que está a acabar primeiro; o que já está na lista não aparece
 : na_lista i>i t { = r 0 = c pri itens W && c ~ r { Se && ~ int c.f mesmo txt c.t t = r 1 = c seg c } r }
 : pcostume >i {
@@ -310,6 +321,20 @@
 : lido_costume ii>i t estado {
   Se == estado 200 { _an_gravar $"costume" t desenha }
   _me_solta t }
+# as secções da lista (as mesmas do conector, seccoes.js)
+: nomesec i>i s ? == s 0 $"Fruta e legumes" ? == s 1 $"Padaria" ? == s 2 $"Talho e peixaria" ? == s 3 $"Charcutaria e queijos" ? == s 4 $"Laticínios e ovos" ? == s 5 $"Mercearia" ? == s 6 $"Bebidas" ? == s 7 $"Congelados" ? == s 8 $"Limpeza" ? == s 9 $"Higiene e bebé" ? == s 10 $"Animais" $"Outros"
+: secd i>i c ? c.s int c.s 11
+# o que já está no carrinho (riscado): no fundo, fechado até se tocar
+: dcarrinho ii>i feitos lj {
+  Se feitos {
+    = aberto _an_ler $"carrinho"
+    `<h3 class="sec carrinho{ Se ~ aberto ` fechada` }"><button data-onda="carr:0" aria-expanded="{ ? aberto `true` `false` }">No carrinho <small>{ N feitos }</small></button></h3>`
+    Se aberto {
+      `<ul class="itens">`
+      = c pri itens = i 0
+      W c { Se int c.f ditem c i lj = c seg c = i + i 1 }
+      `</ul>` } }
+  0 }
 : dlista >i {
   = its itens
   = n ? its quantos its 0
@@ -326,18 +351,31 @@
       `<div class="loja"><p><b>Vais ao { crut nomecad lj }: { eur total lj }</b>`
       Se < c nr `<small>{ N - nr c } { ? == - nr c 1 `coisa sem preço` `coisas sem preço` } aqui</small>`
       `</p><button class="botao fraco" data-onda="loja:9">Mudar</button></div>` }
-    `<ul class="itens">`
-    = feitos 0
-    # com uma loja escolhida: primeiro o que tem preço lá, depois o resto
-    L passo ? < lj 0 1 2 {
-      = c pri its = i 0
-      W c {
-        = f int c.f
-        Se == passo 0 = feitos + feitos f
-        = tem ? < lj 0 1 >= pc c lj 0
-        Se == tem == passo 0 ditem c i lj
-        = c seg c = i + i 1 } }
-    `</ul>`
+    = feitos 0 = c pri its W c { = feitos + feitos int c.f = c seg c }
+    ? >= lj 0 {
+        # com uma loja escolhida: primeiro o que tem preço lá, depois o resto (o riscado no fim)
+        `<ul class="itens">`
+        L passo 2 {
+          = c pri its = i 0
+          W c {
+            = tem >= pc c lj 0
+            Se && ~ int c.f == tem == passo 0 ditem c i lj
+            = c seg c = i + i 1 } }
+        `</ul>`
+        dcarrinho feitos lj 0 }
+      {
+        # por secções, pela ordem da loja (a secção vem do conector: seccoes.js); cada uma fecha-se com um toque
+        L sc 12 {
+          = ns 0 = c pri its W c { Se && ~ int c.f == secd c sc = ns + ns 1 = c seg c }
+          Se ns {
+            = fechada _an_ler texto`sec:{ N sc }`
+            `<h3 class="sec{ Se fechada ` fechada` }"><button data-onda="sec:{ N sc }" aria-expanded="{ ? fechada `false` `true` }">{ crut nomesec sc } <small>{ N ns }</small></button></h3>`
+            Se ~ fechada {
+              `<ul class="itens">`
+              = c pri its = i 0
+              W c { Se && ~ int c.f == secd c sc ditem c i -1 = c seg c = i + i 1 }
+              `</ul>` } } }
+        dcarrinho feitos -1 0 }
     pcostume
     `<div class="acoes">`
     Se feitos `<button class="botao fraco" data-onda="limpar:0">Tirar os riscados ({ N feitos })</button>`
@@ -698,6 +736,10 @@
   Se eacao t $"loja" { _an_gravar $"loja" ? < v 4 cadeia v 0 ! 1 0 _an_rolar 0 }
   Se eacao t $"tipo" abre_tipo v
   Se eacao t $"talao" talao v
+  Se eacao t $"sec" { ? _an_ler texto`sec:{ N v }` _an_gravar texto`sec:{ N v }` 0 _an_gravar texto`sec:{ N v }` $"1" }
+  Se eacao t $"carr" { ? _an_ler $"carrinho" _an_gravar $"carrinho" 0 _an_gravar $"carrinho" $"1" }
+  Se eacao t $"qp" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }
+  Se eacao t $"qm" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mx 1 - int c.q 1 }\}` }
   Se eacao t $"tirai" { = c idx itens v Se c faz texto`\{"o":"x","id":{ pjs txt c.id }\}` }
   Se eacao t $"cost" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt x.t },"q":1\}` }
   Se eacao t $"fe" filtro 0 v

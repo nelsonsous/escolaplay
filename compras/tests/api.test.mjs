@@ -54,10 +54,10 @@ test('a lista: juntar, riscar, quantidade, produto, tirar e limpar os riscados',
     assert.deepEqual(await (await call('/api/lista', { chave })).json(), { versao: 0, itens: [] });
     let l = await (await ops(chave, [{ o: 'j', id: 'a1b2', t: '  leite   meio gordo ', q: 2 }, { o: 'j', id: 'c3d4', t: 'pão' }])).json();
     assert.equal(l.versao, 1);
-    assert.deepEqual(l.itens, [{ id: 'a1b2', t: 'leite meio gordo', q: 2, f: 0, p: {} }, { id: 'c3d4', t: 'pão', q: 1, f: 0, p: {} }]);
+    assert.deepEqual(l.itens, [{ id: 'a1b2', t: 'leite meio gordo', q: 2, f: 0, p: {}, s: 4 }, { id: 'c3d4', t: 'pão', q: 1, f: 0, p: {}, s: 1 }]); // s: a secção (laticínios, padaria)
     const p = { id: '4421406', nome: 'Leite uht meio gordo mimosa', url: 'https://www.continente.pt/produto/leite-uht-meio-gordo-mimosa-4421406.html' };
     l = await (await ops(chave, [{ o: 'p', id: 'a1b2', c: 'continente', p }, { o: 'r', id: 'c3d4', f: 1 }, { o: 'q', id: 'a1b2', q: 3 }])).json();
-    assert.deepEqual(l.itens[0], { id: 'a1b2', t: 'leite meio gordo', q: 3, f: 0, p: { continente: p } });
+    assert.deepEqual(l.itens[0], { id: 'a1b2', t: 'leite meio gordo', q: 3, f: 0, p: { continente: p }, s: 4 });
     assert.equal(l.itens[1].f, 1);
     l = await (await ops(chave, [{ o: 'l' }])).json();
     assert.deepEqual(l.itens.map((i) => i.id), ['a1b2']);

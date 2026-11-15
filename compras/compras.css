@@ -119,3 +119,13 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .item .tira:active { background: var(--cartao); color: var(--vermelho); }
 .costume { margin: 16px 0 4px; }
 .costume .chip.falta { border-color: #6b5a1e; color: #ffd60a; }
+
+/* volta 6: a lista por secções */
+.sec { margin: 18px 0 2px; }
+.sec button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 0; color: var(--fraco); font: inherit; text-transform: inherit; letter-spacing: inherit; text-align: left; }
+.sec button::after { content: '▾'; margin-left: auto; transition: transform .15s; }
+.sec.fechada button::after { transform: rotate(-90deg); }
+.sec small { padding: 0 8px; border-radius: 10px; background: var(--cartao); color: var(--texto); font-size: 13px; text-transform: none; letter-spacing: 0; }
+.qtd-l { display: flex; gap: 4px; flex: none; }
+.qtd-l button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font-size: 17px; line-height: 1; }
+.item .texto small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
