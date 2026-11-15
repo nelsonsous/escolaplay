@@ -61,6 +61,16 @@ test('a lista da casa no browser', { skip: !pw && 'sem playwright' }, async () =
         await a.click('#folha [data-onda="esc:0"]');
         await a.click('#folha [data-onda="esc:300"]');
         assert.match(await a.textContent('#folha .prod.on >> nth=0'), /✓ Leite uht meio gordo continente/);
+        // «não havia na loja»: o produto do Continente fica em falta (no conector), e «afinal havia» desfaz
+        await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
+        await a.click('#folha [data-onda="nhv:0"]');
+        await a.waitForSelector('#folha [data-onda="nhv:0"]:has-text("Afinal havia")');
+        assert.match(await a.textContent('#folha .prod.on >> nth=0'), /não havia na loja \(até \d{4}-\d\d-\d\d\)/);
+        assert.equal(servidor().itens[0].nh.continente.id, '8504295');
+        await a.click('#folha [data-onda="nhv:0"]');
+        await a.waitForSelector('#folha [data-onda="nhv:0"]:has-text("Não havia na loja")');
+        await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
+        assert.equal(servidor().itens[0].nh, undefined);
         await a.click('#folha [data-onda="mais:0"]');
         assert.equal(await a.textContent('#folha .qtd b'), '3');
         // o ✕ no canto de cima fecha a folha (sempre à vista, mesmo com a folha a rolar)
