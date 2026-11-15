@@ -520,7 +520,7 @@
   = c item_aberto
   Se _an_ler $"tk" dtipo
   Se && ~ _an_ler $"tk" c {
-    `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }">`
+    `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }"><button class="fechar" data-onda="fecha:0" aria-label="Fechar">✕</button>`
     `<h2>{ esc c.t }</h2>`
     `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
     `<p class="nota">Escolhe o produto de cada supermercado. O preço é o do site; o preço por quilo ou por litro serve para comparar embalagens e marcas.</p>`
@@ -632,7 +632,7 @@
 : dtipo >i {
   = tp _ar_json _an_ler $"tp"
   = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
-  `<div class="veu" data-onda="fechat:0"></div><div class="cartao escolha" role="dialog" aria-label="Escolher o produto">`
+  `<div class="veu" data-onda="fechat:0"></div><div class="cartao escolha" role="dialog" aria-label="Escolher o produto"><button class="fechar" data-onda="fechat:0" aria-label="Fechar">✕</button>`
   ? tp {
       `<h2>{ esc tp.nome }</h2>`
       `<div class="qtd"><button class="botao fraco" data-onda="tmenos:0" aria-label="Menos">−</button><b>{ ? tq crut tq `1` }</b><button class="botao fraco" data-onda="tmais:0" aria-label="Mais">+</button></div>`
@@ -746,7 +746,7 @@
   Se eacao t $"juntar" juntar
   Se eacao t $"riscar" { = c idx itens v Se c faz texto`\{"o":"r","id":{ pjs txt c.id },"f":{ N ~ int c.f }\}` }
   Se eacao t $"abre" { = c idx itens v Se c { _an_gravar $"aberto" txt c.id procura txt c.t } }
-  Se eacao t $"fecha" _an_gravar $"aberto" 0
+  Se eacao t $"fecha" { _an_gravar $"aberto" 0 fecha_tipo }
   Se eacao t $"limpar" faz $`{"o":"l"}`
   Se eacao t $"tirar" { = c item_aberto Se c { faz texto`\{"o":"x","id":{ pjs txt c.id }\}` _an_gravar $"aberto" 0 } }
   Se eacao t $"mais" { = c item_aberto Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }

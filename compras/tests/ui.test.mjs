@@ -63,6 +63,13 @@ test('a lista da casa no browser', { skip: !pw && 'sem playwright' }, async () =
         assert.match(await a.textContent('#folha .prod.on >> nth=0'), /✓ Leite uht meio gordo continente/);
         await a.click('#folha [data-onda="mais:0"]');
         assert.equal(await a.textContent('#folha .qtd b'), '3');
+        // o ✕ no canto de cima fecha a folha (sempre à vista, mesmo com a folha a rolar)
+        await a.evaluate(() => { document.querySelector('#folha .cartao').scrollTop = 9999; });
+        assert.ok(await a.locator('#folha .fechar').isVisible());
+        await a.click('#folha .fechar');
+        assert.equal(await a.locator('#folha .cartao').count(), 0);
+        await a.click('.item:has-text("leites") .texto');
+        await a.waitForSelector('#folha .cartao');
         // o preço lido no site da cadeia aparece ao lado do produto escolhido
         await a.waitForSelector('#folha .prod.on small:has-text("0,79 €")');
         // os produtos parecidos também com o preço, e o mais barato por litro à vista (o pack de 6 da Mimosa)
