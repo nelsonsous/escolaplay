@@ -473,3 +473,32 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('o modo simples: liga-se na Casa, só neste telemóvel; as secções em botões grandes e escolher sem escrever', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        assert.equal(await a.locator('.grelha').count(), 0);
+        await a.click('#abas button >> nth=2');
+        await a.click('[data-onda="simples:0"]');
+        assert.match(await a.textContent('[data-onda="simples:0"]'), /Modo simples ligado/);
+        assert.equal(await a.evaluate(() => localStorage.getItem('compras:simples')), '1');
+        await a.click('#abas button >> nth=0');
+        // as 11 secções com ícone, antes do campo de escrever; tocar em Bebidas mostra os tipos dela
+        assert.equal(await a.locator('.lista.simples .grelha button').count(), 11);
+        assert.match(await a.getAttribute('[data-onda="junta"]', 'placeholder'), /🎤/);
+        await a.click('.grelha button:has-text("Bebidas")');
+        await a.waitForSelector('#sug .chip:has-text("Água sem gás")');
+        await a.click('#sug .chip:has-text("Água sem gás")');
+        await a.waitForSelector('#folha .escolha.simples h2:has-text("Água sem gás")');
+        await a.click('#folha [data-onda="juntat:0"]');
+        await a.waitForSelector('.item');
+        assert.deepEqual(await a.locator('.item .texto b').allTextContents(), ['Água sem gás']);
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});

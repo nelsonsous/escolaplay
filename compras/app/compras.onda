@@ -338,17 +338,27 @@
       W c { Se int c.f ditem c i lj = c seg c = i + i 1 }
       `</ul>` } }
   0 }
+# as secções em botões grandes, com um ícone (o modo simples): tocar mostra os tipos da secção
+: icone i>i k ? == k 0 $"🥬" ? == k 1 $"🥖" ? == k 2 $"🥩" ? == k 3 $"🧀" ? == k 4 $"🥛" ? == k 5 $"🥫" ? == k 6 $"🧃" ? == k 7 $"🧊" ? == k 8 $"🧽" ? == k 9 $"🧴" ? == k 10 $"🐾" $"📦"
+: dgrelha >i {
+  `<div class="grelha" role="list">`
+  L k 11 `<button data-onda="seca:{ N k }"><span aria-hidden="true">{ crut icone k }</span>{ crut nomesec k }</button>`
+  `</div>` }
 : dlista >i {
   = its itens
   = n ? its quantos its 0
   = lj loja
   = h _ht_ini + 4000 * 800 n
-  `<section class="lista">`
-  `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="O que falta? (ex.: 2 leites, pão, ovos)" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
+  = sp _an_ler $"simples"
+  `<section class="lista{ Se sp ` simples` }">`
+  # o modo simples (para quem não gosta de escrever): o que costumas comprar primeiro, as secções em botões grandes,
+  # os tipos da secção por baixo, e só depois o campo de escrever (com a dica do microfone do teclado)
+  Se sp { pcostume dgrelha `<div id="sug">` psug `</div>` }
+  `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="{ ? sp `Ou escreve (o 🎤 do teclado deixa falar)` `O que falta? (ex.: 2 leites, pão, ovos)` }" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
   `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
-  `<div id="sug">` psug `</div>`
+  Se ~ sp { `<div id="sug">` psug `</div>` }
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
-  ? == n 0 { `<p class="vazio">A lista está vazia. Escreve o que falta em casa, separado por vírgulas.</p>` pcostume 0 } {
+  ? == n 0 { `<p class="vazio">A lista está vazia. { ? sp `Toca numa secção ou no que costumas comprar.` `Escreve o que falta em casa, separado por vírgulas.` }</p>` Se ~ sp pcostume 0 } {
     Se >= lj 0 {
       = nr porriscar = c cobre lj
       `<div class="loja"><p><b>Vais ao { crut nomecad lj }: { eur total lj }</b>`
@@ -456,6 +466,9 @@
       `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ convite cod }">Convidar pelo WhatsApp</a>` 0 }
     { ? @ 9 `<p>A preparar…</p>` `<p>Sem ligação ao conector.</p><button class="botao" data-onda="registar:0">Tentar outra vez</button>` 0 }
   dlojas
+  = sp _an_ler $"simples"
+  `<h3>Modo simples</h3><p class="nota">Letra e botões maiores, as secções com ícones e o que costumas comprar primeiro, para escolher sem escrever. Só neste telemóvel; a lista é a mesma.</p>`
+  `<button class="botao{ Se ~ sp ` fraco` }" data-onda="simples:0" aria-pressed="{ ? sp `true` `false` }">{ ? sp `✓ Modo simples ligado (tocar para desligar)` `Ligar o modo simples` }</button>`
   `<h3>Entrar noutra casa</h3>`
   `<div class="junta"><input data-onda="codigo" data-chave="c{ N @ 12 }" placeholder="Código (ex.: ABCD-2345)" aria-label="Código de outra casa" autocomplete="off" autocapitalize="characters" enterkeyhint="go">`
   `<button class="botao" data-onda="entrar:0">Entrar</button></div>`
@@ -634,7 +647,7 @@
                   `<button class="chip n2" data-onda="tipo:{ N i }">{ esc x.nome }{ Se x.w ` <small class="n3">{ esc x.w }</small>` }</button>` 0 }
             = x seg x = i + i 1 }
           `</div>` } 0 }
-      { Se == _tx_len t 0 `<div class="sug"><button class="chip" data-onda="vsecs:1">☰ Ver por secções</button></div>`
+      { Se && == _tx_len t 0 ~ _an_ler $"simples" `<div class="sug"><button class="chip" data-onda="vsecs:1">☰ Ver por secções</button></div>`
         0 } } }
   0 }
 : dsug >i { = h _ht_ini 3000 psug _ht_muda $"#sug" h }
@@ -700,7 +713,7 @@
 : dtipo >i {
   = tp _ar_json _an_ler $"tp"
   = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
-  `<div class="veu" data-onda="fechat:0"></div><div class="cartao escolha" role="dialog" aria-label="Escolher o produto"><button class="fechar" data-onda="fechat:0" aria-label="Fechar">✕</button>`
+  `<div class="veu" data-onda="fechat:0"></div><div class="cartao escolha{ Se _an_ler $"simples" ` simples` }" role="dialog" aria-label="Escolher o produto"><button class="fechar" data-onda="fechat:0" aria-label="Fechar">✕</button>`
   ? tp {
       # o caminho na árvore, uma cor por nível: Secção › Tipo › Variante › Tamanho › Marca; tocar num nível volta a ele
       = fw _an_ler $"fw"
@@ -903,6 +916,7 @@
   Se eacao t $"seca" { _an_gravar $"vsecs" 0 _an_gravar $"sugsec" texto`{ N v }` _an_gravar $"sug" 0 _an_buscar texto`/api/seccao?s={ N v }` $"lido_seccao" }
   Se eacao t $"talao" talao v
   Se eacao t $"sec" { ? _an_ler texto`sec:{ N v }` _an_gravar texto`sec:{ N v }` 0 _an_gravar texto`sec:{ N v }` $"1" }
+  Se eacao t $"simples" { ? _an_ler $"simples" _an_gravar $"simples" 0 _an_gravar $"simples" $"1" }
   Se eacao t $"carr" { ? _an_ler $"carrinho" _an_gravar $"carrinho" 0 _an_gravar $"carrinho" $"1" }
   Se eacao t $"qp" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }
   Se eacao t $"qm" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mx 1 - int c.q 1 }\}` }
