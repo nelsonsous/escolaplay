@@ -370,6 +370,17 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         ub,
         est: { ...estimativasDoTipo(results, ub, tamanhos), w: estimativasPorPalavra(produtos, escolhas, ub) },
         reais: await reaisDoTipo(db, casa, k),
+        // as lojas online de produtores (economo/produtores.mjs): à parte, com as etiquetas e os sinais, para filtrar
+        pd: (await db.prepare(`SELECT loja, nome, url, variante, cent, emb, uc, ub, disponivel FROM produtor_artigo WHERE tipo = ?
+            ORDER BY disponivel DESC, uc IS NULL, uc LIMIT 40`).bind(k).all()).results.map((a) => {
+            const nome = a.variante ? `${a.nome} (${a.variante})` : a.nome;
+            const et = TALHO.has(k) ? etiquetas(`${k === 'bacalhau' && !/bacalhau|paloco/i.test(a.nome) ? 'Bacalhau ' : ''}${nome}`, k) : null;
+            const x = { loja: a.loja, nome, url: a.url, cent: a.cent, ...(a.emb ? { emb: a.emb } : {}), ...(a.uc ? { uc: a.uc, ub: a.ub } : {}),
+                nk: palavras(`${nome} ${palavrasEtiquetas(et).join(' ')}`).join(' '), ...(a.disponivel ? {} : { esg: 1 }) };
+            const sq = sinais(nome);
+            if (sq.length) x.sq = sq;
+            return x;
+        }),
         // os artigos que o SPAR vende deste tipo (da lista do site), com a estimativa de cada um (economo/spar.mjs)
         sa: (await db.prepare(`SELECT nome AS n, emb, propria AS pr, eq_cent AS eq, eq_como AS como FROM spar_artigo WHERE tipo = ?
             ORDER BY propria DESC, eq_cent IS NULL, eq_cent LIMIT 30`).bind(k).all()).results,

@@ -843,6 +843,7 @@
             Se && == ab k > no 1 dopcoes tp k fe fm p
             `</li>` 0 }
           { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }
+      dprodutores tp mu
       Se minha $"mercadona" dest tp fe 0 mu
       Se minha $"spar" dest tp fe 1 mu
       `</ul><div class="acoes"><button class="botao fraco" data-onda="fechat:0">Fechar</button><button class="botao" data-onda="juntat:0">Juntar à lista</button></div>`
@@ -864,6 +865,21 @@
       = n + n 1 }
     = x seg x }
   Se n `</div><small>`
+  0 }
+# as lojas online de produtores (a Lugrade…): à parte das cadeias, com os mesmos filtros (espécie, origem, corte),
+# o preço por quilo e o que se paga; compra-se no site deles (com portes)
+: nomeprod i>i l ? mesmo l $"lugrade" $"Lugrade" l
+: dprodutores ii>i tp mu {
+  = x pri tp.pd = n 0
+  W && x < n 6 {
+    Se && ~ int x.esg tem_w x {
+      Se ~ n `<li class="prod-t"><b>Lojas de produtores (online)</b><small>Compra-se no site deles, com portes de envio; não entra no «Mais barato».</small></li>`
+      `<li class="prod"><b>{ crut nomeprod txt x.loja }</b><span class="total">{ ? x.uc `{ eur int x.uc }<i>/{ crut txt x.ub }</i>` `{ eur int x.cent }` }</span>`
+      `<small><b class="emb">Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }</b>{ Se && x.uc > mu 0 { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por quilo` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por quilo` } } · { esc x.nome }</small>`
+      dsinais x
+      `<a class="mais-op" href="{ esc x.url }" target="_blank" rel="noopener">Ver no site ↗</a></li>`
+      = n + n 1 }
+    = x seg x }
   0 }
 : dest iiii>i tp fe q mu {
   = j _ar_json _an_ler $"casa"

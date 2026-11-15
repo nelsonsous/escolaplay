@@ -340,3 +340,25 @@ test('o bacalhau: o calibre é o corte (corrente, crescido, graúdo, especial), 
     const cortes = r.filter((x) => x.corte).map((x) => x.corte);
     assert.ok(cortes.includes('graúdo') && cortes.includes('lombo'), cortes.join());
 });
+
+test('as lojas de produtores: as variantes (calibre, origem, preço) dão o preço por quilo; aparecem no tipo, à parte', async () => {
+    const { artigosDoProduto, pesoKg } = await import('../economo/produtores.mjs');
+    const { produtosDoTipo } = await import('../proxy/src/sugerir.js');
+    assert.deepEqual(['2Kg a 2.3Kg', '1.6 a 1.8kg', '400gr', '1Kg'].map(pesoKg), [2.15, 1.7, 0.4, 1]);
+    const vars = JSON.stringify([{ attributes: { attribute_pa_origem: 'noruega', attribute_calibre: '2Kg a 2.3Kg' }, display_price: 61.53, variation_id: 7, is_in_stock: true }]).replace(/"/g, '&quot;');
+    const h = `<body class="product-type-variable"><form data-product_variations="${vars}"></form>`;
+    const p = { loja: 'lugrade', especie: 'Bacalhau' };
+    const [a] = artigosDoProduto(p, h, 'Bacalhau Graúdo Noruega', 'https://loja.lugrade.com/produto/bacalhau-graudo-noruega/');
+    assert.deepEqual([a.tipo, a.cent, a.q, a.variante], ['bacalhau', 6153, 2.15, 'noruega · 2Kg a 2.3Kg']);
+    // «Especial» (sem a espécie no nome) é bacalhau numa loja de bacalhau; os packs não entram
+    assert.equal(artigosDoProduto(p, h, 'Especial', 'https://loja.lugrade.com/produto/especial-islandia/')[0].tipo, 'bacalhau');
+    assert.deepEqual(artigosDoProduto(p, h, 'Pack Derivados', 'https://loja.lugrade.com/produto/pack/'), []);
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('bacalhau', 'Bacalhau', 1, 1);
+        INSERT INTO produtor_artigo (loja, id, nome, url, variante, cent, emb, uc, ub, tipo, disponivel, visto) VALUES
+        ('lugrade', 'g#7', 'Bacalhau Graúdo Noruega', 'https://loja.lugrade.com/produto/bacalhau-graudo-noruega/', 'noruega · 2Kg a 2.3Kg', 6153, '2,15 kg', 2862, 'kg', 'bacalhau', 1, '2026-11-15');`);
+    const tp = await produtosDoTipo(db, 'bacalhau', new Date());
+    assert.equal(tp.pd[0].uc, 2862);
+    assert.match(tp.pd[0].nk, /\bnoruega\b/); // filtra-se pela origem como os outros
+    assert.match(tp.pd[0].nk, /\bgraudo\b/);
+});
