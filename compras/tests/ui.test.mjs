@@ -609,3 +609,35 @@ test('a receita: colar um link do TikTok abre a folha; sem legenda, cola-se o te
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro» filtra, e a ligação para a nota no Vivino', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const agora = new Date().toISOString();
+    s.env.DB.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('vinho-tinto', 'Vinho tinto', 6, 1)").run();
+    const ins = (cadeia, id, nome, cent) => s.env.DB.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, emb, q, tipo, visto, falhas)
+        VALUES (?, ?, ?, ?, ?, ?, 'l', '75 cl', 0.75, 'vinho-tinto', ?, 0)`).run(cadeia, id, `https://www.${cadeia}.pt/p/${id}.html`, nome, cent, Math.round(cent / 0.75), agora);
+    ins('continente', 'v1', 'Papa Figos Douro Vinho Tinto Seleção', 699); ins('continente', 'v2', 'Monte Velho Alentejo Vinho Tinto Seleção', 449);
+    ins('auchan', 'v3', 'VINHO TINTO DOURO RESERVA 0.75L', 899); ins('auchan', 'v4', 'VINHO TINTO ALENTEJO RESERVA 0.75L', 599);
+    ins('pingodoce', 'v5', 'Vinho Tinto Douro Esteva', 599); ins('pingodoce', 'v6', 'Vinho Tinto Alentejo Pingo Doce', 299);
+    esquecerTipos();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        await a.fill('[data-onda="junta"]', 'vinho');
+        await a.waitForSelector('#sug .chip:has-text("Vinho tinto")');
+        await a.click('#sug .chip:has-text("Vinho tinto")');
+        await a.waitForSelector('#folha .escolha h2:has-text("Vinho tinto")');
+        assert.deepEqual(await a.locator('#folha .escolha h3').allTextContents().then((h) => h.filter((t) => /Região|Gama|Variante/.test(t))), ['Região', 'Gama']);
+        await a.click('#folha .chip:has-text("Douro")');
+        await a.waitForSelector('#folha .caminho button:has-text("Douro")');
+        const nomes = await a.locator('#folha .melhores > li small').allTextContents();
+        assert.ok(nomes.filter((t) => /Douro|DOURO/.test(t)).length >= 3 && !nomes.some((t) => /Alentejo|ALENTEJO/.test(t)), nomes.join(' | '));
+        assert.match(await a.getAttribute('#folha a.vivino >> nth=0', 'href'), /^https:\/\/www\.vivino\.com\/search\/wines\?q=.*Douro/i);
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});

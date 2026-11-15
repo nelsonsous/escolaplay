@@ -5,6 +5,7 @@
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida, pecaAoPeso } from './precos.js';
+import { familiaDe, atributos, palavrasAtributos, filasDaFamilia } from './atributos.js';
 import { sinais } from './qualidade.js';
 import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS, ORDEM_CALIBRE } from './etiquetas.js';
 
@@ -334,6 +335,7 @@ export function mesmaMarca(produtos, loja, et, k) {
 export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     const t = await db.prepare('SELECT k, nome FROM tipo WHERE k = ?').bind(k).first();
     if (!t) return null;
+    const fam = familiaDe(t.k); // vinho, azeite, queijo (atributos.js)
     const desde = new Date(agora.getTime() - 10 * 24 * HORA).toISOString();
     const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, uc, ub, emb
         FROM preco WHERE tipo = ? AND cent IS NOT NULL AND suspeito IS NULL AND visto > ? ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde).all();
@@ -366,7 +368,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         // o nome sem acentos nem maiúsculas, para filtrar pelas palavras; no talho e na peixaria, com as etiquetas
         // do Ecónomo (o uso, o corte, o animal: «grelhar picanha vaca»)
         const et = TALHO.has(t.k) ? etiquetas(p.nome, t.k) : null;
-        x.nk = palavras(`${p.nome} ${palavrasEtiquetas(et).join(' ')}`).join(' ');
+        x.nk = palavras(`${p.nome} ${palavrasEtiquetas(et).join(' ')} ${fam ? palavrasAtributos(atributos(fam, p.nome)).join(' ') : ''}`).join(' ');
         if (et?.corte) x.cr = nomeEtiqueta(et.corte); // o corte, para arrumar as outras opções
         // os sinais de qualidade pelo nome (qualidade.js): massa mãe, biológico, congelado…
         const sq = sinais(p.nome);
@@ -378,7 +380,8 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     for (const p of results) if (p.uc != null && p.ub) nu.set(p.ub, (nu.get(p.ub) ?? 0) + 1);
     const ub = [...nu].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     const tamanhos = conta((p) => (p.aq ? null : p.emb)).slice(0, 8).map(([e, n]) => ({ e, n }));
-    const escolhas = TALHO.has(t.k) ? palavrasDoTalho(t.k, results) : palavrasDoTipo(t.k, produtos);
+    const ff = !TALHO.has(t.k) && fam ? filasDaFamilia(fam, results) : null;
+    const escolhas = TALHO.has(t.k) ? palavrasDoTalho(t.k, results) : ff?.filas.length ? ff.palavras : palavrasDoTipo(t.k, produtos);
     if (TALHO.has(t.k)) aoQuilo(produtos, t.k);
     // o mais barato primeiro: na unidade do tipo, por esse preço; os outros depois, pelo que se paga
     produtos.sort((a, b) => (a.ub === ub ? 0 : 1) - (b.ub === ub ? 0 : 1) || (a.ub === ub ? a.uc - b.uc : a.cent - b.cent));
@@ -389,6 +392,8 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         marcas: conta((p) => (p.pr || !p.marca ? null : nomeMarca(p.marca))).slice(0, 10).map(([m, n]) => ({ m, n })),
         brancas: results.filter((p) => p.pr).length,
         palavras: escolhas,
+        // as filas da família (vinho: região, gama, casta; azeite; queijo), por ordem: a app usa-as com os filtros fa, fp, fc
+        ...(ff?.filas.length ? { filas: ff.filas, fam } : fam ? { fam } : {}),
         ub,
         est: { ...estimativasDoTipo(results, ub, tamanhos), w: estimativasPorPalavra(produtos, escolhas, ub) },
         reais: await reaisDoTipo(db, casa, k),

@@ -12,7 +12,7 @@ const SINAIS = [
     [/\bcarnalentejana|\bmertolengo|\bbarros[ãa]|\bmaronesa|\bporco alentejano/, 1, 'raça autóctone'],
     [/\bmontanheira|\bbolota/, 1, 'montanheira'],
     [/\bbio\b|\bbiologic/, 1, 'biológico'],
-    [/\bdop\b|\bigp\b|\bdenominacao de origem/, 1, 'DOP/IGP'],
+    [/\bdop\b|\bigp\b|\bdoc\b|\bdenominacao de origem/, 1, 'DOP/DOC/IGP'],
     [/\bdo campo\b|\bcampo\b|\bcriado ao ar livre|\bar livre\b/, 1, 'do campo'],
     [/\bartesan|\btradicional|\bcaseir|\bforno a lenha|\bforno de lenha/, 1, 'tradicional'],
     [/\bselecionad|\bselecao\b|\bpremium|\bgourmet|\bextra\b|\breserva\b|\bsuper especial/, 1, 'gama superior'],
