@@ -2,7 +2,7 @@
 // O domínio é partilhado com a EscolaPlay e as outras apps (/escolaplay/): este SW só mexe nas caches "compras-*" e só
 // trata pedidos dentro da sua pasta (/escolaplay/compras/) e o anfitrião das apps Onda. O conector (outro domínio)
 // nunca passa por aqui.
-const CACHE = 'compras-v17'; // 0.15.0 — carne e peixe como grupos, com os cortes
+const CACHE = 'compras-v18'; // 0.16.0 — as etiquetas do Ecónomo
 const ASSETS = [
     './', './index.html', './compras.css?v=0.12.0', './compras.js?v=0.12.0', './app/compras.wasm?v=0.12.0', './manifest.webmanifest',
     '../onda/rt/anfitriao.js', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
