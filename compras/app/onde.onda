@@ -22,22 +22,31 @@
   Se m { Se m.cent { Se ~ int m.esgotado = r * Mx 1 int c.q int m.cent } }
   r }
 
+# o mesmo, para comparar: com embalagens diferentes (7 L num, 6 L noutro) o conector manda cn, o preço para o mesmo
+# tamanho (por litro ou quilo); sem cn, o que se paga
+: pcn ii>i c k {
+  = r -1
+  = m _ar_get c.p cadeia k
+  Se m { Se m.cent { Se ~ int m.esgotado = r * Mx 1 int c.q ? m.cn int m.cn int m.cent } }
+  r }
+: totaln i>i k { = r 0 = c pri itens W c { Se ~ int c.f { = p pcn c k Se >= p 0 = r + r p } = c seg c } r }
+
 # quantas coisas por riscar têm preço em k, e quanto custam
 : cobre i>i k { = r 0 = c pri itens W c { Se && ~ int c.f >= pc c k 0 = r + r 1 = c seg c } r }
 : total i>i k { = r 0 = c pri itens W c { Se ~ int c.f { = p pc c k Se >= p 0 = r + r p } = c seg c } r }
 
 # o mesmo indo às duas lojas a e b (cada coisa na mais barata das duas)
-: melhor2 iii>i c a b { = x pc c a = y pc c b ? < x 0 y ? < y 0 x Mn x y }
+: melhor2 iii>i c a b { = x pcn c a = y pcn c b ? < x 0 pc c b ? < y 0 pc c a ? <= x y pc c a pc c b }
 : cobre2 ii>i a b { = r 0 = c pri itens W c { Se && ~ int c.f >= melhor2 c a b 0 = r + r 1 = c seg c } r }
 : total2 ii>i a b { = r 0 = c pri itens W c { Se ~ int c.f { = p melhor2 c a b Se >= p 0 = r + r p } = c seg c } r }
 # a coisa c fica na loja a (e não na b)?
-: na_a iii>i c a b { = x pc c a = y pc c b && >= x 0 || < y 0 <= x y }
+: na_a iii>i c a b { = x pcn c a = y pcn c b && >= x 0 || < y 0 <= x y }
 
 # a ordem dos supermercados: primeiro os que têm preço para mais coisas, e entre esses o mais barato
 # (feitos: os já mostrados, um bit por supermercado)
 : proxima i>i feitos {
   = b -1 = bc 0 = bt 0
   L k 4 Se ~ & feitos << 1 k {
-    = c cobre k = t total k
+    = c cobre k = t totaln k
     Se || < b 0 || > c bc && == c bc < t bt { = b k = bc c = bt t } }
   b }

@@ -247,6 +247,12 @@ function estimativasPorPalavra(produtos, palavras, ub) {
     }).filter((x) => x.merc != null || x.spar != null);
 }
 
+// os preços reais de vários tipos de uma vez (para a lista): Map k → { mercadona, spar }
+export async function reaisDaCasa(db, casa, ks) {
+    const r = new Map();
+    for (const k of new Set(ks)) { const x = await reaisDoTipo(db, casa, k); if (x.mercadona || x.spar) r.set(k, x); }
+    return r;
+}
 // o preço real na Mercadona e no SPAR, do talão mais recente da casa com uma linha deste tipo (as palavras do tipo
 // todas na linha): { mercadona: { cent, dia, t }, spar: {…} }
 async function reaisDoTipo(db, casa, k) {
