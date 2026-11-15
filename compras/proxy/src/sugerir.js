@@ -10,6 +10,7 @@ import { prepararNotas, notaDoProduto } from './notas.js';
 import { limiteGramas, gramasDe } from './porcoes.js';
 import { sinais } from './qualidade.js';
 import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS, ORDEM_CALIBRE } from './etiquetas.js';
+import { mesmoVinho } from './vinha.js';
 
 const HORA = 3600e3;
 const TIPOS = { lista: null, quando: 0 };
@@ -324,6 +325,8 @@ export const PORTES = {
     lugrade: { cent: 750, gratis: 10000, nota: 'só Portugal continental' },
     // a Riberalves (FAQ da loja): entrega grátis, encomenda mínima de 50 €, só em algumas zonas (vê-se pelo código postal)
     riberalves: { cent: 0, gratis: 0, nota: 'encomenda mínima 50 €, só algumas zonas' },
+    // o Vinha (perguntas frequentes da loja): 4,99 € até 70 €, grátis acima (Portugal continental, 3 a 5 dias úteis)
+    vinha: { cent: 499, gratis: 7000, nota: 'grátis acima de 70 € (Portugal continental)' },
 };
 // o produto da mesma marca (a loja) num supermercado, com o mesmo calibre e a mesma origem: { c, uc, ub, nome }
 // a linha do produto (a «Seleção do Chef Diogo Rocha», a gourmet): o artigo de linha só se compara com o da mesma
@@ -459,8 +462,9 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         est: { ...estimativasDoTipo(results, ub, tamanhos), w: estimativasPorPalavra(produtos, escolhas, ub) },
         reais: await reaisDoTipo(db, casa, k),
         // as lojas online de produtores (economo/produtores.mjs): à parte, com as etiquetas e os sinais, para filtrar
-        pd: (await db.prepare(`SELECT loja, nome, url, variante, cent, emb, uc, ub, disponivel FROM produtor_artigo WHERE tipo = ?
-            ORDER BY disponivel DESC, uc IS NULL, uc LIMIT 40`).bind(k).all()).results.map((a) => {
+        // (no vinho, o Vinha: os mais bem cotados na Vivino primeiro, com o mesmo vinho num supermercado)
+        pd: (await db.prepare(`SELECT loja, nome, url, variante, cent, emb, uc, ub, disponivel, vivino, votos, chave FROM produtor_artigo WHERE tipo = ?
+            ORDER BY disponivel DESC, ${fam === 'vinho' ? 'vivino IS NULL, vivino DESC,' : ''} uc IS NULL, uc LIMIT ${fam === 'vinho' ? 120 : 40}`).bind(k).all()).results.map((a) => {
             const nome = a.variante ? `${a.nome} (${a.variante})` : a.nome;
             const et = TALHO.has(k) ? etiquetas(`${k === 'bacalhau' && !/bacalhau|paloco/i.test(a.nome) ? 'Bacalhau ' : ''}${nome}`, k) : null;
             const x = { loja: a.loja, nome, url: a.url, cent: a.cent, ...(a.emb ? { emb: a.emb } : {}), ...(a.uc ? { uc: a.uc, ub: a.ub } : {}),
@@ -473,6 +477,10 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
             // a mesma marca num supermercado, com o mesmo calibre e a mesma origem (a Lugrade também se vende no Continente)
             const mc = et ? mesmaMarca(results, a.loja, et, k, nome) : null;
             if (mc) x.mc = mc;
+            // o vinho: a nota da Vivino («4,1», com os votos) e a mesma garrafa no supermercado mais barato
+            if (a.vivino) { x.vv = String(a.vivino).replace('.', ','); x.vn = a.votos; }
+            const mv = fam === 'vinho' ? mesmoVinho(results, a.chave) : null;
+            if (mv) x.mv = mv;
             return x;
         }),
         // os artigos que o SPAR vende deste tipo (da lista do site), com a estimativa de cada um (economo/spar.mjs)
