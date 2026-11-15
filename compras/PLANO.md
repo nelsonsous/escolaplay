@@ -221,7 +221,7 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 2. Outras lojas para o vinho e para as outras secções: El Corte Inglés, Intermarché, Lidl, Aldi, Makro; garrafeiras e lojas especializadas online (frutarias e cabazes bio, talhos, peixarias, padarias) que deixem ler. Já experimentadas e bloqueadas para robôs: Garrafeira Nacional, Portugal Vineyards, Wine House Portugal, El Corte Inglés (403), Intermarché (robots.txt fecha tudo).
 3. Horários das outras cadeias (Continente, Pingo Doce, Auchan, Lidl, Mercadona) perto da casa.
 4. Receitas e produtos pelo perfil da casa (o que se compra) e redes sociais; o Instagram precisa de uma chave da Meta.
-5. Erros da base: tipos cruzados com nome errado; o «(1 A 2 KG)» do Auchan.
+5. Erros da base: ✓ 0.41.0: o peso da peça entre dois valores («(1 A 2 KG)», «2KG A 3KG») vende-se ao quilo (dava metade do preço por quilo); ✓ os tipos automáticos com nome errado («Bebida aveia» no tipo da soja: o nome tem de ter todas as palavras da chave) e os acentos que faltavam («Tampao», «Aguas tonicas»), corrigidos pelo cron na revisão; falta: tipos repetidos (croissants, tostas, pasta de dentes).
 6. Promoções da semana nas coisas da lista; o total do cabaz por loja já com portes.
 7. Mais famílias: café, chocolate, mel, arroz, conservas, enchidos.
 8. Os folhetos do SPAR.

@@ -187,6 +187,14 @@ test('preços comparáveis: ao balcão e ao peso paga-se a porção; com peso ou
     assert.equal(medida(nm), null);
     assert.deepEqual(normaliza({ cadeia: 'auchan', nome: nm, cent: 2599, uc: null, ub: null, m: medida(nm) }), { cent: 2599, uc: 2599, ub: 'kg', emb: '1 kg' });
     assert.deepEqual(medida('6 x 1,5 L'), { q: 9, ub: 'l' });
+    // o peso da peça entre dois valores («(1 A 2 KG)», «2KG A 3KG»): vende-se ao quilo (antes dava 2 kg e 7,50 €/kg)
+    for (const [nome, c] of [['POLVO NACIONAL REYMAR CONGELADO (1 A 2 KG)', 1499], ['SALMÃO FRESCO INTEIRO 2KG A 3KG', 899],
+        ['PESCADA CABO ULTRACONGELADA SEM CABEÇA 800G A 1.2KG', 799], ['PESCADA CONGELADA DO CHILE 1.5KG A 2.4 KG', 1299]]) {
+        assert.equal(medida(nome), null, nome);
+        assert.deepEqual(normaliza({ cadeia: 'auchan', nome, cent: c, uc: null, ub: null, m: medida(nome) }), { cent: c, uc: c, ub: 'kg', emb: '1 kg' }, nome);
+    }
+    // e o resto do nome continua a contar («Polvo (3 a 4 kg) 500 g» é 500 g)
+    assert.deepEqual(medida('Polvo Congelado (3 a 4 kg) 500 g'), { q: 0.5, ub: 'kg' });
     // o bacalhau inteiro do Continente: 34,99 € é o quilo e o «por unidade» (104,97 €) a peça de ≈ 3 kg
     assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Bacalhau Especial Islândia Seco Lugrade', cent: 3499, uc: 10497, ub: 'un', m: medida('1 un') }), { cent: 10497, uc: 3499, ub: 'kg', emb: '≈ 3 kg' });
     // um pack (6 un, o «por unidade» abaixo do preço) e o Pingo Doce ficam como estão

@@ -33,6 +33,9 @@ const n = (s) => Number(String(s).replace(',', '.'));
 export const limpaMedida = (s) => String(s ?? '').replace(/&times;/gi, '×')
     // o calibre do Auchan antes do «KG» («LOMBO DE BACALHAU … 200/300 KG», «SAPATEIRA 600/800 KG»): não é o peso, é ao quilo
     .replace(/\b\d+\s?\/\s?\d+\s*(kg)\s*$/i, '$1')
+    // o peso da peça entre dois valores («(1 A 2 KG)», «2KG A 3KG», «800G A 1.2KG», «Polvo (3 a 4 kg)»): não é o
+    // peso da embalagem (dava 2 kg e metade do preço por quilo); vende-se ao quilo
+    .replace(/\(?\s*\b\d+(?:[.,]\d+)?\s*(?:kg|gr?)?\s+a\s+\d+(?:[.,]\d+)?\s*(kg)\s*\)?/gi, ' $1')
     .replace(/(\d+)[x×](\d)(\d{2})(lt?)\b/gi, '$1×$2,$3 $4')
     // com dois algarismos: «15» é 1,5 L (garrafas), «33» é 0,33 L (latas): acima de 20 é de centilitros
     .replace(/(\d+)[x×](\d)(\d)(lt?)\b/gi, (_, n, a, b, u) => (Number(a + b) > 20 ? `${n}×0,${a}${b} ${u}` : `${n}×${a},${b} ${u}`));
@@ -88,7 +91,7 @@ export function normaliza({ cadeia, nome, cent: c, uc, ub, m, aoPeso = false }) 
     const pc = (!m || (m.ub === 'un' && m.q === 1)) ? pecaAoPeso({ cadeia, cent: c, uc, ub, emb: null }) : null;
     if (pc) return { cent: pc.cent, uc: pc.uc, ub: pc.ub, emb: pc.emb };
     // vendido ao quilo, sem peso («FIAMBRE … FATIADO NO BALCÃO KG», no Auchan): o preço é o de um quilo
-    if (c != null && !m && /\bkg\.?\s*$/i.test(nome ?? '')) return { cent: c, uc: c, ub: 'kg', emb: '1 kg' };
+    if (c != null && !m && /\bkg\.?\s*$/i.test(limpaMedida(nome))) return { cent: c, uc: c, ub: 'kg', emb: '1 kg' };
     if (c == null || !m || !(m.q > 0) || m.ub === 'un') return { cent: c, uc, ub };
     const porcao = Math.round(c * m.q);
     if (m.ub === 'kg' && (aoPeso || (m.q < 1 && /balc[aã]o/i.test(nome ?? '')))) return { cent: porcao, uc: c, ub: 'kg' };
