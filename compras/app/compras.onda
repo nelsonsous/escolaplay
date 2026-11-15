@@ -601,15 +601,38 @@
 # os tipos sugeridos, para o que está no campo (sem a casca: dentro da lista e sozinho em #sug)
 : psug >i {
   = t @ 5
-  = s ? && > _tx_len t 1 ~ tem_sep t _ar_json _an_ler $"sug" 0
-  Se && s pri s.tipos {
-    `<div class="sug" role="list">`
-    = x pri s.tipos = i 0
-    W && x < i 6 { `<button class="chip" data-onda="tipo:{ N i }">{ esc x.nome }</button>` = x seg x = i + i 1 }
-    `</div>` } }
+  = ss _an_ler $"sugsec"
+  ? ss {
+      # os tipos de uma secção (a árvore: secção › tipo); «‹ Secções» volta às secções
+      = s _ar_json _an_ler $"sug"
+      `<div class="sug" role="list"><button class="chip volta" data-onda="vsecs:1">‹ Secções</button><b class="sec-n">{ crut nomesec _tx_int ss }</b>`
+      = x ? s pri s.tipos 0 = i 0
+      W x { `<button class="chip" data-onda="tipo:{ N i }">{ esc x.nome }</button>` = x seg x = i + i 1 }
+      `</div>` 0 }
+    { ? && > _tx_len t 1 ~ tem_sep t {
+        = s _ar_json _an_ler $"sug"
+        Se && s pri s.tipos {
+          `<div class="sug" role="list">`
+          = x pri s.tipos = i 0
+          W && x < i 8 {
+            ? x.sec `<button class="chip sec-c" data-onda="seca:{ N int x.sec }">{ esc x.nome } ›</button>`
+              `<button class="chip" data-onda="tipo:{ N i }">{ esc x.nome }{ Se x.w ` <small>{ esc x.w }</small>` }</button>`
+            = x seg x = i + i 1 }
+          `</div>` } 0 }
+      { Se == _tx_len t 0 {
+          ? _an_ler $"vsecs" {
+              `<div class="sug" role="list">`
+              L k 12 `<button class="chip sec-c" data-onda="seca:{ N k }">{ crut nomesec k } ›</button>`
+              `</div>` 0 }
+            `<div class="sug"><button class="chip" data-onda="vsecs:1">☰ Ver por secções</button></div>` }
+        0 } }
+  0 }
 : dsug >i { = h _ht_ini 3000 psug _ht_muda $"#sug" h }
 # espera que se pare de escrever (300 ms) e pergunta os tipos
-: agenda >i { Se @ 14 _an_parar @ 14 ! 14 _an_relogio 300 $"sugere" }
+: agenda >i { _an_gravar $"sugsec" 0 _an_gravar $"vsecs" 0 Se @ 14 _an_parar @ 14 ! 14 _an_relogio 300 $"sugere" }
+: lido_seccao ii>i t estado {
+  Se == estado 200 { _an_gravar $"sug" t dsug }
+  _me_solta t }
 : sugere i>i z {
   = m _me_marca
   _an_parar @ 14 ! 14 0
@@ -723,7 +746,7 @@
     faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se fw `,"w":{ pjs fw }` }\}\}`
     L k 3 { = p melhor_em tp k fe fm Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }","a":1,"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
     fecha_tipo
-    _an_gravar $"sug" 0
+    _an_gravar $"sug" 0 _an_gravar $"sugsec" 0 _an_gravar $"vsecs" 0
     ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
   0 }
 
@@ -771,6 +794,8 @@
   Se eacao t $"registar" registar
   Se eacao t $"loja" { _an_gravar $"loja" ? < v 4 cadeia v 0 ! 1 0 _an_rolar 0 }
   Se eacao t $"tipo" abre_tipo v
+  Se eacao t $"vsecs" { _an_gravar $"sugsec" 0 _an_gravar $"vsecs" $"1" }
+  Se eacao t $"seca" { _an_gravar $"vsecs" 0 _an_gravar $"sugsec" texto`{ N v }` _an_gravar $"sug" 0 _an_buscar texto`/api/seccao?s={ N v }` $"lido_seccao" }
   Se eacao t $"talao" talao v
   Se eacao t $"sec" { ? _an_ler texto`sec:{ N v }` _an_gravar texto`sec:{ N v }` 0 _an_gravar texto`sec:{ N v }` $"1" }
   Se eacao t $"carr" { ? _an_ler $"carrinho" _an_gravar $"carrinho" 0 _an_gravar $"carrinho" $"1" }

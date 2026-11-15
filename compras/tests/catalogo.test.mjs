@@ -131,11 +131,15 @@ test('escrever e encontrar: os tipos pelo que se escreve, e os produtos de um ti
     const { chave } = await (await worker.fetch(new Request('https://x/api/aparelho', { method: 'POST' }), env)).json();
     const api = async (c) => (await worker.fetch(new Request('https://x' + c, { headers: { authorization: 'Bearer ' + chave } }), env)).json();
     // «ág», «agua», «AGUA s»: a água sem gás primeiro (só os tipos com produtos aparecem)
-    assert.deepEqual((await api('/api/sugerir?q=%C3%A1g')).tipos, [{ k: 'agua-sem-gas', nome: 'Água sem gás', n: 12 }]);
+    assert.deepEqual((await api('/api/sugerir?q=%C3%A1g')).tipos, [{ k: 'agua-sem-gas', nome: 'Água sem gás', n: 12, s: 6 }]); // s: a secção (Bebidas)
     assert.deepEqual((await api('/api/sugerir?q=AGUA%20s')).tipos.map((x) => x.k), ['agua-sem-gas']);
     assert.deepEqual((await api('/api/sugerir?q=leite')).tipos, []);
+    // a secção pelo nome («bebi» → Bebidas, à frente) e os tipos dela; duas palavras: o tipo e a variante
+    assert.deepEqual((await api('/api/sugerir?q=bebi')).tipos.slice(0, 1), [{ sec: 6, nome: 'Bebidas' }]);
+    assert.deepEqual((await api('/api/seccao?s=6')).tipos.map((t) => t.k), ['agua-sem-gas']);
+    assert.deepEqual((await api('/api/sugerir?q=agua%20alcalina')).tipos.map((t) => [t.k, t.w]), [['agua-sem-gas', 'alcalina']]);
     // pelos nomes dos produtos: «alcalina» não é um tipo, mas há águas alcalinas (a palavra vem com o tipo)
-    assert.deepEqual((await api('/api/sugerir?q=alcalina')).tipos, [{ k: 'agua-sem-gas', nome: 'Água sem gás', n: 12, w: 'alcalina' }]);
+    assert.deepEqual((await api('/api/sugerir?q=alcalina')).tipos, [{ k: 'agua-sem-gas', nome: 'Água sem gás', n: 12, w: 'alcalina', s: 6 }]);
     const tp = await api('/api/tipo?k=agua-sem-gas');
     assert.equal(tp.nome, 'Água sem gás');
     assert.equal(tp.produtos.length, 12);

@@ -287,13 +287,22 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         const chave = await (await a.waitForFunction(() => localStorage.getItem('compras:chave'))).jsonValue();
         const linhas = () => a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => [x.className, x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector('small').textContent]));
 
-        // escrever «ág» mostra o tipo; com vírgulas (várias coisas) não sugere nada
+        // a árvore: com o campo vazio, «Ver por secções» → Bebidas › → os tipos dela → a escolha
+        await a.click('#sug [data-onda="vsecs:1"]');
+        assert.equal(await a.locator('#sug .sec-c').count(), 12);
+        await a.click('#sug .sec-c:has-text("Bebidas")');
+        await a.waitForSelector('#sug .chip:has-text("Água sem gás")');
+        assert.equal(await a.textContent('#sug .sec-n'), 'Bebidas');
+        await a.click('#sug .chip:has-text("Água sem gás")');
+        await a.waitForSelector('#folha .escolha h2:has-text("Água sem gás")');
+        await a.click('#folha .fechar');
+                // escrever «ág» mostra o tipo; com vírgulas (várias coisas) não sugere nada
         await a.fill('[data-onda="junta"]', 'ovos, ág');
         await a.waitForTimeout(700);
         assert.equal(await a.locator('#sug .chip').count(), 0);
         await a.fill('[data-onda="junta"]', 'ág');
         await a.waitForSelector('#sug .chip:has-text("Água sem gás")');
-        await a.click('#sug .chip >> nth=0');
+        await a.click('#sug .chip:has-text("Água sem gás")');
         await a.waitForSelector('#folha .escolha h2:has-text("Água sem gás")');
         assert.deepEqual(await a.locator('#folha .chips >> nth=0 >> .chip').allTextContents(), ['Todos', '10 L', '6 L', '6 × 1,5 L', '7 L', '5 L', '5,4 L']);
         // o corte ou a variante: as palavras que distinguem os produtos («garrafao», «alcalina»…)
@@ -333,7 +342,7 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         assert.equal(l.itens[0].p.pingodoce.cent, 183);
         // a marca branca: o ícone fica na lista
         await a.fill('[data-onda="junta"]', 'agua');
-        await a.click('#sug .chip >> nth=0');
+        await a.click('#sug .chip:has-text("Água sem gás")');
         await a.waitForSelector('#folha .escolha .chips');
         await a.click('#folha [data-onda="fm:98"]');
         await a.click('#folha [data-onda="juntat:0"]');
@@ -341,7 +350,7 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.waitForSelector('.item .texto small:has-text("Pingo Doce 🏷 0,96 €")');
         // com o tamanho escolhido, a Mercadona tem estimativa (a marca branca de 6 L nas outras lojas)
         await a.fill('[data-onda="junta"]', 'agua');
-        await a.click('#sug .chip >> nth=0');
+        await a.click('#sug .chip:has-text("Água sem gás")');
         await a.waitForSelector('#folha .escolha .chips');
         await a.click('#folha .chip >> text="6 L"');
         await a.click('#folha [data-onda="juntat:0"]');

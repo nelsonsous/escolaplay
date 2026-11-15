@@ -20,8 +20,15 @@ const TIPOS = { 'agua-sem-gas': 6, 'agua-com-gas': 6, leite: 4, ovos: 4, 'pao-de
     'queijo-fresco': 3, fiambre: 3, atum: 5, 'feijao-grao': 5, 'polpa-tomate': 5, cereais: 5, bolachas: 5, nectares: 6,
     refrigerantes: 6, cerveja: 6, 'papel-higienico': 9, 'rolos-de-cozinha': 8, 'detergente-roupa': 8, amaciador: 8,
     'detergente-loica': 8, 'detergente-maquina-loica': 8, lixivia: 8, 'sacos-do-lixo': 8, 'gel-de-banho': 9, champo: 9,
-    'pasta-de-dentes': 9 };
+    'pasta-de-dentes': 9, 'carne-picada': 2, 'carne-novilho': 2, frango: 2, porco: 2, peru: 2, 'borrego-cabrito': 2,
+    'pao-do-dia': 1, 'pao-hamburguer': 1, croissants: 1, tostas: 1 };
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+// as secções que se procuram por um nome («pao» → Padaria): a palavra está no nome da secção
+const sem2 = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+export const seccaoDoTipo = (t) => seccao({ t: t.nome, e: { k: t.k } });
+export const nomeSeccao = (s) => SECCOES[s];
+export const seccoesPorNome = (w) => SECCOES.map((n, i) => [n, i]).filter(([n]) => sem2(n).split(/[^a-z]+/).some((x) => x.startsWith(w))).map(([, i]) => i);
 
 // a secção de uma coisa da lista (o índice em SECCOES)
 export function seccao(item) {

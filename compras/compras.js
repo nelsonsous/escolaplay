@@ -36,7 +36,7 @@
         return fetch((ls.get('proxy') || PROXY) + alvo, { method: metodo, headers, body: corpo || undefined });
     }
 
-    fetch('app/compras.wasm?v=0.11.1')
+    fetch('app/compras.wasm?v=0.12.0')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })

@@ -13,7 +13,7 @@ const ondac = path.join(onda, 'build/ondac');
 if (!existsSync(ondac)) execFileSync('sh', [path.join(onda, 'build.sh')], { stdio: 'inherit' });
 
 const MODULOS = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'anfitriao', 'fala'];
-export const EVENTOS = ['main', 'clique', 'escreve', 'lido_lista', 'lido_ver', 'lido_ap', 'lido_entrar', 'lido_proc', 'lido_precos', 'sugere', 'lido_sug', 'lido_tipo', 'lido_casa', 'lido_lojas', 'lido_costume', 'tique', 'tira_aviso'];
+export const EVENTOS = ['main', 'clique', 'escreve', 'lido_lista', 'lido_ver', 'lido_ap', 'lido_entrar', 'lido_proc', 'lido_precos', 'sugere', 'lido_sug', 'lido_tipo', 'lido_casa', 'lido_lojas', 'lido_costume', 'lido_seccao', 'tique', 'tira_aviso'];
 
 // a app: o motor do «Mais barato» (app/onde.onda) e o resto (app/compras.onda)
 const APP = ['app/onde.onda', 'app/compras.onda'];
