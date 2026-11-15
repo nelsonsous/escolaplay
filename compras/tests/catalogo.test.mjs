@@ -49,6 +49,9 @@ test('o nome do tipo, e a marca própria de cada cadeia', () => {
     assert.equal(nomeDoTipo('bebidas-e-garrafeira/águas/águas-sem-gás'), 'Águas sem gás');
     assert.equal(propria('continente', 'Continente Equilíbrio'), 1);
     assert.equal(propria('pingodoce', 'Pingo Doce'), 1);
+    // as marcas da casa do Pingo Doce nos frescos também são marca própria
+    assert.equal(propria('pingodoce', 'Nosso Talho'), 1);
+    assert.equal(propria('pingodoce', 'Nossa Peixaria'), 1);
     assert.equal(propria('auchan', 'POLEGAR'), 1);
     assert.equal(propria('auchan', 'LUSO'), 0);
     assert.equal(propria('continente', null), 0);
