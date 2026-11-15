@@ -140,14 +140,18 @@ export function etiquetas(nome, tipo = null) {
     const p = PRODUCAO.find(([re]) => re.test(t));
     const pa = PAISES.find(([re]) => re.test(t));
     const pr = (animal === 'bacalhau' || animal === 'paloco') ? PREPARO.find(([re]) => re.test(t)) : null;
-    // o bacalhau inteiro: o corte é o calibre (corrente, crescido, graúdo, especial)
-    let corte = c?.[1] ?? null;
-    if (!corte && animal === 'bacalhau') { const k = CALIBRES.find(([re]) => re.test(t)); if (k) { corte = k[1]; for (const u of [C, A]) usos.add(u); } }
+    // o calibre do bacalhau (corrente, crescido, graúdo, especial): uma fila à parte do corte, para se escolher os
+    // dois («lombo» e «especial»)
+    const corte = c?.[1] ?? null;
+    const k = animal === 'bacalhau' ? CALIBRES.find(([re]) => re.test(t)) : null;
+    if (k) for (const u of [C, A]) usos.add(u);
     if (!corte && !animal && !usos.size) return null;
-    return { animal, corte, usos: USOS.filter((u) => usos.has(u)), ...(p ? { prod: p[1] } : {}), ...(pa ? { pais: pa[1] } : {}), ...(pr ? { prep: pr[1] } : {}) };
+    return { animal, corte, usos: USOS.filter((u) => usos.has(u)), ...(k ? { cal: k[1] } : {}), ...(p ? { prod: p[1] } : {}), ...(pa ? { pais: pa[1] } : {}), ...(pr ? { prep: pr[1] } : {}) };
 }
 // as palavras das etiquetas, para juntar às do nome (o filtro da app procura palavras inteiras)
-export const palavrasEtiquetas = (e) => (e ? [e.corte, e.animal, e.prod, e.pais, e.prep, ...e.usos].filter(Boolean) : []);
+export const palavrasEtiquetas = (e) => (e ? [e.corte, e.cal, e.animal, e.prod, e.pais, e.prep, ...e.usos].filter(Boolean) : []);
+// a ordem dos calibres, do mais pequeno ao maior
+export const ORDEM_CALIBRE = ['corrente', 'crescido', 'graudo', 'especial'];
 
 // os tipos do talho e da peixaria (onde as etiquetas valem)
 export const TALHO = new Set(['carne-novilho', 'porco', 'frango', 'peru', 'borrego-cabrito', 'carne-picada', 'peixe-fresco', 'peixe-congelado',
