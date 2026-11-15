@@ -205,3 +205,4 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .melhores .opcoes .op.on { border-left-color: var(--azul); background: #0b1a2e; }
 .melhores .opcoes .op.on .pr { color: var(--azul); }
 .melhores li.melhor .opcoes b, .melhores li.melhor .opcoes .uc { color: var(--texto); }
+.melhores .opcoes .op-t { margin: 0; padding: 8px 12px 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--n3); border-bottom: 1px solid var(--linha); }

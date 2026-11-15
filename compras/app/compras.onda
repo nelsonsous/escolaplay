@@ -686,18 +686,40 @@
   r }
 # quantos produtos do supermercado k passam nos filtros
 : conta_em iiii>i tp k fe fm { = n 0 = p pri tp.produtos W p { Se && mesmo txt p.c cadeia k passa p fe fm = n + n 1 = p seg p } n }
-# as outras opções do supermercado k (até 12, as mais baratas por unidade primeiro); a escolhida (e) marcada
+# as outras opções do supermercado k (até 14, as mais baratas por unidade primeiro); a escolhida (e) marcada. No talho e
+# na peixaria arrumam-se por corte (os cortes pela ordem do mais barato de cada um), cada corte com o título
+: dop1 iiii>i p k j e {
+  `<button class="op{ Se mesmo txt p.id txt e.id ` on` }" data-onda="esco:{ N + * k 1000 j }"><b>{ esc p.nome }</b>`
+  `<span class="uc">{ ? p.uc `{ eur int p.uc }<i>/{ crut txt p.ub }</i>` `{ eur int p.cent }` }</span>`
+  `<span class="pr">{ Se mesmo txt p.id txt e.id `✓ escolhido · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }</span>`
+  dsinais p
+  `</button>` 0 }
 : dopcoes iiiii>i tp k fe fm e {
   `<div class="opcoes">`
-  = p pri tp.produtos = j 0 = n 0
-  W && p < n 12 {
-    Se && mesmo txt p.c cadeia k passa p fe fm {
-      `<button class="op{ Se mesmo txt p.id txt e.id ` on` }" data-onda="esco:{ N + * k 1000 j }"><b>{ esc p.nome }</b>`
-      `<span class="uc">{ ? p.uc `{ eur int p.uc }<i>/{ crut txt p.ub }</i>` `{ eur int p.cent }` }</span>`
-      `<span class="pr">{ Se mesmo txt p.id txt e.id `✓ escolhido · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }</span>`
-      dsinais p
-      `</button>` = n + n 1 }
-    = p seg p = j + j 1 }
+  # os cortes que há (pela ordem em que aparecem, que é a do mais barato)
+  = crs $"|" = p pri tp.produtos
+  W p { Se && && mesmo txt p.c cadeia k passa p fe fm p.cr { Se ~ tem_e crs txt p.cr = crs texto`{ crut crs }{ crut txt p.cr }|` } = p seg p }
+  = n 0
+  ? > _tx_len crs 1 {
+      = c pri tp.produtos = ds $"|"
+      W c {
+        Se && && mesmo txt c.c cadeia k passa c fe fm c.cr {
+          # o primeiro produto de cada corte abre o grupo: o título e os do mesmo corte
+          = cr txt c.cr
+          Se ~ tem_e ds cr {
+            `<p class="op-t">{ esc c.cr }</p>`
+            = p pri tp.produtos = j 0 = m 0
+            W && p < m 6 { Se && && mesmo txt p.c cadeia k passa p fe fm && p.cr mesmo txt p.cr cr { dop1 p k j e = m + m 1 = n + n 1 } = p seg p = j + j 1 }
+            # o corte fica feito (não se repete)
+            = ds texto`{ crut ds }{ crut cr }|` } }
+        = c seg c }
+      # os sem corte no fim, em «Outros»
+      = p pri tp.produtos = j 0 = m 0
+      W && p < m 6 {
+        Se && && mesmo txt p.c cadeia k passa p fe fm ~ p.cr { Se ~ m `<p class="op-t">Outros</p>` dop1 p k j e = m + m 1 }
+        = p seg p = j + j 1 } 0 }
+    { = p pri tp.produtos = j 0
+      W && p < n 14 { Se && mesmo txt p.c cadeia k passa p fe fm { dop1 p k j e = n + n 1 } = p seg p = j + j 1 } 0 }
   `</div>`
   0 }
 # uma fila de escolhas do «corte ou variante» (as do grupo g; sem grupo: todas), com o título; fw a escolhida
