@@ -257,3 +257,4 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .afinar .t { margin: 0 0 6px; }
 .afinar .q { margin: 4px 0 6px; font-weight: 600; }
 .afinado { margin: 4px 0 10px; }
+.chip.discreto { opacity: .75; font-size: 13px; }

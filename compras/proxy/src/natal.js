@@ -5,6 +5,8 @@
 // perde menos qualidade. É uma ajuda pelo que o nome diz, não uma prova: o rótulo na loja manda.
 import { sinais } from './qualidade.js';
 import { pecaAoPeso } from './precos.js';
+import { prepararNotas, notaDoProduto } from './notas.js';
+import { NAO_SUGERIR } from './atributos.js';
 
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&[a-z]+;/g, ' ');
 const DIA = 24 * 3600e3;
@@ -16,7 +18,8 @@ export const PARTES = [
         quer: /\bbacalhau\b/, fora: /\b(desfiad|pataniscas?|bolinhos?|pasteis|caras?|migas|lascas|natas|bras|com grao|caldeirada|cozinhar|sopa|rabos?|barrigas?|abas|aparas|badanas|cabecas|espinhas|samos|linguas|bochechas|meia cura|salada|gratinad|refeic)/,
         pontos: [[/\bsuper especial\b/, 4, 'super especial', 'cal'], [/\bespecial\b/, 3, 'especial', 'cal'], [/\bgraudo\b/, 2, 'graúdo', 'cal'], [/\bcrescido\b/, 1, 'crescido', 'cal'],
             [/\bcorrente\b|\bmiudo\b/, -1, 'calibre pequeno', 'cal'], [/\bcura amarela\b|\bcura tradicional\b/, 2, 'cura tradicional'],
-            [/\bnoruega|\bislandia|\bgadus morhua\b/, 1, 'Noruega/Islândia'], [/\blombos?\b/, 1, 'lombo'], [/\bposta alta\b/, 1, 'posta alta']] },
+            [/\bnoruega|\bislandia|\bgadus morhua\b/, 1, 'Noruega/Islândia'], [/\blombos?\b/, 1, 'lombo'], [/\bposta alta\b/, 1, 'posta alta'],
+            [/\bdemolhado\b|\bultracongelado\b/, 0, 'já demolhado'], [/\bseco\b|\bsalgado seco\b/, 0, 'salgado seco'], [/\bpaloco\b|\bpolaca\b|\bsaithe\b|\bzarbo\b|\bljung/, -3, 'não é bacalhau (paloco, zarbo…)']] },
     { k: 'polvo', nome: 'Polvo', icone: '🐙', tipos: ['polvo-lulas'], gelo: true,
         quer: /\bpolvo\b/, fora: /\b(salada|lulas?|choco|conserva|em azeite|panad|cozinhado|lagareiro)/,
         pontos: [[/\binteiro\b/, 1, 'inteiro'], [/\bacores|\bmarroc|\bmauritan|\bsenegal/, 1, 'origem conhecida'], [/\bcozido\b/, 0, 'já cozido'], [/\b(t[1-3])\b/, 1, 'calibre grande']] },
@@ -40,12 +43,18 @@ export const PARTES = [
         quer: /\b(noz|nozes|amendoas?|avelas?|pinhao|pinhoes|figos? secos?|tamaras?|castanhas?|passas?|alperces?|frutos secos|ameixas? secas?)\b/, fora: /\b(moscada|manteiga|creme|bebida|leite|chocolate|bolacha|barra|cereais|amendoim|amendoins|iogurte|gelado)/,
         pontos: [[/\bnaciona|\bportug|\bdouro\b|\btras os montes/, 1, 'nacional'], [/\bmiolo\b/, 0, 'miolo'], [/\bsortid|\bmistura de natal|\bnatal\b/, 0, 'sortido de Natal'],
             [/\bcom casca\b/, 0, 'com casca'], [/\bmedjool\b/, 1, 'medjool']] },
-    { k: 'porto', nome: 'Vinho do Porto', icone: '🍷', tipos: ['vinho-do-porto'], inicio: /^(vinho (do )?)?porto\b/, like: ['%vinho do porto%', '%porto tawny%', '%porto ruby%', '%porto lbv%', '%porto vintage%', '%porto branco%'],
+    // o vinho da ceia: um tinto em garrafa (não bag-in-box nem garrafão); a gama conta pouco, a nota dos críticos e a
+    // Vivino (notaVinho) contam muito
+    { k: 'vinho', nome: 'Vinho tinto da ceia', icone: '🍷', tipos: ['vinho-tinto'], vinho: true,
+        quer: /\b(vinho|tinto)\b/, fora: /\b(porto|bag|box|bib|garrafao|sangria|licor|sem alcool|0[,.]0|[2-9] ?l|1[,.]5 ?l|magnum)\b/,
+        pontos: [[/\bgrande reserva\b|\bgarrafeira\b/, 2, 'grande reserva/garrafeira', 'gama'], [/\breserva\b/, 1, 'reserva', 'gama'],
+            [/\bdouro\b|\bdao\b|\balentejo|\bbairrada\b/, 0, 'DOC', 'regiao']] },
+    { k: 'porto', nome: 'Vinho do Porto', icone: '🥃', tipos: ['vinho-do-porto'], vinho: true, inicio: /^(vinho (do )?)?porto\b/, like: ['%vinho do porto%', '%porto tawny%', '%porto ruby%', '%porto lbv%', '%porto vintage%', '%porto branco%'],
         quer: /\bporto\b/, fora: /\b(vinagre|copo|gelado|bombon)/,
         pontos: [[/\b(30|40|50) anos\b/, 4, 'muito velho (30+ anos)', 'idade'], [/\b20 anos\b/, 3, '20 anos', 'idade'], [/\b10 anos\b/, 2, '10 anos', 'idade'], [/\bvintage\b/, 3, 'vintage', 'idade'],
             [/\bcolheita\b|\b(19|20)\d\d\b/, 2, 'colheita', 'idade'], [/\blbv\b|\blate bottled/, 2, 'LBV', 'idade'], [/\breserva\b/, 1, 'reserva', 'idade'],
             [/\btawny\b|\bruby\b|\bbranco\b/, 0, 'Porto de entrada', 'idade']] },
-    { k: 'espumante', nome: 'Espumante', icone: '🥂', tipos: ['espumante'], inicio: /^(vinho )?(espumante|champanhe|champagne|cava|prosecco)\b/, like: ['%espumante%', '%champagne%', '%champanhe%'],
+    { k: 'espumante', nome: 'Espumante', icone: '🥂', tipos: ['espumante'], vinho: true, inicio: /^(vinho )?(espumante|champanhe|champagne|cava|prosecco)\b/, like: ['%espumante%', '%champagne%', '%champanhe%'],
         quer: /\b(espumante|champagne|champanhe|cava|prosecco)\b/, fora: /\b(sem alcool|0[,.]0|sumo|bebida|copo|gaseificad)/,
         pontos: [[/\bchampagne|\bchampanhe/, 3, 'champanhe'], [/\bmetodo classico|\bmetodo tradicional/, 2, 'método clássico'], [/\bbairrada|\btavora|\bvarosa|\bdouro\b/, 1, 'região DOC'],
             [/\breserva\b|\bgrande reserva\b|\bvintage\b/, 1, 'reserva'], [/\bbruto natural|\bbrut nature|\bextra brut/, 1, 'bruto natural'], [/\bmeio seco|\bdoce\b|\bfrisante/, -1, 'doce/frisante']] },
@@ -72,6 +81,17 @@ export function pontosDe(parte, nome) {
         porque.push((p > 0 ? '+ ' : p < 0 ? '− ' : '· ') + t);
     }
     return { q, porque: porque.slice(0, 5) };
+}
+
+// no vinho (o da ceia, o Porto, o espumante), a nota manda: a dos críticos e dos concursos (vinho_nota, notas.js;
+// 92 → +3, 88 → +1, 84 → −1) e a da Vivino nas garrafeiras online (4,2 ou mais → +2; 3,9 → +1; abaixo de 3,5 → −1)
+export function notaVinho(notas, nome, vivino = null) {
+    let q = 0;
+    const porque = [];
+    const nt = notas?.length ? notaDoProduto(notas, nome) : null;
+    if (nt) { q += Math.round((nt.nota - 86) / 2); porque.push(`★ ${nt.nota} (${String(nt.resumo).split(' · ')[0]})`); }
+    if (vivino) { q += vivino >= 4.2 ? 2 : vivino >= 3.9 ? 1 : vivino < 3.5 ? -1 : 0; porque.push(`Vivino ${String(vivino).replace('.', ',')}`); }
+    return { q, porque, nt: nt?.nota ?? null };
 }
 
 // o preço para comparar: o do quilo ou do litro, se faz sentido (um «por quilo» que daria mais de 25 kg na embalagem
@@ -132,7 +152,8 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
     let guardado = null;
     try { guardado = kv ? await kv.get(chave, 'json') : null; } catch { guardado = null; }
     let cat, prod;
-    if (guardado) ({ cat, prod } = guardado);
+    let notasL;
+    if (guardado) ({ cat, prod, notasL = [] } = guardado);
     else {
         // os do tipo pelo índice (preco_tipo); os de nome (LIKE) numa só passagem pela tabela, com as condições juntas
         const porNome = likes.length ? `UNION SELECT cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, tipo, propria FROM preco
@@ -142,22 +163,28 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
                 WHERE tipo IN (SELECT value FROM json_each(?2)) AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?1
                 ${porNome} LIMIT 3000`).bind(desde, JSON.stringify(tipos), ...likes),
             db.prepare(`SELECT loja AS cadeia, id, url, nome || CASE WHEN variante IS NOT NULL THEN ' ' || variante ELSE '' END AS nome,
-                    cent, emb, uc, ub, tipo FROM produtor_artigo
+                    cent, emb, uc, ub, tipo, vivino FROM produtor_artigo
                 WHERE disponivel = 1 AND cent IS NOT NULL AND tipo IN (SELECT value FROM json_each(?1))`).bind(JSON.stringify(tipos)),
         ]);
         cat = { results: a.results ?? [] }; prod = { results: b.results ?? [] };
-        try { if (kv) await kv.put(chave, JSON.stringify({ cat, prod }), { expirationTtl: GUARDA_NATAL }); } catch { /* sem guardar */ }
+        notasL = (await db.prepare('SELECT palavras, fora, nota, resumo FROM vinho_nota').all()).results ?? [];
+        try { if (kv) await kv.put(chave, JSON.stringify({ cat, prod, notasL }), { expirationTtl: GUARDA_NATAL }); } catch { /* sem guardar */ }
     }
     for (const r of cat.results ?? []) { const pc = pecaAoPeso(r); if (pc) Object.assign(r, pc); }
-    const todos = [...(cat.results ?? []), ...(prod.results ?? []).map((r) => ({ ...r, produtor: 1 }))]
+    const notas = prepararNotas(notasL ?? []);
+    // as lojas de bacalhau não dizem «bacalhau» no nome («Especial», «Lombos Gourmet»): junta-se, para a parte o achar
+    const todos = [...(cat.results ?? []), ...(prod.results ?? []).map((r) => ({ ...r, produtor: 1,
+        nome: r.tipo === 'bacalhau' && !/bacalhau|paloco/i.test(r.nome) ? `Bacalhau ${r.nome}` : r.nome }))]
         .filter((r) => !cadeias?.length || r.produtor || cadeias.includes(r.cadeia));
     const saida = ps.map((p) => {
         const ops = todos.filter((r) => {
             const n = sem(r.nome);
             const doTipo = p.tipos.includes(r.tipo);
-            return (doTipo || (p.inicio && p.inicio.test(n))) && p.quer.test(n) && (!p.peca || p.peca.test(n)) && !p.fora.test(n);
+            return (doTipo || (p.inicio && p.inicio.test(n))) && p.quer.test(n) && (!p.peca || p.peca.test(n)) && !p.fora.test(n)
+                && !(p.vinho && NAO_SUGERIR.test(n));
         }).map((r) => {
-            const { q, porque } = pontosDe(p, r.nome);
+            let { q, porque } = pontosDe(p, r.nome);
+            if (p.vinho) { const v = notaVinho(notas, r.nome, r.vivino); q += v.q; porque = [...v.porque, ...porque].slice(0, 5); }
             const o = { cadeia: r.cadeia, id: String(r.id), nome: r.nome, url: r.url, cent: r.cent, emb: r.emb ?? null, uc: r.uc ?? null, ub: r.ub ?? null, q, porque, tipo: r.tipo };
             if (o.uc && !ucBom(o) && o.ub !== 'un') { o.uc = null; o.ub = null; }
             if (r.marca) o.marca = r.marca;

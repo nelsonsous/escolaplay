@@ -382,7 +382,6 @@
   `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="{ ? sp `Ou escreve (o 🎤 do teclado deixa falar)` `O que falta? (ex.: 2 leites, pão, ovos)` }" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
   `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
   Se ~ sp { `<div id="sug">` psug `</div>` }
-  `<button class="botao natal" data-onda="natal:0">🎄 Cabaz de Natal <small>o melhor bacalhau, Porto, bolo-rei…</small></button>`
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
   ? == n 0 { `<p class="vazio">A lista está vazia. { ? sp `Toca numa secção ou no que costumas comprar.` `Escreve o que falta em casa, separado por vírgulas.` }</p>` Se ~ sp pcostume 0 } {
     Se >= lj 0 {
@@ -824,7 +823,7 @@
                   `<button class="chip n2" data-onda="tipo:{ N i }">{ esc x.nome }{ Se x.w ` <small class="n3">{ esc x.w }</small>` }</button>` 0 }
             = x seg x = i + i 1 }
           `</div>` } 0 }
-      { Se && == _tx_len t 0 ~ _an_ler $"simples" `<div class="sug"><button class="chip" data-onda="vsecs:1">☰ Ver por secções</button></div>`
+      { Se && == _tx_len t 0 ~ _an_ler $"simples" `<div class="sug"><button class="chip" data-onda="vsecs:1">☰ Ver por secções</button><button class="chip discreto" data-onda="natal:0">🎄 Cabaz de Natal</button></div>`
         0 } } }
   0 }
 : dsug >i { = h _ht_ini 3000 psug _ht_muda $"#sug" h }
