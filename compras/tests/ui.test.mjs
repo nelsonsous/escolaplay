@@ -542,6 +542,8 @@ test('o Cabaz de Natal: as partes com 3 opções, o modo, escolher outra, tirar 
     ins('pingodoce', 'b3', 'Bacalhau Corrente', 'bacalhau', 899, 899, 'kg');
     ins('continente', 'v1', 'Vinho do Porto Tawny 20 Anos', 'vinho-tinto', 2999, 3999, 'l');
     ins('auchan', 'v2', 'Vinho do Porto Ruby', 'vinho-tinto', 599, 799, 'l');
+    s.env.DB.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('bacalhau', 'Bacalhau', 3, 1)").run();
+    (await import('../proxy/src/sugerir.js')).esquecerTipos();
     const br = await pw.chromium.launch();
     try {
         const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
@@ -572,10 +574,22 @@ test('o Cabaz de Natal: as partes com 3 opções, o modo, escolher outra, tirar 
         await a.click('[data-onda="ntj:0"]');
         await a.waitForSelector('.item');
         assert.equal(await a.locator('#folha .cartao.natal').count(), 0);
-        assert.deepEqual(await a.locator('.item .texto b').allTextContents(), ['Bacalhau da consoada']);
+        // junta-se como uma escolha do tipo («Bacalhau»), com o produto escolhido, para se poder ajustar
+        assert.deepEqual(await a.locator('.item .texto b').allTextContents(), ['Bacalhau']);
         await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
         const it = JSON.parse(s.env.DB.linhas('SELECT itens FROM casa')[0].itens)[0];
         assert.equal(it.p.auchan.id, 'b2');
+        assert.equal(it.e.k, 'bacalhau');
+        // «Ajustar» abre a escolha do tipo; o que se junta de lá substitui a coisa
+        await a.click('.item .texto');
+        await a.click('#folha [data-onda="ajusta:0"]');
+        await a.waitForSelector('#folha .escolha h2:has-text("Bacalhau")');
+        await a.click('#folha [data-onda="juntat:0"]');
+        await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
+        assert.equal(await a.locator('.item').count(), 1);
+        const it2 = JSON.parse(s.env.DB.linhas('SELECT itens FROM casa')[0].itens);
+        assert.equal(it2.length, 1);
+        assert.notEqual(it2[0].id, it.id);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
