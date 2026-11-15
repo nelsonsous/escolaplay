@@ -3,6 +3,7 @@
 // A app (com a chave do aparelho: Authorization: Bearer <id>.<segredo>)
 //   POST /api/aparelho                 um aparelho novo, numa casa nova: { chave, casa: { codigo } } (só da origem da app)
 //   GET  /api/casa                     { codigo, aparelhos, local, lojas }
+//   POST /api/casa/cp {cp}             o código postal da casa (para o stock do Continente na zona; zona.js)
 //   POST /api/casa/lojas {local, cadeias, spar}  a localidade e as lojas da casa (lojas.js)
 //   GET  /api/lojas?q=…                as lojas SPAR de uma localidade ou código postal
 //   POST /api/casa/entrar  {codigo}    passar para outra casa (leva o que tinha na lista)
@@ -36,20 +37,21 @@
 // cadeia de cada vez (a app pede as quatro em paralelo) e o índice fica na memória do Worker uma hora.
 import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
-import { Erro, novoAparelho, aparelhoDe, casaDe, gravarLojas, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
+import { Erro, novoAparelho, aparelhoDe, casaDe, gravarLojas, gravarCp, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
 import { lojasDaCasa, lojasDe } from './lojas.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { sugerir, produtosDoTipo, tiposDaSeccao } from './sugerir.js';
 import { revisarTipo } from './revisao.js';
 import { saude, saudeCurta } from './saude.js';
+import { zonaContinente, produtoNaZona, stockZonas, cpValido } from './zona.js';
 import { atualizarEscolhas } from './escolhas.js';
 import { lerTalao, MAX_IMAGEM } from './talao.js';
 import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.26.0';
+export const VERSION = '0.27.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -190,6 +192,19 @@ async function sondaRevisao(request, env) {
     return json({ de, n: feitos.length, feitos });
 }
 
+// a zona do Continente de um código postal e um produto lido nela e sem ela (para comparar): ?cp=…&url=…
+async function sondaZona(request, env) {
+    const nao = await recusa(request, env);
+    if (nao) return nao;
+    const q = new URL(request.url).searchParams;
+    const z = await zonaContinente(q.get('cp'));
+    if (!z) return json({ erro: 'código postal sem zona' }, 404);
+    const u = q.get('url');
+    if (!u || !u.startsWith('https://www.continente.pt/produto/')) return json({ zona: { storeId: z.storeId, nome: z.nome, cookies: z.cookies.map((c) => c.split('=')[0]) } });
+    const [naZona, semZona] = await Promise.all([produtoNaZona(z, u), produtoNaZona({ cookies: [] }, u)]);
+    return json({ zona: { storeId: z.storeId, nome: z.nome, cookies: z.cookies.map((c) => c.split('=')[0]) }, naZona, semZona });
+}
+
 // ---------- a app ----------
 
 async function corpoJSON(request, max = MAX_CORPO) {
@@ -224,6 +239,14 @@ async function api(request, env, url) {
     }
     const ap = await aparelhoDe(db, request);
     if (caminho === '/api/casa' && metodo === 'GET') return json(await casaDe(db, ap));
+    if (caminho === '/api/casa/cp' && metodo === 'POST') {
+        // o código postal (autorizado pela casa): diz-se ao Continente para saber a zona; null tira
+        const { cp } = await corpoJSON(request);
+        if (cp == null || cp === '') return json(await gravarCp(db, ap, null, null));
+        if (!cpValido(cp)) throw new Erro(400, 'código postal inválido (ex.: 4780-521)');
+        const z = await zonaContinente(String(cp).trim());
+        return json(await gravarCp(db, ap, String(cp).trim(), z?.nome ?? null));
+    }
     if (caminho === '/api/casa/lojas' && metodo === 'POST') return json(await gravarLojas(db, ap, lojasDaCasa(await corpoJSON(request))));
     if (caminho === '/api/lojas' && metodo === 'GET') {
         const todas = (await env.KV.get('lojas:spar', { type: 'json', cacheTtl: 3600 })) ?? [];
@@ -292,6 +315,7 @@ export default {
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);
         if (url.pathname === '/sonda/revisao') return sondaRevisao(request, env);
+        if (url.pathname === '/sonda/zona') return sondaZona(request, env);
         if (url.pathname === '/sonda/saude') { const nao = await recusa(request, env); return nao ?? json(await saude(env.DB)); }
         return json({ erro: 'não existe' }, 404);
     },
@@ -300,6 +324,8 @@ export default {
         const m = agora.getUTCMinutes();
         const tarefa = m === 30
             ? atualizarEscolhas(env.DB, agora).then((r) => ['escolhas', r])
+            : m === 50
+            ? stockZonas(env.DB, agora).then((r) => ['zona', r])
             : m % 10 === 0
             ? refrescar(env.DB, agora).then((r) => ['preços', r])
             : cronCatalogo(env.DB, CADEIAS_CATALOGO[Math.floor(m / 2) % CADEIAS_CATALOGO.length], agora).then((r) => ['catálogo', r]);
