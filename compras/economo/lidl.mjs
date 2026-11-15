@@ -46,7 +46,44 @@ export function classificador(linhas) {
 }
 // o que o Lidl vende no site e não é de supermercado (bricolage, casa, roupa, animais, plantas): fica de fora
 // (e os preparados: rissóis, croquetes, folhados, alheiras, pizzas, tábuas, que não são o tipo do ingrediente)
-export const FORA = /^(parkside|livarno|esmara|crivit|lupilu|silvercrest|tronic|auriol|florabest|ultimate-speed|pepperts|ernesto|miomare|melinera|powerfix|meradiso|playtive|max-mila|max-s-world|zoofari|bellarom-maquina)|ramo-de|crisantemo|sansevieria|orquidea|planta|vaso|para-cao|para-gato|calendario|rosas|flores|maquina|limpeza|rissois|croquete|folhado|alheira|tabua|gratinado|massa-quebrada|farinha-lactea|bola-de|pizza-com/;
+export const FORA = /^(parkside|livarno|esmara|crivit|lupilu|silvercrest|tronic|auriol|florabest|ultimate-speed|pepperts|ernesto|miomare|melinera|powerfix|meradiso|playtive|max-mila|max-s-world|zoofari|bellarom-maquina)|ramo-de|crisantemo|sansevieria|orquidea|planta|vaso|para-cao|para-gato|calendario|rosas|flores|maquina|limpeza|rissois|croquete|folhado|alheira|tabua|gratinado|massa-quebrada|farinha-lactea|bola-de|pizza-com|decoracao|massa-folhada|salmao-fumado/;
+
+// os nomes do Lidl que não trazem as palavras do tipo («Clementina Nacional», «Camarão 60/80», «Combino Laços»): o tipo
+// por sinónimos, quando o classificador não decide (palavras inteiras do nome; a primeira regra que bate ganha)
+const w = (alts) => new RegExp(`(^|-)(${alts})(-|$)`);
+export const SINONIMOS = [
+    [/^(ocean-sea|pescanova|iglo)-.*(-|^)(pescada|perca|maruca|paloco|espada|panadinhos|filetes|fingers|posta|postas)(-|$)/, 'peixe-congelado'],
+    [w('fingers|panadinhos'), 'peixe-congelado'],
+    [w('camarao|gamba|mexilhao|vieira|mariscada|sapateira'), 'marisco'],
+    [w('lula|pota|polvo'), 'polvo-lulas'],
+    [w('salmao|pescada|perca|maruca|paloco|red-fish|dourada|robalo'), 'peixe-fresco'],
+    [w('hamburguer|hamburgueres'), 'hamburguer'],
+    [w('novilho|alcatra|maminha|vitela'), 'carne-novilho'],
+    [w('borrego|cabrito'), 'borrego-cabrito'],
+    [w('camembert|brie|cremeux|parmesao|mozzarella|gouda|emmental'), 'queijo-estrangeiro'],
+    [/^(mini-)?(clementina|tangerina|laranja|maca|pera|diospiro|uva|melao|castanha|kiwi|roma|marmelo)(-|$)/, 'fruta-epoca'],
+    [/^(papaia|manga|ananas|banana|abacate)(-|$)/, 'fruta'],
+    [/^(ryneczek-lidla-mix-mini-)?(pimento|tomate-cherry|pepino)/, 'tomate-pepino-pimento'],
+    [/^(cebola|couve|alface|alho|batata-doce|cenoura|abobora|brocolos?|espinafres?)(-|$)/, 'legume'],
+    [w('panettone|pandoro|bolo-rainha|broa-castelar'), 'bolo-rei'],
+    [w('gelado'), 'gelado-familiar'],
+    [w('moagem'), 'cafe-moido'],
+    [w('cerveja'), 'cerveja'],
+    [/(^|-)(ice-tea|fuze-tea)(-|$)/, 'refrigerantes'],
+    [/^(formil|skip)-/, 'detergente-roupa'],
+    [/^detergente-de-loica/, 'detergente-loica'],
+    [w('esparguete|lacos|gnocchis|penne|fusilli'), 'massa'],
+    [/^iogurte/, 'iogurtes'],
+    [w('muesli|chocapic|choco-flakes|corn-flakes'), 'cereais'],
+    [/^(meia-)?(pao-rustico|pao-de-chia|baguete|pao-de-mistura)/, 'pao-do-dia'],
+    [w('acucar'), 'acucar'],
+    [w('maionese|ketchup|mostarda'), 'maionese-ketchup-mostarda'],
+    [w('nutella'), 'creme-barrar'],
+    [w('azeitonas?'), 'azeitona-pickl-tremoco'],
+    [w('gin|vodka'), 'gin-vodka-tequila'],
+    [w('amendoins|mixed-nuts|noz|amendoas|cajus'), 'frutos-secos'],
+];
+const porSinonimo = (slug) => { for (const [re, k] of SINONIMOS) if (re.test(slug)) return k; return null; };
 
 const titulo = (s) => String(s ?? '').toLowerCase().replace(/(^|\s)\S/g, (l) => l.toUpperCase());
 
@@ -55,7 +92,8 @@ async function main() {
     const lidl = texto.split('\n').filter((l) => l && !l.startsWith('#')).map((l) => { const [slug, id] = l.split('\t'); return { slug, id }; });
     const base = await d1(`SELECT nome, tipo FROM preco WHERE cadeia IN ('continente', 'pingodoce', 'auchan') AND tipo IS NOT NULL AND suspeito IS NULL`);
     const tipoDe = classificador(base);
-    const comTipo = lidl.filter((p) => !FORA.test(p.slug)).map((p) => ({ ...p, tipo: tipoDe(p.slug.replace(/-/g, ' ')) })).filter((p) => p.tipo).slice(0, max);
+    const comTipo = lidl.filter((p) => !FORA.test(p.slug)).map((p) => ({ ...p, tipo: tipoDe(p.slug.replace(/-/g, ' ')) ?? porSinonimo(p.slug) }))
+        .filter((p) => p.tipo).slice(0, max);
     console.log(`${lidl.length} produtos no índice do Lidl; ${comTipo.length} com tipo`);
     if (args.includes('--so-tipos')) {
         for (const p of comTipo) console.log(`${p.tipo.padEnd(24)} ${p.slug}`);

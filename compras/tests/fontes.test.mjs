@@ -79,6 +79,15 @@ test('Lidl no catálogo: o tipo pelo nome, só com as palavras do tipo, e o que 
     assert.equal(t('ocean sea salmao fumado'), 'salmao-fumado'); // o «sal» não apanha o salmão
     assert.ok(FORA.test('parkside-conjunto-de-brocas') && FORA.test('max-mila-s-world-pate-para-cao') && FORA.test('deluxe-rissois-de-sapateira-para-forno'));
     assert.ok(!FORA.test('mimosa-leite-meio-gordo'));
+    // quando o classificador não decide, os sinónimos (palavras inteiras): a fruta, o marisco, a massa…
+    const { SINONIMOS } = await import('../economo/lidl.mjs');
+    const sin = (slug) => SINONIMOS.find(([re]) => re.test(slug))?.[1] ?? null;
+    assert.equal(sin('clementina-nacional'), 'fruta-epoca');
+    assert.equal(sin('camarao-cozido-30-40'), 'marisco');
+    assert.equal(sin('combino-lacos'), 'massa');
+    assert.equal(sin('ocean-sea-pescada-do-chile-a-posta'), 'peixe-congelado');
+    assert.equal(sin('sondey-bolacha-maria-dourada'), 'peixe-fresco'); // por isso só depois do classificador (que a dá às bolachas)
+    assert.equal(sin('garnier-ultra-suave-champo-abacate'), null);
 });
 
 test('uma página que não é de produto não dá produto (e não rebenta)', () => {
