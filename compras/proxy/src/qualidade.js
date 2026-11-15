@@ -5,6 +5,12 @@
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&[a-z]+;/g, ' ');
 const SINAIS = [
     [/\bmassa mae\b/, 1, 'massa mãe'],
+    [/\bselvage|\bda costa\b|\banzol\b/, 1, 'selvagem'],
+    [/\bmsc\b/, 1, 'pesca sustentável (MSC)'],
+    [/\baquacultura|\bviveiro\b/, 0, 'aquacultura'],
+    [/\basc\b/, 1, 'aquacultura responsável (ASC)'],
+    [/\bcarnalentejana|\bmertolengo|\bbarros[ãa]|\bmaronesa|\bporco alentejano/, 1, 'raça autóctone'],
+    [/\bmontanheira|\bbolota/, 1, 'montanheira'],
     [/\bbio\b|\bbiologic/, 1, 'biológico'],
     [/\bdop\b|\bigp\b|\bdenominacao de origem/, 1, 'DOP/IGP'],
     [/\bdo campo\b|\bcampo\b|\bcriado ao ar livre|\bar livre\b/, 1, 'do campo'],

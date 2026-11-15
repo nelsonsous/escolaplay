@@ -88,6 +88,18 @@ const ANIMAIS = [
     [/\bmaruca/, 'maruca', 'maruca'], [/\btamboril/, 'tamboril', 'tamboril'], [/\bsolha|\blinguado|\bpregado/, 'linguado', 'linguado e solha'],
     [/\bred ?fish|\bperca|\bpangasius|\bpanga\b|\btilapia|\bescamudo|\bgaroupa|\bpeixe galo|\bpeixe gato|\btintureira|\bcorvina|\bpargo|\braia\b|\bespada|\bcherne|\bpampo|\bcacao\b|\babrotea|\bcongro|\bsafio|\bfaneca|\bbesugo|\bsargo|\bcantaril|\bsalema|\bsalongo|\bsalmonete|\bcachucho|\bpalmeta|\bespadilha/, 'outros', 'outros peixes'],
 ];
+// a origem ou o modo de produção, quando o nome o diz (não se adivinha: uma dourada sem nada pode ser das duas)
+//   peixe: selvagem (pesca: do mar, da costa, de anzol; certificação MSC) ou aquacultura (viveiro; certificação ASC);
+//   carne: biológico, do campo (ao ar livre), DOP/IGP e raças autóctones (Carnalentejana, Mertolengo, Barrosã,
+//   Maronesa, porco alentejano), montanheira (porco preto de bolota)
+const PRODUCAO = [
+    [/\bselvage|\bda costa\b|\banzol|\balto mar|\bmsc\b|\bcapturad|\bpesca\b/, 'selvagem', 'selvagem (pesca)'],
+    [/\baquacultura|\bviveiro|\basc\b|\bcultivad[oa]\b/, 'aquacultura', 'aquacultura (viveiro)'],
+    [/\bbio\b|\bbiologic/, 'biologico', 'biológico'],
+    [/\bcarnalentejana|\bmertolengo|\bbarros[ãa]|\bmaronesa|\bdop\b|\bigp\b|\bporco alentejano/, 'dop', 'DOP/IGP e raça autóctone'],
+    [/\bmontanheira|\bbolota/, 'montanheira', 'montanheira (bolota)'],
+    [/\bdo campo\b|\bar livre\b|\bcapoeira/, 'campo', 'do campo (ar livre)'],
+];
 // os usos de cada espécie, quando o nome não diz o corte
 const USOS_ANIMAL = { sardinha: [G], carapau: [G, F], cavala: [G], dourada: [G, A], robalo: [G, A], salmao: [G, A], atum: [G],
     pescada: [C, F], bacalhau: [C, A], polvo: [C, A], lula: [G, F], choco: [G, F], pota: [G, F], camarao: [C, G],
@@ -97,7 +109,7 @@ const ANIMAL_TIPO = { 'carne-novilho': 'vaca', porco: 'porco', frango: 'frango',
 // as palavras dos usos nos nomes
 const USOS_NOME = [[/\bgrelha|\bchurrasco|\bbbq\b|\bbarbecue/, G], [/\bassar|\bassado|\bforno\b/, A], [/\bestufar|\bguisar|\bensopado/, E], [/\bcozer|\bcozid/, C], [/\bfritar|\bfrito/, F]];
 
-const NOMES = new Map([...CORTES.map(([, id, nome]) => [id, nome]), ...ANIMAIS.map(([, id, nome]) => [id, nome]), ...USOS.map((u) => [u, `para ${u}`])]);
+const NOMES = new Map([...CORTES.map(([, id, nome]) => [id, nome]), ...ANIMAIS.map(([, id, nome]) => [id, nome]), ...PRODUCAO.map(([, id, nome]) => [id, nome]), ...USOS.map((u) => [u, `para ${u}`])]);
 export const nomeEtiqueta = (id) => NOMES.get(id) ?? id;
 
 // { animal, corte, usos } de um produto (null se não é do talho nem da peixaria)
@@ -109,11 +121,12 @@ export function etiquetas(nome, tipo = null) {
     // os usos do corte e os da espécie (um carapau inteiro é de grelhar, como o carapau)
     const usos = new Set([...(c?.[3] ?? []), ...((animal && USOS_ANIMAL[animal]) ?? [])]);
     for (const [re, u] of USOS_NOME) if (re.test(t)) usos.add(u);
+    const p = PRODUCAO.find(([re]) => re.test(t));
     if (!c && !animal && !usos.size) return null;
-    return { animal, corte: c?.[1] ?? null, usos: USOS.filter((u) => usos.has(u)) };
+    return { animal, corte: c?.[1] ?? null, usos: USOS.filter((u) => usos.has(u)), ...(p ? { prod: p[1] } : {}) };
 }
 // as palavras das etiquetas, para juntar às do nome (o filtro da app procura palavras inteiras)
-export const palavrasEtiquetas = (e) => (e ? [e.corte, e.animal, ...e.usos].filter(Boolean) : []);
+export const palavrasEtiquetas = (e) => (e ? [e.corte, e.animal, e.prod, ...e.usos].filter(Boolean) : []);
 
 // os tipos do talho e da peixaria (onde as etiquetas valem)
 export const TALHO = new Set(['carne-novilho', 'porco', 'frango', 'peru', 'borrego-cabrito', 'carne-picada', 'peixe-fresco', 'peixe-congelado',

@@ -283,3 +283,16 @@ test('os sinais de qualidade pelo nome: o que é melhor primeiro, depois o pior,
     assert.deepEqual(sinais('Leite Meio Gordo Biológico Mimosa'), [{ t: 'biológico', s: 1 }, { t: 'meio-gordo', s: 0 }]);
     assert.deepEqual(sinais('Arroz Agulha'), []);
 });
+
+test('a origem: peixe selvagem ou de aquacultura, carne biológica, do campo, DOP; e a fila «Origem» na escolha', async () => {
+    const { etiquetas } = await import('../proxy/src/etiquetas.js');
+    const { palavrasDoTalho } = await import('../proxy/src/sugerir.js');
+    assert.equal(etiquetas('Dourada Fresca da Costa').prod, 'selvagem');
+    assert.equal(etiquetas('Filetes de Robalo ASC Congelado').prod, 'aquacultura');
+    assert.equal(etiquetas('Lombos de Bacalhau MSC').prod, 'selvagem');
+    assert.equal(etiquetas('Hambúrguer de Bovino Carnalentejana DOP').prod, 'dop');
+    assert.equal(etiquetas('Frango do Campo Inteiro').prod, 'campo');
+    assert.equal(etiquetas('Dourada Média Fresca').prod, undefined); // não se adivinha
+    const ws = palavrasDoTalho('peixe-fresco', ['Dourada da Costa', 'Dourada Selvagem', 'Dourada de Aquacultura', 'Robalo de Aquacultura', 'Robalo Fresco'].map((nome) => ({ nome })));
+    assert.deepEqual(ws.filter((x) => x.g === 'prod').map((x) => [x.r, x.a.sort()]), [['selvagem (pesca)', ['dourada']], ['aquacultura (viveiro)', ['dourada', 'robalo']]]);
+});

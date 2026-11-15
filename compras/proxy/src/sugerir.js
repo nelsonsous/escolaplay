@@ -154,7 +154,7 @@ export function palavrasDoTipo(k, produtos, max = 10) {
 // se há mais de um: o carapau, a pescada), depois o corte e o uso (grelhar…). r é o nome para ler, w a palavra para
 // filtrar; no corte e no uso, a: os animais onde há produtos com ele (escolhido o carapau, só aparecem os do carapau)
 export function palavrasDoTalho(k, produtos) {
-    const conta = { uso: new Map(), corte: new Map(), animal: new Map() };
+    const conta = { uso: new Map(), corte: new Map(), animal: new Map(), prod: new Map() };
     const com = new Map(); // corte ou uso → animais
     const mais = (m, w) => m.set(w, (m.get(w) ?? 0) + 1);
     for (const p of produtos) {
@@ -165,13 +165,15 @@ export function palavrasDoTalho(k, produtos) {
             if (e.animal) { if (!com.has(w)) com.set(w, new Set()); com.get(w).add(e.animal); }
         }
         if (e.animal) mais(conta.animal, e.animal);
+        if (e.prod) { mais(conta.prod, e.prod); if (e.animal) { if (!com.has(e.prod)) com.set(e.prod, new Set()); com.get(e.prod).add(e.animal); } }
     }
     const lista = (g, max) => [...conta[g]].filter(([, n]) => n >= 2 && n < produtos.length + (g === 'uso' ? 0 : 1))
         .sort((a, b) => (g === 'uso' ? USOS.indexOf(a[0]) - USOS.indexOf(b[0]) : b[1] - a[1])).slice(0, max)
         .map(([w, n]) => ({ w, r: nomeEtiqueta(w), n, g }));
     const animais = lista('animal', 12);
     const comA = (x) => (animais.length > 1 && com.has(x.w) ? { ...x, a: [...com.get(x.w)] } : x);
-    return [...(animais.length > 1 ? animais : []), ...lista('corte', 14).map(comA), ...lista('uso', 5).map(comA)];
+    // a origem (selvagem ou aquacultura; biológico, do campo, DOP…) logo a seguir ao animal
+    return [...(animais.length > 1 ? animais : []), ...lista('prod', 6).map(comA), ...lista('corte', 14).map(comA), ...lista('uso', 5).map(comA)];
 }
 
 // as peças inteiras vendidas ao peso (uma picanha de 1,8 kg) vêm com o preço do quilo onde devia estar o da peça, e o
