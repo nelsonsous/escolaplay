@@ -60,6 +60,27 @@ test('Lidl: o preço e o dia vêm na descrição da página', () => {
     }));
 });
 
+test('Lidl: a embalagem e o preço por litro ou quilo vêm no rodapé do preço («Emb. 5 L», «1 L = 1,16», «Vendido ao kg»)', () => {
+    const v = FONTES.lidl.lerProduto(fixture('lidl-vinho-5l.html'));
+    assert.deepEqual([v.nome, v.marca, v.preco, v.embalagem, v.precoUnidade], ['Vinho Tinto', 'AMIGOS DE PIAS', 5.79, '5 L', { valor: 1.16, unidade: 'l' }]);
+    const f = FONTES.lidl.lerProduto(fixture('lidl-frango-ao-kg.html'));
+    assert.deepEqual([f.preco, f.embalagem, f.precoUnidade], [2.39, '1 kg', { valor: 2.39, unidade: 'kg' }]);
+});
+
+test('Lidl no catálogo: o tipo pelo nome, só com as palavras do tipo, e o que não é de supermercado fica de fora', async () => {
+    const { classificador, FORA } = await import('../economo/lidl.mjs');
+    const base = [['Leite UHT Meio Gordo Mimosa', 'leite'], ['Leite Meio-gordo Continente', 'leite'], ['Vinho Tinto Douro', 'vinho-tinto'], ['Vinho Branco Alentejo', 'vinho-branco'],
+        ['Vinho Tinto Alentejo Reserva', 'vinho-tinto'], ['Iogurte Grego Natural', 'iogurtes'], ['Iogurte Kiwi', 'iogurtes'], ['Sal Marinho', 'sal'], ['Salmão Fumado', 'salmao-fumado']]
+        .map(([nome, tipo]) => ({ nome, tipo }));
+    const t = classificador(base);
+    assert.equal(t('mimosa leite meio gordo sem lactose'), 'leite');
+    assert.equal(t('amigos de pias vinho tinto'), 'vinho-tinto');
+    assert.equal(t('kiwi amarelo nacional'), null); // sem «iogurte» no nome, não é iogurte
+    assert.equal(t('ocean sea salmao fumado'), 'salmao-fumado'); // o «sal» não apanha o salmão
+    assert.ok(FORA.test('parkside-conjunto-de-brocas') && FORA.test('max-mila-s-world-pate-para-cao') && FORA.test('deluxe-rissois-de-sapateira-para-forno'));
+    assert.ok(!FORA.test('mimosa-leite-meio-gordo'));
+});
+
 test('uma página que não é de produto não dá produto (e não rebenta)', () => {
     for (const [nome, f] of Object.entries(FONTES)) {
         for (const lixo of ['', '<html><body>Erro 403</body></html>', '{"erro":true}', '<script type="application/ld+json">{nada</script>']) {

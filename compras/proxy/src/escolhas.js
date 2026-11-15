@@ -12,7 +12,8 @@ import { seccaoDoTipo } from './seccoes.js';
 import { limiteGramas, cabe } from './porcoes.js';
 
 const DIA = 24 * 3600e3;
-export const CADEIAS_ESCOLHA = ['continente', 'pingodoce', 'auchan'];
+// o Lidl só com os produtos do site que o Ecónomo lê (economo/lidl.mjs)
+export const CADEIAS_ESCOLHA = ['continente', 'pingodoce', 'auchan', 'lidl'];
 const recente = (agora) => new Date(agora.getTime() - 10 * DIA).toISOString();
 
 // o produto tem todas as palavras escolhidas (no nome ou, no talho e na peixaria, nas etiquetas do Ecónomo)?
