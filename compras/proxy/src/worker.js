@@ -42,7 +42,7 @@ import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
 import { cabazDeNatal } from './natal.js';
 import { lerReceita } from './receita.js';
-import { Erro, novoAparelho, aparelhoDe, casaDe, gravarLojas, gravarCp, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
+import { Erro, novoAparelho, aparelhoDe, casaDe, gravarLojas, gravarPessoas, gravarCp, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
 import { lojasDaCasa, lojasDe } from './lojas.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
@@ -56,7 +56,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.44.3';
+export const VERSION = '0.45.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -266,6 +266,7 @@ async function api(request, env, url) {
         return json(await gravarCp(db, ap, String(cp).trim(), z?.nome ?? null));
     }
     if (caminho === '/api/casa/lojas' && metodo === 'POST') return json(await gravarLojas(db, ap, lojasDaCasa(await corpoJSON(request))));
+    if (caminho === '/api/casa/pessoas' && metodo === 'POST') return json(await gravarPessoas(db, ap, (await corpoJSON(request)).n));
     if (caminho === '/api/lojas' && metodo === 'GET') {
         const todas = (await env.KV.get('lojas:spar', { type: 'json', cacheTtl: 3600 })) ?? [];
         return json({ lojas: lojasDe(todas, url.searchParams.get('q') ?? '') });

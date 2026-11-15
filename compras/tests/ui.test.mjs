@@ -700,3 +700,41 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('as pessoas da casa: na Casa escolhem-se 2, e no frango o mais barato é o de 500 g e não o pacote de 2 kg', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const agora = new Date().toISOString();
+    s.env.DB.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('frango', 'Frango', 2, 1)").run();
+    const ins = (id, nome, cent, q, emb) => s.env.DB.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, emb, q, tipo, visto, falhas)
+        VALUES ('continente', ?, ?, ?, ?, ?, 'kg', ?, ?, 'frango', ?, 0)`).run(id, `https://www.continente.pt/p/${id}.html`, nome, cent, Math.round(cent / q), emb, q, agora);
+    ins('g', 'Bife de Frango Pack Familiar', 1198, 2, '2 kg'); ins('m', 'Bife de Frango', 349, 0.5, '500 g');
+    esquecerTipos();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        const cont = async () => (await a.locator('#folha .melhores > li').allTextContents()).find((t) => /Continente/i.test(t)) ?? '';
+        const abreFrango = async () => {
+            await a.fill('[data-onda="junta"]', 'frango');
+            await a.click('#sug .chip:has-text("Frango")');
+            await a.waitForSelector('#folha .escolha h2:has-text("Frango")');
+        };
+        await abreFrango();
+        assert.match(await cont(), /Pack Familiar/); // sem pessoas: o mais barato ao quilo
+        await a.click('#folha .fechar');
+        await a.click('#abas button >> nth=2');
+        await a.waitForSelector('h3:has-text("Quantas pessoas em casa?")');
+        await a.click('.casa .chip:text-is("2")');
+        await a.waitForSelector('.casa .chip.on:text-is("2")');
+        await a.click('#abas button >> nth=0');
+        await abreFrango();
+        assert.match(await a.locator('#folha').innerText(), /Para 2 pessoas: o mais barato em embalagens até 800 g/);
+        assert.match(await cont(), /Bife de Frango/);
+        assert.doesNotMatch(await cont(), /Pack Familiar/);
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});

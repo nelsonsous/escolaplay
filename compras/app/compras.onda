@@ -504,6 +504,12 @@
   `<div class="junta"><input data-onda="cpz" data-chave="cp{ N @ 12 }" placeholder="Código postal (ex.: 4780-521)" aria-label="Código postal" inputmode="numeric" autocomplete="postal-code" value="{ Se && jc jc.cp esc jc.cp }">`
   `<button class="botao" data-onda="cpg:0">Gravar</button></div>`
   Se && jc jc.zona `<p class="nota">✓ A tua zona: <b>{ esc jc.zona }</b>.</p>`
+  # quantas pessoas há em casa: no talho e na peixaria, o mais barato escolhe-se entre as embalagens do tamanho certo
+  = np ? && jc jc.pessoas int jc.pessoas 0
+  `<h3>Quantas pessoas em casa?</h3><p class="nota">No talho e na peixaria, o mais barato escolhe-se entre as embalagens para a casa (duas refeições por pessoa), e não o pacote de 2 kg só por ser o mais barato ao quilo.</p><div class="chips">`
+  `<button class="chip{ Se ~ np ` on` }" data-onda="pes:0">Não contar</button>`
+  L i 6 { = n + i 1 `<button class="chip{ Se == np n ` on` }" data-onda="pes:{ N n }">{ N n }{ Se == n 6 `+` }</button>` }
+  `</div>`
   dsaude
   = sp _an_ler $"simples"
   `<h3>Modo simples</h3><p class="nota">Letra e botões maiores, as secções com ícones e o que costumas comprar primeiro, para escolher sem escrever. Só neste telemóvel; a lista é a mesma.</p>`
@@ -852,6 +858,8 @@
   # «Escolher por: ⭐ Melhor nota» (ord, no vinho): o de nota mais alta que passa nos filtros (no empate, o mais barato,
   # que vem primeiro); sem nenhum com nota, o mais barato
   Se && ~ r _an_ler $"ord" { = mn 0 = p pri tp.produtos W p { Se && && mesmo txt p.c cadeia k passa p fe fm > int p.nt mn { = r p = mn int p.nt } = p seg p } }
+  # as pessoas da casa (tp.lim, em gramas, no talho e na peixaria): primeiro o mais barato que cabe (sem peso, cabe)
+  Se && ~ r tp.lim { = lm int tp.lim = p pri tp.produtos W && p ~ r { Se && && mesmo txt p.c cadeia k passa p fe fm <= int p.g lm = r p = p seg p } }
   Se ~ r { = p pri tp.produtos W && p ~ r { Se && mesmo txt p.c cadeia k passa p fe fm = r p = p seg p } }
   r }
 # quantos produtos do supermercado k passam nos filtros
@@ -920,6 +928,8 @@
   Se n { ? cts `</ul><p class="nota">★ é a nota dos críticos e dos concursos (de 0 a 100: revistas, guias, medalhas), recolhida pelo Ecónomo; toca na ★ para ler a fonte e no vinho para o escolher. Sem nota, conta o que o rótulo diz (Reserva, DOC…). Só garrafas (o bag-in-box e o garrafão ficam de fora) e só entre os que escolheste: nenhum outro vale mais por menos.</p>` `</ul><p class="nota">Pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP, cura…), só entre os que escolheste: nenhum outro promete mais por menos. Não é uma nota de crítico.</p>` }
   dcotados tp fe fm
   0 }
+# gramas em quilos, com vírgula («1,2»)
+: kgtxt i>i g { = k / g 1000 = r / % g 1000 100 ? r texto`{ N k },{ N r }` texto`{ N k }` }
 # o índice de uma cadeia (o contrário de «cadeia»: continente 0, pingodoce 1, auchan 2, lidl 3)
 : icad i>i c ? mesmo c $"continente" 0 ? mesmo c $"pingodoce" 1 ? mesmo c $"auchan" 2 3
 # a nota ★ e, se houver, a ligação para a notícia (abre fora da app; não escolhe o produto)
@@ -1013,6 +1023,7 @@
         `<h3>Escolher por</h3><div class="chips"><button class="chip{ Se ~ ord ` on` }" data-onda="ord:0">💶 Mais barato</button>`
         `<button class="chip{ Se ord ` on` }" data-onda="ord:1">⭐ Melhor nota</button></div>` }
       ? && ord mesmo txt tp.fam $"vinho" `<h3>O melhor cotado em cada supermercado</h3><ul class="melhores">` `<h3>O mais barato em cada supermercado</h3><ul class="melhores">`
+      Se tp.lim `<p class="nota">👥 Para { N int tp.pes } { ? == int tp.pes 1 `pessoa` `pessoas` }: o mais barato em embalagens até { ? >= int tp.lim 1000 `{ crut kgtxt int tp.lim } kg` `{ N int tp.lim } g` } (as pessoas mudam-se na Casa; escolher outra continua a dar).</p>`
       # só se comparam os preços na unidade do tipo (o quilo, o litro): o mais barato fica marcado; em grande o preço
       # por quilo, e por baixo o que se paga e por quanto
       = ub ? tp.ub txt tp.ub 0
@@ -1262,6 +1273,7 @@
   Se eacao t $"cost" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt x.t },"q":1\}` }
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
+  Se eacao t $"pes" { = h _tx_abre 100 `POST /api/casa/pessoas{ P 10 }\{"n":{ ? v N v `null` }\}` _tx_fecha h _an_buscar h $"lido_casa" }
   Se eacao t $"ord" { ? v _an_gravar $"ord" $"1" _an_gravar $"ord" 0 }
   Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v _an_gravar $"opc" 0 _an_gravar $"opc" texto`{ N v }` }
   # escolher outra opção: a lista fica aberta (vê-se a barra azul mudar) e um aviso diz o que ficou

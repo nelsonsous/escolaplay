@@ -57,18 +57,26 @@ export async function aparelhoDe(db, request) {
 
 // { codigo, aparelhos } (quantos telemóveis tem a casa)
 export async function casaDe(db, ap) {
-    const c = await um(db, 'SELECT codigo, local, lojas, cp, zona, (SELECT count(*) FROM aparelho WHERE casa = casa.id) AS aparelhos FROM casa WHERE id = ?', ap.casa);
+    const c = await um(db, 'SELECT codigo, local, lojas, cp, zona, pessoas, (SELECT count(*) FROM aparelho WHERE casa = casa.id) AS aparelhos FROM casa WHERE id = ?', ap.casa);
     if (!c) throw new Erro(404, 'casa desconhecida');
     const r = { codigo: c.codigo, aparelhos: Number(c.aparelhos) };
     if (c.local) r.local = c.local;
     if (c.lojas) r.lojas = JSON.parse(c.lojas);
     if (c.cp) { r.cp = c.cp; if (c.zona) r.zona = c.zona; }
+    if (c.pessoas) r.pessoas = Number(c.pessoas);
     return r;
 }
 // o código postal da casa (para o stock do Continente na zona: zona.js) e o nome da loja online que o serve; null tira
 export async function gravarCp(db, ap, cp, zona) {
     await db.prepare('UPDATE casa SET cp = ?, zona = ? WHERE id = ?').bind(cp, zona, ap.casa).run();
     if (!cp) await db.prepare('DELETE FROM zona_stock WHERE casa = ?').bind(ap.casa).run();
+    return casaDe(db, ap);
+}
+// quantas pessoas há em casa (porcoes.js): 1 a 12, ou null para não contar
+export async function gravarPessoas(db, ap, n) {
+    const v = n == null || n === '' ? null : Math.round(Number(n));
+    if (v != null && !(v >= 1 && v <= 12)) throw new Erro(400, 'entre 1 e 12 pessoas');
+    await db.prepare('UPDATE casa SET pessoas = ? WHERE id = ?').bind(v, ap.casa).run();
     return casaDe(db, ap);
 }
 // a localidade e as lojas da casa (lojas.js); null nas lojas: todas
