@@ -317,7 +317,11 @@ async function reaisDoTipo(db, casa, k) {
 }
 
 // os portes das lojas de produtores (dos termos e condições de cada uma), em cêntimos
-export const PORTES = { lugrade: { cent: 750, gratis: 10000 } };
+export const PORTES = {
+    lugrade: { cent: 750, gratis: 10000, nota: 'só Portugal continental' },
+    // a Riberalves (FAQ da loja): entrega grátis, encomenda mínima de 50 €, só em algumas zonas (vê-se pelo código postal)
+    riberalves: { cent: 0, gratis: 0, nota: 'encomenda mínima 50 €, só algumas zonas' },
+};
 // o produto da mesma marca (a loja) num supermercado, com o mesmo calibre e a mesma origem: { c, uc, ub, nome }
 export function mesmaMarca(produtos, loja, et, k) {
     const re = new RegExp('\\b' + loja + '\\b', 'i');
@@ -399,7 +403,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
             if (sq.length) x.sq = sq;
             // os portes (dos termos da loja): grátis acima de um valor
             const po = PORTES[a.loja];
-            if (po) x.po = a.cent >= po.gratis ? 0 : po.cent;
+            if (po) { x.po = a.cent >= po.gratis ? 0 : po.cent; if (po.nota) x.pn = po.nota; }
             // a mesma marca num supermercado, com o mesmo calibre e a mesma origem (a Lugrade também se vende no Continente)
             const mc = et ? mesmaMarca(results, a.loja, et, k) : null;
             if (mc) x.mc = mc;

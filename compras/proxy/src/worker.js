@@ -56,12 +56,12 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.35.0';
+export const VERSION = '0.36.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
     // lojas online de produtores (volta 7): o bacalhau da Lugrade…
-    'lugrade.com',
+    'lugrade.com', 'riberalves.pt', 'merceariadeportugal.com',
 ];
 const MAX_CORPO = 64 * 1024;
 const MAX_TALAO = MAX_IMAGEM + 1024;

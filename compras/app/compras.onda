@@ -1014,7 +1014,7 @@
   0 }
 # as lojas online de produtores (a Lugrade…): à parte das cadeias, com os mesmos filtros (espécie, origem, corte),
 # o preço por quilo e o que se paga; compra-se no site deles (com portes)
-: nomeprod i>i l ? mesmo l $"lugrade" $"Lugrade" l
+: nomeprod i>i l ? mesmo l $"lugrade" $"Lugrade" ? mesmo l $"riberalves" $"Riberalves" l
 : dprodutores ii>i tp mu {
   = x pri tp.pd = n 0
   W && x < n 6 {
@@ -1023,6 +1023,7 @@
       `<li class="prod"><b>{ crut nomeprod txt x.loja }</b><span class="total">{ ? x.uc `{ eur int x.uc }<i>/{ crut txt x.ub }</i>` `{ eur int x.cent }` }</span>`
       `<small><b class="emb">Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }{ Se x.po { ? int x.po ` + { eur int x.po } de portes` ` · sem portes` } }</b>{ Se && x.uc > mu 0 { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por quilo` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por quilo` } } · { esc x.nome }</small>`
       dsinais x
+      Se x.pn `<small class="mesmo">Portes: { esc x.pn }</small>`
       Se x.mc `<small class="mesmo">A mesma marca no { crut nomec txt x.mc.c }: <b>{ eur int x.mc.uc }/kg</b>{ ? < int x.mc.uc int x.uc ` (mais barato lá)` ` (mais caro lá)` }</small>`
       `<a class="mais-op" href="{ esc x.url }" target="_blank" rel="noopener">Ver no site ↗</a></li>`
       = n + n 1 }

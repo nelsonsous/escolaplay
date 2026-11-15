@@ -386,7 +386,12 @@ test('as lojas de produtores: as variantes (calibre, origem, preço) dão o pre�
 test('as lojas de produtores: os portes (grátis acima de 100 € na Lugrade) e a mesma marca no supermercado com o mesmo calibre e origem', async () => {
     const { mesmaMarca, PORTES } = await import('../proxy/src/sugerir.js');
     const { etiquetas } = await import('../proxy/src/etiquetas.js');
-    assert.deepEqual(PORTES.lugrade, { cent: 750, gratis: 10000 });
+    assert.deepEqual(PORTES.lugrade, { cent: 750, gratis: 10000, nota: 'só Portugal continental' });
+    assert.equal(PORTES.riberalves.cent, 0);
+    const { produtosDaLista, limparNome } = await import('../economo/produtores.mjs');
+    assert.equal(limparNome('Leia mais sobre &ldquo;Ovas de Bacalhau 400g iva incluído &rdquo;'.replace(/&ldquo;|&rdquo;/g, '"')), 'Ovas de Bacalhau 400g');
+    const h = '<a href="https://riberalves.pt/produto/lombos-gourmet-12meses/" class="woocommerce-LoopProduct-link"><img alt="x"><h2 class="woocommerce-loop-product__title">Lombos Gourmet +12Meses</h2></a>';
+    assert.deepEqual(produtosDaLista(h), [['https://riberalves.pt/produto/lombos-gourmet-12meses/', 'Lombos Gourmet +12Meses']]);
     const ps = [
         { c: 'continente', nome: 'Bacalhau Especial Islândia Seco Seleção do Chef Diogo Rocha Lugrade', uc: 3499, ub: 'kg' },
         { c: 'continente', nome: 'Bacalhau Graúdo Noruega Seco Lugrade', uc: 2599, ub: 'kg' },
