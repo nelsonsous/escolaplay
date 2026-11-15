@@ -56,7 +56,8 @@ async function dosRamos(db, ramos) {
 }
 const CORTES = new Map(); // o grupo → { quando, lista } (uma hora)
 async function grupo(db, g, nome) {
-    const ts = await dosRamos(db, g.ramos);
+    // um grupo («carne»: os ramos todos) ou um tipo só («bacalhau»: g.ks), com os cortes e os usos dele
+    const ts = g.ks ? (await dosRamos(db, RAMOS.map(([r]) => r))).filter((t) => g.ks.includes(t.k)) : await dosRamos(db, g.ramos);
     let c = CORTES.get(nome);
     if (!c || Date.now() - c.quando > HORA) {
         const ks = ts.map((t) => t.k);
@@ -125,6 +126,9 @@ export async function sugerir(db, q, max = 8) {
     const conta = new Map();
     for (const t of out) if (!t.w) conta.set(t.s, (conta.get(t.s) ?? 0) + 1); // os achados pelo nome não contam
     for (const [sx, n] of conta) if (n >= 2 && sx !== 11) secs.add(sx);
+    // um tipo só do talho ou da peixaria («bacalhau»): a secção, o tipo e os cortes dele (o calibre, as postas…)
+    const sos = out.filter((t) => !t.w);
+    if (ws.length === 1 && sos.length === 1 && RAMOS.some(([, ks]) => ks.includes(sos[0].k))) return grupo(db, { s: 2, ks: [sos[0].k], especie: true }, 'tipo:' + sos[0].k);
     return [...[...secs].map((sx) => ({ sec: sx, nome: nomeSeccao(sx) })), ...out];
 }
 
@@ -203,7 +207,8 @@ export function palavrasDoTalho(k, produtos) {
             if (e.animal) { if (!com.has(w)) com.set(w, new Set()); com.get(w).add(e.animal); }
         }
         if (e.animal) mais(conta.animal, e.animal);
-        if (e.prod) { mais(conta.prod, e.prod); if (e.animal) { if (!com.has(e.prod)) com.set(e.prod, new Set()); com.get(e.prod).add(e.animal); } }
+        // a origem: o modo de produção, o país e a preparação (salgado seco ou demolhado), na mesma fila
+        for (const w of [e.prod, e.pais, e.prep].filter(Boolean)) { mais(conta.prod, w); if (e.animal) { if (!com.has(w)) com.set(w, new Set()); com.get(w).add(e.animal); } }
     }
     const lista = (g, max) => [...conta[g]].filter(([, n]) => n >= 2 && n < produtos.length + (g === 'uso' ? 0 : 1))
         .sort((a, b) => (g === 'uso' ? USOS.indexOf(a[0]) - USOS.indexOf(b[0]) : b[1] - a[1])).slice(0, max)
@@ -211,7 +216,7 @@ export function palavrasDoTalho(k, produtos) {
     const animais = lista('animal', 12);
     const comA = (x) => (animais.length > 1 && com.has(x.w) ? { ...x, a: [...com.get(x.w)] } : x);
     // a origem (selvagem ou aquacultura; biológico, do campo, DOP…) logo a seguir ao animal
-    return [...(animais.length > 1 ? animais : []), ...lista('prod', 6).map(comA), ...lista('corte', 14).map(comA), ...lista('uso', 5).map(comA)];
+    return [...(animais.length > 1 ? animais : []), ...lista('prod', 12).map(comA), ...lista('corte', 14).map(comA), ...lista('uso', 5).map(comA)];
 }
 
 // as peças inteiras vendidas ao peso (uma picanha de 1,8 kg) vêm com o preço do quilo onde devia estar o da peça, e o

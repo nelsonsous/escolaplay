@@ -227,7 +227,7 @@ test('o bovino procura-se por «vaca» e por «bovino» (a picanha é de vaca)',
 test('as etiquetas do Ecónomo: animal, corte e usos pelo nome; no tipo, as escolhas em três filas', async () => {
     const { etiquetas } = await import('../proxy/src/etiquetas.js');
     const { palavrasDoTalho } = await import('../proxy/src/sugerir.js');
-    assert.deepEqual(etiquetas('Picanha de Bovino América do Sul', 'carne-novilho'), { animal: 'vaca', corte: 'picanha', usos: ['grelhar', 'assar'] });
+    assert.deepEqual(etiquetas('Picanha de Bovino América do Sul', 'carne-novilho'), { animal: 'vaca', corte: 'picanha', usos: ['grelhar', 'assar'], pais: 'americasul' });
     assert.deepEqual(etiquetas('Acém Comprido de Novilho Fatiado no Balcão Angus', 'carne-novilho'), { animal: 'novilho', corte: 'acem', usos: ['estufar', 'cozer'] });
     assert.deepEqual(etiquetas('Costeletas do Lombo de Porco Preto Miguel & Miguel', 'porco'), { animal: 'preto', corte: 'costeleta', usos: ['grelhar'] });
     assert.deepEqual(etiquetas('Hambúrguer 100% Picanha Congelado Deliciosa', 'carne-novilho'), { animal: 'vaca', corte: 'hamburguer', usos: ['grelhar', 'fritar'] });
@@ -315,4 +315,28 @@ test('os ramos das outras secções vêm da arrumação das cadeias («Arroz, ma
         ('${C}mercearia/arroz-massa-e-farinha/massa/', 'continente', 'massa', 0), ('${C}mercearia/conservas/atum/', 'continente', 'atum', 0);`);
     esquecerTipos();
     assert.deepEqual((await tiposDaSeccao(db, 5)).map((t) => [t.gr, t.k]), [['Arroz, massa e farinha', 'arroz'], ['Arroz, massa e farinha', 'massa'], ['Conservas', 'atum']]);
+});
+
+test('o bacalhau: o calibre é o corte (corrente, crescido, graúdo, especial), o país e a preparação na origem; escrever «bacalhau» dá os cortes', async () => {
+    const { etiquetas } = await import('../proxy/src/etiquetas.js');
+    const { sugerir } = await import('../proxy/src/sugerir.js');
+    const { sinais } = await import('../proxy/src/qualidade.js');
+    // as caras não são bacalhau inteiro (o nome diz «seco», que já não é o nome de um corte)
+    assert.equal(etiquetas('Caras de Bacalhau Seco Continente').corte, 'miudezas');
+    assert.deepEqual(etiquetas('Bacalhau Graúdo 1ª Noruega Seco'), { animal: 'bacalhau', corte: 'graudo', usos: ['assar', 'cozer'], pais: 'noruega', prep: 'salgado' });
+    assert.equal(etiquetas('Bacalhau Especial 1ª Islândia Seco').corte, 'especial');
+    assert.equal(etiquetas('Paloco do Pacífico Desfiado Seco').animal, 'paloco');
+    assert.equal(etiquetas('BACALHAU GRAUDO NORUEGA ASA BRANCA KG').corte, 'graudo'); // a marca Asa Branca não é «asas»
+    assert.equal(etiquetas('BACALHAU RIBERALVES DEMOLHADO POSTAS MSC 800G').prep, 'demolhado');
+    assert.deepEqual(sinais('Bacalhau Graúdo 1ª Noruega Seco').map((x) => x.t), ['calibre grande', '1.ª qualidade']);
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('bacalhau', 'Bacalhau', 6, 1);`);
+    esquecerTipos();
+    const p = (id, nome) => ({ id, nome, preco: 9.99, emb: '1 kg', url: 'https://www.continente.pt/' + id });
+    await guardarCatalogo(db, 'continente', 'bacalhau', [p('1', 'Bacalhau Graúdo Noruega Seco'), p('2', 'Bacalhau Graúdo Islândia Seco'), p('3', 'Bacalhau Graúdo 1ª Seco'),
+        p('4', 'Lombos de Bacalhau'), p('5', 'Lombos de Bacalhau Demolhado'), p('6', 'Lombo de Bacalhau MSC')]);
+    const r = await sugerir(db, 'bacalhau');
+    assert.deepEqual(r.slice(0, 2).map((x) => x.sec ?? x.k), [2, 'bacalhau']);
+    const cortes = r.filter((x) => x.corte).map((x) => x.corte);
+    assert.ok(cortes.includes('graúdo') && cortes.includes('lombo'), cortes.join());
 });

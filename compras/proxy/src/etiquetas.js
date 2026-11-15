@@ -60,12 +60,11 @@ const CORTES = [
     [/\bcachaco/, 'cachaco', 'cachaço', [E, A]],
     [/\bpeito/, 'peito', 'peito', [G, F]],
     [/\bcoxa|\bperna|\bperninha|\bpernil|\bcoto\b|\bmao\b|\bpa\b|\bpa e acem|\bpa\/mao/, 'perna', 'perna, coxa e pá', [A, E]],
-    [/\basas?\b|\basinha/, 'asa', 'asas', [A, G]],
+    [/\basas?\b(?! branca)|\basinha/, 'asa', 'asas', [A, G]], // («Asa Branca» é uma marca de bacalhau)
     [/\btentacul|\bargola|\brodela|\btiras\b/, 'tentaculo', 'tentáculos e argolas', [F, G]],
     [/\bmiolo|\bcauda|\bboca/, 'miolo', 'miolo, caudas e bocas', [C]],
     [/\bleitao/, 'leitao', 'leitão', [A]],
     [/\brabos?\b|\bbarriga|\bbadana/, 'rabo', 'rabos, barrigas e badanas', [C]],
-    [/\b(graudo|crescido|especial|corrente|miudo)\b/, 'seco', 'inteiro (graúdo, crescido…)', [C, A]],
     [/\bcubos?\b/, 'cubos', 'cubos', [E]],
     [/\binteir|\bcompleto|\bmetade|\bquartos?\b|\bpartid|\bpedaco|\bmeio\b/, 'inteiro', 'inteiro ou aos pedaços', [A, C]],
 ];
@@ -79,7 +78,7 @@ const ANIMAIS = [
     [/\bgalinha/, 'galinha', 'galinha'], [/\bfrango/, 'frango', 'frango'], [/\bperu\b|\bturkey/, 'peru', 'peru'],
     [/\bpato\b/, 'pato', 'pato'], [/\baves?\b/, 'aves', 'aves'], [/\bmist[oa]s?\b/, 'misto', 'misto'], [/\bcoelho/, 'coelho', 'coelho'],
     [/\bborrego|\bcordeiro/, 'borrego', 'borrego'], [/\bcabrito/, 'cabrito', 'cabrito'],
-    [/\bbacalhau|\bpaloco/, 'bacalhau', 'bacalhau'], [/\bpescada/, 'pescada', 'pescada'], [/\bsalmao/, 'salmao', 'salmão'],
+    [/\bpaloco|\bescamudo/, 'paloco', 'paloco (do Pacífico)'], [/\bbacalhau/, 'bacalhau', 'bacalhau'], [/\bpescada/, 'pescada', 'pescada'], [/\bsalmao/, 'salmao', 'salmão'],
     [/\batum\b/, 'atum', 'atum'], [/\bdourada/, 'dourada', 'dourada'], [/\brobalo/, 'robalo', 'robalo'],
     [/\bsardinha/, 'sardinha', 'sardinha'], [/\bcarapau|\bchicharro/, 'carapau', 'carapau'], [/\bcavala/, 'cavala', 'cavala'],
     [/\bpolvo/, 'polvo', 'polvo'], [/\blul(a|inha)/, 'lula', 'lulas'], [/\bchoco/, 'choco', 'choco'], [/\bpota|\bargolas do mar/, 'pota', 'pota'],
@@ -100,16 +99,33 @@ const PRODUCAO = [
     [/\bmontanheira|\bbolota/, 'montanheira', 'montanheira (bolota)'],
     [/\bdo campo\b|\bar livre\b|\bcapoeira/, 'campo', 'do campo (ar livre)'],
 ];
+// o calibre do bacalhau inteiro (do mais pequeno ao maior, e melhor): o corte dele quando o nome não diz outro
+const CALIBRES = [
+    [/\bsuper especial|\bespecial\b/, 'especial', 'especial (o maior)'], [/\bgraudo\b/, 'graudo', 'graúdo'],
+    [/\bcrescido\b/, 'crescido', 'crescido'], [/\bcorrente\b|\bmiudo\b/, 'corrente', 'corrente (o mais pequeno)'],
+];
+// o país ou a zona de origem, quando o nome o diz (o bacalhau da Noruega ou da Islândia, a picanha da América do Sul)
+const PAISES = [
+    [/\bnoruega\b/, 'noruega', 'Noruega'], [/\bislandia\b/, 'islandia', 'Islândia'], [/\bfaroe|\bfaroes\b/, 'faroe', 'Ilhas Faroé'],
+    [/\bacores\b/, 'acores', 'Açores'], [/\bnacional\b|\bportugal\b|\bportugues/, 'nacional', 'nacional'],
+    [/\bespanha\b|\bgaliza\b/, 'espanha', 'Espanha'], [/\bargentin/, 'argentina', 'Argentina'], [/\bchile\b/, 'chile', 'Chile'],
+    [/\bmocambique\b/, 'mocambique', 'Moçambique'], [/\bmadagascar\b/, 'madagascar', 'Madagáscar'], [/\bequador\b/, 'equador', 'Equador'],
+    [/\bvietnam/, 'vietname', 'Vietname'], [/\bamerica do sul\b/, 'americasul', 'América do Sul'], [/\beuropa\b/, 'europa', 'Europa'],
+    [/\bpacifico\b|\balasca\b/, 'pacifico', 'Pacífico'],
+];
+// a preparação do bacalhau (e do peixe): salgado seco (para demolhar) ou já demolhado
+const PREPARO = [[/\bdemolhad/, 'demolhado', 'demolhado (pronto a cozinhar)'], [/\bseco\b|\bsalgado\b/, 'salgado', 'salgado seco (para demolhar)']];
 // os usos de cada espécie, quando o nome não diz o corte
 const USOS_ANIMAL = { sardinha: [G], carapau: [G, F], cavala: [G], dourada: [G, A], robalo: [G, A], salmao: [G, A], atum: [G],
-    pescada: [C, F], bacalhau: [C, A], polvo: [C, A], lula: [G, F], choco: [G, F], pota: [G, F], camarao: [C, G],
+    pescada: [C, F], bacalhau: [C, A], paloco: [C, F], polvo: [C, A], lula: [G, F], choco: [G, F], pota: [G, F], camarao: [C, G],
     ameijoa: [C], mexilhao: [C], marisco: [C], sapateira: [C], maruca: [C, F], tamboril: [E, G], linguado: [F, G], outros: [G, F] };
 // o animal de cada tipo, quando o nome não o diz
 const ANIMAL_TIPO = { 'carne-novilho': 'vaca', porco: 'porco', frango: 'frango', peru: 'peru' };
 // as palavras dos usos nos nomes
 const USOS_NOME = [[/\bgrelha|\bchurrasco|\bbbq\b|\bbarbecue/, G], [/\bassar|\bassado|\bforno\b/, A], [/\bestufar|\bguisar|\bensopado/, E], [/\bcozer|\bcozid/, C], [/\bfritar|\bfrito/, F]];
 
-const NOMES = new Map([...CORTES.map(([, id, nome]) => [id, nome]), ...ANIMAIS.map(([, id, nome]) => [id, nome]), ...PRODUCAO.map(([, id, nome]) => [id, nome]), ...USOS.map((u) => [u, `para ${u}`])]);
+const NOMES = new Map([...CORTES.map(([, id, nome]) => [id, nome]), ...ANIMAIS.map(([, id, nome]) => [id, nome]), ...PRODUCAO.map(([, id, nome]) => [id, nome]),
+    ...CALIBRES.map(([, id, nome]) => [id, nome]), ...PAISES.map(([, id, nome]) => [id, nome]), ...PREPARO.map(([, id, nome]) => [id, nome]), ...USOS.map((u) => [u, `para ${u}`])]);
 export const nomeEtiqueta = (id) => NOMES.get(id) ?? id;
 
 // { animal, corte, usos } de um produto (null se não é do talho nem da peixaria)
@@ -122,11 +138,16 @@ export function etiquetas(nome, tipo = null) {
     const usos = new Set([...(c?.[3] ?? []), ...((animal && USOS_ANIMAL[animal]) ?? [])]);
     for (const [re, u] of USOS_NOME) if (re.test(t)) usos.add(u);
     const p = PRODUCAO.find(([re]) => re.test(t));
-    if (!c && !animal && !usos.size) return null;
-    return { animal, corte: c?.[1] ?? null, usos: USOS.filter((u) => usos.has(u)), ...(p ? { prod: p[1] } : {}) };
+    const pa = PAISES.find(([re]) => re.test(t));
+    const pr = (animal === 'bacalhau' || animal === 'paloco') ? PREPARO.find(([re]) => re.test(t)) : null;
+    // o bacalhau inteiro: o corte é o calibre (corrente, crescido, graúdo, especial)
+    let corte = c?.[1] ?? null;
+    if (!corte && animal === 'bacalhau') { const k = CALIBRES.find(([re]) => re.test(t)); if (k) { corte = k[1]; for (const u of [C, A]) usos.add(u); } }
+    if (!corte && !animal && !usos.size) return null;
+    return { animal, corte, usos: USOS.filter((u) => usos.has(u)), ...(p ? { prod: p[1] } : {}), ...(pa ? { pais: pa[1] } : {}), ...(pr ? { prep: pr[1] } : {}) };
 }
 // as palavras das etiquetas, para juntar às do nome (o filtro da app procura palavras inteiras)
-export const palavrasEtiquetas = (e) => (e ? [e.corte, e.animal, e.prod, ...e.usos].filter(Boolean) : []);
+export const palavrasEtiquetas = (e) => (e ? [e.corte, e.animal, e.prod, e.pais, e.prep, ...e.usos].filter(Boolean) : []);
 
 // os tipos do talho e da peixaria (onde as etiquetas valem)
 export const TALHO = new Set(['carne-novilho', 'porco', 'frango', 'peru', 'borrego-cabrito', 'carne-picada', 'peixe-fresco', 'peixe-congelado',
