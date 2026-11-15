@@ -91,7 +91,7 @@ function especie(e) {
     const x = { k };
     if (e.emb) x.emb = texto(e.emb, 20);
     if (e.m) x.m = texto(e.m, 40);
-    if (e.w) x.w = texto(e.w, 30).toLowerCase();
+    if (e.w) x.w = texto(e.w, 60).toLowerCase().trim();
     // o nome do tipo (para o caminho na lista: «Carne picada»)
     if (e.n) x.n = texto(e.n, 60);
     return x;
