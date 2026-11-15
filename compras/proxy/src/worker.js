@@ -204,8 +204,16 @@ async function sondaRevisao(request, env) {
 
 // a mudança para a conta própria (15/11/2026, temporário: sai depois da migração): as linhas de uma tabela, aos
 // bocados (?t=preco&de=0&n=1000, pela ordem de rowid), e o valor de uma chave da KV (?kv=indice:auchan)
+// (também aceita o segredo da sessão que faz a migração, pela impressão digital em MIGRACAO_HASH: o segredo não passa
+// de uma sessão para a outra)
+async function porHash(request, env) {
+    const auth = request.headers.get('authorization') || '';
+    if (!env.MIGRACAO_HASH || !auth.startsWith('Bearer ')) return false;
+    const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(auth.slice(7))));
+    return igual([...h].map((b) => b.toString(16).padStart(2, '0')).join(''), String(env.MIGRACAO_HASH).trim().toLowerCase());
+}
 async function sondaExportar(request, env) {
-    const nao = await recusa(request, env);
+    const nao = (await porHash(request, env)) ? null : await recusa(request, env);
     if (nao) return nao;
     const q = new URL(request.url).searchParams;
     if (q.get('kv')) {
