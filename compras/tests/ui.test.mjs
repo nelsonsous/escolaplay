@@ -580,10 +580,10 @@ test('o Cabaz de Natal: as partes com 3 opções, o modo, escolher outra, tirar 
         const it = JSON.parse(s.env.DB.linhas('SELECT itens FROM casa')[0].itens)[0];
         assert.equal(it.p.auchan.id, 'b2');
         assert.equal(it.e.k, 'bacalhau');
-        // «Ajustar» abre a escolha do tipo; o que se junta de lá substitui a coisa
+        // tocar na coisa abre logo a escolha do tipo (com os filtros dela); «Guardar» substitui a coisa
         await a.click('.item .texto');
-        await a.click('#folha [data-onda="ajusta:0"]');
         await a.waitForSelector('#folha .escolha h2:has-text("Bacalhau")');
+        assert.equal(await a.locator('#folha [data-onda="tirars:0"]').count(), 1);
         await a.click('#folha [data-onda="juntat:0"]');
         await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
         assert.equal(await a.locator('.item').count(), 1);
@@ -735,6 +735,59 @@ test('as pessoas da casa: na Casa escolhem-se 2, e no frango o mais barato é o 
         assert.match(await a.locator('#folha').innerText(), /Para 2 pessoas: o mais barato em embalagens até 800 g/);
         assert.match(await cont(), /Bife de Frango/);
         assert.doesNotMatch(await cont(), /Pack Familiar/);
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});
+
+
+test('juntar depressa: «bifes de frango» junta logo o mais barato; «frango» abre a escolha; o 🗑 e deslizar para a esquerda tiram', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const agora = new Date().toISOString();
+    s.env.DB.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('frango', 'Frango', 3, 1)").run();
+    const ins = (cadeia, id, nome, cent, q, emb) => s.env.DB.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, emb, q, tipo, visto, falhas)
+        VALUES (?, ?, ?, ?, ?, ?, 'kg', ?, ?, 'frango', ?, 0)`).run(cadeia, id, `https://www.${cadeia}.pt/p/${id}.html`, nome, cent, Math.round(cent / q), emb, q, agora);
+    ins('continente', 'b1', 'Bifes de Frango Continente', 475, 0.68, '680 g'); ins('continente', 'b2', 'Bifes de Frango Extrafino', 494, 0.55, '550 g');
+    ins('pingodoce', 'p1', 'Bife de Frango a granel', 325, 0.5, '500 g'); ins('continente', 'c1', 'Coxas de Frango', 299, 1, '1 kg');
+    esquecerTipos();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        // concreto: junta logo, com o tipo e o mais barato de cada loja, e avisa
+        await a.fill('[data-onda="junta"]', 'bifes de frango');
+        await a.waitForSelector('#sug .chip:has-text("Frango")');
+        await a.click('[data-onda="juntar:0"]');
+        await a.waitForSelector('#aviso .toast:has-text("Juntei Frango")');
+        assert.equal(await a.locator('#folha .cartao').count(), 0);
+        await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
+        const it = JSON.parse(s.env.DB.linhas('SELECT itens FROM casa')[0].itens)[0];
+        assert.equal(it.e.k, 'frango');
+        assert.equal(it.p.continente.id, 'b1');
+        assert.equal(it.p.pingodoce.id, 'p1');
+        // tocar abre a escolha do tipo, com o corte escolhido
+        await a.click('.item .texto');
+        await a.waitForSelector('#folha .escolha h2:has-text("Frango")');
+        await a.click('#folha .fechar');
+        await a.waitForSelector('#folha .cartao', { state: 'detached' });
+        // geral: abre a escolha (não junta)
+        await a.fill('[data-onda="junta"]', 'frango');
+        await a.waitForTimeout(600);
+        await a.click('[data-onda="juntar:0"]');
+        await a.waitForSelector('#folha .escolha h2:has-text("Frango")');
+        assert.equal(await a.locator('.item').count(), 1);
+        await a.click('#folha .fechar');
+        // deslizar para a esquerda tira da lista
+        await a.evaluate(() => {
+            const li = document.querySelector('.item');
+            const toque = (tipo, x) => { const t = new Touch({ identifier: 2, target: li, clientX: x, clientY: 300 });
+                li.dispatchEvent(new TouchEvent(tipo, { touches: tipo === 'touchend' ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true })); };
+            toque('touchstart', 300); toque('touchmove', 280); toque('touchmove', 150); toque('touchend', 150);
+        });
+        await a.waitForFunction(() => document.querySelectorAll('.item').length === 0);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });

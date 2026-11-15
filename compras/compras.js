@@ -47,7 +47,7 @@
             .then((o) => (o && o.title ? JSON.stringify({ ...c, legenda: o.title, autor: o.author_name }) : corpo), () => corpo);
     }
 
-    fetch('app/compras.wasm?v=0.46.0')
+    fetch('app/compras.wasm?v=0.47.0')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })
@@ -95,6 +95,39 @@
             const x = c.querySelector('.fechar[data-onda]');
             setTimeout(() => evento(x ? x.dataset.onda : 'fecha:0'), 150);
         } else c.style.transform = '';
+    });
+
+    // na lista, deslizar uma coisa para a esquerda tira-a (como o 🗑): a linha acompanha o dedo e, passados 100 px,
+    // sai; só se o gesto for mais horizontal do que vertical (senão é rolar a lista)
+    let desliza = null;
+    document.addEventListener('touchstart', (e) => {
+        const li = e.target && e.target.closest ? e.target.closest('.lista .item, li.item') : null;
+        desliza = li && e.touches.length === 1 ? { li, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, ativo: false } : null;
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+        if (!desliza) return;
+        const dx = e.touches[0].clientX - desliza.x, dy = e.touches[0].clientY - desliza.y;
+        if (!desliza.ativo) {
+            if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+            if (dx >= 0 || Math.abs(dy) > Math.abs(dx)) { desliza = null; return; }
+            desliza.ativo = true;
+            desliza.li.style.transition = 'none';
+        }
+        e.preventDefault();
+        desliza.dx = Math.min(0, dx);
+        desliza.li.style.transform = `translateX(${desliza.dx}px)`;
+        desliza.li.style.background = 'rgba(220, 60, 60, 0.18)';
+    }, { passive: false });
+    document.addEventListener('touchend', () => {
+        if (!desliza || !desliza.ativo) { desliza = null; return; }
+        const { li, dx } = desliza;
+        desliza = null;
+        li.style.transition = 'transform 0.18s ease-out';
+        const b = li.querySelector('.tira[data-onda]');
+        if (dx < -100 && b) {
+            li.style.transform = 'translateX(-110%)';
+            setTimeout(() => evento(b.dataset.onda), 150);
+        } else { li.style.transform = ''; li.style.background = ''; }
     });
 
     // o talão: a fotografia reduz-se aqui (no máximo 1600 px, JPEG) e vai para o conector; a app só mostra o resultado
