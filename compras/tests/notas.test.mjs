@@ -53,4 +53,8 @@ test('as melhores compras no vinho seguem a nota, e os mais bem cotados vêm do 
     // o Signature não tem pontos (marketing); o Reserva sem nota fica com 82; os com nota, com a nota
     assert.deepEqual(cs.map((x) => [x.i, x.p, x.ct ?? 0]), [[1, 82, 0], [3, 87, 1], [2, 90, 1]]);
     assert.deepEqual(maisCotados(ps), [2, 3]);
+    // o Coutada Velha não se sugere (o utilizador não gosta), mesmo com nota
+    const cv = [{ nome: 'Coutada Velha Signature Alentejano Vinho Tinto', cent: 659, nt: 95, nr: 'x' }, ...ps];
+    assert.ok(!candidatosMelhores('vinho', cv).some((x) => x.i === 0));
+    assert.deepEqual(maisCotados(cv), [3, 4]);
 });
