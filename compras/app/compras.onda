@@ -1,0 +1,428 @@
+# Compras: a app, toda em Onda (onda/rt/anfitriao.js corre-a no browser), na Onda fluida: moldes, o ponto e a fala.
+# Volta 2: a lista da casa. Escreve-se o que falta («2 leites, pão e ovos»), cada coisa abre uma folha com os produtos
+# parecidos em cada supermercado (o índice do conector) e escolhe-se o de cada um; a lista é a mesma em todos os
+# telemóveis da casa (o código da casa) e abre sem rede.
+# Volta 3: o preço de cada produto escolhido (o conector lê-o no site da cadeia) e o «Mais barato»: o total da lista em
+# cada supermercado e se compensa dividir por duas lojas (as contas estão em app/onde.onda).
+# Monta-se com a biblioteca da Onda (compras/compilar.mjs). A casca (compras.js) só trata do que a Onda não tem como
+# porta: a chave do aparelho nos pedidos ao conector e os pedidos que escrevem («MÉTODO caminho» + nova linha + corpo).
+#
+# O ESTADO GUARDADO (o armazém do browser, prefixo «compras:»): é ele que dura; cada evento lê o que precisa e solta
+# no fim tudo o que reservou (o monte não cresce com o uso).
+#   chave, codigo     o aparelho e o código da casa (do conector)
+#   lista             a lista como o conector a mandou, com as mudanças deste telemóvel já aplicadas: {versao, itens}
+#   pend              as mudanças por enviar (uma lista JSON de operações; ver compras/proxy/src/casa.js)
+#   envio             as que vão no pedido em curso (se falhar, voltam para a frente da fila)
+#   aberto            o id da coisa aberta na folha;  p:<cadeia>  a última procura nessa cadeia (o JSON do conector)
+#   entrar            um código de casa vindo de um link (?casa=…);  url  o endereço da app (para o convite)
+# GLOBAIS: 1 separador (0 lista, 1 mais barato, 2 casa)  3 um pedido de mudanças em curso  5 o campo «juntar»
+#   (texto fixo, 400 bytes)  6 o campo do código (40 bytes)  7 o relógio  8 a última ida à rede falhou
+#   9 a registar o aparelho  10 a entrar numa casa  11 12 contadores para os campos voltarem vazios  13 o relógio do aviso
+
+# ---------- textos ----------
+: minb i>i c ? && >= c 'A <= c 'Z + c 32 c
+: vazio i>i t || == t 0 == _tx_len t 0
+# copia até max bytes de t para o texto fixo d (sem cortar um carácter UTF-8 a meio)
+: fixa iii>i d t max {
+  = n _tx_len t Se > n max = n max
+  W ? > n 0 && >= _tx_b t n 128 < _tx_b t n 192 0 = n - n 1
+  L j n ! + + d 1 j _tx_b t j
+  ! d + + d 1 n }
+# um texto em JSON, com as aspas ("" se não há)
+: pjs i>i t ? t _tx_pj t { P 34 P 34 }
+# os bytes de t entre a e b em JSON, com as aspas
+: pjs_sub iii>i t a b {
+  P 34
+  L k - b a {
+    = c _tx_b t + a k
+    ? || == c 34 == c 92 { P 92 P c } ? < c 32 P 32 P c }
+  P 34 }
+# um texto JSON de uma lista sem o último byte («]») ou sem o primeiro («[»)
+: semfim i>i t L j - _tx_len t 1 P _tx_b t j
+: semini i>i t { = n _tx_len t L j - n 1 P _tx_b t + j 1 }
+# o código da casa como se lê: ABCD-2345
+: pcod i>i c L j _tx_len c { Se == j 4 P '- P _tx_b c j }
+# um id novo para uma coisa da lista: 8 letras e algarismos
+: novoid >i L k 8 { = r _an_aleat 36 P ? < r 10 + '0 r + 'a - r 10 }
+
+# ---------- as cadeias ----------
+: cadeia i>i k ? == k 0 $"continente" ? == k 1 $"pingodoce" ? == k 2 $"auchan" $"lidl"
+: nomecad i>i k ? == k 0 $"Continente" ? == k 1 $"Pingo Doce" ? == k 2 $"Auchan" $"Lidl"
+
+# ---------- a lista ----------
+: alista >i _ar_json _an_ler $"lista"
+: itens >i { = l alista ? l l.itens 0 }
+: aberto_idx >i {
+  = a _an_ler $"aberto" = r -1
+  Se a { = c pri itens = i 0 W && c < r 0 { Se mesmo txt c.id a = r i = c seg c = i + i 1 } }
+  r }
+: item_aberto >i { = i aberto_idx ? >= i 0 idx itens i 0 }
+
+# escreve um produto escolhido (o nó m, com o preço, se o conector já o mandou) e uma coisa da lista (o nó c) com as
+# mudanças: qq a quantidade (0: a dela), ff riscada (-1: a dela), pc a cadeia cujo produto muda (0: nenhuma) e pn o
+# produto novo (0: tira-o)
+: pprod i>i m {
+  `\{"id":{ pjs txt m.id },"nome":{ pjs txt m.nome },"url":{ pjs txt m.url }`
+  Se m.cent `,"cent":{ N int m.cent }`
+  Se m.antes `,"antes":{ N int m.antes }`
+  Se m.unid `,"unid":{ pjs txt m.unid }`
+  Se int m.esgotado `,"esgotado":1`
+  Se m.visto `,"visto":{ pjs txt m.visto }`
+  `\}` }
+: pitem iiiiii>i c qq ff pc pn sep {
+  Se sep P 44
+  `\{"id":{ pjs txt c.id },"t":{ pjs txt c.t },"q":{ N ? qq qq int c.q },"f":{ N ? >= ff 0 ff int c.f },"p":\{`
+  = s 0 = m pri c.p
+  W m {
+    = k _ar_chave m
+    Se ~ && pc mesmo k pc { Se s P 44 _tx_pj k P 58 pprod m = s 1 }
+    = m seg m }
+  Se pn { Se s P 44 _tx_pj pc P 58 pprod pn }
+  `\}\}` }
+
+# aplica a operação op (a árvore) à lista guardada — o mesmo que o conector faz (casa.js) — e grava-a
+: aplica i>i op {
+  = l alista
+  = o _tx_b txt op.o 0 = id txt op.id
+  = antes _an_ler $"lista"
+  = h _tx_abre + 3000 ? antes _tx_len antes 0
+  `\{"versao":{ N ? l int l.versao 0 },"itens":[`
+  = s 0 = tem 0
+  = c ? l pri l.itens 0
+  W c {
+    = este && id mesmo txt c.id id
+    Se este = tem 1
+    = fica 1
+    Se && este == o 'x = fica 0
+    Se && == o 'l int c.f = fica 0
+    Se fica {
+      = qq 0 = ff -1 = pc 0 = pn 0
+      Se este {
+        Se == o 'r = ff ? int op.f 1 0
+        Se == o 'q = qq Mx 1 Mn 99 int op.q
+        Se == o 'p { = pc txt op.c = pn ? == tipo op.p 7 op.p 0 } }
+      pitem c qq ff pc pn s
+      = s 1 }
+    = c seg c }
+  Se && == o 'j ~ tem {
+    Se s P 44
+    `\{"id":{ pjs id },"t":{ pjs txt op.t },"q":{ N Mx 1 Mn 99 int op.q },"f":0,"p":\{\}\}` }
+  `]\}`
+  _tx_fecha h
+  _an_gravar $"lista" h }
+
+# uma mudança (o texto JSON da operação): aplica-se já aqui, junta-se às que faltam enviar e envia-se
+: faz i>i op {
+  = a _ar_json op
+  Se a {
+    aplica a
+    = p _an_ler $"pend"
+    = nt _tx_abre + + 8 ? p _tx_len p 0 _tx_len op
+    ? vazio p `[{ crut op }]` `{ semfim p },{ crut op }]`
+    _tx_fecha nt
+    _an_gravar $"pend" nt
+    envia }
+  0 }
+
+# ---------- a rede ----------
+: envia >i Se && ~ @ 3 _an_ler $"chave" {
+  = p _an_ler $"pend"
+  Se ~ vazio p {
+    _an_gravar $"envio" p
+    _an_gravar $"pend" 0
+    ! 3 1
+    _an_buscar`POST /api/lista{ P 10 }\{"ops":{ crut p }\}` $"lido_lista" } }
+# a lista como está no conector (só se não há mudanças por enviar: essas vão primeiro)
+: ver >i Se && ~ @ 3 _an_ler $"chave" _an_buscar $"/api/lista" $"lido_ver"
+: sem_chave >i { _an_gravar $"chave" 0 aviso $"Este telemóvel perdeu a ligação à casa: a criar outra." registar }
+: lido_lista ii>i t estado {
+  ! 3 0
+  ? == estado 200 {
+      _an_gravar $"envio" 0
+      ! 8 0
+      # se entretanto se mudou mais alguma coisa, a lista daqui já a tem: envia-se primeiro, depois troca-se
+      ? vazio _an_ler $"pend" { Se _ar_json t _an_gravar $"lista" t } envia
+      0 } {
+      # falhou: o que ia volta para a frente da fila
+      = e _an_ler $"envio" = p _an_ler $"pend"
+      Se ~ vazio e {
+        = nt _tx_abre + + 8 _tx_len e ? p _tx_len p 0
+        ? vazio p crut e `{ semfim e },{ semini p }`
+        _tx_fecha nt
+        _an_gravar $"pend" nt _an_gravar $"envio" 0 }
+      ! 8 1
+      Se == estado 401 sem_chave
+      0 }
+  desenha
+  _me_solta t }
+: lido_ver ii>i t estado {
+  ? == estado 200 {
+      ! 8 0
+      Se && && ~ @ 3 vazio _an_ler $"pend" ~ mesmo t _an_ler $"lista" { Se _ar_json t { _an_gravar $"lista" t desenha } } 0 }
+    { Se == estado 401 sem_chave Se == estado 0 { ! 8 1 desenha } 0 }
+  _me_solta t }
+
+# o aparelho: a primeira vez cria-se no conector, numa casa nova só dele
+: registar >i Se ~ @ 9 { ! 9 1 _an_buscar`POST /api/aparelho{ P 10 }\{\}` $"lido_ap" }
+: lido_ap ii>i t estado {
+  ! 9 0
+  = r _ar_json t
+  ? && == estado 201 r { _an_gravar $"chave" txt r.chave _an_gravar $"codigo" txt r.casa.codigo ! 8 0 depois_da_chave } ! 8 1
+  desenha
+  _me_solta t }
+: depois_da_chave >i { = e _an_ler $"entrar" ? e entrar e { envia ver } }
+
+# entrar noutra casa pelo código (o campo, ou um link ?casa=…)
+: entrar i>i cod Se && ~ @ 10 _an_ler $"chave" {
+  ! 10 1
+  _an_buscar`POST /api/casa/entrar{ P 10 }\{"codigo":{ pjs cod }\}` $"lido_entrar" }
+: lido_entrar ii>i t estado {
+  ! 10 0
+  _an_gravar $"entrar" 0
+  = r _ar_json t
+  ? && == estado 200 r {
+      _an_gravar $"codigo" txt r.codigo
+      ! 12 + @ 12 1 ! @ 6 + @ 6 1
+      aviso`Entraste na casa { pcod txt r.codigo }. A lista passa a ser a mesma nos telemóveis da casa.`
+      ! 1 0 envia ver 0 }
+    { aviso ? == estado 404 $"Não há nenhuma casa com esse código." $"Não foi possível entrar na casa: tenta outra vez." 0 }
+  desenha
+  _me_solta t }
+
+# a procura de uma coisa nos quatro supermercados (uma cadeia por pedido: o conector tem 10 ms de CPU para cada)
+: procura i>i t L k 4 {
+  _an_gravar texto`p:{ crut cadeia k }` 0
+  _an_buscar`/api/procurar?cadeia={ crut cadeia k }&q={ _tx_uri t }` $"lido_proc" }
+: lido_proc ii>i t estado {
+  Se == estado 200 { = r _ar_json t Se && r txt r.cadeia { _an_gravar texto`p:{ crut txt r.cadeia }` t dfolha } }
+  _me_solta t }
+
+# o relógio: de 15 em 15 s, envia o que falta ou vê se a casa mudou alguma coisa
+: tique i>i z {
+  = m _me_marca
+  ? _an_ler $"chave" { ? vazio _an_ler $"pend" ver envia } registar
+  _me_solta m }
+
+# ---------- avisos ----------
+: aviso i>i t {
+  = h _ht_ini + 200 _tx_len t
+  `<div class="toast" role="status">{ esct t }</div>`
+  _ht_poe $"#aviso" h
+  Se @ 13 _an_parar @ 13
+  ! 13 _an_relogio 5000 $"tira_aviso" }
+: tira_aviso i>i z { _an_parar @ 13 ! 13 0 _an_html $"#aviso" $"" 0 }
+
+# ---------- o ecrã ----------
+: dabas >i {
+  = h _ht_ini 800
+  `<button data-onda="aba:0"{ Se == @ 1 0 ` class="on"` }>Lista</button>`
+  `<button data-onda="aba:1"{ Se == @ 1 1 ` class="on"` }>Mais barato</button>`
+  `<button data-onda="aba:2"{ Se == @ 1 2 ` class="on"` }>Casa</button>`
+  _ht_muda $"#abas" h }
+
+# os supermercados com produto escolhido, com o preço para a quantidade («Continente 2,85 € · Lidl 2,55 €»)
+: escolhas i>i c {
+  = s 0
+  L k 4 Se _ar_get c.p cadeia k {
+    Se s ` · `
+    crut nomecad k
+    = p pc c k Se >= p 0 ` { eur p }`
+    = s 1 }
+  Se ~ s `Toca para escolher os produtos` }
+# o texto para partilhar no WhatsApp (já no formato de um endereço)
+: partilha i>i its {
+  = t _tx_abre + 100 * 200 quantos its
+  `Lista das compras:`
+  = c pri its
+  W c { Se ~ int c.f { P 10 `• { Se > int c.q 1 `{ N int c.q } × ` }{ crut txt c.t }` } = c seg c }
+  _tx_fecha t
+  _tx_uri t }
+
+: dlista >i {
+  = its itens
+  = n ? its quantos its 0
+  = h _ht_ini + 4000 * 800 n
+  `<section class="lista">`
+  `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="O que falta? (ex.: 2 leites, pão, ovos)" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
+  `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
+  Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
+  ? == n 0 `<p class="vazio">A lista está vazia. Escreve o que falta em casa, separado por vírgulas.</p>` {
+    `<ul class="itens">`
+    = c pri its = i 0 = feitos 0
+    W c {
+      = f int c.f
+      = feitos + feitos f
+      `<li class="item{ Se f ` feito` }" data-chave="{ esc c.id }">`
+      `<button class="caixa" data-onda="riscar:{ N i }" aria-label="{ ? f `Voltar a pôr` `Riscar` }">{ Se f `✓` }</button>`
+      `<button class="texto" data-onda="abre:{ N i }"><b>{ Se > int c.q 1 `{ N int c.q } × ` }{ esc c.t }</b><small>{ escolhas c }</small></button></li>`
+      = c seg c = i + i 1 }
+    `</ul><div class="acoes">`
+    Se feitos `<button class="botao fraco" data-onda="limpar:0">Tirar os riscados ({ N feitos })</button>`
+    `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ partilha its }">Partilhar no WhatsApp</a></div>`
+    0 }
+  `</section>`
+  _ht_muda $"#vista" h }
+
+: porriscar >i { = r 0 = c pri itens W c { Se ~ int c.f = r + r 1 = c seg c } r }
+# os nomes das coisas que ficam na loja a (e não na b), separados por vírgulas
+: nomes_em ii>i a b { = s 0 = c pri itens W c { Se && ~ int c.f na_a c a b { Se s `, ` esc c.t = s 1 } = c seg c } }
+# dividir por duas lojas: o melhor par que tem tudo; mostra-se se nenhuma loja sozinha tem tudo, ou se poupa o bastante
+: ddividir ii>i n pt {
+  = ba -1 = bb -1 = bt 0
+  L a 4 L b 4 Se && < a b == cobre2 a b n { = t total2 a b Se || < ba 0 < t bt { = ba a = bb b = bt t } }
+  Se && >= ba 0 || < pt 0 >= - pt bt poupa_min {
+    `<div class="dividir"><h3>{ ? < pt 0 `Para ter tudo, duas lojas` `Compensa ir a duas lojas` }</h3>`
+    `<p><b>{ crut nomecad ba } e { crut nomecad bb }: { eur bt }</b>{ Se >= pt 0 ` — poupas { eur - pt bt }` }</p>`
+    `<p class="nota">No { crut nomecad ba }: { nomes_em ba bb }.</p><p class="nota">No { crut nomecad bb }: { nomes_em bb ba }.</p></div>` }
+  0 }
+: dmais >i {
+  = h _ht_ini + 6000 * 300 quantos itens
+  = n porriscar
+  `<section class="mais"><h2>Mais barato</h2>`
+  ? == n 0 `<p class="vazio">Não há nada por comprar na lista.</p>` {
+    # quantos supermercados têm preço para tudo; o primeiro deles (na ordem de proxima) é o mais barato
+    = completos 0 L k 4 Se == cobre k n = completos + completos 1
+    = feitos 0 = pt -1
+    `<ul class="cadeias">`
+    L r 4 {
+      = k proxima feitos
+      = feitos | feitos << 1 k
+      = c cobre k = t total k
+      ? == c n {
+          `<li class="{ ? < pt 0 `melhor` `tudo` }"><b>{ crut nomecad k }</b><span class="total">{ eur t }</span>`
+          ? < pt 0 { = pt t `<small>{ ? > completos 1 `Mais barato` `O único com preço para tudo` }</small>` 0 }
+            `<small>mais { eur - t pt }</small>`
+          `</li>` 0 }
+        { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">{ ? c eur t `—` }</span>`
+          `<small>{ ? c `só { N c } de { N n } coisas com preço` `sem produtos escolhidos` }</small></li>` 0 } }
+    `</ul>`
+    ddividir n pt
+    Se == completos 0 `<p class="nota">Para comparar, toca em cada coisa da lista e escolhe o produto de cada supermercado.</p>`
+    0 }
+  `<p class="nota">Os preços são os dos sites dos supermercados, vistos uma vez por dia; na loja podem ser outros, e os descontos de cartão não contam.</p></section>`
+  _ht_muda $"#vista" h }
+
+: convite i>i cod { = u _an_ler $"url" _tx_uri texto`Junta-te à nossa lista das compras: { ? u crut u `https://nelsonsous.github.io/escolaplay/compras/` }?casa={ crut cod }` }
+: dcasa >i {
+  = cod _an_ler $"codigo"
+  = h _ht_ini 4000
+  `<section class="casa"><h2>A tua casa</h2>`
+  ? cod {
+      `<p>Quem tiver este código vê e muda a mesma lista:</p><p class="codigo">{ pcod cod }</p>`
+      `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ convite cod }">Convidar pelo WhatsApp</a>` 0 }
+    { ? @ 9 `<p>A preparar…</p>` `<p>Sem ligação ao conector.</p><button class="botao" data-onda="registar:0">Tentar outra vez</button>` 0 }
+  `<h3>Entrar noutra casa</h3>`
+  `<div class="junta"><input data-onda="codigo" data-chave="c{ N @ 12 }" placeholder="Código (ex.: ABCD-2345)" aria-label="Código de outra casa" autocomplete="off" autocapitalize="characters" enterkeyhint="go">`
+  `<button class="botao" data-onda="entrar:0">Entrar</button></div>`
+  `<p class="nota">O que está na tua lista junta-se à da outra casa.</p>`
+  `<p class="nota">A lista guarda-se no conector da app (Cloudflare). Só a vê quem tem o código.</p></section>`
+  _ht_muda $"#vista" h }
+
+: dvista >i ? == @ 1 0 dlista ? == @ 1 1 dmais dcasa
+
+# o preço de um produto escolhido, para a folha («<s>1,05 €</s> 0,89 € (0,89 €/l) · »)
+: dpreco i>i m {
+  ? m.cent {
+      Se m.antes `<s>{ eur int m.antes }</s> `
+      `{ eur int m.cent }{ Se m.unid ` ({ esc m.unid })` }{ Se int m.esgotado ` · esgotado no site` } · ` 0 }
+    `a ver o preço… · `
+  0 }
+# a folha de uma coisa: a quantidade e o produto de cada supermercado
+: dcadeia ii>i c k {
+  = ep _ar_get c.p cadeia k
+  `<h3>{ crut nomecad k }</h3><div class="prods">`
+  Se ep `<button class="prod on" data-onda="esc:{ N + * k 100 99 }">✓ { esc ep.nome }<small>{ dpreco ep }tocar para tirar</small></button>`
+  = r _ar_json _an_ler texto`p:{ crut cadeia k }`
+  ? && r mesmo txt r.q txt c.t {
+      = p pri r.produtos = j 0
+      ? p { W p {
+              Se ~ && ep mesmo txt p.id txt ep.id `<button class="prod" data-onda="esc:{ N + * k 100 j }">{ esc p.nome }</button>`
+              = p seg p = j + j 1 } 0 }
+          `<p class="nota">Nada parecido neste supermercado.</p>`
+      0 }
+    { ? @ 8 `<p class="nota">Sem ligação.</p>` `<p class="nota">A procurar…</p>` 0 }
+  `</div>` }
+: dfolha >i {
+  = h _ht_ini 12000
+  = c item_aberto
+  Se c {
+    `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }">`
+    `<h2>{ esc c.t }</h2>`
+    `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
+    `<p class="nota">Escolhe o produto de cada supermercado: o preço é o do site, por unidade.</p>`
+    L k 4 dcadeia c k
+    `<div class="acoes"><button class="botao fraco" data-onda="tirar:0">Tirar da lista</button><button class="botao" data-onda="fecha:0">Fechar</button></div></div>` }
+  _ht_muda $"#folha" h }
+
+: desenha >i { dabas dvista dfolha }
+
+# ---------- os eventos ----------
+# o separador do campo «juntar»: «,» «;» uma mudança de linha (1) ou « e » (3)
+: sep iii>i t j n {
+  = b _tx_b t j
+  ? || || == b 44 == b 59 == b 10 1
+    ? && && == b 32 < + j 2 n && == minb _tx_b t + j 1 'e == _tx_b t + j 2 32 3 0 }
+# um pedaço do campo (de a a b): «2 leites» → juntar «leites» com 2; «7up» fica «7up»
+: pedaco iii>i t a b {
+  W && < a b == _tx_b t a 32 = a + a 1
+  W && < a b == _tx_b t - b 1 32 = b - b 1
+  = q 1 = d a = v 0
+  W && < d b && >= _tx_b t d '0 <= _tx_b t d '9 { = v + * v 10 - _tx_b t d '0 = d + d 1 }
+  Se && && > d a < d b || == _tx_b t d 32 || == minb _tx_b t d 'x == _tx_b t d 195 {
+    # «2 leites», «2x leite», «2 × leite» (× é C3 97 em UTF-8)
+    = q Mx 1 Mn 99 v
+    Se == _tx_b t d 195 = d + d 2
+    Se == minb _tx_b t d 'x = d + d 1
+    W && < d b == _tx_b t d 32 = d + d 1
+    = a d }
+  Se < a b faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs_sub t a b },"q":{ N q }\}`
+  0 }
+: juntar >i {
+  = t @ 5 = n _tx_len t = ini 0 = j 0
+  W <= j n {
+    = s ? == j n 1 sep t j n
+    ? s { pedaco t ini j = ini + j s = j ini } = j + j 1 }
+  Se > n 0 { ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
+  0 }
+: escolhe i>i v {
+  = k / v 100 = j % v 100
+  = c item_aberto
+  Se c {
+    ? == j 99 faz texto`\{"o":"p","id":{ pjs txt c.id },"c":"{ crut cadeia k }","p":null\}` {
+      = r _ar_json _an_ler texto`p:{ crut cadeia k }`
+      = p ? r idx r.produtos j 0
+      Se p faz texto`\{"o":"p","id":{ pjs txt c.id },"c":"{ crut cadeia k }","p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}`
+      0 } }
+  0 }
+: clique i>i t {
+  = v arg t
+  Se eacao t $"aba" { ! 1 v _an_gravar $"aberto" 0 _an_rolar 0 }
+  Se eacao t $"juntar" juntar
+  Se eacao t $"riscar" { = c idx itens v Se c faz texto`\{"o":"r","id":{ pjs txt c.id },"f":{ N ~ int c.f }\}` }
+  Se eacao t $"abre" { = c idx itens v Se c { _an_gravar $"aberto" txt c.id procura txt c.t } }
+  Se eacao t $"fecha" _an_gravar $"aberto" 0
+  Se eacao t $"limpar" faz $`{"o":"l"}`
+  Se eacao t $"tirar" { = c item_aberto Se c { faz texto`\{"o":"x","id":{ pjs txt c.id }\}` _an_gravar $"aberto" 0 } }
+  Se eacao t $"mais" { = c item_aberto Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }
+  Se eacao t $"menos" { = c item_aberto Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mx 1 - int c.q 1 }\}` }
+  Se eacao t $"esc" escolhe v
+  Se eacao t $"entrar" Se _tx_len @ 6 entrar @ 6
+  Se eacao t $"registar" registar
+  desenha
+  _me_solta t }
+: escreve i>i t {
+  = nome _tx_campo t 0 9
+  = v _tx_campo t 1 9
+  Se mesmo nome $"junta" fixa @ 5 v 400
+  Se mesmo nome $"codigo" fixa @ 6 v 40
+  _me_solta t }
+: main >i {
+  _me_lb
+  ! 5 _tx_novo 400 ! 6 _tx_novo 40
+  _an_gravar $"aberto" 0
+  _an_ouvir $"click" $"clique"
+  _an_ouvir $"input" $"escreve"
+  ? _an_ler $"chave" depois_da_chave registar
+  ! 7 _an_relogio 15000 $"tique"
+  desenha
+  0 }
