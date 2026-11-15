@@ -56,7 +56,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.42.0';
+export const VERSION = '0.42.1';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -202,35 +202,6 @@ async function sondaRevisao(request, env) {
     return json({ de, n: feitos.length, feitos });
 }
 
-// a mudança para a conta própria (15/11/2026, temporário: sai depois da migração): as linhas de uma tabela, aos
-// bocados (?t=preco&de=0&n=1000, pela ordem de rowid), e o valor de uma chave da KV (?kv=indice:auchan)
-// (também aceita o segredo da sessão que faz a migração, pela impressão digital em MIGRACAO_HASH: o segredo não passa
-// de uma sessão para a outra)
-async function porHash(request, env) {
-    const auth = request.headers.get('authorization') || '';
-    if (!env.MIGRACAO_HASH || !auth.startsWith('Bearer ')) return false;
-    const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(auth.slice(7))));
-    return igual([...h].map((b) => b.toString(16).padStart(2, '0')).join(''), String(env.MIGRACAO_HASH).trim().toLowerCase());
-}
-async function sondaExportar(request, env) {
-    const nao = (await porHash(request, env)) ? null : await recusa(request, env);
-    if (nao) return nao;
-    const q = new URL(request.url).searchParams;
-    if (q.get('kv')) {
-        const v = await env.KV.get(q.get('kv'));
-        return v == null ? json({ erro: 'chave inexistente' }, 404) : new Response(v, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
-    }
-    const { results: tabelas } = await env.DB.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'").all();
-    if (!q.get('t')) return json({ tabelas: tabelas.map((t) => t.name) });
-    const t = tabelas.find((x) => x.name === q.get('t'));
-    if (!t) return json({ erro: 'tabela inexistente' }, 404);
-    const de = Math.max(0, Number(q.get('de')) || 0), n = Math.min(2000, Math.max(1, Number(q.get('n')) || 1000));
-    try {
-        const { results } = await env.DB.prepare(`SELECT * FROM "${t.name}" ORDER BY rowid LIMIT ?1 OFFSET ?2`).bind(n, de).all();
-        return json({ t: t.name, de, n: results.length, linhas: results });
-    } catch (e) { return json({ erro: String(e?.message ?? e) }, 500); }
-}
-
 // a zona do Continente de um código postal e um produto lido nela e sem ela (para comparar): ?cp=…&url=…
 async function sondaZona(request, env) {
     const nao = await recusa(request, env);
@@ -374,7 +345,6 @@ export default {
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);
         if (url.pathname === '/sonda/revisao') return sondaRevisao(request, env);
-        if (url.pathname === '/sonda/exportar') return sondaExportar(request, env);
         if (url.pathname === '/sonda/zona') return sondaZona(request, env);
         if (url.pathname === '/sonda/receita') {
             const nao = await recusa(request, env);
