@@ -230,6 +230,23 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 7. Mais famílias: café, chocolate, mel, arroz, conservas, enchidos.
 8. Os folhetos do SPAR.
 
+**Lojas online fora dos hipermercados** (volta 13, verificadas pelo conector a 15/11/2026; só entram as que o robots.txt deixa e mostram o preço na página)
+
+| Família | Loja | Como está | Próximo passo |
+|---|---|---|---|
+| Vinhos | Vinha (vinha.pt) | ✔ deixa ler `/vinho/`; preço no JSON-LD; mostra a média do Vivino («4/5») e notas de prova | no catálogo (iteração 3) |
+| Vinhos | Onwine, Garrafeira Soares | robots.txt deixa; páginas de produto por ver | ver o mapa do site |
+| Vinhos | Garrafeira Nacional, Portugal Vineyards, Wine House | bloqueiam robôs (validação humana, Cloudflare) | não se leem |
+| Vinhos | Vinho em Casa | o site não responde (530) | — |
+| Café | Delta Cafés (loja online) | robots.txt deixa | ver as páginas de produto |
+| Mercearia, bolachas | A Vida Portuguesa | robots.txt deixa | ver as páginas de produto |
+| Frutas e legumes | Cascarija (cabazes, Shopify) | robots.txt deixa a todos | ver o JSON dos produtos |
+| Bacalhau | Lugrade, Riberalves | ✔ já no catálogo (produtores); a Singular (marca Lugrade) redireciona | — |
+| Mercearia, massas | Nutritienda | robots.txt fecha tudo e 403 | não se lê |
+| Grossistas | Makro (403), Recheio (só profissionais) | — | não se leem |
+| Queijos | Manuel Tavares | erro de ligação (525) | — |
+| Carne | Carnes da Montanha | não responde | — |
+
 **À espera de ti**
 - O plano pago da Cloudflare (5 US$/mês) só se o limite grátis voltar a não chegar.
 
