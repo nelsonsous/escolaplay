@@ -168,3 +168,9 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .melhores .sinais i { font-style: normal; font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--linha); color: var(--fraco); }
 .melhores .sinais i.p { color: var(--verde); border-color: #2d6a3e; }
 .melhores .sinais i.n { color: #ff9f0a; border-color: #6b4a1e; }
+
+/* o que o SPAR vende deste tipo (da lista do site) */
+.melhores .spar-art { margin: 6px 0 0; font-size: 13px; }
+.melhores .spar-art p { margin: 0; padding: 3px 0; }
+.melhores .spar-art p.t, .melhores .spar-art span { color: var(--fraco); }
+.melhores .spar-art i { font-style: normal; color: var(--verde); font-size: 12px; }

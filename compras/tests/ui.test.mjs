@@ -278,6 +278,10 @@ test('mais barato: o total em cada supermercado e quando compensa dividir por du
 
 test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o mais barato de cada supermercado na lista', { skip: !pw && 'sem playwright' }, async () => {
     const s = await abrir();
+    // o que o SPAR vende (da lista do site), com a estimativa de cada artigo
+    s.env.DB.sql.exec(`INSERT INTO spar_artigo (c, nome, marca, emb, propria, tipo, eq_cent, eq_como, visto) VALUES
+        ('1', 'Água SPAR Garrafão 6lt', 'SPAR', '6 L', 1, 'agua-sem-gas', 95, 'a marca branca equivalente', '2026-11-15'),
+        ('2', 'Água LUSO 5lt', 'LUSO', '5 L', 0, 'agua-sem-gas', 189, 'o mesmo no Continente', '2026-11-15')`);
     const br = await pw.chromium.launch();
     try {
         const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
@@ -339,6 +343,8 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         assert.match(est[1][2], /^Pagarias ≈ 2,14 € por 6 L · ≈ \+125% por litro · com base em /);
         assert.match(est[0][2], /não vende online em Portugal; não usamos preços de Espanha/);
         assert.match(est[1][2], /não tem loja online e é franquiado/);
+        // escolhidos os 6 L, o SPAR mostra o que lá há desse tamanho: a água da marca SPAR, com a estimativa
+        assert.deepEqual(await a.locator('#folha .spar-art p:not(.t)').allTextContents(), ['Água SPAR Garrafão 6lt marca SPAR — ≈ 0,95 € (a marca branca equivalente)']);
         assert.deepEqual((await caminho()).slice(3), ['n4 6 L']);
         // vários tamanhos ao mesmo tempo (6 L e 5 L): compara-se por litro entre eles; tocar outra vez tira
         await a.click('#folha .chip >> text="5 L"');
