@@ -7,6 +7,7 @@
 // A lista vai para a app com o preço ao lado de cada produto escolhido (juntarPrecos): em cêntimos.
 // Volta 4: também o preço por quilo, por litro ou por unidade (porUnidade), para comparar embalagens; e os preços dos
 // produtos parecidos de uma procura (precosDe), para a app mostrar o mais barato por quilo ou por litro.
+import { packsDaLista } from './packs.js';
 import { FONTES } from './fontes/index.js';
 import { pedir } from './rede.js';
 import { estimativas } from './escolhas.js';
@@ -176,6 +177,8 @@ export async function juntarPrecos(db, lista0, casa = null) {
     // o stock na zona da casa (zona.js): os esgotados na zona contam como esgotados (ez: «na tua zona»)
     const zona = casa ? new Set((await db.prepare("SELECT cadeia, id FROM zona_stock WHERE casa = ? AND disponivel = 0").bind(casa).all()).results.map((r) => r.cadeia + ' ' + r.id)) : new Set();
     if (!m.size && !est.size && !reais.size && !zona.size) return lista;
+    // a melhor forma de comprar a quantidade (packs.js): 6 soltos ou o pack
+    const pk = await packsDaLista(db, lista.itens.map((i) => ({ ...i, p: Object.fromEntries(Object.entries(i.p ?? {}).filter(([c, p]) => p && m.get(c + ' ' + p.id))) }))).catch(() => ({}));
     return {
         ...lista,
         itens: lista.itens.map((i) => {
@@ -203,6 +206,7 @@ export async function juntarPrecos(db, lista0, casa = null) {
                     return [c, x];
                 })),
             };
+            if (pk[i.id]) x.pk = pk[i.id];
             return comparavel(x);
         }),
     };
