@@ -64,3 +64,27 @@ test('o cabaz da base: só os do tipo e com o nome certo, as cadeias pedidas, os
     assert.equal(r.cabe, true);
     assert.equal((await cabazDeNatal(db, { modo: 'qualidade', teto: 15, partes: ['bacalhau', 'porto'] }, AGORA)).cabe, false); // não há como caber
 });
+
+test('o vinho da ceia e o Porto pela nota dos críticos e pela Vivino; o bacalhau da loja de produtor sem «bacalhau» no nome; o paloco desce', async () => {
+    const db = d1();
+    const ins = (cadeia, id, nome, tipo, cent, uc, ub = 'l') => db.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, tipo, visto, falhas)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`).run(cadeia, id, 'https://x/' + id, nome, cent, uc, ub, tipo, AGORA.toISOString());
+    ins('continente', 'v1', 'Papa Figos Douro Vinho Tinto', 'vinho-tinto', 699, 932);
+    ins('auchan', 'v2', 'Vinho Tinto Alentejo Reserva Marca X', 'vinho-tinto', 599, 799);
+    ins('auchan', 'v3', 'Vinho Tinto Coutada Velha Premium', 'vinho-tinto', 899, 1199);
+    ins('pingodoce', 'v4', 'Vinho Tinto Bag-in-Box 5 L', 'vinho-tinto', 999, 200);
+    ins('auchan', 'b1', 'Paloco Seco Graúdo kg', 'bacalhau', 999, 999, 'kg');
+    ins('continente', 'b2', 'Bacalhau Crescido Noruega kg', 'bacalhau', 1299, 1299, 'kg');
+    db.sql.prepare(`INSERT INTO vinho_nota (palavras, fora, nome, nota, n, resumo, fontes, visto) VALUES ('papa figos tinto', '', 'Papa Figos', 92, 1, 'Revista de Vinhos 17/20', '[]', ?)`).run(AGORA.toISOString());
+    db.sql.prepare(`INSERT INTO produtor_artigo (loja, id, nome, url, variante, cent, emb, uc, ub, tipo, disponivel, visto, vivino) VALUES
+        ('lugrade', 'l1', 'Especial', 'https://lugrade/l1', 'islandia · 3.25 a 3.5kg', 11448, '3,38 kg', 3392, 'kg', 'bacalhau', 1, ?, NULL),
+        ('vinha', 'w1', 'Vinho Tinto Quinta X Grande Reserva 2020', 'https://vinha/w1', NULL, 2500, '75 cl', 3333, 'l', 'vinho-tinto', 1, ?, 4.3)`).run(AGORA.toISOString(), AGORA.toISOString());
+    const c = await cabazDeNatal(db, { modo: 'qualidade' }, AGORA);
+    const v = c.partes.find((p) => p.k === 'vinho');
+    assert.deepEqual(v.opcoes.map((o) => o.id), ['w1', 'v1', 'v2']); // Vivino 4,3 e Grande Reserva; o Papa Figos ★ 92; nem Coutada Velha nem bag-in-box
+    assert.match(v.opcoes[1].porque[0], /★ 92 \(Revista de Vinhos 17\/20\)/);
+    assert.match(v.opcoes[0].porque.join(' '), /Vivino 4,3/);
+    const b = c.partes.find((p) => p.k === 'bacalhau');
+    assert.equal(b.opcoes[0].id, 'l1'); // o «Especial» da Lugrade é bacalhau
+    assert.ok(!b.opcoes.some((o) => o.id === 'b1')); // o paloco não é bacalhau: fica de fora
+});
