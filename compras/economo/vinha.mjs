@@ -1,11 +1,12 @@
-// O Vinha (vinha.pt) no catálogo (volta 13): dos 4 mil vinhos do mapa do site, lê os que também se vendem nos
-// supermercados (o mesmo nome: proxy/src/vinha.js condiz), para saber onde a garrafa fica mais barata, e grava:
-//   • o preço, a nota da Vivino e os votos em produtor_artigo (a loja «vinha»), com a chave do vinho dos supermercados;
-//   • as notas dos críticos da página («93/100 Wine Enthusiast (2019)») em vinho_nota, juntas às que já lá estão.
-// O robots.txt do Vinha deixa ler /vinho/ (só não deixa o carrinho, o checkout e a conta).
-//   SONDA_TOKEN_FILE=… NODE_USE_ENV_PROXY=1 node economo/vinha.mjs [--max 300] [--pausa 1500] [--sem-gravar]
+// As garrafeiras online no catálogo (voltas 13 e 14): o Vinha (vinha.pt, 4 mil vinhos) e a Garrafeira Soares
+// (garrafeirasoares.pt, 3 mil). De cada uma lê, do mapa do site, os vinhos que também se vendem nos supermercados (o
+// mesmo nome: proxy/src/vinha.js condiz), para saber onde a garrafa fica mais barata, e grava:
+//   • o preço (e no Vinha a nota da Vivino e os votos) em produtor_artigo, com a chave do vinho dos supermercados;
+//   • as notas dos críticos da página do Vinha («93/100 Wine Enthusiast (2019)») em vinho_nota, juntas às que lá estão.
+// O robots.txt de ambas deixa ler os vinhos (não deixam o carrinho, o checkout, a conta e, na Soares, /api/).
+//   SONDA_TOKEN_FILE=… NODE_USE_ENV_PROXY=1 node economo/vinha.mjs [--loja=vinha|soares] [--max 300] [--pausa 1500] [--sem-gravar]
 import { sonda, d1, d1Linhas, espera } from './comum.mjs';
-import { lerVinho, condiz, tipoDoSlug } from '../proxy/src/vinha.js';
+import { lerVinho, lerSoares, condiz, tipoDoSlug, slugDe } from '../proxy/src/vinha.js';
 import { notaDasFontes } from '../proxy/src/notas.js';
 
 const args = process.argv.slice(2);
@@ -13,16 +14,24 @@ const opt = (n, d) => (args.includes(n) ? Number(args[args.indexOf(n) + 1]) || d
 const max = opt('--max', 300), pausa = opt('--pausa', 1500);
 const TIPOS = ['vinho-tinto', 'vinho-branco', 'vinho-rose', 'espumante', 'vinho-do-porto'];
 
-// os endereços dos vinhos no mapa do site (product-sitemap*.xml)
-export const vinhosDoMapa = (xml) => [...String(xml).matchAll(/<loc>(https:\/\/www\.vinha\.pt\/vinho\/[^<]+)<\/loc>/g)].map((m) => m[1]);
+// as garrafeiras: o índice dos mapas do site, os mapas dos produtos, os endereços dos vinhos e o leitor da página
+export const GARRAFEIRAS = [
+    { loja: 'vinha', indice: 'https://www.vinha.pt/sitemap_index.xml', mapas: /<loc>(https:\/\/www\.vinha\.pt\/product-sitemap\d*\.xml)<\/loc>/g,
+        vinhos: /<loc>(https:\/\/www\.vinha\.pt\/vinho\/[^<]+)<\/loc>/g, ler: lerVinho, texto: 'utf8' },
+    // a Soares: as páginas vêm em windows-1252 (os dados da página são ASCII); crawl-delay 1 no robots.txt
+    { loja: 'soares', indice: 'https://www.garrafeirasoares.pt/sitemap.xml', mapas: /<loc>(https:\/\/www\.garrafeirasoares\.pt\/sitemaps\/sitemap_products_pt_\d+\.xml)<\/loc>/g,
+        vinhos: /<loc>(https:\/\/www\.garrafeirasoares\.pt\/pt\/portugal\/(?:vinhos|portos-e-fortificados)\/[^<]+\/item_\d+\.html)<\/loc>/g, ler: lerSoares, texto: 'latin1' },
+];
+// os endereços dos vinhos num mapa do site (sem repetidos)
+export const vinhosDoMapa = (xml, re = GARRAFEIRAS[0].vinhos) => [...new Set([...String(xml).matchAll(re)].map((m) => m[1]))];
 
 // os vinhos do Vinha a ler: para cada produto dos supermercados (garrafa de 75 cl), os do Vinha do mesmo tipo que
 // condizem com menos palavras a mais (o «Quinta do Mouro» é o Quinta do Mouro, não o «Erro»). Map url → chave
 export function escolher(urls, sup) {
     const porTipo = new Map();
     for (const u of urls) {
-        const t = tipoDoSlug(u), slug = u.split('/vinho/')[1] ?? '';
-        if (!t || !/-75cl-/.test(slug)) continue;
+        const t = tipoDoSlug(u), slug = slugDe(u);
+        if (!t || !/(^|-)75-?cl(-|$)/.test(slug)) continue;
         (porTipo.get(t) ?? porTipo.set(t, []).get(t)).push([u, slug]);
     }
     const r = new Map();
@@ -48,33 +57,38 @@ export function juntarFontes(antes, novas) {
 }
 
 async function main() {
-    const agora = new Date().toISOString();
+    const so = args.find((a) => a.startsWith('--loja='))?.slice(7);
     const sup = await d1(`SELECT nome, tipo, q FROM preco WHERE tipo IN (${TIPOS.map(() => '?').join(', ')}) AND suspeito IS NULL AND cent IS NOT NULL`, TIPOS);
-    const idx = await sonda('https://www.vinha.pt/sitemap_index.xml');
-    const mapas = [...idx.corpo.toString('utf8').matchAll(/<loc>(https:\/\/www\.vinha\.pt\/product-sitemap\d*\.xml)<\/loc>/g)].map((m) => m[1]);
+    for (const g of GARRAFEIRAS.filter((x) => !so || x.loja === so)) await garrafeira(g, sup);
+}
+
+async function garrafeira(g, sup) {
+    const agora = new Date().toISOString();
+    const idx = await sonda(g.indice);
+    const mapas = [...idx.corpo.toString('utf8').matchAll(g.mapas)].map((m) => m[1]);
     const urls = [];
-    for (const m of mapas) { const r = await sonda(m); if (r.estado === 200) urls.push(...vinhosDoMapa(r.corpo.toString('utf8'))); await espera(pausa); }
-    const esc = [...escolher(urls, sup)].slice(0, max);
-    console.log(`${urls.length} vinhos no mapa do Vinha; ${esc.length} também nos supermercados`);
+    for (const m of mapas) { const r = await sonda(m); if (r.estado === 200) urls.push(...vinhosDoMapa(r.corpo.toString('utf8'), g.vinhos)); await espera(pausa); }
+    const esc = [...escolher([...new Set(urls)], sup)].slice(0, max);
+    console.log(`${g.loja}: ${urls.length} vinhos no mapa; ${esc.length} também nos supermercados`);
     const linhas = [], notas = new Map();
     let falhas = 0;
     for (const [url, chave] of esc) {
         await espera(pausa);
         const r = await sonda(url).catch(() => null);
-        const v = r?.estado === 200 ? lerVinho(r.corpo.toString('utf8'), url) : null;
+        const v = r?.estado === 200 ? g.ler(r.corpo.toString(g.texto), url) : null;
         if (!v || !v.tipo) { falhas++; continue; }
         const litros = v.cl ? v.cl / 100 : 0.75;
-        linhas.push(['vinha', v.id, v.nome, url, null, v.cent, `${v.cl ?? 75} cl`, Math.round(v.cent / litros), 'l', v.tipo, v.disponivel, agora, v.vivino, v.votos, chave]);
+        linhas.push([g.loja, v.id, v.nome, url, null, v.cent, `${v.cl ?? 75} cl`, Math.round(v.cent / litros), 'l', v.tipo, v.disponivel, agora, v.vivino, v.votos, chave]);
         if (v.fontes.length) {
             const n = notas.get(chave) ?? { nome: v.nome.replace(/^(Vinho (Tinto|Branco|Rosé|do Porto)|Espumante)\s+/i, '').replace(/\s+(19|20)\d{2}$/, ''), fontes: [] };
             n.fontes = juntarFontes(n.fontes, v.fontes.map((f) => ({ ...f, url })));
             notas.set(chave, n);
         }
-        console.log(`  ${(v.cent / 100).toFixed(2).padStart(7)} €  ${v.vivino ? `Vivino ${v.vivino} (${v.votos})` : 'sem Vivino'.padEnd(18)}  ${v.fontes.length} notas  ${v.nome}`);
+        console.log(`  ${(v.cent / 100).toFixed(2).padStart(7)} €  ${v.vivino ? `Vivino ${v.vivino} (${v.votos})` : ''.padEnd(18)}  ${v.fontes.length} notas  ${v.nome}`);
     }
-    console.log(JSON.stringify({ lidos: linhas.length, falhas, com_notas: notas.size }));
-    if (args.includes('--sem-gravar')) return;
-    await d1("DELETE FROM produtor_artigo WHERE loja = 'vinha'");
+    console.log(JSON.stringify({ loja: g.loja, lidos: linhas.length, falhas, com_notas: notas.size }));
+    if (args.includes('--sem-gravar') || !linhas.length) return;
+    await d1('DELETE FROM produtor_artigo WHERE loja = ?', [g.loja]);
     await d1Linhas('INSERT OR REPLACE INTO produtor_artigo (loja, id, nome, url, variante, cent, emb, uc, ub, tipo, disponivel, visto, vivino, votos, chave)', linhas);
     // as notas: juntas à regra com as mesmas palavras (por qualquer ordem), se já há; senão uma regra nova
     const regras = await d1('SELECT palavras, fora, nome, fontes FROM vinho_nota');
@@ -92,6 +106,6 @@ async function main() {
     }
     await d1Linhas('INSERT INTO vinho_nota (palavras, fora, nome, nota, n, resumo, fontes, visto)', novas,
         'ON CONFLICT (palavras) DO UPDATE SET nome = excluded.nome, nota = excluded.nota, n = excluded.n, resumo = excluded.resumo, fontes = excluded.fontes, visto = excluded.visto');
-    console.log(`gravados ${linhas.length} vinhos do Vinha e ${novas.length} notas`);
+    console.log(`${g.loja}: gravados ${linhas.length} vinhos e ${novas.length} notas`);
 }
 if (import.meta.url === `file://${process.argv[1]}`) await main();

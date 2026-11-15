@@ -61,3 +61,17 @@ test('Vinha nas lojas online do tipo: a Vivino, os portes e o mesmo vinho no sup
     assert.equal(tp.pd[0].mv, undefined);
     assert.deepEqual(mesmoVinho([{ c: 'auchan', cent: 399, q: 1.5, nome: 'Monte Velho Tinto' }], 'monte velho tinto'), null); // outra garrafa
 });
+
+test('Garrafeira Soares: o preço, o EAN e o tamanho dos dados da página; o tipo e a garrafa pelo endereço', async () => {
+    const { lerSoares, tipoDoSlug, slugDe } = await import('../proxy/src/vinha.js');
+    const u = 'https://www.garrafeirasoares.pt/pt/portugal/vinhos/vinho-tinto-esporao-colheita-75-cl/item_10015.html';
+    const v = lerSoares(readFileSync(new URL('./fontes/soares-esporao-colheita.html', import.meta.url), 'latin1'), u);
+    assert.deepEqual([v.id, v.nome, v.tipo, v.cent, v.cl, v.ean, v.disponivel], ['2013021', 'Vinho Tinto Esporao Colheita', 'vinho-tinto', 849, 75, '5601989976758', 1]);
+    assert.equal(slugDe(u), 'vinho-tinto-esporao-colheita-75-cl');
+    assert.equal(tipoDoSlug('https://www.garrafeirasoares.pt/pt/portugal/portos-e-fortificados/porto-ramos-pinto-lbv-75-cl/item_1.html'), 'vinho-do-porto');
+    assert.equal(tipoDoSlug('https://www.garrafeirasoares.pt/pt/portugal/vinhos/vinho-verde-alvarinho-soalheiro-75-cl/item_2.html'), 'vinho-branco');
+    // a garrafa de 75 cl e o mesmo vinho do supermercado (o «Colheita» não é o Reserva)
+    const esc = escolher([u, 'https://www.garrafeirasoares.pt/pt/portugal/vinhos/vinho-tinto-esporao-reserva-1-5-l/item_10017.html'],
+        [{ nome: 'Esporão Colheita Alentejo Vinho Tinto', tipo: 'vinho-tinto', q: 0.75 }, { nome: 'Esporão Reserva Alentejo Vinho Tinto', tipo: 'vinho-tinto', q: 0.75 }]);
+    assert.deepEqual([...esc], [[u, 'esporao colheita tinto']]);
+});
