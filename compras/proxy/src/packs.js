@@ -48,7 +48,7 @@ export async function packsDaLista(db, itens, agora = new Date()) {
             if (!p?.id) continue;
             const ops = results.filter((r) => r.cadeia === c && r.tipo === i.e.k && r.ub === m.ub
                 && (!i.e.m || (i.e.m === 'branca' ? r.propria : String(r.marca ?? '').toLowerCase() === String(i.e.m).toLowerCase()))
-                && (!w || temPalavras(w, r.nome, i.e.k)))
+                && (!w || temPalavras(w, r.nome, i.e.k, r.cent)))
                 .map((r) => ({ id: r.id, nome: r.nome, url: r.url, cent: Number(r.cent), q: Number(r.q) }));
             const atual = ops.find((o) => o.id === String(p.id)) ?? results.find((r) => r.cadeia === c && r.id === String(p.id));
             if (!atual || !(atual.q > 0)) continue;

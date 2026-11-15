@@ -897,7 +897,8 @@
   = f pri tp.filas
   Se f { linha_w tp txt f.g txt f.t _an_ler $"fa" $"fa" = f seg f }
   Se f { linha_w tp txt f.g txt f.t _an_ler $"fp" $"fp" = f seg f }
-  Se f linha_w tp txt f.g txt f.t _an_ler $"fc" $"fc"
+  Se f { linha_w tp txt f.g txt f.t _an_ler $"fc" $"fc" = f seg f }
+  Se f linha_w tp txt f.g txt f.t _an_ler $"fw" $"fw"
   0 }
 : linha_w iiiii>i tp g titulo fw ev {
   = s 0 = x pri tp.palavras = i 0 = fa _an_ler $"fa"

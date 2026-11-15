@@ -335,7 +335,7 @@ export function mesmaMarca(produtos, loja, et, k) {
 export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     const t = await db.prepare('SELECT k, nome FROM tipo WHERE k = ?').bind(k).first();
     if (!t) return null;
-    const fam = familiaDe(t.k); // vinho, azeite, queijo (atributos.js)
+    const fam = familiaDe(t.k, seccaoDoTipo(t)); // vinho, azeite, queijo, presunto, fruta, padaria (atributos.js)
     const desde = new Date(agora.getTime() - 10 * 24 * HORA).toISOString();
     const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, uc, ub, emb
         FROM preco WHERE tipo = ? AND cent IS NOT NULL AND suspeito IS NULL AND visto > ? ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde).all();
@@ -368,7 +368,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         // o nome sem acentos nem maiúsculas, para filtrar pelas palavras; no talho e na peixaria, com as etiquetas
         // do Ecónomo (o uso, o corte, o animal: «grelhar picanha vaca»)
         const et = TALHO.has(t.k) ? etiquetas(p.nome, t.k) : null;
-        x.nk = palavras(`${p.nome} ${palavrasEtiquetas(et).join(' ')} ${fam ? palavrasAtributos(atributos(fam, p.nome)).join(' ') : ''}`).join(' ');
+        x.nk = palavras(`${p.nome} ${palavrasEtiquetas(et).join(' ')} ${fam ? palavrasAtributos(atributos(fam, p.nome, p.cent)).join(' ') : ''}`).join(' ');
         if (et?.corte) x.cr = nomeEtiqueta(et.corte); // o corte, para arrumar as outras opções
         // os sinais de qualidade pelo nome (qualidade.js): massa mãe, biológico, congelado…
         const sq = sinais(p.nome);
