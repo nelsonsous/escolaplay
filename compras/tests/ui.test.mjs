@@ -435,7 +435,7 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
     const { esquecerTipos } = await import('../proxy/src/sugerir.js');
     s.env.DB.sql.exec("INSERT INTO tipo (k, nome, n, casa) VALUES ('peixe-fresco', 'Peixe fresco', 6, 1), ('marisco', 'Marisco', 2, 1)");
     const p = (c, id, nome, preco, emb) => ({ id, nome, preco, emb, url: `https://www.${c}.pt/p-${id}.html` });
-    await guardarCatalogo(s.env.DB, 'continente', 'peixe-fresco', [p('continente', '1', 'Carapau Médio Fresco', 4.49, '1 kg'), p('continente', '2', 'Carapau Pequeno Fresco', 5.99, '1 kg'), p('continente', '3', 'Posta de Pescada Fresca', 9.99, '1 kg'), p('continente', '4', 'Pescada Inteira Fresca', 7.99, '1 kg')]);
+    await guardarCatalogo(s.env.DB, 'continente', 'peixe-fresco', [p('continente', '1', 'Carapau Médio Fresco', 4.49, '1 kg'), p('continente', '2', 'Carapau Pequeno Fresco', 5.99, '1 kg'), p('continente', '9', 'Filetes de Carapau', 9.99, '1 kg'), p('continente', '3', 'Posta de Pescada Fresca', 9.99, '1 kg'), p('continente', '4', 'Pescada Inteira Fresca', 7.99, '1 kg')]);
     await guardarCatalogo(s.env.DB, 'auchan', 'peixe-fresco', [p('auchan', '5', 'CARAPAU MEDIO FRESCO INTEIRO KG', 1.99, '1 kg'), p('auchan', '6', 'POSTA SALMAO FRESCO', 14.99, '1 kg')]);
     await guardarCatalogo(s.env.DB, 'auchan', 'marisco', [p('auchan', '7', 'CAMARAO COZIDO 1KG', 9.99, '1 kg'), p('auchan', '8', 'AMEIJOA BRANCA 1KG', 8.99, '1 kg')]);
     esquecerTipos();
@@ -467,7 +467,9 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         assert.match(linhas[2], /CARAPAU MEDIO/);
         // outras opções no Continente: os dois carapaus; escolher o pequeno fica à mão («escolhido por ti»)
         await a.click('#folha [data-onda="opc:0"]');
-        assert.equal(await a.locator('#folha .opcoes .op').count(), 2);
+        assert.equal(await a.locator('#folha .opcoes .op').count(), 3);
+        // na peixaria, arrumadas por corte (os filetes), e os sem corte em «Outros»
+        assert.deepEqual(await a.locator('#folha .opcoes .op-t').allTextContents(), ['filetes', 'Outros']);
         await a.click('#folha .opcoes .op:has-text("Carapau Pequeno")');
         assert.equal(await a.locator('#folha .opcoes').count(), 0);
         assert.match(await a.locator('#folha .melhores > li >> nth=0').textContent(), /Carapau Pequeno Fresco.*escolhido por ti/);

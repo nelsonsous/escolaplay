@@ -303,3 +303,16 @@ test('a origem: peixe selvagem ou de aquacultura, carne biológica, do campo, DO
     const ws = palavrasDoTalho('peixe-fresco', ['Dourada da Costa', 'Dourada Selvagem', 'Dourada de Aquacultura', 'Robalo de Aquacultura', 'Robalo Fresco'].map((nome) => ({ nome })));
     assert.deepEqual(ws.filter((x) => x.g === 'prod').map((x) => [x.r, x.a.sort()]), [['selvagem (pesca)', ['dourada']], ['aquacultura (viveiro)', ['dourada', 'robalo']]]);
 });
+
+test('os ramos das outras secções vêm da arrumação das cadeias («Arroz, massa e farinha», «Conservas»)', async () => {
+    const { tiposDaSeccao, nomeRamo } = await import('../proxy/src/sugerir.js');
+    assert.equal(nomeRamo('arroz-massa-e-farinha'), 'Arroz, massa e farinha');
+    assert.equal(nomeRamo('cafe-cha-e-infusoes'), 'Café, chá e infusões');
+    const db = d1();
+    const C = 'https://www.continente.pt/supermercado/';
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('arroz', 'Arroz', 30, 1), ('massa', 'Massa', 20, 1), ('atum', 'Atum', 25, 1);
+        INSERT INTO pagina (url, cadeia, tipo, marca) VALUES ('${C}mercearia/arroz-massa-e-farinha/arroz/', 'continente', 'arroz', 0),
+        ('${C}mercearia/arroz-massa-e-farinha/massa/', 'continente', 'massa', 0), ('${C}mercearia/conservas/atum/', 'continente', 'atum', 0);`);
+    esquecerTipos();
+    assert.deepEqual((await tiposDaSeccao(db, 5)).map((t) => [t.gr, t.k]), [['Arroz, massa e farinha', 'arroz'], ['Arroz, massa e farinha', 'massa'], ['Conservas', 'atum']]);
+});

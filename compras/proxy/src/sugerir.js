@@ -10,7 +10,7 @@ import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS } from './etiqu
 
 const HORA = 3600e3;
 const TIPOS = { lista: null, quando: 0 };
-export const esquecerTipos = () => { TIPOS.lista = null; CORTES.clear(); };
+export const esquecerTipos = () => { TIPOS.lista = null; CORTES.clear(); RAMOS_CACHE.m = null; };
 
 const PARAR = new Set(['e', 'de', 'do', 'da', 'dos', 'das', 'em', 'para', 'a', 'o', 'os', 'as', 'no', 'na', 'ou']);
 function singular(w) {
@@ -131,7 +131,45 @@ export async function sugerir(db, q, max = 8) {
 // os tipos de uma secção (os que têm produtos), os com mais produtos primeiro
 export async function tiposDaSeccao(db, sx) {
     if (sx === 2) return (await dosRamos(db, RAMOS.map(([r]) => r))).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: 2, gr: t.gr }));
-    return (await tipos(db)).filter((t) => t.s === sx).sort((a, b) => b.n - a.n).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: t.s }));
+    // nas outras secções, os ramos vêm da arrumação das próprias cadeias (o segundo nível das categorias do Continente,
+    // ou do Auchan: «Arroz, massa e farinha», «Conservas», «Bolachas e biscoitos»): os tipos de cada ramo juntos
+    const ramos = await ramosDosTipos(db);
+    const ts = (await tipos(db)).filter((t) => t.s === sx).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: t.s, gr: ramos.get(t.k) ?? 'Outros' }));
+    const peso = new Map();
+    for (const t of ts) peso.set(t.gr, (peso.get(t.gr) ?? 0) + t.n);
+    return ts.sort((a, b) => (a.gr === 'Outros') - (b.gr === 'Outros') || peso.get(b.gr) - peso.get(a.gr) || (a.gr < b.gr ? -1 : a.gr > b.gr ? 1 : 0) || b.n - a.n);
+}
+const ACENTOS_RAMO = { laticinios: 'laticínios', cafe: 'café', cha: 'chá', acucar: 'açúcar', pao: 'pão', agua: 'água', aguas: 'águas', bebes: 'bebés', bebe: 'bebé',
+    refeicoes: 'refeições', oleos: 'óleos', champo: 'champô', champos: 'champôs', depilacao: 'depilação', protecao: 'proteção', loica: 'loiça', cao: 'cão', caes: 'cães',
+    higienico: 'higiénico', infusoes: 'infusões', liquidos: 'líquidos', acessorios: 'acessórios', organicos: 'orgânicos', biologicos: 'biológicos', pates: 'patês',
+    graos: 'grãos', feijao: 'feijão', mercearia: 'mercearia', lacteos: 'lácteos', salgados: 'salgados', congelados: 'congelados', gelados: 'gelados', vegetais: 'vegetais',
+    pastelaria: 'pastelaria', frutos: 'frutos', saude: 'saúde', bem: 'bem', estar: 'estar', maos: 'mãos', facial: 'facial', solares: 'solares', higiene: 'higiene' };
+export const nomeRamo = (slug) => {
+    const ws = String(slug).split('-').map((w) => ACENTOS_RAMO[w] ?? w);
+    // «arroz massa e farinha» → «Arroz, massa e farinha»
+    const e = ws.lastIndexOf('e');
+    const t = e > 1 ? `${ws.slice(0, e).join(', ')} e ${ws.slice(e + 1).join(' ')}` : ws.join(' ');
+    return t[0].toUpperCase() + t.slice(1);
+};
+const RAMOS_CACHE = { m: null, quando: 0 };
+async function ramosDosTipos(db) {
+    if (RAMOS_CACHE.m && Date.now() - RAMOS_CACHE.quando < HORA) return RAMOS_CACHE.m;
+    const { results } = await db.prepare(`SELECT tipo, cadeia, url FROM pagina WHERE marca = 0 AND cadeia IN ('continente', 'auchan')`).all();
+    const conta = new Map(); // tipo → slug → [n, cadeia]
+    for (const r of results) {
+        const caminho = r.cadeia === 'continente' ? r.url.split('/supermercado/')[1] : r.url.split('/pt/')[1];
+        const partes = String(caminho ?? '').split('/').filter(Boolean);
+        const slug = partes.length >= 3 ? partes[1] : partes[0];
+        if (!slug) continue;
+        if (!conta.has(r.tipo)) conta.set(r.tipo, new Map());
+        const m = conta.get(r.tipo);
+        const v = m.get(slug) ?? [0, r.cadeia];
+        v[0] += r.cadeia === 'continente' ? 2 : 1; // o Continente primeiro (as categorias dele são as mais arrumadas)
+        m.set(slug, v);
+    }
+    const m = new Map([...conta].map(([k, s]) => [k, nomeRamo([...s].sort((a, b) => b[1][0] - a[1][0])[0][0])]));
+    RAMOS_CACHE.m = m; RAMOS_CACHE.quando = Date.now();
+    return m;
 }
 
 // as palavras que distinguem os produtos de um tipo («picada», «bife», «estufar», «meio gordo»…): as mais comuns nos
@@ -300,7 +338,9 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         if (p.antes != null) x.antes = Number(p.antes);
         // o nome sem acentos nem maiúsculas, para filtrar pelas palavras; no talho e na peixaria, com as etiquetas
         // do Ecónomo (o uso, o corte, o animal: «grelhar picanha vaca»)
-        x.nk = palavras(`${p.nome} ${TALHO.has(t.k) ? palavrasEtiquetas(etiquetas(p.nome, t.k)).join(' ') : ''}`).join(' ');
+        const et = TALHO.has(t.k) ? etiquetas(p.nome, t.k) : null;
+        x.nk = palavras(`${p.nome} ${palavrasEtiquetas(et).join(' ')}`).join(' ');
+        if (et?.corte) x.cr = nomeEtiqueta(et.corte); // o corte, para arrumar as outras opções
         // os sinais de qualidade pelo nome (qualidade.js): massa mãe, biológico, congelado…
         const sq = sinais(p.nome);
         if (sq.length) x.sq = sq;
