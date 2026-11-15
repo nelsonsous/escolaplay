@@ -660,8 +660,13 @@
       L k 3 {
         = p melhor_em tp k fe fm
         ? p {
-            `<li{ Se && p.uc == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
-            `<small>{ esc p.nome }{ Se p.emb ` · { esc p.emb }` }{ Se p.uc ` · { eur int p.uc }/{ crut txt p.ub }` }</small></li>` 0 }
+            # o que pesa é o preço por unidade de medida (embalagens diferentes): em grande; a embalagem por baixo,
+            # e quanto mais caro fica por unidade do que o melhor
+            ? p.uc {
+                `<li{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.uc }<i>/{ crut txt p.ub }</i></span>`
+                `<small><b class="emb">{ eur int p.cent }{ Se p.emb ` · { esc p.emb }` }</b>{ ? == int p.uc mu ` · o mais barato por { crut unidade txt p.ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade txt p.ub }` 0 } } · { esc p.nome }</small></li>` 0 }
+              { `<li><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span><small>{ esc p.nome }{ Se p.emb ` · { esc p.emb }` }</small></li>` 0 }
+            0 }
           { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }
       Se minha $"mercadona" dest tp fe 0
       Se minha $"spar" dest tp fe 1
