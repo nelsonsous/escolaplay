@@ -647,17 +647,22 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         await a.click('#sug .chip:has-text("Vinho tinto")');
         await a.waitForSelector('#folha .escolha h2:has-text("Vinho tinto")');
         assert.deepEqual(await a.locator('#folha .escolha h3').allTextContents().then((h) => h.filter((t) => /Região|Gama|Variante/.test(t))), ['Região', 'Gama']);
+        // as melhores compras pelo rótulo, sem filtro: o Seleção mais barato, depois o Reserva (e quanto custa a mais)
+        const bc0 = await a.locator('#folha .bc li').allTextContents();
+        assert.equal(bc0.length, 2);
+        assert.match(bc0[0], /Monte Velho.*Premium/);
+        assert.match(bc0[1], /ALENTEJO RESERVA.*Reserva.*para subir de gama/);
         await a.click('#folha .chip:has-text("Douro")');
         await a.waitForSelector('#folha .caminho button:has-text("Douro")');
         const nomes = await a.locator('#folha .melhores > li small').allTextContents();
         assert.ok(nomes.filter((t) => /Douro|DOURO/.test(t)).length >= 3 && !nomes.some((t) => /Alentejo|ALENTEJO/.test(t)), nomes.join(' | '));
         assert.match(await a.getAttribute('#folha a.vivino >> nth=0', 'href'), /^https:\/\/www\.vivino\.com\/search\/wines\?q=.*Douro/i);
         assert.match(await a.getAttribute('#folha a.vivino >> nth=1', 'href'), /^https:\/\/www\.wine-searcher\.com\/find\/.*\/1\/portugal$/);
-        // as melhores compras pelo rótulo: o Seleção mais barato, depois o Reserva (e quanto custa a mais)
+        // escolhida a região, as melhores compras seguem-na: só os do Douro
         const bc = await a.locator('#folha .bc li').allTextContents();
-        assert.equal(bc.length, 2);
-        assert.match(bc[0], /Monte Velho.*Premium/);
-        assert.match(bc[1], /ALENTEJO RESERVA.*Reserva.*para subir de gama/);
+        assert.equal(bc.length, 2, bc.join(' | '));
+        assert.match(bc[0], /Papa Figos/);
+        assert.match(bc[1], /DOURO RESERVA.*Reserva.*\+2,67 €\/l para subir de gama/);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });

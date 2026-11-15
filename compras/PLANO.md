@@ -217,7 +217,7 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 - Cada secção como a loja da especialidade: garrafeira (região, gama, casta, preço da garrafa, mais vinhos, ligação ao Vivino), azeite, queijo, frutaria, padaria, presunto.
 
 **Em curso / próximo**
-1. Qualidade para quem não percebe: ✓ «🏅 Melhor compra» pelo rótulo e quanto custa subir de gama; ✓ ligações ao Vivino e ao Wine-Searcher; falta: notas de crítica de fonte legítima (Global Wine Score com chave tua; listas de prémios públicas) e a melhor compra seguir os filtros escolhidos (região, preço).
+1. Qualidade para quem não percebe: ✓ «🏅 Melhor compra» pelo rótulo e quanto custa subir de gama; ✓ ligações ao Vivino e ao Wine-Searcher; ✓ 0.40.0: a melhor compra segue os filtros escolhidos (região, preço, casta, tamanho, marca); falta: listas públicas de medalhas (por exemplo, o Concurso Vinhos de Portugal), se forem legíveis e o robots.txt deixar. A Global Wine Score acabou (o domínio está à venda, 15/11/2026): não há chave a pedir.
 2. Outras lojas para o vinho e para as outras secções: El Corte Inglés, Intermarché, Lidl, Aldi, Makro; garrafeiras e lojas especializadas online (frutarias e cabazes bio, talhos, peixarias, padarias) que deixem ler. Já experimentadas e bloqueadas para robôs: Garrafeira Nacional, Portugal Vineyards, Wine House Portugal, El Corte Inglés (403), Intermarché (robots.txt fecha tudo).
 3. Horários das outras cadeias (Continente, Pingo Doce, Auchan, Lidl, Mercadona) perto da casa.
 4. Receitas e produtos pelo perfil da casa (o que se compra) e redes sociais; o Instagram precisa de uma chave da Meta.
@@ -227,9 +227,12 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 8. Os folhetos do SPAR.
 
 **À espera de ti**
-- A tarefa semanal do Ecónomo (criar só com o teu OK).
-- Desfazer ou não o #730 (Meteo, junto por engano).
-- O plano pago da Cloudflare (5 US$/mês) só se o limite grátis voltar a não chegar (vê-se amanhã).
+- A conta Cloudflare própria da Compras: criares a conta, o subdomínio workers.dev e o token (Workers Edit, D1 Edit, Workers AI Read), e dizeres o Account ID e o subdomínio; o token entra por um formulário seguro, nunca no chat. Depois a migração é minha; o Worker antigo fica de reserva até dizeres.
+- O plano pago da Cloudflare (5 US$/mês) só se o limite grátis voltar a não chegar.
+
+**Resolvido**
+- ✓ A tarefa semanal do Ecónomo existe («Compras — Ecónomo semanal», segundas 20:13 Lisboa).
+- ✓ O #730 (Meteo) foi desfeito no #749.
 
 ## O que precisa de ti
 
