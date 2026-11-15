@@ -278,7 +278,7 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         a.on('pageerror', (e) => erros.push(e.message));
         await a.goto(s.url());
         const chave = await (await a.waitForFunction(() => localStorage.getItem('compras:chave'))).jsonValue();
-        const linhas = () => a.locator('#folha .melhores li').evaluateAll((l) => l.map((x) => [x.className, x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector('small').textContent]));
+        const linhas = () => a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => [x.className, x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector('small').textContent]));
 
         // escrever «ág» mostra o tipo; com vírgulas (várias coisas) não sugere nada
         await a.fill('[data-onda="junta"]', 'ovos, ág');
@@ -299,6 +299,11 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         // 6 L: o Continente não tem
         await a.click('#folha .chip >> text="6 L"');
         assert.deepEqual((await linhas()).map((l) => l[2]), ['—', '0,96 €', '0,96 €']);
+        // a Mercadona e o SPAR: a estimativa desse tamanho, com o porquê (sem loja online; não usamos preços de Espanha)
+        const est = await a.locator('#folha .melhores li.est').evaluateAll((l) => l.map((x) => [x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector('small').textContent]));
+        assert.deepEqual(est.map((e) => e.slice(0, 2)), [['Mercadona ≈', '≈ 0,96 €'], ['SPAR ≈', '≈ 2,14 €']]);
+        assert.match(est[0][2], /não vende online em Portugal; não usamos preços de Espanha/);
+        assert.match(est[1][2], /não tem loja online e é franquiado/);
         // Luso, de qualquer tamanho, 2 unidades
         await a.click('#folha [data-onda="fe:99"]');
         await a.click('#folha .chip:has-text("Luso")');
