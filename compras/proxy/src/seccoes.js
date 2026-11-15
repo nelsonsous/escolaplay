@@ -22,7 +22,7 @@ const TIPOS = { 'agua-sem-gas': 6, 'agua-com-gas': 6, leite: 4, ovos: 4, 'pao-de
     'detergente-loica': 8, 'detergente-maquina-loica': 8, lixivia: 8, 'sacos-do-lixo': 8, 'gel-de-banho': 9, champo: 9,
     'pasta-de-dentes': 9, 'carne-picada': 2, 'carne-novilho': 2, frango: 2, porco: 2, peru: 2, 'borrego-cabrito': 2,
     'pao-do-dia': 1, 'pao-hamburguer': 1, croissants: 1, tostas: 1, 'peixe-fresco': 2, 'peixe-congelado': 2, bacalhau: 2,
-    marisco: 2, 'polvo-lulas': 2 };
+    marisco: 2, 'polvo-lulas': 2, pescada: 2, hamburguer: 2, espetada: 2, salsicha: 2, peixe: 7 };
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 // as secções que se procuram por um nome («pao» → Padaria): a palavra está no nome da secção

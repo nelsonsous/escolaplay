@@ -18,11 +18,11 @@ export async function melhores(db, e, agora = new Date()) {
           AND (?4 IS NULL OR (?4 = 'branca' AND propria = 1) OR (?4 <> 'branca' AND lower(marca) = lower(?4)))
         ORDER BY uc IS NULL, uc, cent, id`).bind(e.k, recente(agora), e.emb ?? null, e.m ?? null).all();
     const r = {};
-    const w = e.w ? ` ${e.w} ` : null;
+    const w = e.w ? String(e.w).split(' ').filter(Boolean).map((x) => ` ${x} `) : null; // a espécie e o corte: todas
     for (const p of results) {
         if (!CADEIAS_ESCOLHA.includes(p.cadeia) || r[p.cadeia]) continue;
         // a palavra escolhida (o corte, a variante; no talho e na peixaria também as etiquetas do Ecónomo: «grelhar»)
-        if (w && !` ${palavras(`${p.nome} ${TALHO.has(e.k) ? palavrasEtiquetas(etiquetas(p.nome, e.k)).join(' ') : ''}`).join(' ')} `.includes(w)) continue;
+        if (w && !!((n) => w.every((x) => n.includes(x)))(` ${palavras(`${p.nome} ${TALHO.has(e.k) ? palavrasEtiquetas(etiquetas(p.nome, e.k)).join(' ') : ''}`).join(' ')} `)) continue;
         r[p.cadeia] = { id: p.id, nome: p.nome, url: p.url };
     }
     return r;
