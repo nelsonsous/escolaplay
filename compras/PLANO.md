@@ -227,10 +227,10 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 8. Os folhetos do SPAR.
 
 **À espera de ti**
-- A conta Cloudflare própria da Compras: criares a conta, o subdomínio workers.dev e o token (Workers Edit, D1 Edit, Workers AI Read), e dizeres o Account ID e o subdomínio; o token entra por um formulário seguro, nunca no chat. Depois a migração é minha; o Worker antigo fica de reserva até dizeres.
 - O plano pago da Cloudflare (5 US$/mês) só se o limite grátis voltar a não chegar.
 
 **Resolvido**
+- ✓ 0.42.0 (15/11/2026): a Compras passou para a conta Cloudflare própria (`compras.compras-nelson.workers.dev`, D1 e KV novas com os dados copiados); o Worker antigo em `compras.mercados-proxy.workers.dev` fica de reserva.
 - ✓ A tarefa semanal do Ecónomo existe («Compras — Ecónomo semanal», segundas 20:13 Lisboa).
 - ✓ O #730 (Meteo) foi desfeito no #749.
 

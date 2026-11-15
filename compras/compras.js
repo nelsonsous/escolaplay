@@ -9,7 +9,7 @@
 // O armazém da app (portas 105/106) usa o prefixo "compras:".
 (function () {
     'use strict';
-    const PROXY = 'https://compras.mercados-proxy.workers.dev';
+    const PROXY = 'https://compras.compras-nelson.workers.dev';
     const PRE = 'compras:';
     const ls = {
         get(k) { try { return localStorage.getItem(PRE + k); } catch { return null; } },
@@ -47,7 +47,7 @@
             .then((o) => (o && o.title ? JSON.stringify({ ...c, legenda: o.title, autor: o.author_name }) : corpo), () => corpo);
     }
 
-    fetch('app/compras.wasm?v=0.40.0')
+    fetch('app/compras.wasm?v=0.42.0')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })
