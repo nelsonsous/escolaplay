@@ -5,6 +5,7 @@
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida } from './precos.js';
+import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS } from './etiquetas.js';
 
 const HORA = 3600e3;
 const TIPOS = { lista: null, quando: 0 };
@@ -36,10 +37,9 @@ async function tipos(db) {
 // um no tipo onde há mais produtos com ele (tocar abre esse tipo com o corte já escolhido)
 const PEIXE = /peix|bacalhau|marisco|polvo|lula|choco|camar|salm|pescad|sardinh|atum|dourad|robal/;
 const PARA = new Set(['estufar', 'grelhar', 'assar', 'cozer', 'fritar']);
-const ACENTOS = { medalhao: 'medalhão', hamburguer: 'hambúrguer' };
 export const GRUPOS = {
-    carne: { s: 2, tipo: (t) => !PEIXE.test(t.k), cortes: ['picanha', 'bife', 'costeleta', 'febra', 'entrecosto', 'lombo', 'peito', 'coxa', 'asa', 'perna', 'estufar', 'grelhar', 'assar', 'cozer', 'espetada', 'hamburguer', 'salsicha'] },
-    peixe: { s: 2, tipo: (t) => PEIXE.test(t.k) && PEIXE.test(t.w.join(' ')), cortes: ['posta', 'lombo', 'filete', 'inteiro', 'medalhao', 'grelhar', 'cozer', 'assar', 'fritar'] },
+    carne: { s: 2, tipo: (t) => !PEIXE.test(t.k) },
+    peixe: { s: 2, tipo: (t) => PEIXE.test(t.k) && PEIXE.test(t.w.join(' ')), especie: true },
 };
 const CORTES = new Map(); // o grupo → { quando, lista } (uma hora)
 async function grupo(db, g, nome) {
@@ -54,14 +54,16 @@ async function grupo(db, g, nome) {
         const { results } = ks.length ? await db.prepare(`SELECT tipo, nome FROM preco WHERE cent IS NOT NULL AND tipo IN (${ks.map(() => '?').join(', ')})`).bind(...ks).all() : { results: [] };
         const conta = new Map(); // corte → tipo → n
         for (const r of results) {
-            const ws = new Set(palavras(r.nome));
-            for (const w of g.cortes) if (ws.has(w)) { const m = conta.get(w) ?? new Map(); m.set(r.tipo, (m.get(r.tipo) ?? 0) + 1); conta.set(w, m); }
+            // as etiquetas do Ecónomo (etiquetas.js): os usos e o corte (e, na peixaria, a espécie)
+            const e = etiquetas(r.nome, r.tipo);
+            const ws = e ? [...e.usos, e.corte, ...(g.especie ? [e.animal] : [])].filter(Boolean) : [];
+            for (const w of ws) { const m = conta.get(w) ?? new Map(); m.set(r.tipo, (m.get(r.tipo) ?? 0) + 1); conta.set(w, m); }
         }
         const porK = new Map(ts.map((t) => [t.k, t]));
         const lista = [...conta].map(([w, m]) => { const [k, n] = [...m].sort((a, b) => b[1] - a[1])[0]; return { w, k, n }; })
             // os usos («para estufar») primeiro, que as cadeias quase não os escrevem; depois os cortes com mais produtos
-            .filter((x) => x.n >= 3 && porK.has(x.k)).sort((a, b) => (PARA.has(b.w) ? 1 : 0) - (PARA.has(a.w) ? 1 : 0) || b.n - a.n).slice(0, 10)
-            .map((x) => ({ k: x.k, nome: porK.get(x.k).nome, w: x.w, corte: PARA.has(x.w) ? `para ${x.w}` : ACENTOS[x.w] ?? x.w, s: g.s }));
+            .filter((x) => x.n >= 3 && porK.has(x.k)).sort((a, b) => (PARA.has(b.w) ? 1 : 0) - (PARA.has(a.w) ? 1 : 0) || b.n - a.n).slice(0, 14)
+            .map((x) => ({ k: x.k, nome: porK.get(x.k).nome, w: x.w, corte: nomeEtiqueta(x.w), s: g.s }));
         c = { quando: Date.now(), lista };
         CORTES.set(nome, c);
     }
@@ -133,6 +135,25 @@ export function palavrasDoTipo(k, produtos, max = 10) {
         }
     }
     return [...conta].filter(([, n]) => n >= 2 && n < produtos.length).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, max).map(([w, n]) => ({ w, n }));
+}
+
+// no talho e na peixaria, as escolhas vêm das etiquetas do Ecónomo, em três grupos (g): para quê (o uso), o corte e
+// o animal ou a espécie (só se há mais de um); r é o nome para ler, w a palavra para filtrar
+export function palavrasDoTalho(k, produtos) {
+    const conta = { uso: new Map(), corte: new Map(), animal: new Map() };
+    const mais = (m, w) => m.set(w, (m.get(w) ?? 0) + 1);
+    for (const p of produtos) {
+        const e = etiquetas(p.nome, k);
+        if (!e) continue;
+        for (const u of e.usos) mais(conta.uso, u);
+        if (e.corte) mais(conta.corte, e.corte);
+        if (e.animal) mais(conta.animal, e.animal);
+    }
+    const lista = (g, max) => [...conta[g]].filter(([, n]) => n >= 2 && n < produtos.length + (g === 'uso' ? 0 : 1))
+        .sort((a, b) => (g === 'uso' ? USOS.indexOf(a[0]) - USOS.indexOf(b[0]) : b[1] - a[1])).slice(0, max)
+        .map(([w, n]) => ({ w, r: nomeEtiqueta(w), n, g }));
+    const animais = lista('animal', 8);
+    return [...lista('uso', 5), ...lista('corte', 14), ...(animais.length > 1 ? animais : [])];
 }
 
 // os produtos de um tipo, com os tamanhos e as marcas que há (os mais comuns primeiro)
@@ -213,7 +234,9 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         if (p.emb) x.emb = p.emb;
         if (p.uc != null && p.ub) { x.uc = Number(p.uc); x.ub = p.ub; }
         if (p.antes != null) x.antes = Number(p.antes);
-        x.nk = palavras(p.nome).join(' '); // o nome sem acentos nem maiúsculas, para filtrar pelas palavras
+        // o nome sem acentos nem maiúsculas, para filtrar pelas palavras; no talho e na peixaria, com as etiquetas
+        // do Ecónomo (o uso, o corte, o animal: «grelhar picanha vaca»)
+        x.nk = palavras(`${p.nome} ${TALHO.has(t.k) ? palavrasEtiquetas(etiquetas(p.nome, t.k)).join(' ') : ''}`).join(' ');
         return x;
     });
     // a unidade de medida do tipo (a mais comum: kg, l ou un): só se comparam os preços por unidade nessa
@@ -229,7 +252,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         tamanhos,
         marcas: conta((p) => (p.pr || !p.marca ? null : nomeMarca(p.marca))).slice(0, 10).map(([m, n]) => ({ m, n })),
         brancas: results.filter((p) => p.pr).length,
-        palavras: palavrasDoTipo(t.k, produtos),
+        palavras: TALHO.has(t.k) ? palavrasDoTalho(t.k, results) : palavrasDoTipo(t.k, produtos),
         ub,
         est: estimativasDoTipo(results, ub, tamanhos),
         reais: await reaisDoTipo(db, casa, k),

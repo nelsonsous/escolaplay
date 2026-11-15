@@ -4,6 +4,7 @@
 // produto foi escolhido à mão (e.mao), fica como está.
 // A Mercadona não deixa ler preços (a API está fechada no robots.txt): para ela, a estimativa é a mediana do preço da
 // marca branca do mesmo tipo e tamanho nas outras cadeias, marcada «≈» na app (est, em cêntimos por unidade da coisa).
+import { etiquetas, palavrasEtiquetas, TALHO } from './etiquetas.js';
 import { palavras } from './sugerir.js';
 
 const DIA = 24 * 3600e3;
@@ -20,7 +21,8 @@ export async function melhores(db, e, agora = new Date()) {
     const w = e.w ? ` ${e.w} ` : null;
     for (const p of results) {
         if (!CADEIAS_ESCOLHA.includes(p.cadeia) || r[p.cadeia]) continue;
-        if (w && !` ${palavras(p.nome).join(' ')} `.includes(w)) continue; // a palavra escolhida (o corte, a variante)
+        // a palavra escolhida (o corte, a variante; no talho e na peixaria também as etiquetas do Ecónomo: «grelhar»)
+        if (w && !` ${palavras(`${p.nome} ${TALHO.has(e.k) ? palavrasEtiquetas(etiquetas(p.nome, e.k)).join(' ') : ''}`).join(' ')} `.includes(w)) continue;
         r[p.cadeia] = { id: p.id, nome: p.nome, url: p.url };
     }
     return r;
