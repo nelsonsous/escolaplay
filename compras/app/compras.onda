@@ -656,7 +656,7 @@
   Se && == estado 200 _an_ler $"tk" { _an_gravar $"tp" t dfolha }
   _me_solta t }
 # passa nos filtros? fe o tamanho, fm a marca («branca»: a marca própria)
-: passa iii>i p fe fm && && || ~ fe mesmo txt p.emb fe || ~ fm ? mesmo fm $"branca" int p.pr mesmo txt p.mk fm tem_w p
+: passa iii>i p fe fm && && || ~ _an_ler $"fes" tem_e _an_ler $"fes" txt p.emb || ~ fm ? mesmo fm $"branca" int p.pr mesmo txt p.mk fm tem_w p
 # a palavra escolhida (o corte ou a variante: «picada», «estufar») está no nome? (sem palavra: sim)
 : tem_w i>i p && && tem_p p _an_ler $"fw" tem_p p _an_ler $"fa" tem_p p _an_ler $"fp"
 : tem_p ii>i p w { ? w { = h _tx_abre + 4 _tx_len txt p.nk P 32 crut txt p.nk P 32 _tx_fecha h = x _tx_abre + 4 _tx_len w P 32 crut w P 32 _tx_fecha x >= _tx_acha h x 0 0 } 1 }
@@ -678,11 +678,15 @@
   Se s `</div>`
   0 }
 # a fila dos tamanhos (fe o escolhido)
+# os tamanhos escolhidos (podem ser vários: 6 L e 5 L, para ver qual compensa): fes «|6 L|5 L|», fer «6 L + 5 L», e fe
+# o tamanho quando é um só (para a estimativa e para o que se junta)
+: tem_e ii>i fes e { = h _tx_abre + 4 _tx_len fes crut fes _tx_fecha h = x _tx_abre + 4 _tx_len e P 124 crut e P 124 _tx_fecha x >= _tx_acha h x 0 0 }
 : dtam ii>i tp fe {
+  = fes _an_ler $"fes"
   Se pri tp.tamanhos {
-    `<h3>Tamanho</h3><div class="chips n4"><button class="chip{ Se ~ fe ` on` }" data-onda="fe:99">Todos</button>`
+    `<h3>Tamanho <small>(podes escolher vários)</small></h3><div class="chips n4"><button class="chip{ Se ~ fes ` on` }" data-onda="fe:99">Todos</button>`
     = e pri tp.tamanhos = i 0
-    W e { `<button class="chip{ Se && fe mesmo fe txt e.e ` on` }" data-onda="fe:{ N i }">{ esc e.e }</button>` = e seg e = i + i 1 }
+    W e { `<button class="chip{ Se && fes tem_e fes txt e.e ` on` }" data-onda="fe:{ N i }">{ esc e.e }</button>` = e seg e = i + i 1 }
     `</div>` }
   0 }
 # o que distingue o produto (para se ver que não se compara o mesmo): a marca ou a marca branca, e os sinais do nome
@@ -708,7 +712,8 @@
       = fp _an_ler $"fp" = fpr _an_ler $"fpr"
       Se fp `<i>›</i><button class="n3" data-onda="cam:7">{ esct ? fpr fpr fp }</button>`
       Se fw `<i>›</i><button class="n3" data-onda="cam:6">{ esct ? fwr fwr fw }</button>`
-      Se fe `<i>›</i><button class="n4" data-onda="cam:3">{ esct fe }</button>`
+      = fer _an_ler $"fer"
+      Se fer `<i>›</i><button class="n4" data-onda="cam:3">{ esct fer }</button>`
       Se fm `<i>›</i><b class="n5">{ esct ? mesmo fm $"branca" $"🏷 marca branca" fm }</b>`
       `</nav><h2>{ esc tp.nome }</h2>`
       `<div class="qtd"><button class="botao fraco" data-onda="tmenos:0" aria-label="Menos">−</button><b>{ ? tq crut tq `1` }</b><button class="botao fraco" data-onda="tmais:0" aria-label="Mais">+</button></div>`
@@ -717,7 +722,7 @@
       = x0 pri tp.palavras
       = fa _an_ler $"fa"
       ? && x0 x0.g { linha_w tp $"animal" $"Espécie ou animal" fa $"fa" linha_w tp $"prod" $"Origem" _an_ler $"fp" $"fp" linha_w tp $"corte" $"Corte" fw $"fw" linha_w tp $"uso" $"Para quê" fw $"fw" dtam tp fe 0 }
-        { dtam tp fe Se x0 linha_w tp 0 $"Corte ou variante" fw $"fw" 0 }
+        { dtam tp fe Se x0 linha_w tp 0 $"Variante" fw $"fw" 0 }
       `<h3>Marca</h3><div class="chips n5"><button class="chip{ Se ~ fm ` on` }" data-onda="fm:99">Qualquer</button>`
       Se int tp.brancas `<button class="chip{ Se && fm mesmo fm $"branca" ` on` }" data-onda="fm:98">🏷 Marca branca</button>`
       = x pri tp.marcas = i 0
@@ -787,12 +792,12 @@
   Se tp {
     ? >= v 9 { fecha_tipo _an_gravar $"sug" 0 _an_gravar $"sugsec" 0 _an_gravar $"vsecs" $"1" 0 }
     { ? == v 0 { = sx int tp.s fecha_tipo _an_gravar $"vsecs" 0 _an_gravar $"sug" 0 _an_gravar $"sugsec" texto`{ N sx }` _an_buscar texto`/api/seccao?s={ N sx }` $"lido_seccao" 0 }
-      { _an_gravar $"fm" 0 Se ~ == v 3 _an_gravar $"fe" 0
+      { _an_gravar $"fm" 0 Se ~ == v 3 { _an_gravar $"fe" 0 _an_gravar $"fes" 0 _an_gravar $"fer" 0 }
         Se || < v 3 == v 7 { _an_gravar $"fw" 0 _an_gravar $"fwr" 0 }
         Se < v 3 { _an_gravar $"fp" 0 _an_gravar $"fpr" 0 }
         Se < v 2 { _an_gravar $"fa" 0 _an_gravar $"far" 0 } 0 } } }
   0 }
-: fecha_tipo >i { _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fm" 0 _an_gravar $"fw" 0 _an_gravar $"fwr" 0 _an_gravar $"fa" 0 _an_gravar $"far" 0 _an_gravar $"fp" 0 _an_gravar $"fpr" 0 _an_gravar $"tq" 0 }
+: fecha_tipo >i { _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fes" 0 _an_gravar $"fer" 0 _an_gravar $"fm" 0 _an_gravar $"fw" 0 _an_gravar $"fwr" 0 _an_gravar $"fa" 0 _an_gravar $"far" 0 _an_gravar $"fp" 0 _an_gravar $"fpr" 0 _an_gravar $"tq" 0 }
 : abre_tipo i>i v {
   = s _ar_json _an_ler $"sug"
   = x ? s idx s.tipos v 0
@@ -802,12 +807,22 @@
     Se x.w { ? x.ga { _an_gravar $"fa" txt x.w _an_gravar $"far" txt ? x.corte x.corte x.w 0 } { _an_gravar $"fw" txt x.w _an_gravar $"fwr" txt ? x.corte x.corte x.w 0 } }
     _an_buscar texto`/api/tipo?k={ _tx_uri txt x.k }` $"lido_tipo" }
   0 }
+# tocar num tamanho junta-o aos escolhidos ou tira-o (refaz fes, fer e fe pela ordem dos tamanhos)
+: muda_tam ii>i tp v {
+  = fes _an_ler $"fes" = novo $"|" = rot $"" = n 0 = um 0
+  = e pri tp.tamanhos = j 0
+  W e {
+    = esta tem_e ? fes fes $"" txt e.e
+    Se ? == j v ~ esta esta { = novo texto`{ crut novo }{ crut txt e.e }|` = rot texto`{ Se n `{ crut rot } + ` }{ crut txt e.e }` = n + n 1 = um txt e.e }
+    = e seg e = j + j 1 }
+  ? n { _an_gravar $"fes" novo _an_gravar $"fer" rot _an_gravar $"fe" ? == n 1 um 0 0 } { _an_gravar $"fes" 0 _an_gravar $"fer" 0 _an_gravar $"fe" 0 0 }
+  0 }
 # um botão de tamanho (fe) ou de marca (fm): 99 tira o filtro, 98 é a marca branca
 : filtro ii>i qual v {
   = tp _ar_json _an_ler $"tp"
   Se tp {
     ? == qual 0
-      { ? == v 99 _an_gravar $"fe" 0 { = e idx tp.tamanhos v Se e _an_gravar $"fe" txt e.e 0 } 0 }
+      { ? == v 99 { _an_gravar $"fe" 0 _an_gravar $"fes" 0 _an_gravar $"fer" 0 0 } { muda_tam tp v 0 } 0 }
       { ? == v 99 _an_gravar $"fm" 0 ? == v 98 _an_gravar $"fm" $"branca" { = x idx tp.marcas v Se x _an_gravar $"fm" txt x.m 0 } 0 } }
   0 }
 : tq_muda i>i d { = q _an_ler $"tq" = n Mx 1 Mn 99 + ? q _tx_int q 1 d _an_gravar $"tq" texto`{ N n }` 0 }
@@ -819,7 +834,7 @@
     = id texto`{ novoid }`
     = fw _an_ler $"fw" = fwr _an_ler $"fwr" = fa _an_ler $"fa" = far _an_ler $"far" = fp _an_ler $"fp" = fpr _an_ler $"fpr"
     = ww texto`{ Se fa `{ crut fa } ` }{ Se fp `{ crut fp } ` }{ Se fw `{ crut fw }` }`
-    = nome texto`{ crut txt tp.nome }{ Se || || fa fp fw ` ({ Se fa `{ crut ? far far fa }` }{ Se && fa || fp fw `, ` }{ Se fp `{ crut ? fpr fpr fp }` }{ Se && fp fw `, ` }{ Se fw `{ crut ? fwr fwr fw }` })` }{ Se fe ` { crut fe }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
+    = nome texto`{ crut txt tp.nome }{ Se || || fa fp fw ` ({ Se fa `{ crut ? far far fa }` }{ Se && fa || fp fw `, ` }{ Se fp `{ crut ? fpr fpr fp }` }{ Se && fp fw `, ` }{ Se fw `{ crut ? fwr fwr fw }` })` }{ Se _an_ler $"fer" ` { crut _an_ler $"fer" }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
     faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k },"n":{ pjs txt tp.nome }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se || || fa fp fw `,"w":{ pjs ww }` }\}\}`
     L k 3 { = p melhor_em tp k fe fm Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }","a":1,"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
     fecha_tipo

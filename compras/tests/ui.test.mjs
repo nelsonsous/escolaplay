@@ -340,6 +340,12 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         assert.match(est[0][2], /não vende online em Portugal; não usamos preços de Espanha/);
         assert.match(est[1][2], /não tem loja online e é franquiado/);
         assert.deepEqual((await caminho()).slice(3), ['n4 6 L']);
+        // vários tamanhos ao mesmo tempo (6 L e 5 L): compara-se por litro entre eles; tocar outra vez tira
+        await a.click('#folha .chip >> text="5 L"');
+        assert.deepEqual((await caminho()).slice(3), ['n4 6 L + 5 L']);
+        assert.deepEqual(await a.locator('#folha .chips.n4 .chip.on').allTextContents(), ['6 L', '5 L']);
+        await a.click('#folha .chip >> text="5 L"');
+        assert.deepEqual((await caminho()).slice(3), ['n4 6 L']);
         if (process.env.FOTO) await a.screenshot({ path: process.env.FOTO });
         // Luso, de qualquer tamanho, 2 unidades
         await a.click('#folha [data-onda="fe:99"]');
@@ -441,7 +447,7 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         await a.click('#sug .chip.n2:has-text("Peixe fresco")');
         await a.waitForSelector('#folha .escolha h2:has-text("Peixe fresco")');
         // os níveis por ordem: a espécie primeiro, depois o corte e o uso
-        assert.deepEqual(await a.locator('#folha .escolha h3').allTextContents(), ['Espécie ou animal', 'Corte', 'Para quê', 'Tamanho', 'Marca', 'O mais barato em cada supermercado']);
+        assert.deepEqual(await a.locator('#folha .escolha h3').allTextContents(), ['Espécie ou animal', 'Corte', 'Para quê', 'Tamanho (podes escolher vários)', 'Marca', 'O mais barato em cada supermercado']);
         await a.click('#folha [data-onda^="fa:"]:has-text("carapau")');
         // escolhido o carapau, só os usos do carapau (não há postas de carapau)
         assert.equal(await a.locator('#folha [data-onda^="fw:"]:has-text("postas")').count(), 0);
