@@ -756,6 +756,18 @@
 # tamanho escolhido (ou do mais comum), na mesma unidade das outras linhas, com a base (o que há nas outras lojas)
 # e o porquê. mu: o melhor preço por unidade das cadeias (para dizer quanto mais caro ou mais barato)
 : nomec i>i c ? mesmo c $"continente" $"Continente" ? mesmo c $"pingodoce" $"Pingo Doce" ? mesmo c $"auchan" $"Auchan" c
+# o que o SPAR vende deste tipo (da lista de artigos do site, sem preços), dos tamanhos escolhidos: a marca SPAR primeiro,
+# cada um com a estimativa (o mesmo produto noutra cadeia, ou a marca branca equivalente)
+: dspar i>i tp {
+  = fes _an_ler $"fes" = x pri tp.sa = n 0
+  W && x < n 6 {
+    Se || ~ fes && x.emb tem_e fes txt x.emb {
+      Se ~ n `</small><div class="spar-art"><p class="t">No SPAR há:</p>`
+      `<p><b>{ esc x.n }</b>{ Se int x.pr ` <i>marca SPAR</i>` }{ ? x.eq ` — ≈ { eur int x.eq } <span>({ esc x.como })</span>` ` — <span>sem estimativa</span>` }</p>`
+      = n + n 1 }
+    = x seg x }
+  Se n `</div><small>`
+  0 }
 : dest iiii>i tp fe q mu {
   = j _ar_json _an_ler $"casa"
   = nome ? q ? && j j.lojas.spar txt j.lojas.spar $"SPAR" $"Mercadona"
@@ -781,7 +793,7 @@
         = b ? x ? q pri x.bs pri x.bm 0
         Se b { ` · com base em ` = s 0 W b { Se s `, ` `{ crut nomec txt b.c }{ Se ~ q ` 🏷` } { eur int b.cent }` = s 1 = b seg b } }
         `<br>`
-        ? q `Estimativa: as marcas de fabricante do mesmo tipo e tamanho nas outras lojas. O SPAR não tem loja online e é franquiado: cada loja tem os seus preços. Os teus talões corrigem-na.`
+        ? q `Estimativa: as marcas de fabricante do mesmo tipo e tamanho nas outras lojas. O SPAR não tem loja online e é franquiado: cada loja tem os seus preços. Os teus talões corrigem-na.{ dspar tp }`
           `Estimativa: a marca branca do mesmo tipo e tamanho no Continente, no Pingo Doce e no Auchan. A Mercadona não vende online em Portugal; não usamos preços de Espanha (o IVA e os preços são outros). Os teus talões corrigem-na.`
         `</small></li>` }
       0 }

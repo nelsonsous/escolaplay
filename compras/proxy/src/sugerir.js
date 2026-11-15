@@ -315,6 +315,9 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         ub,
         est: { ...estimativasDoTipo(results, ub, tamanhos), w: estimativasPorPalavra(produtos, escolhas, ub) },
         reais: await reaisDoTipo(db, casa, k),
+        // os artigos que o SPAR vende deste tipo (da lista do site), com a estimativa de cada um (economo/spar.mjs)
+        sa: (await db.prepare(`SELECT nome AS n, emb, propria AS pr, eq_cent AS eq, eq_como AS como FROM spar_artigo WHERE tipo = ?
+            ORDER BY propria DESC, eq_cent IS NULL, eq_cent LIMIT 30`).bind(k).all()).results,
         produtos,
     };
 }
