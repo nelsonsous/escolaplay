@@ -189,3 +189,20 @@ test('preços comparáveis: ao balcão e ao peso paga-se a porção; com peso ou
     // os packs de litros do Auchan sem vírgula, e o «&times;»
     assert.deepEqual(['AGUA C/ GÁS VIMEIRO 4X150L', '6X050L', '4X15L', '6&times;1.5L', '2 x 10 L', '7UP LATA 6X33L', '6X033L'].map(rotulo), ['4 × 1,5 L', '6 × 0,5 L', '4 × 1,5 L', '6 × 1,5 L', '2 × 10 L', '6 × 0,33 L', '6 × 0,33 L']);
 });
+
+test('embalagens diferentes: o preço de cada cadeia para o mesmo tamanho (cn), e o talão passa à frente da estimativa', async () => {
+    const { comparavel, juntarPrecos } = await import('../proxy/src/precos.js');
+    const { d1 } = await import('./d1.mjs');
+    // 7 L a 1,99 € (0,28 €/l) e 6 L a 0,96 € (0,16 €/l): comparados por 6 L (o tamanho da escolha)
+    const i = comparavel({ e: { k: 'agua-sem-gas', emb: '6 L' }, p: { continente: { cent: 199, uc: 28, ub: 'l', emb: '7 L' }, pingodoce: { cent: 96, uc: 16, ub: 'l', emb: '6 L' } } });
+    assert.equal(i.cmp, '6 L');
+    assert.deepEqual([i.p.continente.cn, i.p.pingodoce.cn], [168, 96]);
+    // o mesmo tamanho em todas: nada muda
+    assert.equal(comparavel({ p: { a: { cent: 96, uc: 16, ub: 'l', emb: '6 L' }, b: { cent: 99, uc: 17, ub: 'l', emb: '6 L' } } }).cmp, undefined);
+    // o talão da Mercadona dá o preço real à coisa da lista (est sem «≈», com o dia)
+    const db = d1();
+    db.sql.prepare('INSERT INTO talao (id, casa, loja, dia, total, linhas, criado) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run('t1', 'c1', 'mercadona', '2026-11-14', 99, JSON.stringify([{ t: 'AGUA S/GAS 6L', q: 1, cent: 99 }]), '2026-11-14T10:00:00Z');
+    const l = await juntarPrecos(db, { itens: [{ id: 'x', t: 'Água sem gás 6 L', q: 1, e: { k: 'agua-sem-gas', emb: '6 L' }, p: {} }] }, 'c1');
+    assert.deepEqual([l.itens[0].est, l.itens[0].estr], [99, '2026-11-14']);
+});

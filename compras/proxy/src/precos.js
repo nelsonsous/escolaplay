@@ -11,6 +11,7 @@ import { FONTES } from './fontes/index.js';
 import { pedir } from './rede.js';
 import { estimativas } from './escolhas.js';
 import { seccao } from './seccoes.js';
+import { reaisDaCasa } from './sugerir.js';
 
 export const VALE_H = 20, POR_PEDIDO = 2, POR_CRON = 4;
 const HORA = 3600e3;
@@ -152,20 +153,25 @@ async function linhas(db, produtos) {
 }
 
 // a lista com o preço de cada produto escolhido: cent, antes (o riscado), unid, esgotado (1) e visto (o dia)
-export async function juntarPrecos(db, lista0) {
+export async function juntarPrecos(db, lista0, casa = null) {
     // cada coisa com a sua secção (seccoes.js), para a app agrupar a lista
     const lista = { ...lista0, itens: lista0.itens.map((i) => ({ ...i, s: seccao(i) })) };
     const m = await linhas(db, produtosDe(lista.itens));
     const est = await estimativas(db, lista.itens);
-    if (!m.size && !est.size) return lista;
+    // os talões da casa passam à frente das estimativas (o preço que se pagou na Mercadona e no SPAR)
+    const reais = casa ? await reaisDaCasa(db, casa, lista.itens.filter((i) => i.e?.k).map((i) => i.e.k)) : new Map();
+    if (!m.size && !est.size && !reais.size) return lista;
     return {
         ...lista,
         itens: lista.itens.map((i) => {
             const e = i.e?.emb ? est.get(i.e.k + '|' + i.e.emb) : null;
-            return {
+            const r = i.e?.k ? reais.get(i.e.k) : null;
+            const x = {
                 ...i,
                 ...(e?.merc != null ? { est: e.merc } : {}),
                 ...(e?.spar != null ? { ests: e.spar } : {}),
+                ...(r?.mercadona ? { est: r.mercadona.cent, estr: r.mercadona.dia } : {}),
+                ...(r?.spar ? { ests: r.spar.cent, estsr: r.spar.dia } : {}),
                 p: Object.fromEntries(Object.entries(i.p).map(([c, p]) => {
                     const r = m.get(c + ' ' + p.id);
                     if (!r || r.cent == null) return [c, p];
@@ -176,11 +182,26 @@ export async function juntarPrecos(db, lista0) {
                     if (r.visto) x.visto = r.visto.slice(0, 10);
                     if (r.uc != null && r.ub) { x.uc = Number(r.uc); x.ub = r.ub; }
                     if (r.propria) x.pr = 1;
+                    if (r.emb) x.emb = r.emb;
                     return [c, x];
                 })),
             };
+            return comparavel(x);
         }),
     };
+}
+
+// embalagens diferentes (7 L num, 6 L noutro): para comparar, o preço de cada cadeia para o mesmo tamanho (cn: o
+// preço por unidade × o tamanho de referência, cmp: esse tamanho, o da escolha ou o mais comum). O total que se
+// mostra continua a ser o que se paga; o cn só decide qual é o mais barato.
+export function comparavel(i) {
+    const ps = Object.values(i.p ?? {}).filter((p) => p.cent != null && p.uc != null && p.ub && p.emb);
+    const qs = ps.map((p) => medida(p.emb)?.q).filter((q) => q > 0);
+    if (ps.length < 2 || new Set(ps.map((p) => p.ub)).size > 1 || new Set(qs).size < 2) return i;
+    const ref = medida(i.e?.emb)?.q > 0 ? i.e.emb : (() => { const c = new Map(); for (const p of ps) c.set(p.emb, (c.get(p.emb) ?? 0) + 1); return [...c].sort((a, b) => b[1] - a[1])[0][0]; })();
+    const q = medida(ref).q;
+    for (const p of ps) p.cn = Math.round(p.uc * q);
+    return { ...i, cmp: ref };
 }
 
 // os preços dos produtos de uma procura numa cadeia ({ id, url, nome }, já verificados): os que se conhecem e, dos que

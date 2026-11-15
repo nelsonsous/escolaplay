@@ -46,7 +46,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.23.1';
+export const VERSION = '0.24.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -229,14 +229,14 @@ async function api(request, env, url) {
     if (caminho === '/api/casa/entrar' && metodo === 'POST') {
         const { codigo } = await corpoJSON(request);
         const r = await entrarNaCasa(db, ap, codigo);
-        return json({ codigo: r.codigo, lista: await juntarPrecos(db, await lerLista(db, r.casa)) });
+        return json({ codigo: r.codigo, lista: await juntarPrecos(db, await lerLista(db, r.casa), r.casa) });
     }
-    if (caminho === '/api/lista' && metodo === 'GET') return json(await juntarPrecos(db, await lerLista(db, ap.casa)));
+    if (caminho === '/api/lista' && metodo === 'GET') return json(await juntarPrecos(db, await lerLista(db, ap.casa), ap.casa));
     if (caminho === '/api/lista' && metodo === 'POST') {
         const { ops } = await corpoJSON(request);
         const lista = await mudarLista(db, ap, ops ?? []);
         await precosNovos(db, ops).catch(() => {}); // sem o preço agora, o cron lê-o depois
-        return json(await juntarPrecos(db, lista));
+        return json(await juntarPrecos(db, lista, ap.casa));
     }
     if (caminho === '/api/precos' && metodo === 'POST') {
         const { cadeia, produtos } = await corpoJSON(request);

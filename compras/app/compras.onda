@@ -274,8 +274,9 @@
     Se int m.pr ` 🏷`
     = p pc c k Se >= p 0 ` { eur p }`
     = s 1 } }
-  Se && c.est minha $"mercadona" { Se s ` · ` `Mercadona ≈ { eur * Mx 1 int c.q int c.est }` = s 1 }
-  Se && c.ests minha $"spar" { Se s ` · ` `SPAR ≈ { eur * Mx 1 int c.q int c.ests }` = s 1 }
+  # a Mercadona e o SPAR: o preço do teu talão (sem ≈) ou a estimativa (≈)
+  Se && c.est minha $"mercadona" { Se s ` · ` `Mercadona { Se ~ c.estr `≈ ` }{ eur * Mx 1 int c.q int c.est }{ Se c.estr ` (talão)` }` = s 1 }
+  Se && c.ests minha $"spar" { Se s ` · ` `SPAR { Se ~ c.estsr `≈ ` }{ eur * Mx 1 int c.q int c.ests }{ Se c.estsr ` (talão)` }` = s 1 }
   Se ~ s `Toca para escolher os produtos` }
 # o texto para partilhar no WhatsApp (já no formato de um endereço)
 : partilha i>i its {
@@ -305,7 +306,7 @@
 : resumo i>i c {
   = b -1 = bp 0 = n 0
   L k 4 Se minha cadeia k { = p pc c k Se >= p 0 { = n + n 1 Se || < b 0 < p bp { = b k = bp p } } }
-  ? < b 0 { ? || c.est c.ests { Se && c.est minha $"mercadona" `Mercadona ≈ { eur * Mx 1 int c.q int c.est }` Se && c.ests ~ && c.est minha $"mercadona" Se minha $"spar" `SPAR ≈ { eur * Mx 1 int c.q int c.ests }` 0 } `Tocar para escolher` 0 }
+  ? < b 0 { ? || c.est c.ests { Se && c.est minha $"mercadona" `Mercadona { Se ~ c.estr `≈ ` }{ eur * Mx 1 int c.q int c.est }` Se && c.ests ~ && c.est minha $"mercadona" Se minha $"spar" `SPAR { Se ~ c.estsr `≈ ` }{ eur * Mx 1 int c.q int c.ests }` 0 } `Tocar para escolher` 0 }
     { = m _ar_get c.p cadeia b
       `{ crut nomecad b }{ Se int m.pr ` 🏷` } { eur bp }{ Se > n 1 ` · mais { N - n 1 } { ? > n 2 `lojas` `loja` }` }` 0 }
   0 }
@@ -412,22 +413,25 @@
   0 }
 # a Mercadona, à parte: a estimativa (a marca branca do mesmo tipo e tamanho nas outras lojas), nunca «o mais barato»
 : dmerc i>i n {
-  = t 0 = c 0 = x pri itens
-  W x { Se && ~ int x.f x.est { = t + t * Mx 1 int x.q int x.est = c + c 1 } = x seg x }
+  = t 0 = c 0 = r 0 = x pri itens
+  W x { Se && ~ int x.f x.est { = t + t * Mx 1 int x.q int x.est = c + c 1 Se x.estr = r + r 1 } = x seg x }
   Se && c minha $"mercadona" {
-    `<div class="merc"><p><b>Mercadona ≈ { eur t }</b>{ Se < c n ` <small>(só { N c } de { N n } coisas)</small>` }</p>`
-    `<p class="nota">Estimativa: a marca branca do mesmo tipo e tamanho nas outras lojas (a Mercadona não publica os preços). Os talões vão corrigi-la.</p></div>` }
-  = t 0 = c 0 = x pri itens
-  W x { Se && ~ int x.f x.ests { = t + t * Mx 1 int x.q int x.ests = c + c 1 } = x seg x }
+    `<div class="merc"><p><b>Mercadona { Se < r c `≈ ` }{ eur t }</b>{ Se < c n ` <small>(só { N c } de { N n } coisas)</small>` }</p>`
+    `<p class="nota">{ Se r `{ N r } { ? == r 1 `coisa com o preço` `coisas com o preço` } do teu talão. ` }{ Se < r c `Estimativa: a marca branca do mesmo tipo e tamanho nas outras lojas (a Mercadona não publica os preços). Os talões vão corrigi-la.` }</p></div>` }
+  = t 0 = c 0 = r 0 = x pri itens
+  W x { Se && ~ int x.f x.ests { = t + t * Mx 1 int x.q int x.ests = c + c 1 Se x.estsr = r + r 1 } = x seg x }
   Se && c minha $"spar" {
     = j _ar_json _an_ler $"casa"
-    `<div class="merc"><p><b>{ ? && j j.lojas.spar esc j.lojas.spar `SPAR` } ≈ { eur t }</b>{ Se < c n ` <small>(só { N c } de { N n } coisas)</small>` }</p>`
-    `<p class="nota">Estimativa: as marcas de fabricante do mesmo tipo e tamanho nas outras lojas (o SPAR não tem loja online). Os talões da tua loja vão corrigi-la.</p></div>` }
+    `<div class="merc"><p><b>{ ? && j j.lojas.spar esc j.lojas.spar `SPAR` } { Se < r c `≈ ` }{ eur t }</b>{ Se < c n ` <small>(só { N c } de { N n } coisas)</small>` }</p>`
+    `<p class="nota">{ Se r `{ N r } { ? == r 1 `coisa com o preço` `coisas com o preço` } do teu talão. ` }{ Se < r c `Estimativa: as marcas de fabricante do mesmo tipo e tamanho nas outras lojas (o SPAR não tem loja online). Os talões da tua loja vão corrigi-la.` }</p></div>` }
   0 }
 : dmais >i {
   = h _ht_ini + 6000 * 300 quantos itens
   = n porriscar
   `<section class="mais"><h2>Mais barato</h2>`
+  # embalagens diferentes: a ordem conta o preço pelo mesmo tamanho; o total é o que se paga
+  = nc 0 = x pri itens W x { Se && ~ int x.f x.cmp = nc + nc 1 = x seg x }
+  Se nc `<p class="nota">{ N nc } { ? == nc 1 `coisa tem` `coisas têm` } embalagens diferentes de loja para loja: a ordem compara o preço pelo mesmo tamanho (por litro ou quilo); o total é o que pagas.</p>`
   ? == n 0 `<p class="vazio">Não há nada por comprar na lista.</p>` {
     # quantos supermercados têm preço para tudo; o primeiro deles (na ordem de proxima) é o mais barato
     = completos 0 L k 4 Se && minha cadeia k == cobre k n = completos + completos 1
