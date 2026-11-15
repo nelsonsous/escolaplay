@@ -207,3 +207,11 @@ test('«carne» é um grupo: o talho todo (também o frango e o peru) e os corte
     assert.deepEqual(r.filter((t) => t.corte).map((t) => [t.corte, t.k, t.w]), [['para estufar', 'carne-novilho', 'estufar'], ['picanha', 'carne-novilho', 'picanha'], ['peito', 'frango', 'peito']]);
     assert.deepEqual((await sugerir(db, 'peixe')).filter((t) => t.k).map((t) => t.k), ['peixe-fresco']);
 });
+
+test('o bovino procura-se por «vaca» e por «bovino» (a picanha é de vaca)', async () => {
+    const { sugerir } = await import('../proxy/src/sugerir.js');
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('carne-novilho', 'Carne de vaca, novilho e vitela', 6, 1);`);
+    esquecerTipos();
+    for (const q of ['vaca', 'bovino', 'vitelão']) assert.deepEqual((await sugerir(db, q)).filter((t) => t.k).map((t) => t.k), ['carne-novilho'], q);
+});
