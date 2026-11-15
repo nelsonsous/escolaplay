@@ -50,8 +50,12 @@ function continente(t) {
     if (!d?.id) return null;
     const i = t.indexOf('href="https://www.continente.pt/produto/');
     const lista = bloco(t, '<div class="list');
+    // o peixe fresco, a fruta, a carne ao peso: o preço principal diz «4,49 €/kg» e a quantidade é o peso médio
+    const v = t.indexOf('pwc-tile--price-primary');
+    const aoPeso = v >= 0 && /\/\s*kg/i.test(t.slice(v, v + 200));
     return {
         id: String(d.id), nome: d.name ?? null, marca: d.brand || null,
+        ...(aoPeso ? { aoPeso } : {}),
         url: i < 0 ? null : t.slice(i + 6, t.indexOf('"', i + 6)),
         preco: numero(d.price), antes: lista && /\d/.test(lista) ? numero(lista.replace(/^\D+/, '')) : null,
         emb: (elemento(t, 'class="pwc-tile--quantity"') ?? '').replace(/^emb\.\s*/i, '') || null,
