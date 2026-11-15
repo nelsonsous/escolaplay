@@ -675,9 +675,26 @@
 : tem_p ii>i p w { ? w { = h _tx_abre + 4 _tx_len txt p.nk P 32 crut txt p.nk P 32 _tx_fecha h = x _tx_abre + 4 _tx_len w P 32 crut w P 32 _tx_fecha x >= _tx_acha h x 0 0 } 1 }
 # o mais barato (por unidade de medida; a lista vem já por essa ordem) do tipo no supermercado k, ou 0
 : melhor_em iiii>i tp k fe fm {
-  = r 0 = p pri tp.produtos
-  W && p ~ r { Se && mesmo txt p.c cadeia k passa p fe fm = r p = p seg p }
+  = r 0 = q _an_ler texto`esc{ N k }`
+  # a escolha à mão («Outras opções»), se ainda passa nos filtros; senão o mais barato
+  Se q { = p pri tp.produtos W && p ~ r { Se && && mesmo txt p.c cadeia k mesmo txt p.id q passa p fe fm = r p = p seg p } }
+  Se ~ r { = p pri tp.produtos W && p ~ r { Se && mesmo txt p.c cadeia k passa p fe fm = r p = p seg p } }
   r }
+# quantos produtos do supermercado k passam nos filtros
+: conta_em iiii>i tp k fe fm { = n 0 = p pri tp.produtos W p { Se && mesmo txt p.c cadeia k passa p fe fm = n + n 1 = p seg p } n }
+# as outras opções do supermercado k (até 12, as mais baratas por unidade primeiro); a escolhida (e) marcada
+: dopcoes iiiii>i tp k fe fm e {
+  `<div class="opcoes">`
+  = p pri tp.produtos = j 0 = n 0
+  W && p < n 12 {
+    Se && mesmo txt p.c cadeia k passa p fe fm {
+      `<button class="op{ Se mesmo txt p.id txt e.id ` on` }" data-onda="esco:{ N + * k 1000 j }"><b>{ esc p.nome }</b>`
+      `<span class="pr">{ Se p.uc `{ eur int p.uc }/{ crut txt p.ub } · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }</span>`
+      dsinais p
+      `</button>` = n + n 1 }
+    = p seg p = j + j 1 }
+  `</div>`
+  0 }
 # uma fila de escolhas do «corte ou variante» (as do grupo g; sem grupo: todas), com o título; fw a escolhida
 # (ev: fa para o animal ou a espécie, fw para o corte e o uso; escolhida a espécie, só os cortes e usos dela)
 : tem_a ii>i x fa { = r 0 = y pri x.a W && y ~ r { Se mesmo txt y fa = r 1 = y seg y } r }
@@ -757,6 +774,13 @@
             Se u { ? == int p.uc mu ` · o mais barato por { crut unidade ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade ub }` 0 } }
             ` · { esc p.nome }</small>`
             dsinais p
+            # outras opções neste supermercado: tocar abre a lista; escolher uma fica (à mão: a troca de hora a hora não a muda)
+            = no conta_em tp k fe fm
+            = ab ? _an_ler $"opc" _tx_int _an_ler $"opc" -1
+            = q _an_ler texto`esc{ N k }`
+            Se && q mesmo txt p.id q `<span class="mao">✋ escolhido por ti</span>`
+            Se > no 1 `<button class="mais-op" data-onda="opc:{ N k }" aria-expanded="{ ? == ab k `true` `false` }">{ ? == ab k `Fechar as opções ▴` `Outras opções no { crut nomecad k } ({ N - no 1 }) ▾` }</button>`
+            Se && == ab k > no 1 dopcoes tp k fe fm p
             `</li>` 0 }
           { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }
       Se minha $"mercadona" dest tp fe 0 mu
@@ -822,7 +846,7 @@
         Se < v 3 { _an_gravar $"fp" 0 _an_gravar $"fpr" 0 }
         Se < v 2 { _an_gravar $"fa" 0 _an_gravar $"far" 0 } 0 } } }
   0 }
-: fecha_tipo >i { _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fes" 0 _an_gravar $"fer" 0 _an_gravar $"fm" 0 _an_gravar $"fw" 0 _an_gravar $"fwr" 0 _an_gravar $"fa" 0 _an_gravar $"far" 0 _an_gravar $"fp" 0 _an_gravar $"fpr" 0 _an_gravar $"tq" 0 }
+: fecha_tipo >i { _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fes" 0 _an_gravar $"fer" 0 _an_gravar $"fm" 0 _an_gravar $"fw" 0 _an_gravar $"fwr" 0 _an_gravar $"fa" 0 _an_gravar $"far" 0 _an_gravar $"fp" 0 _an_gravar $"fpr" 0 _an_gravar $"tq" 0 _an_gravar $"opc" 0 _an_gravar $"esc0" 0 _an_gravar $"esc1" 0 _an_gravar $"esc2" 0 }
 : abre_tipo i>i v {
   = s _ar_json _an_ler $"sug"
   = x ? s idx s.tipos v 0
@@ -861,7 +885,7 @@
     = ww texto`{ Se fa `{ crut fa } ` }{ Se fp `{ crut fp } ` }{ Se fw `{ crut fw }` }`
     = nome texto`{ crut txt tp.nome }{ Se || || fa fp fw ` ({ Se fa `{ crut ? far far fa }` }{ Se && fa || fp fw `, ` }{ Se fp `{ crut ? fpr fpr fp }` }{ Se && fp fw `, ` }{ Se fw `{ crut ? fwr fwr fw }` })` }{ Se _an_ler $"fer" ` { crut _an_ler $"fer" }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
     faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k },"n":{ pjs txt tp.nome }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se || || fa fp fw `,"w":{ pjs ww }` }\}\}`
-    L k 3 { = p melhor_em tp k fe fm Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }","a":1,"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
+    L k 3 { = p melhor_em tp k fe fm = q _an_ler texto`esc{ N k }` Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }"{ Se ~ && q mesmo txt p.id q `,"a":1` },"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
     fecha_tipo
     _an_gravar $"sug" 0 _an_gravar $"sugsec" 0 _an_gravar $"vsecs" 0
     ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
@@ -924,6 +948,8 @@
   Se eacao t $"cost" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt x.t },"q":1\}` }
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
+  Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v _an_gravar $"opc" 0 _an_gravar $"opc" texto`{ N v }` }
+  Se eacao t $"esco" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id _an_gravar $"opc" 0 } }
   Se eacao t $"fp" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fp" 0 _an_gravar $"fpr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fp" txt x.w _an_gravar $"fpr" txt ? x.r x.r x.w } 0 } }
   Se eacao t $"fa" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fa" 0 _an_gravar $"far" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fa" txt x.w _an_gravar $"far" txt ? x.r x.r x.w } 0 } }
   Se eacao t $"fw" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fw" 0 _an_gravar $"fwr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fw" txt x.w _an_gravar $"fwr" txt ? x.r x.r x.w } 0 } }
