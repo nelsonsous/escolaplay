@@ -36,7 +36,7 @@ export const PRECOS_TESTE = {
 };
 
 export async function abrir() {
-    const env = { KV: kv(Object.fromEntries(Object.entries(INDICES).map(([c, t]) => [`indice:${c}`, t]))), DB: d1() };
+    const env = { KV: kv(Object.fromEntries(Object.entries(INDICES).map(([c, t]) => [`indice:${c}`, t]))), DB: d1(), AI: { run: async () => ({ response: JSON.stringify({ loja: 'Pingo Doce', dia: '2026-11-15', total: 2.83, linhas: [{ t: 'AGUA S/GAS GARRAFAO 6L', q: 1, preco: 0.96 }, { t: 'OVOS CLASSE M', q: 1, preco: 1.87 }] }) }) } };
     esquecerIndices();
     PRECOS.clear();
     for (const [k, v] of Object.entries(PRECOS_TESTE)) PRECOS.set(k, v);

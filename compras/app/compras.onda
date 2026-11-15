@@ -311,7 +311,8 @@
         = c seg c = i + i 1 } }
     `</ul><div class="acoes">`
     Se feitos `<button class="botao fraco" data-onda="limpar:0">Tirar os riscados ({ N feitos })</button>`
-    `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ partilha its }">Partilhar no WhatsApp</a></div>`
+    `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ partilha its }">Partilhar no WhatsApp</a>`
+    `<label class="botao fraco talao">📷 Talão<input type="file" accept="image/*" data-talao hidden></label></div>`
     0 }
   `</section>`
   _ht_muda $"#vista" h }
@@ -569,6 +570,14 @@
     ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
   0 }
 
+# o talão (a casca lê a fotografia e manda-a ao conector; aqui só o aviso e a lista outra vez): 0 a ler, 1 lido
+: talao i>i v {
+  ? == v 0 aviso $"A ler o talão…" {
+    = r _ar_json _an_ler $"talao"
+    ? && r r.erro aviso texto`Não consegui ler o talão: { crut txt r.erro }` {
+      Se r aviso texto`Talão{ Se r.loja ` do { crut txt r.loja }` }: { eur int r.total } · { N quantos r.linhas } linhas{ Se int r.riscadas ` · { N int r.riscadas } riscadas na lista` }.`
+      ver 0 } 0 }
+  0 }
 : juntar >i {
   = t @ 5 = n _tx_len t = ini 0 = j 0
   W <= j n {
@@ -602,6 +611,7 @@
   Se eacao t $"registar" registar
   Se eacao t $"loja" { _an_gravar $"loja" ? < v 4 cadeia v 0 ! 1 0 _an_rolar 0 }
   Se eacao t $"tipo" abre_tipo v
+  Se eacao t $"talao" talao v
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
   Se eacao t $"tmais" tq_muda 1

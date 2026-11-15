@@ -10,6 +10,8 @@
 //   GET  /api/procurar?cadeia=…&q=…    { cadeia, produtos: [{ id, nome, url }] } do índice dessa cadeia (indice.js)
 //   POST /api/precos  {cadeia, produtos}  os preços dos produtos de uma procura (no máximo 8; os que faltam lê-se no
 //                                      máximo dois): { cadeia, produtos: [{ id, cent, antes, uc, ub, esgotado }] }
+//   POST /api/talao   {imagem}         a fotografia de um talão (data URL JPEG): a IA lê-o, guarda-se e risca-se na lista
+//                                      o que lá vem: { id, loja, dia, total, linhas, riscadas } (talao.js)
 //   GET  /api/sugerir?q=…              os tipos de produto que começam pelo que se escreveu: { tipos: [{ k, nome, n }] }
 //   GET  /api/tipo?k=…                 os produtos de um tipo nas cadeias, com os tamanhos e as marcas (sugerir.js)
 // O cron (de dois em dois minutos): aos minutos redondos (0, 10, 20…) lê os preços velhos dos produtos que estão nas
@@ -32,15 +34,17 @@ import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { sugerir, produtosDoTipo } from './sugerir.js';
 import { atualizarEscolhas } from './escolhas.js';
+import { lerTalao, MAX_IMAGEM } from './talao.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.7.0';
+export const VERSION = '0.8.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org',
 ];
 const MAX_CORPO = 64 * 1024;
+const MAX_TALAO = MAX_IMAGEM + 1024;
 // os cabeçalhos da resposta que dizem quem serve e se há proteção contra robôs (só os nomes dos cookies)
 const CABECALHOS = ['server', 'content-type', 'content-length', 'location', 'cache-control', 'cf-ray', 'cf-cache-status',
     'cf-mitigated', 'x-cache', 'via', 'x-akamai-transformed', 'akamai-grn', 'x-datadome', 'retry-after', 'x-robots-tag'];
@@ -161,9 +165,9 @@ async function sondaCatalogo(request, env) {
 
 // ---------- a app ----------
 
-async function corpoJSON(request) {
+async function corpoJSON(request, max = MAX_CORPO) {
     const t = await request.text();
-    if (t.length > MAX_CORPO) throw new Erro(413, 'pedido grande demais');
+    if (t.length > max) throw new Erro(413, 'pedido grande demais');
     try { return t ? JSON.parse(t) : {}; } catch { throw new Erro(400, 'JSON inválido'); }
 }
 
@@ -212,6 +216,10 @@ async function api(request, env, url) {
         const lista = produtos.map((p) => produto(cadeia, p)).filter((p) => p && p.id);
         return json({ cadeia, produtos: await precosDe(db, cadeia, lista) });
     }
+    if (caminho === '/api/talao' && metodo === 'POST') {
+        const { imagem } = await corpoJSON(request, MAX_TALAO);
+        return json(await lerTalao(env, ap, imagem));
+    }
     if (caminho === '/api/sugerir' && metodo === 'GET') {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
     }
@@ -240,7 +248,7 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: a escolha que se mantém' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: talões' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);

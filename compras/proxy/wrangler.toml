@@ -7,6 +7,10 @@ keep_vars = true
 # O índice de cada cadeia (o Ecónomo grava-o; criado com: POST /accounts/:id/storage/kv/namespaces {"title":"compras-KV"}).
 # Até à volta 2 também tinha a casa e a lista, que passaram para a D1: a KV grátis dá só 1000 gravações por dia à
 # conta toda (as outras apps também).
+# a IA da Cloudflare: lê as fotografias dos talões (src/talao.js); partilha os 10 000 neurónios por dia com a Música
+[ai]
+binding = "AI"
+
 [[kv_namespaces]]
 binding = "KV"
 id = "77a28aa5db2e4dce99d3275282b8f540"

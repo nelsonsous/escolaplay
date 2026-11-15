@@ -320,6 +320,12 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.waitForSelector('.merc');
         assert.match(await a.textContent('.merc b'), /^Mercadona ≈ 0,96 €/);
         assert.match(await a.textContent('.merc small'), /só 1 de 3 coisas/);
+        // o talão: a fotografia vai ao conector, a IA lê-a (a fingir) e o que lá vem risca-se na lista
+        await a.click('#abas button >> nth=0');
+        const jpeg = await a.evaluate(() => { const c = document.createElement('canvas'); c.width = 40; c.height = 60; c.getContext('2d').fillRect(0, 0, 10, 10); return c.toDataURL('image/jpeg').split(',')[1]; });
+        await a.setInputFiles('[data-talao]', { name: 'talao.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg, 'base64') });
+        await a.waitForSelector('.toast:has-text("Talão do pingo doce: 2,83 € · 2 linhas")');
+        await a.waitForFunction(() => document.querySelectorAll('.item.feito').length >= 1);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
