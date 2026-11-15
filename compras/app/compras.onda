@@ -677,6 +677,14 @@
     = x seg x = i + i 1 }
   Se s `</div>`
   0 }
+# a fila dos tamanhos (fe o escolhido)
+: dtam ii>i tp fe {
+  Se pri tp.tamanhos {
+    `<h3>Tamanho</h3><div class="chips n4"><button class="chip{ Se ~ fe ` on` }" data-onda="fe:99">Todos</button>`
+    = e pri tp.tamanhos = i 0
+    W e { `<button class="chip{ Se && fe mesmo fe txt e.e ` on` }" data-onda="fe:{ N i }">{ esc e.e }</button>` = e seg e = i + i 1 }
+    `</div>` }
+  0 }
 : dtipo >i {
   = tp _ar_json _an_ler $"tp"
   = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
@@ -694,15 +702,12 @@
       Se fm `<i>›</i><b class="n5">{ esct ? mesmo fm $"branca" $"🏷 marca branca" fm }</b>`
       `</nav><h2>{ esc tp.nome }</h2>`
       `<div class="qtd"><button class="botao fraco" data-onda="tmenos:0" aria-label="Menos">−</button><b>{ ? tq crut tq `1` }</b><button class="botao fraco" data-onda="tmais:0" aria-label="Mais">+</button></div>`
-      Se pri tp.tamanhos {
-        `<h3>Tamanho</h3><div class="chips n4"><button class="chip{ Se ~ fe ` on` }" data-onda="fe:99">Todos</button>`
-        = e pri tp.tamanhos = i 0
-        W e { `<button class="chip{ Se && fe mesmo fe txt e.e ` on` }" data-onda="fe:{ N i }">{ esc e.e }</button>` = e seg e = i + i 1 }
-        `</div>` }
-      # no talho e na peixaria, as etiquetas do Ecónomo em três filas: para quê, o corte, o animal ou a espécie
+      # no talho e na peixaria, os níveis da árvore pela ordem: a espécie ou o animal, o corte, o uso, e só depois o
+      # tamanho; nos outros tipos, o tamanho primeiro e depois o corte ou a variante
       = x0 pri tp.palavras
       = fa _an_ler $"fa"
-      Se x0 { ? x0.g { linha_w tp $"animal" $"Espécie ou animal" fa $"fa" linha_w tp $"corte" $"Corte" fw $"fw" linha_w tp $"uso" $"Para quê" fw $"fw" 0 } linha_w tp 0 $"Corte ou variante" fw $"fw" }
+      ? && x0 x0.g { linha_w tp $"animal" $"Espécie ou animal" fa $"fa" linha_w tp $"corte" $"Corte" fw $"fw" linha_w tp $"uso" $"Para quê" fw $"fw" dtam tp fe 0 }
+        { dtam tp fe Se x0 linha_w tp 0 $"Corte ou variante" fw $"fw" 0 }
       `<h3>Marca</h3><div class="chips n5"><button class="chip{ Se ~ fm ` on` }" data-onda="fm:99">Qualquer</button>`
       Se int tp.brancas `<button class="chip{ Se && fm mesmo fm $"branca" ` on` }" data-onda="fm:98">🏷 Marca branca</button>`
       = x pri tp.marcas = i 0

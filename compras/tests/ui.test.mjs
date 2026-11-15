@@ -416,3 +416,46 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco → carapau e para grelhar ao mesmo tempo', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { guardarCatalogo } = await import('../proxy/src/catalogo.js');
+    const { esquecerTipos } = await import('../proxy/src/sugerir.js');
+    s.env.DB.sql.exec("INSERT INTO tipo (k, nome, n, casa) VALUES ('peixe-fresco', 'Peixe fresco', 6, 1), ('marisco', 'Marisco', 2, 1)");
+    const p = (c, id, nome, preco, emb) => ({ id, nome, preco, emb, url: `https://www.${c}.pt/p-${id}.html` });
+    await guardarCatalogo(s.env.DB, 'continente', 'peixe-fresco', [p('continente', '1', 'Carapau Médio Fresco', 4.49, '1 kg'), p('continente', '2', 'Carapau Pequeno Fresco', 5.99, '1 kg'), p('continente', '3', 'Posta de Pescada Fresca', 9.99, '1 kg'), p('continente', '4', 'Pescada Inteira Fresca', 7.99, '1 kg')]);
+    await guardarCatalogo(s.env.DB, 'auchan', 'peixe-fresco', [p('auchan', '5', 'CARAPAU MEDIO FRESCO INTEIRO KG', 1.99, '1 kg'), p('auchan', '6', 'POSTA SALMAO FRESCO', 14.99, '1 kg')]);
+    await guardarCatalogo(s.env.DB, 'auchan', 'marisco', [p('auchan', '7', 'CAMARAO COZIDO 1KG', 9.99, '1 kg'), p('auchan', '8', 'AMEIJOA BRANCA 1KG', 8.99, '1 kg')]);
+    esquecerTipos();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        // «peixe»: a secção, os ramos com o título (Peixe, Marisco) e os tipos de cada um
+        await a.fill('[data-onda="junta"]', 'peixe');
+        await a.waitForSelector('#sug .sug-t');
+        assert.deepEqual(await a.locator('#sug .sug-t').allTextContents(), ['Peixe', 'Marisco', 'Cortes']);
+        await a.click('#sug .chip.n2:has-text("Peixe fresco")');
+        await a.waitForSelector('#folha .escolha h2:has-text("Peixe fresco")');
+        // os níveis por ordem: a espécie primeiro, depois o corte e o uso
+        assert.deepEqual(await a.locator('#folha .escolha h3').allTextContents(), ['Espécie ou animal', 'Corte', 'Para quê', 'Tamanho', 'Marca', 'O mais barato em cada supermercado']);
+        await a.click('#folha [data-onda^="fa:"]:has-text("carapau")');
+        // escolhido o carapau, só os usos do carapau (não há postas de carapau)
+        assert.equal(await a.locator('#folha [data-onda^="fw:"]:has-text("postas")').count(), 0);
+        await a.click('#folha [data-onda^="fw:"]:has-text("para grelhar")');
+        const caminho = await a.locator('#folha .caminho button, #folha .caminho b').allTextContents();
+        assert.deepEqual(caminho, ['Todas', 'Talho e peixaria', 'Peixe fresco', 'carapau', 'para grelhar']);
+        const linhas = await a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => x.querySelector('small').textContent));
+        assert.match(linhas[0], /Carapau Médio Fresco/);
+        assert.match(linhas[2], /CARAPAU MEDIO/);
+        await a.click('#folha [data-onda="juntat:0"]');
+        await a.waitForSelector('.item');
+        assert.deepEqual(await a.locator('.item .texto b').allTextContents(), ['Peixe fresco (carapau, para grelhar)']);
+        const l = await s.api('/api/lista', await a.evaluate(() => localStorage.getItem('compras:chave')));
+        assert.equal(l.itens[0].e.w, 'carapau grelhar');
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});
