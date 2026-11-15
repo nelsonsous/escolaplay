@@ -233,3 +233,8 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 /* a receita (ciclo 3) */
 .cartao.receita textarea { width: 100%; box-sizing: border-box; margin: 10px 0 6px; padding: 10px; border-radius: 10px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font: inherit; font-size: 15px; }
 .cartao.receita .chips.rc .chip:not(.on) { opacity: .55; text-decoration: line-through; }
+/* o veredicto e a mesma marca (ciclo 3) */
+.veredicto { margin: 4px 0 10px; padding: 10px 12px; border-radius: 12px; background: #0f2a17; border: 1px solid #1f5130; color: var(--texto); font-size: 15px; line-height: 1.45; }
+.veredicto b { color: var(--verde); }
+.melhores small.mesmo { display: block; margin-top: 4px; color: var(--fraco); }
+.melhores small.mesmo b { color: var(--texto); }

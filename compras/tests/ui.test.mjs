@@ -299,6 +299,8 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         assert.equal(await a.textContent('#sug .sec-n'), 'Bebidas');
         await a.click('#sug .chip:has-text("Água sem gás")');
         await a.waitForSelector('#folha .escolha h2:has-text("Água sem gás")');
+        // o veredicto: onde fica mais barato por litro
+        assert.match(await a.textContent('#folha .veredicto'), /🏆 Mais barato por litro: \S+/);
         // o caminho no topo, uma cor por nível; tocar na secção volta aos tipos irmãos, «Todas» às secções
         const caminho = () => a.locator('#folha .caminho button, #folha .caminho b').evaluateAll((l) => l.map((x) => x.className + ' ' + x.textContent));
         assert.deepEqual(await caminho(), ['n0 Todas', 'n1 Bebidas', 'n2 Água sem gás']);

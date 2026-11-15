@@ -946,7 +946,17 @@
       # por quilo, e por baixo o que se paga e por quanto
       = ub ? tp.ub txt tp.ub 0
       = mu -1
-      L k 3 { = p melhor_em tp k fe fm Se && && p p.uc && ub mesmo txt p.ub ub Se || < mu 0 < int p.uc mu = mu int p.uc }
+      = mk -1
+      L k 3 { = p melhor_em tp k fe fm Se && && p p.uc && ub mesmo txt p.ub ub Se || < mu 0 < int p.uc mu { = mu int p.uc = mk k } }
+      # o veredicto: onde fica mais barato por quilo (ou litro) e, se uma loja de produtor fica abaixo, quanto e com que portes
+      Se >= mk 0 {
+        = px pri tp.pd = pm 0
+        W px {
+          Se && && && ~ int px.esg tem_w px px.uc mesmo txt px.ub ub { ? pm { Se < int px.uc int pm.uc = pm px 0 } { = pm px 0 } }
+          = px seg px }
+        `<p class="veredicto">🏆 Mais barato por { crut unidade ub }: <b>{ crut nomecad mk }</b>, { eur mu }/{ crut ub }`
+        Se && pm < int pm.uc mu ` · na loja <b>{ crut nomeprod txt pm.loja }</b> fica { N / - * 100 mu * 100 int pm.uc mu }% mais barato ({ eur int pm.uc }/{ crut ub }){ ? pm.po { ? int pm.po `, mais { eur int pm.po } de portes` `, sem portes` } `` }`
+        `</p>` }
       L k 3 {
         = p melhor_em tp k fe fm
         ? p {
@@ -999,8 +1009,9 @@
     Se && ~ int x.esg tem_w x {
       Se ~ n `<li class="prod-t"><b>Lojas de produtores (online)</b><small>Compra-se no site deles, com portes de envio; não entra no «Mais barato».</small></li>`
       `<li class="prod"><b>{ crut nomeprod txt x.loja }</b><span class="total">{ ? x.uc `{ eur int x.uc }<i>/{ crut txt x.ub }</i>` `{ eur int x.cent }` }</span>`
-      `<small><b class="emb">Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }</b>{ Se && x.uc > mu 0 { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por quilo` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por quilo` } } · { esc x.nome }</small>`
+      `<small><b class="emb">Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }{ Se x.po { ? int x.po ` + { eur int x.po } de portes` ` · sem portes` } }</b>{ Se && x.uc > mu 0 { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por quilo` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por quilo` } } · { esc x.nome }</small>`
       dsinais x
+      Se x.mc `<small class="mesmo">A mesma marca no { crut nomec txt x.mc.c }: <b>{ eur int x.mc.uc }/kg</b>{ ? < int x.mc.uc int x.uc ` (mais barato lá)` ` (mais caro lá)` }</small>`
       `<a class="mais-op" href="{ esc x.url }" target="_blank" rel="noopener">Ver no site ↗</a></li>`
       = n + n 1 }
     = x seg x }

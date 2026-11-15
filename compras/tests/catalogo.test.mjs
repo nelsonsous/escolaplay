@@ -382,3 +382,17 @@ test('as lojas de produtores: as variantes (calibre, origem, preço) dão o pre�
     assert.match(tp.pd[0].nk, /\bnoruega\b/); // filtra-se pela origem como os outros
     assert.match(tp.pd[0].nk, /\bgraudo\b/);
 });
+
+test('as lojas de produtores: os portes (grátis acima de 100 € na Lugrade) e a mesma marca no supermercado com o mesmo calibre e origem', async () => {
+    const { mesmaMarca, PORTES } = await import('../proxy/src/sugerir.js');
+    const { etiquetas } = await import('../proxy/src/etiquetas.js');
+    assert.deepEqual(PORTES.lugrade, { cent: 750, gratis: 10000 });
+    const ps = [
+        { c: 'continente', nome: 'Bacalhau Especial Islândia Seco Seleção do Chef Diogo Rocha Lugrade', uc: 3499, ub: 'kg' },
+        { c: 'continente', nome: 'Bacalhau Graúdo Noruega Seco Lugrade', uc: 2599, ub: 'kg' },
+        { c: 'continente', nome: 'Bacalhau Especial Islândia Seco Continente', uc: 2799, ub: 'kg' },
+    ];
+    assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Especial Islândia', 'bacalhau'), 'bacalhau').uc, 3499);
+    assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Graúdo Noruega', 'bacalhau'), 'bacalhau').uc, 2599);
+    assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Crescido Noruega', 'bacalhau'), 'bacalhau'), null);
+});

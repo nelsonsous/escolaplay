@@ -316,6 +316,17 @@ async function reaisDoTipo(db, casa, k) {
     return r;
 }
 
+// os portes das lojas de produtores (dos termos e condições de cada uma), em cêntimos
+export const PORTES = { lugrade: { cent: 750, gratis: 10000 } };
+// o produto da mesma marca (a loja) num supermercado, com o mesmo calibre e a mesma origem: { c, uc, ub, nome }
+export function mesmaMarca(produtos, loja, et, k) {
+    const re = new RegExp('\\b' + loja + '\\b', 'i');
+    const ms = produtos.filter((p) => re.test(`${p.marca ?? ''} ${p.nome}`) && p.uc && p.ub === 'kg').filter((p) => {
+        const e = etiquetas(p.nome, k);
+        return (!et?.cal || e?.cal === et.cal) && (!et?.pais || e?.pais === et.pais) && (!et?.corte || e?.corte === et.corte);
+    }).sort((a, b) => a.uc - b.uc);
+    return ms.length ? { c: ms[0].c, uc: ms[0].uc, ub: 'kg', nome: ms[0].nome } : null;
+}
 export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     const t = await db.prepare('SELECT k, nome FROM tipo WHERE k = ?').bind(k).first();
     if (!t) return null;
@@ -362,7 +373,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     const nu = new Map();
     for (const p of results) if (p.uc != null && p.ub) nu.set(p.ub, (nu.get(p.ub) ?? 0) + 1);
     const ub = [...nu].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-    const tamanhos = conta((p) => p.emb).slice(0, 8).map(([e, n]) => ({ e, n }));
+    const tamanhos = conta((p) => (p.aq ? null : p.emb)).slice(0, 8).map(([e, n]) => ({ e, n }));
     const escolhas = TALHO.has(t.k) ? palavrasDoTalho(t.k, results) : palavrasDoTipo(t.k, produtos);
     if (TALHO.has(t.k)) aoQuilo(produtos, t.k);
     // o mais barato primeiro: na unidade do tipo, por esse preço; os outros depois, pelo que se paga
@@ -386,6 +397,12 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
                 nk: palavras(`${nome} ${palavrasEtiquetas(et).join(' ')}`).join(' '), ...(a.disponivel ? {} : { esg: 1 }) };
             const sq = sinais(nome);
             if (sq.length) x.sq = sq;
+            // os portes (dos termos da loja): grátis acima de um valor
+            const po = PORTES[a.loja];
+            if (po) x.po = a.cent >= po.gratis ? 0 : po.cent;
+            // a mesma marca num supermercado, com o mesmo calibre e a mesma origem (a Lugrade também se vende no Continente)
+            const mc = et ? mesmaMarca(results, a.loja, et, k) : null;
+            if (mc) x.mc = mc;
             return x;
         }),
         // os artigos que o SPAR vende deste tipo (da lista do site), com a estimativa de cada um (economo/spar.mjs)
