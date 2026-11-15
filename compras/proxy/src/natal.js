@@ -4,6 +4,7 @@
 // sinais do nome: calibre especial, cura amarela, 20 anos, DOP…). Com um teto (€), o cabaz desce onde poupa mais e
 // perde menos qualidade. É uma ajuda pelo que o nome diz, não uma prova: o rótulo na loja manda.
 import { sinais } from './qualidade.js';
+import { pecaAoPeso } from './precos.js';
 
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&[a-z]+;/g, ' ');
 const DIA = 24 * 3600e3;
@@ -133,6 +134,7 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
                 cent, emb, uc, ub, tipo FROM produtor_artigo
             WHERE disponivel = 1 AND cent IS NOT NULL AND tipo IN (SELECT value FROM json_each(?1))`).bind(JSON.stringify(tipos)),
     ]);
+    for (const r of cat.results ?? []) { const pc = pecaAoPeso(r); if (pc) Object.assign(r, pc); }
     const todos = [...(cat.results ?? []), ...(prod.results ?? []).map((r) => ({ ...r, produtor: 1 }))]
         .filter((r) => !cadeias?.length || r.produtor || cadeias.includes(r.cadeia));
     const saida = ps.map((p) => {

@@ -4,7 +4,7 @@
 // para a app afinar (botões) e escolher o mais barato de cada cadeia.
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
-import { medida } from './precos.js';
+import { medida, pecaAoPeso } from './precos.js';
 import { sinais } from './qualidade.js';
 import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS, ORDEM_CALIBRE } from './etiquetas.js';
 
@@ -322,6 +322,10 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     const desde = new Date(agora.getTime() - 10 * 24 * HORA).toISOString();
     const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, uc, ub, emb
         FROM preco WHERE tipo = ? AND cent IS NOT NULL AND suspeito IS NULL AND visto > ? ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde).all();
+    // as peças do Continente ao quilo guardadas antes de se perceber (o «por unidade» é a peça): corrigem-se ao ler
+    for (const p of results) { const pc = pecaAoPeso({ ...p, cadeia: p.c }); if (pc) Object.assign(p, pc); }
+    for (const p of results) if (String(p.emb ?? '').startsWith('≈')) { p.emb = p.emb.replace(/^≈\s*/, ''); p.aq = 1; }
+    results.sort((a, b) => (a.uc == null) - (b.uc == null) || (a.uc ?? 0) - (b.uc ?? 0) || a.cent - b.cent);
     // os valores (tamanhos, marcas) por ordem: primeiro os que há em mais cadeias (são os que dão para comparar),
     // depois os que têm mais produtos, depois pelo nome
     const conta = (f) => {
@@ -341,6 +345,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         if (p.marca) x.mk = nomeMarca(p.marca);
         if (p.pr) x.pr = 1;
         if (p.emb) x.emb = p.emb;
+        if (p.aq) x.aq = 1; // a peça ao quilo: paga-se ≈
         if (p.uc != null && p.ub) { x.uc = Number(p.uc); x.ub = p.ub; }
         if (p.antes != null) x.antes = Number(p.antes);
         // o nome sem acentos nem maiúsculas, para filtrar pelas palavras; no talho e na peixaria, com as etiquetas

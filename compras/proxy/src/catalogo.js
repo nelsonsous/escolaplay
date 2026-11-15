@@ -158,7 +158,7 @@ export function guardarCatalogo(db, cadeia, k, produtos, agora = new Date()) {
                 OR preco.marca IS NOT excluded.marca OR preco.url IS NOT excluded.url OR preco.falhas > 0
                 OR preco.visto IS NULL OR preco.visto < ?`)
             .bind(cadeia, p.id, p.url, String(p.nome ?? '').slice(0, 160), p.marca ?? null, c, a != null && c != null && a > c ? a : null,
-                rotulo(p.emb) ?? rotulo(p.nome) ?? embKg ?? null, uc, ub, m?.q ?? (embKg ? 1 : null), k, propria(cadeia, p.marca), quando, quando, limiar);
+                (embKg?.startsWith('≈') ? embKg : null) ?? rotulo(p.emb) ?? rotulo(p.nome) ?? embKg ?? null, uc, ub, embKg?.startsWith('≈') ? medida(embKg.slice(1))?.q ?? null : m?.q ?? (embKg ? 1 : null), k, propria(cadeia, p.marca), quando, quando, limiar);
     });
     return frases.length ? db.batch(frases) : Promise.resolve([]);
 }
