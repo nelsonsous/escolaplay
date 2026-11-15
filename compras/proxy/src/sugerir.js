@@ -6,7 +6,7 @@ import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida } from './precos.js';
 import { sinais } from './qualidade.js';
-import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS } from './etiquetas.js';
+import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS, ORDEM_CALIBRE } from './etiquetas.js';
 
 const HORA = 3600e3;
 const TIPOS = { lista: null, quando: 0 };
@@ -67,7 +67,7 @@ async function grupo(db, g, nome) {
         for (const r of results) {
             // as etiquetas do Ecónomo (etiquetas.js): os usos e o corte (e, na peixaria, a espécie)
             const e = etiquetas(r.nome, r.tipo);
-            const ws = e ? [...e.usos, e.corte, ...(g.especie ? [e.animal] : [])].filter(Boolean) : [];
+            const ws = e ? [...e.usos, e.corte, e.cal, ...(g.especie ? [e.animal] : [])].filter(Boolean) : [];
             if (g.especie && e?.animal) animais.add(e.animal);
             for (const w of ws) { const m = conta.get(w) ?? new Map(); m.set(r.tipo, (m.get(r.tipo) ?? 0) + 1); conta.set(w, m); }
         }
@@ -196,7 +196,7 @@ export function palavrasDoTipo(k, produtos, max = 10) {
 // se há mais de um: o carapau, a pescada), depois o corte e o uso (grelhar…). r é o nome para ler, w a palavra para
 // filtrar; no corte e no uso, a: os animais onde há produtos com ele (escolhido o carapau, só aparecem os do carapau)
 export function palavrasDoTalho(k, produtos) {
-    const conta = { uso: new Map(), corte: new Map(), animal: new Map(), prod: new Map() };
+    const conta = { uso: new Map(), corte: new Map(), animal: new Map(), prod: new Map(), cal: new Map() };
     const com = new Map(); // corte ou uso → animais
     const mais = (m, w) => m.set(w, (m.get(w) ?? 0) + 1);
     for (const p of produtos) {
@@ -207,16 +207,18 @@ export function palavrasDoTalho(k, produtos) {
             if (e.animal) { if (!com.has(w)) com.set(w, new Set()); com.get(w).add(e.animal); }
         }
         if (e.animal) mais(conta.animal, e.animal);
+        if (e.cal) mais(conta.cal, e.cal);
         // a origem: o modo de produção, o país e a preparação (salgado seco ou demolhado), na mesma fila
         for (const w of [e.prod, e.pais, e.prep].filter(Boolean)) { mais(conta.prod, w); if (e.animal) { if (!com.has(w)) com.set(w, new Set()); com.get(w).add(e.animal); } }
     }
-    const lista = (g, max) => [...conta[g]].filter(([, n]) => n >= 2 && n < produtos.length + (g === 'uso' ? 0 : 1))
-        .sort((a, b) => (g === 'uso' ? USOS.indexOf(a[0]) - USOS.indexOf(b[0]) : b[1] - a[1])).slice(0, max)
+    // (os usos que todos os produtos têm também aparecem: o bacalhau é todo para cozer, e é isso que se procura)
+    const lista = (g, max) => [...conta[g]].filter(([, n]) => n >= 2 && n <= produtos.length)
+        .sort((a, b) => (g === 'uso' ? USOS.indexOf(a[0]) - USOS.indexOf(b[0]) : g === 'cal' ? ORDEM_CALIBRE.indexOf(a[0]) - ORDEM_CALIBRE.indexOf(b[0]) : b[1] - a[1])).slice(0, max)
         .map(([w, n]) => ({ w, r: nomeEtiqueta(w), n, g }));
     const animais = lista('animal', 12);
     const comA = (x) => (animais.length > 1 && com.has(x.w) ? { ...x, a: [...com.get(x.w)] } : x);
     // a origem (selvagem ou aquacultura; biológico, do campo, DOP…) logo a seguir ao animal
-    return [...(animais.length > 1 ? animais : []), ...lista('prod', 12).map(comA), ...lista('corte', 14).map(comA), ...lista('uso', 5).map(comA)];
+    return [...(animais.length > 1 ? animais : []), ...lista('prod', 12).map(comA), ...lista('cal', 4), ...lista('corte', 14).map(comA), ...lista('uso', 5).map(comA)];
 }
 
 // as peças inteiras vendidas ao peso (uma picanha de 1,8 kg) vêm com o preço do quilo onde devia estar o da peça, e o

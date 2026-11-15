@@ -330,16 +330,17 @@ test('os ramos das outras secções vêm da arrumação das cadeias («Arroz, ma
     assert.deepEqual((await tiposDaSeccao(db, 5)).map((t) => [t.gr, t.k]), [['Arroz, massa e farinha', 'arroz'], ['Arroz, massa e farinha', 'massa'], ['Conservas', 'atum']]);
 });
 
-test('o bacalhau: o calibre é o corte (corrente, crescido, graúdo, especial), o país e a preparação na origem; escrever «bacalhau» dá os cortes', async () => {
+test('o bacalhau: o calibre numa fila à parte do corte (lombo especial), o país e a preparação na origem; escrever «bacalhau» dá os cortes', async () => {
     const { etiquetas } = await import('../proxy/src/etiquetas.js');
     const { sugerir } = await import('../proxy/src/sugerir.js');
     const { sinais } = await import('../proxy/src/qualidade.js');
     // as caras não são bacalhau inteiro (o nome diz «seco», que já não é o nome de um corte)
     assert.equal(etiquetas('Caras de Bacalhau Seco Continente').corte, 'miudezas');
-    assert.deepEqual(etiquetas('Bacalhau Graúdo 1ª Noruega Seco'), { animal: 'bacalhau', corte: 'graudo', usos: ['assar', 'cozer'], pais: 'noruega', prep: 'salgado' });
-    assert.equal(etiquetas('Bacalhau Especial 1ª Islândia Seco').corte, 'especial');
+    assert.deepEqual(etiquetas('Bacalhau Graúdo 1ª Noruega Seco'), { animal: 'bacalhau', corte: null, usos: ['assar', 'cozer'], cal: 'graudo', pais: 'noruega', prep: 'salgado' });
+    assert.deepEqual(['corte', 'cal'].map((k) => etiquetas('Lombo de Bacalhau Especial Noruega')[k]), ['lombo', 'especial']);
+    assert.equal(etiquetas('Bacalhau Especial 1ª Islândia Seco').cal, 'especial');
     assert.equal(etiquetas('Paloco do Pacífico Desfiado Seco').animal, 'paloco');
-    assert.equal(etiquetas('BACALHAU GRAUDO NORUEGA ASA BRANCA KG').corte, 'graudo'); // a marca Asa Branca não é «asas»
+    assert.equal(etiquetas('BACALHAU GRAUDO NORUEGA ASA BRANCA KG').cal, 'graudo'); // a marca Asa Branca não é «asas»
     assert.equal(etiquetas('BACALHAU RIBERALVES DEMOLHADO POSTAS MSC 800G').prep, 'demolhado');
     assert.deepEqual(sinais('Bacalhau Graúdo 1ª Noruega Seco').map((x) => x.t), ['calibre grande', '1.ª qualidade']);
     const db = d1();
@@ -352,6 +353,12 @@ test('o bacalhau: o calibre é o corte (corrente, crescido, graúdo, especial), 
     assert.deepEqual(r.slice(0, 2).map((x) => x.sec ?? x.k), [2, 'bacalhau']);
     const cortes = r.filter((x) => x.corte).map((x) => x.corte);
     assert.ok(cortes.includes('graúdo') && cortes.includes('lombo'), cortes.join());
+    // no tipo: a fila do calibre (cal) à parte dos cortes, e «para cozer» mesmo sendo de todos
+    const { palavrasDoTalho } = await import('../proxy/src/sugerir.js');
+    const pal = palavrasDoTalho('bacalhau', [1, 2, 3, 4, 5, 6].map((i) => ({ nome: ['Bacalhau Graúdo Noruega Seco', 'Bacalhau Graúdo Islândia Seco', 'Bacalhau Especial 1ª Seco', 'Lombos de Bacalhau Especial', 'Lombos de Bacalhau Demolhado', 'Lombo de Bacalhau MSC'][i - 1] })));
+    assert.deepEqual(pal.filter((x) => x.g === 'cal').map((x) => x.w), ['graudo', 'especial']);
+    assert.deepEqual(pal.filter((x) => x.g === 'corte').map((x) => x.w), ['lombo']);
+    assert.ok(pal.some((x) => x.g === 'uso' && x.w === 'cozer'));
 });
 
 test('as lojas de produtores: as variantes (calibre, origem, preço) dão o preço por quilo; aparecem no tipo, à parte', async () => {
