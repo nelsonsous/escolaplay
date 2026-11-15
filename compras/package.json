@@ -1,6 +1,6 @@
 {
   "name": "compras",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "private": true,
   "type": "module",
   "description": "Compras — poupar no supermercado: a app em Onda, o conector no Worker e o Ecónomo (tarefa do Claude)",

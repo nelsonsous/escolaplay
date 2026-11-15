@@ -301,14 +301,15 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         assert.ok((await a.locator('#folha .chips >> nth=1 >> .chip').allTextContents()).includes('garrafao'));
         assert.deepEqual((await a.locator('#folha .chips >> nth=2 >> .chip').allTextContents()).slice(0, 3), ['Qualquer', '🏷 Marca branca', 'Luso']);
         // sem filtro: o mais barato por litro de cada um; o melhor fica marcado
+        // em grande o preço por litro (o que pesa com embalagens diferentes); por baixo a embalagem e quanto mais caro fica
         assert.deepEqual(await linhas(), [
-            ['', 'Continente', '1,99 €', 'Água sem Gás Garrafão Luso · 7 L · 0,28 €/l'],
-            ['melhor', 'Pingo Doce 🏷', '0,96 €', 'Água sem Gás Garrafão · 6 L · 0,16 €/l'],
-            ['melhor', 'Auchan 🏷', '0,96 €', 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L · 6 L · 0,16 €/l'],
+            ['', 'Continente', '0,28 €/l', '1,99 € · 7 L · +75% por litro · Água sem Gás Garrafão Luso'],
+            ['melhor', 'Pingo Doce 🏷', '0,16 €/l', '0,96 € · 6 L · o mais barato por litro · Água sem Gás Garrafão'],
+            ['melhor', 'Auchan 🏷', '0,16 €/l', '0,96 € · 6 L · o mais barato por litro · ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L'],
         ]);
         // 6 L: o Continente não tem
         await a.click('#folha .chip >> text="6 L"');
-        assert.deepEqual((await linhas()).map((l) => l[2]), ['—', '0,96 €', '0,96 €']);
+        assert.deepEqual((await linhas()).map((l) => l[2]), ['—', '0,16 €/l', '0,16 €/l']);
         // a Mercadona e o SPAR: a estimativa desse tamanho, com o porquê (sem loja online; não usamos preços de Espanha)
         const est = await a.locator('#folha .melhores li.est').evaluateAll((l) => l.map((x) => [x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector('small').textContent]));
         assert.deepEqual(est.map((e) => e.slice(0, 2)), [['Mercadona ≈', '≈ 0,96 €'], ['SPAR ≈', '≈ 2,14 €']]);
@@ -319,7 +320,7 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.click('#folha .chip:has-text("Luso")');
         await a.click('#folha [data-onda="tmais:0"]');
         assert.equal(await a.textContent('#folha .qtd b'), '2');
-        assert.deepEqual((await linhas()).map((l) => l[1] + ' ' + l[2]), ['Continente 1,99 €', 'Pingo Doce 1,83 €', 'Auchan 1,99 €']);
+        assert.deepEqual((await linhas()).map((l) => l[1] + ' ' + l[3].split(' · ')[0]), ['Continente 1,99 €', 'Pingo Doce 1,83 €', 'Auchan 1,99 €']);
         await a.click('#folha [data-onda="juntat:0"]');
         assert.equal(await a.locator('#folha .cartao').count(), 0);
         assert.equal(await a.inputValue('[data-onda="junta"]'), '');
