@@ -636,7 +636,7 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
     ins('pingodoce', 'v5', 'Vinho Tinto Douro Esteva', 599); ins('pingodoce', 'v6', 'Vinho Tinto Alentejo Pingo Doce', 299);
     // a nota dos críticos (economo/notas.mjs): o Papa Figos tem 88
     s.env.DB.sql.prepare(`INSERT INTO vinho_nota (palavras, fora, nome, nota, n, resumo, fontes, visto)
-        VALUES ('papa figos tinto', '', 'Papa Figos tinto', 88, 2, 'Revista de Vinhos 16/20', '[]', ?)`).run(agora);
+        VALUES ('papa figos tinto', '', 'Papa Figos tinto', 88, 2, 'Revista de Vinhos 16/20', '[{"fonte":"Revista de Vinhos","tipo":"critico","valor":"16/20","url":"https://www.revistadevinhos.pt/papa-figos"}]', ?)`).run(agora);
     esquecerTipos();
     const br = await pw.chromium.launch();
     try {
@@ -655,9 +655,13 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         const bc0 = await a.locator('#folha .bc li').allTextContents();
         assert.equal(bc0.length, 3, bc0.join(' | '));
         assert.match(bc0[0], /ALENTEJO RESERVA.*o rótulo diz: Reserva/);
-        assert.match(bc0[1], /Papa Figos.*★ 88 · Revista de Vinhos 16\/20.*para subir de gama/);
+        assert.match(bc0[1], /Papa Figos.*★ 88 ↗ · Revista de Vinhos 16\/20.*para subir de gama/);
         assert.match(bc0[2], /Papa Figos.*★ 88/);
         assert.ok((await a.locator('#folha h3').allTextContents()).some((t) => /Os mais bem cotados/.test(t)));
+        // a ★ abre a notícia (fora da app); tocar no vinho escolhe-o nesse supermercado
+        assert.equal(await a.getAttribute('#folha .bc a.fonte >> nth=0', 'href'), 'https://www.revistadevinhos.pt/papa-figos');
+        await a.click('#folha .bc li:has-text("Papa Figos") b >> nth=0');
+        await a.waitForSelector('#aviso .toast:has-text("No Continente: Papa Figos")');
         await a.click('#folha .chip:has-text("Douro")');
         await a.waitForSelector('#folha .caminho button:has-text("Douro")');
         const nomes = await a.locator('#folha .melhores > li small').allTextContents();

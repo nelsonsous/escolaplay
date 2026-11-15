@@ -44,6 +44,10 @@ test('a nota de um produto: todas as palavras, nenhuma de fora, a mais específi
     assert.equal(notaDoProduto(notas, 'Cartuxa Reserva Alentejo Vinho Tinto'), null); // a gama que a nota não tem
     assert.equal(notaDoProduto(notas, 'Cartuxa Alentejo Vinho Tinto').nota, 89);
     assert.equal(notaDoProduto(notas, 'Monte Velho Vinho Tinto Bag in Box 5L'), null); // fora
+    assert.equal(notaDoProduto(notas, 'VINHO TINTO CARTUXA BAG IN BOX 5L'), null); // o bag-in-box não herda a nota da garrafa
+    // a ligação da fonte principal (a de um crítico, se houver)
+    const [u] = prepararNotas([{ palavras: 'x tinto', fora: '', nota: 90, resumo: '', fontes: '[{"fonte":"IWC","tipo":"concurso","valor":"Prata","url":"https://a"},{"fonte":"RV","tipo":"critico","valor":"17/20","url":"https://b"}]' }]);
+    assert.equal(u.url, 'https://b');
 });
 
 test('as melhores compras no vinho seguem a nota, e os mais bem cotados vêm do melhor para o pior', () => {
@@ -57,4 +61,8 @@ test('as melhores compras no vinho seguem a nota, e os mais bem cotados vêm do 
     const cv = [{ nome: 'Coutada Velha Signature Alentejano Vinho Tinto', cent: 659, nt: 95, nr: 'x' }, ...ps];
     assert.ok(!candidatosMelhores('vinho', cv).some((x) => x.i === 0));
     assert.deepEqual(maisCotados(cv), [3, 4]);
+    // o bag-in-box não entra nas sugestões, mesmo barato por litro e com nota
+    const bib = [{ nome: 'Vinho Tinto Montes Ermos Bag in Box 5L', cent: 1049, uc: 210, nt: 86, nr: 'x' }, ...ps];
+    assert.ok(!candidatosMelhores('vinho', bib).some((x) => x.i === 0));
+    assert.ok(!maisCotados(bib).includes(0));
 });

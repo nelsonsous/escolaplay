@@ -378,8 +378,8 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     });
     // no vinho, a nota dos críticos e dos concursos (notas.js; a tabela vinho_nota, do Ecónomo)
     if (fam === 'vinho') {
-        const notas = prepararNotas((await db.prepare('SELECT palavras, fora, nota, resumo FROM vinho_nota').all()).results);
-        if (notas.length) for (const x of produtos) { const r = notaDoProduto(notas, x.nome); if (r) { x.nt = r.nota; x.nr = r.resumo; } }
+        const notas = prepararNotas((await db.prepare('SELECT palavras, fora, nota, resumo, fontes FROM vinho_nota').all()).results);
+        if (notas.length) for (const x of produtos) { const r = notaDoProduto(notas, x.nome); if (r) { x.nt = r.nota; x.nr = r.resumo; if (r.url) x.nu = r.url; } }
     }
     // a unidade de medida do tipo (a mais comum: kg, l ou un): só se comparam os preços por unidade nessa
     const nu = new Map();

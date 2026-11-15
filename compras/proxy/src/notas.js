@@ -47,12 +47,21 @@ export function notaDasFontes(fontes, ano = new Date().getFullYear()) {
 
 // as palavras de gama: um produto com uma destas só condiz com uma nota que a tenha (o Reserva não herda a nota do
 // vinho de entrada, nem o Grande Reserva a do Reserva)
-const GAMAS = ['reserva', 'grande', 'garrafeira', 'privado', 'especial', 'superior', 'escolha', 'selecionada', 'seleccionada', 'velha', 'vinha'];
+// (e o formato: o bag-in-box e o garrafão não herdam a nota da garrafa)
+const GAMAS = ['reserva', 'grande', 'garrafeira', 'privado', 'especial', 'superior', 'escolha', 'selecionada', 'seleccionada', 'velha', 'vinha',
+    'box', 'bib', 'garrafao'];
 const conjunto = (s) => new Set(palavras(s));
 
 // prepara as linhas da tabela vinho_nota para procurar: [{ w (palavras), fora, nota, n, resumo }]
-export const prepararNotas = (linhas) => linhas.map((l) => ({ ...l, w: [...conjunto(l.palavras)], fora: [...conjunto(l.fora)] }))
+// e url: a ligação da fonte principal (a de um crítico, se houver), para a app abrir a notícia
+export const prepararNotas = (linhas) => linhas.map((l) => ({ ...l, w: [...conjunto(l.palavras)], fora: [...conjunto(l.fora)], url: urlPrincipal(l.fontes) }))
     .filter((l) => l.w.length);
+function urlPrincipal(fontes) {
+    let fs = [];
+    try { fs = typeof fontes === 'string' ? JSON.parse(fontes) : fontes ?? []; } catch { return null; }
+    const f = fs.find((x) => x?.tipo === 'critico' && /^https:\/\//.test(x.url ?? '')) ?? fs.find((x) => /^https:\/\//.test(x?.url ?? ''));
+    return f?.url ?? null;
+}
 
 // a nota que condiz com o nome de um produto: a regra com mais palavras, todas no nome, nenhuma de fora, e sem
 // palavras de gama no nome que a regra não tenha

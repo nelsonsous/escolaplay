@@ -56,7 +56,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.43.1';
+export const VERSION = '0.43.2';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
