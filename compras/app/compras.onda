@@ -93,7 +93,7 @@
   Se int m.pr `,"pr":1`
   `\}` }
 # o que a coisa é (c.e, da escolha) e a estimativa da Mercadona (c.est) passam como estão; mm: escolheu-se à mão
-: pesp ii>i e mm `,"e":\{"k":{ pjs txt e.k }{ Se e.emb `,"emb":{ pjs txt e.emb }` }{ Se e.m `,"m":{ pjs txt e.m }` }{ Se || mm int e.mao `,"mao":1` }\}`
+: pesp ii>i e mm `,"e":\{"k":{ pjs txt e.k }{ Se e.emb `,"emb":{ pjs txt e.emb }` }{ Se e.m `,"m":{ pjs txt e.m }` }{ Se e.w `,"w":{ pjs txt e.w }` }{ Se || mm int e.mao `,"mao":1` }\}`
 : pitem iiiiiii>i c qq ff pc pn sep mm {
   Se sep P 44
   `\{"id":{ pjs txt c.id },"t":{ pjs txt c.t },"q":{ N ? qq qq int c.q },"f":{ N ? >= ff 0 ff int c.f }`
@@ -623,7 +623,9 @@
   Se && == estado 200 _an_ler $"tk" { _an_gravar $"tp" t dfolha }
   _me_solta t }
 # passa nos filtros? fe o tamanho, fm a marca («branca»: a marca própria)
-: passa iii>i p fe fm && || ~ fe mesmo txt p.emb fe || ~ fm ? mesmo fm $"branca" int p.pr mesmo txt p.mk fm
+: passa iii>i p fe fm && && || ~ fe mesmo txt p.emb fe || ~ fm ? mesmo fm $"branca" int p.pr mesmo txt p.mk fm tem_w p
+# a palavra escolhida (o corte ou a variante: «picada», «estufar») está no nome? (sem palavra: sim)
+: tem_w i>i p { = w _an_ler $"fw" ? w { = h _tx_abre + 4 _tx_len txt p.nk P 32 crut txt p.nk P 32 _tx_fecha h = x _tx_abre + 4 _tx_len w P 32 crut w P 32 _tx_fecha x >= _tx_acha h x 0 0 } 1 }
 # o mais barato (por unidade de medida; a lista vem já por essa ordem) do tipo no supermercado k, ou 0
 : melhor_em iiii>i tp k fe fm {
   = r 0 = p pri tp.produtos
@@ -640,6 +642,12 @@
         `<h3>Tamanho</h3><div class="chips"><button class="chip{ Se ~ fe ` on` }" data-onda="fe:99">Todos</button>`
         = e pri tp.tamanhos = i 0
         W e { `<button class="chip{ Se && fe mesmo fe txt e.e ` on` }" data-onda="fe:{ N i }">{ esc e.e }</button>` = e seg e = i + i 1 }
+        `</div>` }
+      Se pri tp.palavras {
+        = fw _an_ler $"fw"
+        `<h3>Corte ou variante</h3><div class="chips"><button class="chip{ Se ~ fw ` on` }" data-onda="fw:99">Todos</button>`
+        = x pri tp.palavras = i 0
+        W x { `<button class="chip{ Se && fw mesmo fw txt x.w ` on` }" data-onda="fw:{ N i }">{ esc x.w }</button>` = x seg x = i + i 1 }
         `</div>` }
       `<h3>Marca</h3><div class="chips"><button class="chip{ Se ~ fm ` on` }" data-onda="fm:99">Qualquer</button>`
       Se int tp.brancas `<button class="chip{ Se && fm mesmo fm $"branca" ` on` }" data-onda="fm:98">🏷 Marca branca</button>`
@@ -680,13 +688,14 @@
         `</small></li>` }
       0 }
   0 }
-: fecha_tipo >i { _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fm" 0 _an_gravar $"tq" 0 }
+: fecha_tipo >i { _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fm" 0 _an_gravar $"fw" 0 _an_gravar $"tq" 0 }
 : abre_tipo i>i v {
   = s _ar_json _an_ler $"sug"
   = x ? s idx s.tipos v 0
   Se x {
     fecha_tipo
     _an_gravar $"tk" txt x.k
+    Se x.w _an_gravar $"fw" txt x.w
     _an_buscar texto`/api/tipo?k={ _tx_uri txt x.k }` $"lido_tipo" }
   0 }
 # um botão de tamanho (fe) ou de marca (fm): 99 tira o filtro, 98 é a marca branca
@@ -704,8 +713,9 @@
   Se tp {
     = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
     = id texto`{ novoid }`
-    = nome texto`{ crut txt tp.nome }{ Se fe ` { crut fe }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
-    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }\}\}`
+    = fw _an_ler $"fw"
+    = nome texto`{ crut txt tp.nome }{ Se fw ` ({ crut fw })` }{ Se fe ` { crut fe }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
+    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se fw `,"w":{ pjs fw }` }\}\}`
     L k 3 { = p melhor_em tp k fe fm Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }","a":1,"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
     fecha_tipo
     _an_gravar $"sug" 0
@@ -765,6 +775,7 @@
   Se eacao t $"cost" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt x.t },"q":1\}` }
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
+  Se eacao t $"fw" { = tp _ar_json _an_ler $"tp" ? == v 99 _an_gravar $"fw" 0 { = x ? tp idx tp.palavras v 0 Se x _an_gravar $"fw" txt x.w 0 } }
   Se eacao t $"tmais" tq_muda 1
   Se eacao t $"tmenos" tq_muda -1
   Se eacao t $"juntat" juntat
