@@ -143,6 +143,8 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .sug .chip.n1 { border-color: var(--n1f); color: var(--n1); }
 .sug .chip.n2 { border-color: var(--n2f); color: var(--n2); }
 .chip small.n3 { color: var(--n3); }
+.sug .chip.n3c { border-color: var(--n3f); color: var(--n3); }
+.sug-t { margin: 10px 0 4px; color: var(--fraco); font-size: 13px; text-transform: uppercase; letter-spacing: .5px; }
 .caminho { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; margin: 0 40px 8px 0; font-size: 14px; }
 .caminho i { color: var(--fraco); font-style: normal; }
 .caminho button, .caminho b { min-height: 32px; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--linha); background: transparent; font: inherit; font-weight: 600; }
