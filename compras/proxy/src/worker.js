@@ -62,6 +62,8 @@ export const SONDA_HOSTS = [
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
     // lojas online de produtores (volta 7): o bacalhau da Lugrade…
     'lugrade.com', 'riberalves.pt', 'merceariadeportugal.com',
+    // os folhetos do Lidl (volta 12): a app do folheto lê-os do serviço de folhetos do grupo (economo/lidl-folheto.mjs)
+    'leaflets.schwarz',
     // garrafeiras online (ciclo 3), experimentadas a 15/11: a Garrafeira Nacional pede validação humana, a Portugal
     // Vineyards tem o desafio da Cloudflare e a Wine House devolve páginas vazias a robôs: não se leem (não se contornam)
     'garrafeiranacional.com', 'portugalvineyards.com', 'winehouseportugal.com',

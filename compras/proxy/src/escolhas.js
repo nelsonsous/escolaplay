@@ -28,8 +28,9 @@ export async function melhores(db, e, agora = new Date(), excluir = new Set(), p
     const lim = e.emb ? null : limiteGramas(e.k, pessoas);
     const { results } = await db.prepare(`SELECT cadeia, id, nome, url, cent, q, ub, emb FROM preco
         WHERE tipo = ?1 AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?2 AND (?3 IS NULL OR emb = ?3)
+          AND NOT (cadeia = 'lidl' AND id LIKE 'f%' AND ate < ?5)
           AND (?4 IS NULL OR (?4 = 'branca' AND propria = 1) OR (?4 <> 'branca' AND lower(marca) = lower(?4)))
-        ORDER BY uc IS NULL, uc, cent, id`).bind(e.k, recente(agora), e.emb ?? null, e.m ?? null).all();
+        ORDER BY uc IS NULL, uc, cent, id`).bind(e.k, recente(agora), e.emb ?? null, e.m ?? null, agora.toISOString().slice(0, 10)).all();
     const r = {};
     const w = e.w ? String(e.w).split(' ').filter(Boolean).map((x) => ` ${x} `) : null; // a espécie e o corte: todas
     for (const so of lim ? [true, false] : [false]) {

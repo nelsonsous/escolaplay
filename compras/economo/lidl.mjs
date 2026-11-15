@@ -83,7 +83,7 @@ export const SINONIMOS = [
     [w('gin|vodka'), 'gin-vodka-tequila'],
     [w('amendoins|mixed-nuts|noz|amendoas|cajus'), 'frutos-secos'],
 ];
-const porSinonimo = (slug) => { for (const [re, k] of SINONIMOS) if (re.test(slug)) return k; return null; };
+export const porSinonimo = (slug) => { for (const [re, k] of SINONIMOS) if (re.test(slug)) return k; return null; };
 
 const titulo = (s) => String(s ?? '').toLowerCase().replace(/(^|\s)\S/g, (l) => l.toUpperCase());
 
