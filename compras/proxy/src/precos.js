@@ -31,6 +31,16 @@ export function medida(s) {
     if (m && MEDIDA[m[2].toLowerCase()]) { const [b, f] = MEDIDA[m[2].toLowerCase()]; return { q: n(m[1]) * f, ub: b }; }
     return null;
 }
+// a embalagem como se escreve, igual em todas as cadeias: «6 × 1,5 L», «500 g», «12 un» (null se não se percebe)
+export function rotulo(s) {
+    const t = String(s ?? '');
+    const u = (x) => ({ kg: 'kg', g: 'g', gr: 'g', l: 'L', lt: 'L', ml: 'ml', cl: 'cl', un: 'un', uni: 'un', unid: 'un', unidades: 'un' })[x.toLowerCase()];
+    const v = (x) => String(n(x)).replace('.', ',');
+    let m = t.match(VEZES);
+    if (m) return `${n(m[1])} × ${v(m[2])} ${u(m[3])}`;
+    m = t.match(UMA);
+    return m && u(m[2]) ? `${v(m[1])} ${u(m[2])}` : null;
+}
 // o preço por quilo, por litro ou por unidade, em cêntimos: { uc, ub } (ou nulos). Usa o que a cadeia mostra; se
 // não mostra, a embalagem ou o nome do produto.
 export function porUnidade(produto) {
@@ -126,6 +136,7 @@ export async function juntarPrecos(db, lista) {
                 if (r.esgotado) x.esgotado = 1;
                 if (r.visto) x.visto = r.visto.slice(0, 10);
                 if (r.uc != null && r.ub) { x.uc = Number(r.uc); x.ub = r.ub; }
+                if (r.propria) x.pr = 1;
                 return [c, x];
             })),
         })),

@@ -10,11 +10,16 @@
 //   GET  /api/procurar?cadeia=…&q=…    { cadeia, produtos: [{ id, nome, url }] } do índice dessa cadeia (indice.js)
 //   POST /api/precos  {cadeia, produtos}  os preços dos produtos de uma procura (no máximo 8; os que faltam lê-se no
 //                                      máximo dois): { cadeia, produtos: [{ id, cent, antes, uc, ub, esgotado }] }
-// O cron (de dez em dez minutos): lê os preços velhos dos produtos que estão nas listas (precos.js, refrescar).
+//   GET  /api/sugerir?q=…              os tipos de produto que começam pelo que se escreveu: { tipos: [{ k, nome, n }] }
+//   GET  /api/tipo?k=…                 os produtos de um tipo nas cadeias, com os tamanhos e as marcas (sugerir.js)
+// O cron (de dois em dois minutos): aos minutos redondos (0, 10, 20…) lê os preços velhos dos produtos que estão nas
+// listas (precos.js, refrescar); nos outros, uma página de categoria de uma cadeia, à vez (catalogo.js): cada cadeia
+// recebe no máximo um pedido a cada seis minutos.
 // A casa, a lista e os preços estão na D1 (env.DB; migrations/); a KV (env.KV) guarda o índice de cada cadeia.
 // A sonda (volta 1; com o segredo SONDA_TOKEN)
 //   GET /sonda?url=…                   a resposta da cadeia tal e qual (estado, tempo e cabeçalhos à parte)
 //   GET /sonda/produto?cadeia=…&url=…  o produto lido pela fonte da cadeia (src/fontes/); ou &id=…, onde há endereço por número
+//   GET /sonda/catalogo?url=…          lê já uma página do catálogo (só as da tabela pagina) e guarda os produtos
 // Regras da sonda: só GET, só https, só os domínios das cadeias (SONDA_HOSTS) e só com o segredo, para o conector não
 // servir de passagem a mais ninguém. Identifica-se como é (UA), não tenta passar proteções contra robôs e só se usa
 // em caminhos que o robots.txt de cada cadeia deixa.
@@ -24,10 +29,12 @@ import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
 import { Erro, novoAparelho, aparelhoDe, casaDe, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
+import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
+import { sugerir, produtosDoTipo } from './sugerir.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.5.0';
+export const VERSION = '0.6.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org',
@@ -142,6 +149,15 @@ async function sondaProduto(request, env) {
     return json({ cadeia, url: u.toString(), estado: r.status, ms, bytes: corpo.length, cabecalhos: cabecalhos(r), produto });
 }
 
+// lê já uma página do catálogo (para encher o catálogo de uma vez, em vez de esperar pelo cron)
+async function sondaCatalogo(request, env) {
+    const nao = await recusa(request, env);
+    if (nao) return nao;
+    const p = await env.DB.prepare('SELECT url, cadeia, tipo FROM pagina WHERE url = ?').bind(new URL(request.url).searchParams.get('url') ?? '').first();
+    if (!p) return json({ erro: 'essa página não está no catálogo (tabela pagina)' }, 404);
+    return json(await lerPagina(env.DB, p));
+}
+
 // ---------- a app ----------
 
 async function corpoJSON(request) {
@@ -195,6 +211,14 @@ async function api(request, env, url) {
         const lista = produtos.map((p) => produto(cadeia, p)).filter((p) => p && p.id);
         return json({ cadeia, produtos: await precosDe(db, cadeia, lista) });
     }
+    if (caminho === '/api/sugerir' && metodo === 'GET') {
+        return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
+    }
+    if (caminho === '/api/tipo' && metodo === 'GET') {
+        const t = await produtosDoTipo(db, String(url.searchParams.get('k') ?? '').slice(0, 60));
+        if (!t) throw new Erro(404, 'tipo desconhecido');
+        return json(t);
+    }
     if (caminho === '/api/procurar' && metodo === 'GET') {
         const cadeia = url.searchParams.get('cadeia');
         if (!CADEIAS.includes(cadeia)) throw new Erro(400, 'cadeia desconhecida');
@@ -215,12 +239,18 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 4: trocas que poupam' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 5: catálogo e escrita' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
+        if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);
         return json({ erro: 'não existe' }, 404);
     },
     async scheduled(evento, env, ctx) {
-        ctx.waitUntil(refrescar(env.DB, new Date(evento.scheduledTime || Date.now())).then((r) => console.log('preços', JSON.stringify(r))));
+        const agora = new Date(evento.scheduledTime || Date.now());
+        const m = agora.getUTCMinutes();
+        const tarefa = m % 10 === 0
+            ? refrescar(env.DB, agora).then((r) => ['preços', r])
+            : cronCatalogo(env.DB, CADEIAS_CATALOGO[Math.floor(m / 2) % CADEIAS_CATALOGO.length], agora).then((r) => ['catálogo', r]);
+        ctx.waitUntil(tarefa.then(([o, r]) => console.log(o, JSON.stringify(r))).catch((e) => console.log('cron falhou', String(e))));
     },
 };

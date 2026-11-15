@@ -45,7 +45,7 @@ test('escolher um produto lê logo o preço no site da cadeia, e a lista vem com
     assert.equal(pedidos.length, 2);
     // o preço guardado não leva nada da casa (é de todos)
     assert.deepEqual(Object.keys(env.DB.linhas('SELECT * FROM preco')[0]).sort(),
-        ['antes', 'ate', 'cadeia', 'cent', 'emb', 'esgotado', 'falhas', 'id', 'marca', 'nome', 'tentado', 'ub', 'uc', 'unid', 'url', 'visto']);
+        ['antes', 'ate', 'cadeia', 'cent', 'emb', 'esgotado', 'falhas', 'id', 'marca', 'nome', 'propria', 'q', 'tentado', 'tipo', 'ub', 'uc', 'unid', 'url', 'visto']);
 });
 
 test('o Auchan lê-se pelo JSON do produto (pelo número); no máximo dois produtos novos por pedido', async () => {
@@ -128,7 +128,8 @@ test('o cron do Worker chama o refrescar', async () => {
     await ops(chave, [{ o: 'j', id: 'aaaa', t: 'leite' }, escolher('aaaa', 'lidl')]);
     pedidos = instalar();
     const espera = [];
-    await worker.scheduled({ scheduledTime: Date.now() + 3600e3 }, env, { waitUntil: (p) => espera.push(p) });
+    // aos minutos redondos (0, 10, 20…) o cron lê os preços das listas
+    await worker.scheduled({ scheduledTime: Math.ceil((Date.now() + 3600e3) / 600e3) * 600e3 }, env, { waitUntil: (p) => espera.push(p) });
     await Promise.all(espera);
     assert.equal(env.DB.linhas('SELECT cent FROM preco')[0].cent, 85);
 });

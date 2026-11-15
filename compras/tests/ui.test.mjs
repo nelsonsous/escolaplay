@@ -254,3 +254,61 @@ test('mais barato: o total em cada supermercado e quando compensa dividir por du
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o mais barato de cada supermercado na lista', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        const chave = await (await a.waitForFunction(() => localStorage.getItem('compras:chave'))).jsonValue();
+        const linhas = () => a.locator('#folha .melhores li').evaluateAll((l) => l.map((x) => [x.className, x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector('small').textContent]));
+
+        // escrever «ág» mostra o tipo; com vírgulas (várias coisas) não sugere nada
+        await a.fill('[data-onda="junta"]', 'ovos, ág');
+        await a.waitForTimeout(700);
+        assert.equal(await a.locator('#sug .chip').count(), 0);
+        await a.fill('[data-onda="junta"]', 'ág');
+        await a.waitForSelector('#sug .chip:has-text("Água sem gás")');
+        await a.click('#sug .chip >> nth=0');
+        await a.waitForSelector('#folha .escolha h2:has-text("Água sem gás")');
+        assert.deepEqual(await a.locator('#folha .chips >> nth=0 >> .chip').allTextContents(), ['Todos', '10 L', '6 L', '6 × 1,5 L', '7 L', '5 L', '5,4 L']);
+        assert.deepEqual((await a.locator('#folha .chips >> nth=1 >> .chip').allTextContents()).slice(0, 3), ['Qualquer', '🏷 Marca branca', 'Luso']);
+        // sem filtro: o mais barato por litro de cada um; o melhor fica marcado
+        assert.deepEqual(await linhas(), [
+            ['', 'Continente', '1,99 €', 'Água sem Gás Garrafão Luso · 7 L · 0,28 €/l'],
+            ['melhor', 'Pingo Doce 🏷', '0,96 €', 'Água sem Gás Garrafão · 6 L · 0,16 €/l'],
+            ['melhor', 'Auchan 🏷', '0,96 €', 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L · 6 L · 0,16 €/l'],
+        ]);
+        // 6 L: o Continente não tem
+        await a.click('#folha .chip >> text="6 L"');
+        assert.deepEqual((await linhas()).map((l) => l[2]), ['—', '0,96 €', '0,96 €']);
+        // Luso, de qualquer tamanho, 2 unidades
+        await a.click('#folha [data-onda="fe:99"]');
+        await a.click('#folha .chip:has-text("Luso")');
+        await a.click('#folha [data-onda="tmais:0"]');
+        assert.equal(await a.textContent('#folha .qtd b'), '2');
+        assert.deepEqual((await linhas()).map((l) => l[1] + ' ' + l[2]), ['Continente 1,99 €', 'Pingo Doce 1,83 €', 'Auchan 1,99 €']);
+        await a.click('#folha [data-onda="juntat:0"]');
+        assert.equal(await a.locator('#folha .cartao').count(), 0);
+        assert.equal(await a.inputValue('[data-onda="junta"]'), '');
+        await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
+        assert.deepEqual(await a.locator('.item .texto b').allTextContents(), ['2 × Água sem gás Luso']);
+        await a.waitForSelector('.item .texto small:has-text("Auchan")');
+        assert.equal(await a.textContent('.item .texto small'), 'Continente 3,98 € · Pingo Doce 3,66 € · Auchan 3,98 €');
+        const l = await s.api('/api/lista', chave);
+        assert.deepEqual(Object.keys(l.itens[0].p), ['continente', 'pingodoce', 'auchan']);
+        assert.equal(l.itens[0].p.pingodoce.cent, 183);
+        // a marca branca: o ícone fica na lista
+        await a.fill('[data-onda="junta"]', 'agua');
+        await a.click('#sug .chip >> nth=0');
+        await a.waitForSelector('#folha .escolha .chips');
+        await a.click('#folha [data-onda="fm:98"]');
+        await a.click('#folha [data-onda="juntat:0"]');
+        await a.waitForSelector('.item >> nth=1');
+        await a.waitForSelector('.item .texto small:has-text("Pingo Doce 🏷 0,96 €")');
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});
