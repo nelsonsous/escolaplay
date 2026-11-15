@@ -397,7 +397,11 @@ test('as lojas de produtores: os portes (grátis acima de 100 € na Lugrade) e 
         { c: 'continente', nome: 'Bacalhau Graúdo Noruega Seco Lugrade', uc: 2599, ub: 'kg' },
         { c: 'continente', nome: 'Bacalhau Especial Islândia Seco Continente', uc: 2799, ub: 'kg' },
     ];
-    assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Especial Islândia', 'bacalhau'), 'bacalhau').uc, 3499);
+    // a linha tem de ser a mesma: a Seleção do Chef compara-se com a Seleção do Chef; o Especial normal da Lugrade não
+    // tem par no Continente (antes dava «mais caro lá» contra a Seleção)
+    const sel = 'Seleção Diogo Rocha Especial Islândia (islandia · 3.25 a 3.5kg)';
+    assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Especial Islândia', 'bacalhau'), 'bacalhau', sel).uc, 3499);
+    assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Especial Islândia', 'bacalhau'), 'bacalhau', 'Especial (islandia · 3.25 a 3.5kg)'), null);
     assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Graúdo Noruega', 'bacalhau'), 'bacalhau').uc, 2599);
     assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Crescido Noruega', 'bacalhau'), 'bacalhau'), null);
 });

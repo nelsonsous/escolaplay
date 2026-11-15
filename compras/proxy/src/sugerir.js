@@ -325,11 +325,16 @@ export const PORTES = {
     riberalves: { cent: 0, gratis: 0, nota: 'encomenda mínima 50 €, só algumas zonas' },
 };
 // o produto da mesma marca (a loja) num supermercado, com o mesmo calibre e a mesma origem: { c, uc, ub, nome }
-export function mesmaMarca(produtos, loja, et, k) {
+// a linha do produto (a «Seleção do Chef Diogo Rocha», a gourmet): o artigo de linha só se compara com o da mesma
+// linha, e o normal só com o normal (o Especial da Lugrade não é a Seleção do Chef do Continente)
+const LINHA = /\bsele[cç][aã]o\b|\bchef\b|\bgourmet\b|\bpremium\b|\breserva\b/i;
+export function mesmaMarca(produtos, loja, et, k, nome = '') {
     const re = new RegExp('\\b' + loja + '\\b', 'i');
+    const linha = LINHA.test(nome);
     const ms = produtos.filter((p) => re.test(`${p.marca ?? ''} ${p.nome}`) && p.uc && p.ub === 'kg').filter((p) => {
         const e = etiquetas(p.nome, k);
-        return (!et?.cal || e?.cal === et.cal) && (!et?.pais || e?.pais === et.pais) && (!et?.corte || e?.corte === et.corte);
+        return (!et?.cal || e?.cal === et.cal) && (!et?.pais || e?.pais === et.pais) && (!et?.corte || e?.corte === et.corte)
+            && LINHA.test(p.nome) === linha;
     }).sort((a, b) => a.uc - b.uc);
     return ms.length ? { c: ms[0].c, uc: ms[0].uc, ub: 'kg', nome: ms[0].nome } : null;
 }
@@ -426,7 +431,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
             const po = PORTES[a.loja];
             if (po) { x.po = a.cent >= po.gratis ? 0 : po.cent; if (po.nota) x.pn = po.nota; }
             // a mesma marca num supermercado, com o mesmo calibre e a mesma origem (a Lugrade também se vende no Continente)
-            const mc = et ? mesmaMarca(results, a.loja, et, k) : null;
+            const mc = et ? mesmaMarca(results, a.loja, et, k, nome) : null;
             if (mc) x.mc = mc;
             return x;
         }),
