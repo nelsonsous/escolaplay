@@ -8,6 +8,8 @@
 //   POST /api/lista        {ops}       mudar a lista (ver casa.js) e recebê-la como ficou; um produto escolhido
 //                                      agora sem preço recente lê-se logo no site da cadeia
 //   GET  /api/procurar?cadeia=…&q=…    { cadeia, produtos: [{ id, nome, url }] } do índice dessa cadeia (indice.js)
+//   POST /api/precos  {cadeia, produtos}  os preços dos produtos de uma procura (no máximo 8; os que faltam lê-se no
+//                                      máximo dois): { cadeia, produtos: [{ id, cent, antes, uc, ub, esgotado }] }
 // O cron (de dez em dez minutos): lê os preços velhos dos produtos que estão nas listas (precos.js, refrescar).
 // A casa, a lista e os preços estão na D1 (env.DB; migrations/); a KV (env.KV) guarda o índice de cada cadeia.
 // A sonda (volta 1; com o segredo SONDA_TOKEN)
@@ -20,12 +22,12 @@
 // cadeia de cada vez (a app pede as quatro em paralelo) e o índice fica na memória do Worker uma hora.
 import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
-import { Erro, novoAparelho, aparelhoDe, casaDe, lerLista, mudarLista, entrarNaCasa } from './casa.js';
-import { juntarPrecos, precosNovos, refrescar } from './precos.js';
+import { Erro, novoAparelho, aparelhoDe, casaDe, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
+import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org',
@@ -186,6 +188,13 @@ async function api(request, env, url) {
         await precosNovos(db, ops).catch(() => {}); // sem o preço agora, o cron lê-o depois
         return json(await juntarPrecos(db, lista));
     }
+    if (caminho === '/api/precos' && metodo === 'POST') {
+        const { cadeia, produtos } = await corpoJSON(request);
+        if (!CADEIAS.includes(cadeia)) throw new Erro(400, 'cadeia desconhecida');
+        if (!Array.isArray(produtos) || produtos.length > 8) throw new Erro(400, 'produtos: uma lista de no máximo 8');
+        const lista = produtos.map((p) => produto(cadeia, p)).filter((p) => p && p.id);
+        return json({ cadeia, produtos: await precosDe(db, cadeia, lista) });
+    }
     if (caminho === '/api/procurar' && metodo === 'GET') {
         const cadeia = url.searchParams.get('cadeia');
         if (!CADEIAS.includes(cadeia)) throw new Erro(400, 'cadeia desconhecida');
@@ -206,7 +215,7 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 3: mais barato' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 4: trocas que poupam' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         return json({ erro: 'não existe' }, 404);

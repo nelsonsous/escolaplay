@@ -27,7 +27,7 @@ export const INDICES = {
 
 // os preços nos sites a fingir (em euros), por «cadeia número»
 export const PRECOS_TESTE = {
-    'continente 8504295': { preco: 0.79 }, 'continente 4421406': { preco: 0.95 }, 'continente 11': { preco: 1.49 }, 'continente 12': { preco: 2.19 },
+    'continente 8504295': { preco: 0.79, nome: 'Leite UHT meio gordo Continente 1 l' }, 'continente 4421406': { preco: 4.5, nome: 'Leite UHT meio gordo Mimosa 6 x 1 l' }, 'continente 11': { preco: 1.49 }, 'continente 12': { preco: 2.19 },
     'pingodoce 501': { preco: 0.89, antes: 1.05 }, 'pingodoce 502': { preco: 1.39 },
     'auchan 601': { preco: 0.99 }, 'auchan 602': { preco: 0.99 },
     'lidl 701': { preco: 0.75 },

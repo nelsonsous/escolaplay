@@ -52,7 +52,7 @@ test('a lista da casa no browser', { skip: !pw && 'sem playwright' }, async () =
         await a.waitForSelector('#folha .prods >> nth=3');
         await a.waitForFunction(() => document.querySelectorAll('#folha .prod').length >= 5);
         assert.deepEqual(await a.locator('#folha h3').allTextContents(), ['Continente', 'Pingo Doce', 'Auchan', 'Lidl']);
-        assert.equal(await a.textContent('#folha [data-onda="esc:0"]'), 'Leite uht meio gordo continente');
+        assert.match(await a.textContent('#folha [data-onda="esc:0"]'), /^Leite uht meio gordo continente/);
         await a.click('#folha [data-onda="esc:0"]');
         await a.click('#folha [data-onda="esc:300"]');
         assert.match(await a.textContent('#folha .prod.on >> nth=0'), /✓ Leite uht meio gordo continente/);
@@ -60,6 +60,11 @@ test('a lista da casa no browser', { skip: !pw && 'sem playwright' }, async () =
         assert.equal(await a.textContent('#folha .qtd b'), '3');
         // o preço lido no site da cadeia aparece ao lado do produto escolhido
         await a.waitForSelector('#folha .prod.on small:has-text("0,79 €")');
+        // os produtos parecidos também com o preço, e o mais barato por litro à vista (o pack de 6 da Mimosa)
+        await a.waitForSelector('#folha [data-onda="esc:1"] em');
+        assert.equal(await a.textContent('#folha [data-onda="esc:1"] small'), '4,50 € · 0,75 €/l');
+        assert.equal(await a.textContent('#folha [data-onda="esc:1"] em'), 'o mais barato por litro');
+        assert.match(await a.textContent('#folha .prod.on small'), /^0,79 € · 0,79 €\/l · tocar para tirar$/);
         await a.keyboard.press('Escape');
         assert.equal(await a.locator('#folha .cartao').count(), 0);
         assert.deepEqual(await itens(a), ['3 × leites', 'pão de forma', 'ovos']);
@@ -178,6 +183,7 @@ test('mais barato: o total em cada supermercado e quando compensa dividir por du
         const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
         const erros = [];
         a.on('pageerror', (e) => erros.push(e.message));
+        const itens = (pg) => pg.locator('.item .texto b').allTextContents();
         await a.goto(s.url());
         const chave = await (await a.waitForFunction(() => localStorage.getItem('compras:chave'))).jsonValue();
         // a lista feita noutro telemóvel da casa: 6 leites, pão de forma e 2 dúzias de ovos, com os produtos escolhidos
@@ -211,6 +217,17 @@ test('mais barato: o total em cada supermercado e quando compensa dividir por du
         assert.deepEqual(v.lojas.map((l) => l[1]), ['Continente', 'Pingo Doce', 'Auchan', 'Lidl']);
         assert.equal(v.dividir, 'Continente e Auchan: 8,21 € — poupas 2,40 €');
         assert.deepEqual(await a.locator('.dividir .nota').allTextContents(), ['No Continente: leite, pão de forma.', 'No Auchan: ovos.']);
+
+        // «Vou a este»: a lista arruma-se por essa loja (primeiro o que tem preço lá) e diz quanto fica
+        await a.click('.cadeias li:has-text("Auchan") .ir');
+        await a.waitForSelector('.loja');
+        assert.equal(await a.textContent('.loja b'), 'Vais ao Auchan: 7,92 €');
+        assert.equal(await a.textContent('.loja small'), '1 coisa sem preço aqui');
+        assert.deepEqual(await a.locator('.item .texto').evaluateAll((l) => l.map((x) => x.textContent)),
+            ['6 × leiteAuchan 5,94 €', '2 × ovosAuchan 1,98 €', 'pão de formaSem preço no Auchan: toca para escolher']);
+        await a.click('[data-onda="loja:9"]');
+        assert.equal(await a.locator('.loja').count(), 0);
+        assert.deepEqual(await itens(a), ['6 × leite', 'pão de forma', '2 × ovos']);
 
         // a folha mostra o preço de cada um, e o riscado de uma promoção
         await a.click('#abas button >> nth=0');
