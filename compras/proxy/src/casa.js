@@ -109,6 +109,12 @@ function especie(e) {
     if (e.w) x.w = texto(e.w, 60).toLowerCase().trim();
     // o nome do tipo (para o caminho na lista: «Carne picada»)
     if (e.n) x.n = texto(e.n, 60);
+    // os filtros escolhidos, um a um (a espécie, a origem, o calibre, o corte, os tamanhos), para a escolha os repor
+    if (e.f && typeof e.f === 'object') {
+        const f = {};
+        for (const c of ['fa', 'far', 'fp', 'fpr', 'fc', 'fcr', 'fw', 'fwr', 'fes', 'fer']) if (e.f[c]) f[c] = texto(e.f[c], 80);
+        if (Object.keys(f).length) x.f = f;
+    }
     return x;
 }
 const quantidade = (q) => Math.min(99, Math.max(1, Math.round(Number(q)) || 1));

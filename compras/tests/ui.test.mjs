@@ -768,9 +768,13 @@ test('juntar depressa: «bifes de frango» junta logo o mais barato; «frango» 
         assert.equal(it.e.k, 'frango');
         assert.equal(it.p.continente.id, 'b1');
         assert.equal(it.p.pingodoce.id, 'p1');
-        // tocar abre a escolha do tipo, com o corte escolhido
+        // tocar abre a escolha do tipo, com o corte escolhido (os filtros guardados na coisa), e o Continente continua lá
+        assert.equal(JSON.parse(s.env.DB.linhas('SELECT itens FROM casa')[0].itens)[0].e.f.fw, 'bife frango');
         await a.click('.item .texto');
         await a.waitForSelector('#folha .escolha h2:has-text("Frango")');
+        const cont = (await a.locator('#folha .melhores > li').allTextContents()).find((t) => /Continente/.test(t)) ?? '';
+        assert.match(cont, /Bifes de Frango/);
+        assert.doesNotMatch(cont, /Nada assim/);
         await a.click('#folha .fechar');
         await a.waitForSelector('#folha .cartao', { state: 'detached' });
         // geral: abre a escolha (não junta)
