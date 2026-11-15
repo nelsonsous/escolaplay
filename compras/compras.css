@@ -241,3 +241,4 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 /* a melhor forma de comprar a quantidade (packs) */
 .item small.pack { display: block; margin-top: 3px; color: #ffd60a; font-size: 13px; }
 .prods .op-x.nh { margin: 2px 0 8px; }
+.melhores a.vivino { margin-top: 6px; }

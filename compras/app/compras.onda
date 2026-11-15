@@ -892,6 +892,13 @@
 # uma fila de escolhas do «corte ou variante» (as do grupo g; sem grupo: todas), com o título; fw a escolhida
 # (ev: fa para o animal ou a espécie, fw para o corte e o uso; escolhida a espécie, só os cortes e usos dela)
 : tem_a ii>i x fa { = r 0 = y pri x.a W && y ~ r { Se mesmo txt y fa = r 1 = y seg y } r }
+# as filas de uma família (atributos.js: o vinho tem a região, a gama e a casta), com os filtros fa, fp e fc
+: dfilas i>i tp {
+  = f pri tp.filas
+  Se f { linha_w tp txt f.g txt f.t _an_ler $"fa" $"fa" = f seg f }
+  Se f { linha_w tp txt f.g txt f.t _an_ler $"fp" $"fp" = f seg f }
+  Se f linha_w tp txt f.g txt f.t _an_ler $"fc" $"fc"
+  0 }
 : linha_w iiiii>i tp g titulo fw ev {
   = s 0 = x pri tp.palavras = i 0 = fa _an_ler $"fa"
   W x {
@@ -947,8 +954,8 @@
       # tamanho; nos outros tipos, o tamanho primeiro e depois o corte ou a variante
       = x0 pri tp.palavras
       = fa _an_ler $"fa"
-      ? && x0 x0.g { linha_w tp $"animal" $"Espécie ou animal" fa $"fa" linha_w tp $"prod" $"Origem e preparação" _an_ler $"fp" $"fp" linha_w tp $"cal" $"Calibre" _an_ler $"fc" $"fc" linha_w tp $"corte" $"Corte" fw $"fw" linha_w tp $"uso" $"Para quê" fw $"fw" dtam tp fe 0 }
-        { dtam tp fe Se x0 linha_w tp 0 $"Variante" fw $"fw" 0 }
+      ? && && x0 x0.g ~ tp.filas { linha_w tp $"animal" $"Espécie ou animal" fa $"fa" linha_w tp $"prod" $"Origem e preparação" _an_ler $"fp" $"fp" linha_w tp $"cal" $"Calibre" _an_ler $"fc" $"fc" linha_w tp $"corte" $"Corte" fw $"fw" linha_w tp $"uso" $"Para quê" fw $"fw" dtam tp fe 0 }
+        { ? tp.filas { dfilas tp dtam tp fe 0 } { dtam tp fe Se x0 linha_w tp 0 $"Variante" fw $"fw" 0 } }
       `<h3>Marca</h3><div class="chips n5"><button class="chip{ Se ~ fm ` on` }" data-onda="fm:99">Qualquer</button>`
       Se int tp.brancas `<button class="chip{ Se && fm mesmo fm $"branca" ` on` }" data-onda="fm:98">🏷 Marca branca</button>`
       = x pri tp.marcas = i 0
@@ -980,6 +987,8 @@
             Se u { ? == int p.uc mu ` · o mais barato por { crut unidade ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade ub }` 0 } }
             ` · { esc p.nome }</small>`
             dsinais p
+            # no vinho, a nota dos que já o beberam (no Vivino: só a ligação para a pesquisa, não se lê o site)
+            Se mesmo txt tp.fam $"vinho" `<a class="mais-op vivino" href="https://www.vivino.com/search/wines?q={ crut _tx_uri txt p.nome }" target="_blank" rel="noopener">⭐ Ver a nota no Vivino ↗</a>`
             # outras opções neste supermercado: tocar abre a lista; escolher uma fica (à mão: a troca de hora a hora não a muda)
             = no conta_em tp k fe fm
             = ab ? _an_ler $"opc" _tx_int _an_ler $"opc" -1

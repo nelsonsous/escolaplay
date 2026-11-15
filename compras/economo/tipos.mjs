@@ -101,6 +101,14 @@ async function xml(url) {
     return (corpo[0] === 0x1f && corpo[1] === 0x8b ? gunzipSync(corpo) : corpo).toString('utf8');
 }
 
+// as páginas seguintes das categorias de PAGINAR: [url, cadeia, tipo, 0]
+export const PAGINAR = { 'vinho-tinto': 6, 'vinho-branco': 6, 'vinho-rose': 3, espumante: 3, 'vinho-do-porto': 3, azeite: 3 };
+const POR_PAGINA = { continente: 36, auchan: 24 };
+export function paginasSeguintes(paginas) {
+    return paginas.filter(([u, c, k, marca]) => !marca && PAGINAR[k] && POR_PAGINA[c] && !u.includes('?'))
+        .flatMap(([u, c, k]) => Array.from({ length: PAGINAR[k] - 1 }, (_, i) => [`${u}?start=${(i + 1) * POR_PAGINA[c]}&sz=${POR_PAGINA[c]}`, c, k, 0]));
+}
+
 async function main() {
     const args = process.argv.slice(2);
     const indiceCont = locs(await xml('https://www.continente.pt/sitemap_index.xml'));
@@ -127,6 +135,9 @@ async function main() {
     console.log(`tipos da casa: ${casa.size}`);
     const marcas = new Set(ref.map((r) => r));
     const paginas = [...t].flatMap(([k, v]) => Object.entries(v.c).flatMap(([c, us]) => us.map((u) => [u, c, k, marcas.has(u) ? 1 : 0])));
+    // as categorias grandes (os vinhos: a Continente tem 2 334 tintos) leem-se também nas páginas seguintes (o robots.txt
+    // deixa ?start=&sz=), pela ordem da cadeia (os mais vendidos primeiro)
+    paginas.push(...paginasSeguintes(paginas));
     console.log(`categorias: Continente ${cont.length} (+${ref.length} de marca), Auchan ${auchan.length}, Pingo Doce ${pd.length}`);
     console.log(`tipos em pelo menos duas cadeias: ${t.size}; páginas: ${paginas.length}`);
     if (args.includes('--mostrar')) for (const [k, v] of t) console.log(k, JSON.stringify(Object.fromEntries(Object.entries(v.c).map(([c, us]) => [c, us.length]))));

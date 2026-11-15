@@ -401,3 +401,22 @@ test('as lojas de produtores: os portes (grátis acima de 100 € na Lugrade) e 
     assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Graúdo Noruega', 'bacalhau'), 'bacalhau').uc, 2599);
     assert.equal(mesmaMarca(ps, 'lugrade', etiquetas('Bacalhau Crescido Noruega', 'bacalhau'), 'bacalhau'), null);
 });
+
+test('os vinhos: as páginas seguintes das categorias grandes, e as filas da família (região, gama, casta) em vez de palavras soltas', async () => {
+    const { paginasSeguintes } = await import('../economo/tipos.mjs');
+    const ps = paginasSeguintes([['https://www.continente.pt/supermercado/bebidas-e-garrafeira/vinhos/vinho-tinto/', 'continente', 'vinho-tinto', 0],
+        ['https://www.pingodoce.pt/home/produtos/vinhos/vinho-tinto', 'pingodoce', 'vinho-tinto', 0], ['https://www.auchan.pt/pt/x/', 'auchan', 'leite', 0]]);
+    assert.equal(ps.length, 5);
+    assert.equal(ps[0][0], 'https://www.continente.pt/supermercado/bebidas-e-garrafeira/vinhos/vinho-tinto/?start=36&sz=36');
+    const { atributos, filasDaFamilia, familiaDe } = await import('../proxy/src/atributos.js');
+    assert.equal(familiaDe('vinho-tinto'), 'vinho');
+    assert.equal(familiaDe('queijo-fatiado'), 'queijo');
+    assert.equal(familiaDe('leite'), null);
+    assert.deepEqual(atributos('vinho', 'Esporão Reserva Alentejo Vinho Tinto Touriga Nacional'), { regiao: 'alentejo', gama: 'reserva', casta: 'touriganacional' });
+    assert.deepEqual(atributos('vinho', 'Periquita Península de Setúbal Vinho Tinto'), { regiao: 'setubal' });
+    assert.deepEqual(atributos('azeite', 'Azeite Virgem Extra DOP Moura'), { categoria: 'virgemextra', regiao: 'moura', modo: 'dop' });
+    assert.deepEqual(atributos('queijo', 'Queijo Serra da Estrela DOP Amanteigado Ovelha'), { leite: 'ovelha', cura: 'amanteigado', dop: 'serraestrela' });
+    const f = filasDaFamilia('vinho', ['Douro Reserva', 'Douro Colheita', 'Alentejo Reserva', 'Alentejo Tinto', 'Dão Tinto'].map((nome) => ({ nome })));
+    assert.deepEqual(f.filas.map((x) => x.t), ['Região']); // a gama só tem um valor com 2 ou mais: não é fila
+    assert.deepEqual(f.palavras.map((x) => [x.w, x.r]), [['regiaoxdouro', 'Douro'], ['regiaoxalentejo', 'Alentejo']]);
+});
