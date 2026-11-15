@@ -59,7 +59,7 @@ async function grupo(db, g, nome) {
     let c = CORTES.get(nome);
     if (!c || Date.now() - c.quando > HORA) {
         const ks = ts.map((t) => t.k);
-        const { results } = ks.length ? await db.prepare(`SELECT tipo, nome FROM preco WHERE cent IS NOT NULL AND tipo IN (${ks.map(() => '?').join(', ')})`).bind(...ks).all() : { results: [] };
+        const { results } = ks.length ? await db.prepare(`SELECT tipo, nome FROM preco WHERE cent IS NOT NULL AND suspeito IS NULL AND tipo IN (${ks.map(() => '?').join(', ')})`).bind(...ks).all() : { results: [] };
         const conta = new Map(); // corte → tipo → n
         const animais = new Set();
         for (const r of results) {
@@ -263,7 +263,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     if (!t) return null;
     const desde = new Date(agora.getTime() - 10 * 24 * HORA).toISOString();
     const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, uc, ub, emb
-        FROM preco WHERE tipo = ? AND cent IS NOT NULL AND visto > ? ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde).all();
+        FROM preco WHERE tipo = ? AND cent IS NOT NULL AND suspeito IS NULL AND visto > ? ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde).all();
     // os valores (tamanhos, marcas) por ordem: primeiro os que há em mais cadeias (são os que dão para comparar),
     // depois os que têm mais produtos, depois pelo nome
     const conta = (f) => {

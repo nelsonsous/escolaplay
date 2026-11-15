@@ -25,8 +25,14 @@ const VEZES = new RegExp(`(\\d+)\\s*[x×]\\s*${NUM}\\s*(kg|gr?|lt?|ml|cl)\\b`, '
 const UMA = new RegExp(`${NUM}\\s*(kg|gr?|lt?|ml|cl|unid(?:ades)?|uni?)\\b\\.?`, 'i');
 const n = (s) => Number(String(s).replace(',', '.'));
 // quanto tem uma embalagem («emb. 6 x 1 lt», «500 g», «12 un»): { q, ub } em quilos, litros ou unidades
+// o texto da embalagem arrumado: «&times;» é ×; nos packs de litros sem vírgula, o Auchan escreve «4X150L» (4 × 1,50 L),
+// «6X050L» (6 × 0,50 L) e «4X15L» (4 × 1,5 L), sem espaços: ninguém vende garrafas de 150 litros («2 x 10 L» fica)
+export const limpaMedida = (s) => String(s ?? '').replace(/&times;/gi, '×')
+    .replace(/(\d+)[x×](\d)(\d{2})(lt?)\b/gi, '$1×$2,$3 $4')
+    // com dois algarismos: «15» é 1,5 L (garrafas), «33» é 0,33 L (latas): acima de 20 é de centilitros
+    .replace(/(\d+)[x×](\d)(\d)(lt?)\b/gi, (_, n, a, b, u) => (Number(a + b) > 20 ? `${n}×0,${a}${b} ${u}` : `${n}×${a},${b} ${u}`));
 export function medida(s) {
-    const t = String(s ?? '');
+    const t = limpaMedida(s);
     let m = t.match(VEZES);
     if (m) { const [b, f] = MEDIDA[m[3].toLowerCase()]; return { q: n(m[1]) * n(m[2]) * f, ub: b }; }
     m = t.match(UMA);
@@ -35,7 +41,7 @@ export function medida(s) {
 }
 // a embalagem como se escreve, igual em todas as cadeias: «6 × 1,5 L», «500 g», «12 un» (null se não se percebe)
 export function rotulo(s) {
-    const t = String(s ?? '');
+    const t = limpaMedida(s);
     const u = (x) => ({ kg: 'kg', g: 'g', gr: 'g', l: 'L', lt: 'L', ml: 'ml', cl: 'cl', un: 'un', uni: 'un', unid: 'un', unidades: 'un' })[x.toLowerCase()];
     const v = (x) => String(n(x)).replace('.', ',');
     let m = t.match(VEZES);

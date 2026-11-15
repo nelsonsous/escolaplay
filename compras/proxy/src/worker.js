@@ -26,6 +26,7 @@
 //   GET /sonda?url=…                   a resposta da cadeia tal e qual (estado, tempo e cabeçalhos à parte)
 //   GET /sonda/produto?cadeia=…&url=…  o produto lido pela fonte da cadeia (src/fontes/); ou &id=…, onde há endereço por número
 //   GET /sonda/catalogo?url=…          lê já uma página do catálogo (só as da tabela pagina) e guarda os produtos
+//   GET /sonda/revisao?de=0&n=20        revê os tipos (os suspeitos e os nomes: revisao.js); ?k=… os suspeitos de um tipo
 // Regras da sonda: só GET, só https, só os domínios das cadeias (SONDA_HOSTS) e só com o segredo, para o conector não
 // servir de passagem a mais ninguém. Identifica-se como é (UA), não tenta passar proteções contra robôs e só se usa
 // em caminhos que o robots.txt de cada cadeia deixa.
@@ -38,13 +39,14 @@ import { lojasDaCasa, lojasDe } from './lojas.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { sugerir, produtosDoTipo, tiposDaSeccao } from './sugerir.js';
+import { revisarTipo } from './revisao.js';
 import { atualizarEscolhas } from './escolhas.js';
 import { lerTalao, MAX_IMAGEM } from './talao.js';
 import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.19.1';
+export const VERSION = '0.20.3';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -169,6 +171,22 @@ async function sondaCatalogo(request, env) {
     return json(await lerPagina(env.DB, p));
 }
 
+// a revisão de uma vez (revisao.js): ?de=0&n=20 revê n tipos a partir do de-ésimo; ?k=… lista os suspeitos de um tipo
+async function sondaRevisao(request, env) {
+    const nao = await recusa(request, env);
+    if (nao) return nao;
+    const q = new URL(request.url).searchParams;
+    if (q.get('k')) {
+        const { results } = await env.DB.prepare('SELECT cadeia, nome, cent, emb, uc, ub, suspeito FROM preco WHERE tipo = ? AND suspeito IS NOT NULL ORDER BY suspeito, uc').bind(q.get('k')).all();
+        return json({ k: q.get('k'), suspeitos: results });
+    }
+    const de = Math.max(0, Number(q.get('de')) || 0), n = Math.min(40, Math.max(1, Number(q.get('n')) || 20));
+    const { results } = await env.DB.prepare('SELECT k FROM tipo ORDER BY k LIMIT ? OFFSET ?').bind(n, de).all();
+    const feitos = [];
+    for (const t of results) feitos.push(await revisarTipo(env.DB, t.k));
+    return json({ de, n: feitos.length, feitos });
+}
+
 // ---------- a app ----------
 
 async function corpoJSON(request, max = MAX_CORPO) {
@@ -265,10 +283,11 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: a árvore do talho e da peixaria' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 7: a base revista' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);
+        if (url.pathname === '/sonda/revisao') return sondaRevisao(request, env);
         return json({ erro: 'não existe' }, 404);
     },
     async scheduled(evento, env, ctx) {
