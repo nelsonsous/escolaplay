@@ -326,6 +326,14 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.setInputFiles('[data-talao]', { name: 'talao.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg, 'base64') });
         await a.waitForSelector('.toast:has-text("Talão do pingo doce: 2,83 € · 2 linhas")');
         await a.waitForFunction(() => document.querySelectorAll('.item.feito').length >= 1);
+        // o que costumas comprar (do talão): os ovos; tocar junta-os à lista; o ✕ tira-os
+        await a.waitForSelector('.costume .chip:has-text("Ovos classe m")');
+        await a.click('.costume .chip:has-text("Ovos classe m")');
+        await a.waitForSelector('.item .texto b:has-text("Ovos classe m")');
+        assert.equal(await a.locator('.costume .chip:has-text("Ovos classe m")').count(), 0);
+        const n = await a.locator('.item').count();
+        await a.click('.item:has-text("Ovos classe m") .tira');
+        await a.waitForFunction((n) => document.querySelectorAll('.item').length === n - 1, n);
 
         // onde moras e as tuas lojas: Portimão, só Pingo Doce, Auchan e SPAR (a loja de Portimão)
         await a.click('#abas button >> nth=2');
