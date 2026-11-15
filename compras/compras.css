@@ -252,3 +252,8 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 /* volta 13: o histórico (desceu / subiu desde o preço anterior) */
 .desce { color: var(--verde); font-weight: 600; }
 .sobe { color: var(--vermelho); font-weight: 600; }
+/* o «Afinar»: uma pergunta de cada vez quando há muitas opções */
+.afinar { border: 1px solid var(--n3, #3b82f6); border-radius: 14px; padding: 10px 12px; margin: 8px 0 12px; }
+.afinar .t { margin: 0 0 6px; }
+.afinar .q { margin: 4px 0 6px; font-weight: 600; }
+.afinado { margin: 4px 0 10px; }

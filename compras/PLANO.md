@@ -327,3 +327,6 @@ Store, o programa de programador da Apple.
 - QR code das faturas: [Portaria 195/2020](https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/legislacao/diplomas_legislativos/Documents/Portaria_195_2020.pdf), [especificações técnicas da AT](https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/Novas_regras_faturacao/Documents/Especificacoes_Tecnicas_Codigo_QR.pdf)
 - Ryanair c. PR Aviation (C-30/14): [Pinsent Masons](https://www.pinsentmasons.com/out-law/news/website-operators-can-prohibit-screen-scraping-of-unprotected-data-via-terms-and-conditions-says-eu-court-in-ryanair-case)
 - Open Food Facts em Portugal: [wiki](https://wiki.openfoodfacts.org/Country_Support_-_Portugal)
+
+
+**O Afinar (0.51.0, 15/11/2026):** com muitas opções (142 vinhos no Auchan), a folha do tipo pergunta uma coisa de cada vez em vez de mostrar todas as filas: no vinho «Para quê é o vinho?» (o preço da garrafa), depois a região e a gama; nas outras famílias (azeite, queijo, presunto, fruta, pão), as filas pela ordem. Cada resposta é um filtro (fica guardado na coisa, para a análise do Claude saber o que escolheste); «Tanto faz» salta; pára quando ficam 8 ou menos («Ficam N opções»).
