@@ -2,7 +2,9 @@
 //
 // A app (com a chave do aparelho: Authorization: Bearer <id>.<segredo>)
 //   POST /api/aparelho                 um aparelho novo, numa casa nova: { chave, casa: { codigo } } (só da origem da app)
-//   GET  /api/casa                     { codigo, aparelhos }
+//   GET  /api/casa                     { codigo, aparelhos, local, lojas }
+//   POST /api/casa/lojas {local, cadeias, spar}  a localidade e as lojas da casa (lojas.js)
+//   GET  /api/lojas?q=…                as lojas SPAR de uma localidade ou código postal
 //   POST /api/casa/entrar  {codigo}    passar para outra casa (leva o que tinha na lista)
 //   GET  /api/lista                    { versao, itens } com o preço de cada produto escolhido (precos.js)
 //   POST /api/lista        {ops}       mudar a lista (ver casa.js) e recebê-la como ficou; um produto escolhido
@@ -29,7 +31,8 @@
 // cadeia de cada vez (a app pede as quatro em paralelo) e o índice fica na memória do Worker uma hora.
 import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
-import { Erro, novoAparelho, aparelhoDe, casaDe, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
+import { Erro, novoAparelho, aparelhoDe, casaDe, gravarLojas, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
+import { lojasDaCasa, lojasDe } from './lojas.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { sugerir, produtosDoTipo } from './sugerir.js';
@@ -38,10 +41,10 @@ import { lerTalao, MAX_IMAGEM } from './talao.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.8.0';
+export const VERSION = '0.9.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
-    'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org',
+    'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
 ];
 const MAX_CORPO = 64 * 1024;
 const MAX_TALAO = MAX_IMAGEM + 1024;
@@ -197,6 +200,11 @@ async function api(request, env, url) {
     }
     const ap = await aparelhoDe(db, request);
     if (caminho === '/api/casa' && metodo === 'GET') return json(await casaDe(db, ap));
+    if (caminho === '/api/casa/lojas' && metodo === 'POST') return json(await gravarLojas(db, ap, lojasDaCasa(await corpoJSON(request))));
+    if (caminho === '/api/lojas' && metodo === 'GET') {
+        const todas = (await env.KV.get('lojas:spar', { type: 'json', cacheTtl: 3600 })) ?? [];
+        return json({ lojas: lojasDe(todas, url.searchParams.get('q') ?? '') });
+    }
     if (caminho === '/api/casa/entrar' && metodo === 'POST') {
         const { codigo } = await corpoJSON(request);
         const r = await entrarNaCasa(db, ap, codigo);
@@ -248,7 +256,7 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: talões' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: as tuas lojas' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);

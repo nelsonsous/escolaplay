@@ -27,6 +27,8 @@ iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar a
   telemóvel na mesma casa, e o que ele tinha na lista junta-se à lista da casa.
 - **Talões.** «📷 Talão» lê a fotografia com a IA da Cloudflare: a loja, o total e as linhas ficam guardados, e o que
   vem no talão risca-se na lista.
+- **As tuas lojas.** No separador Casa, a localidade e as lojas onde compras (também a Mercadona e o SPAR, com a tua
+  loja): as comparações só contam com elas. A Mercadona e o SPAR entram com estimativas «≈».
 - **Sem rede.** A lista abre sem rede, e o que se muda sem ela segue quando a rede voltar.
 - **Partilhar no WhatsApp** a lista do que falta, como texto, para o grupo da família.
 
@@ -36,7 +38,7 @@ iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar a
   `app/compras.wasm`. `compras.js` é a casca:
   a chave do aparelho nos pedidos ao conector e o Enter nos campos. `index.html`, `compras.css`, `sw.js`, o manifesto
   e os ícones completam a PWA.
-- `proxy/` — o conector (Worker `compras` 0.8.0, em `https://compras.mercados-proxy.workers.dev`):
+- `proxy/` — o conector (Worker `compras` 0.9.0, em `https://compras.mercados-proxy.workers.dev`):
   - a casa e a lista (`src/casa.js`), na D1 `compras` (as tabelas em `migrations/`);
   - os preços (`src/precos.js`): lidos no site da cadeia quando se escolhe um produto e pelo cron de dez em dez
     minutos (os que têm mais de 20 h, um por cadeia de cada vez), guardados na D1, com o preço por quilo ou litro;
@@ -55,7 +57,7 @@ iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar a
   (`cadeias.mjs`).
 
 ```bash
-cd compras && npm test                                         # 67 testes (a app precisa do Playwright)
+cd compras && npm test                                         # 69 testes (a app precisa do Playwright)
 node compras/compilar.mjs                                      # app/compras.onda → app/compras.wasm
 cd compras/proxy && npx wrangler d1 migrations apply compras --remote   # as tabelas da D1 (uma vez por migração)
 cd compras/proxy && npx wrangler deploy                        # publicar o conector (e o cron)

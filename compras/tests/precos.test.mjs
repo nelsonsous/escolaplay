@@ -129,7 +129,7 @@ test('o cron do Worker chama o refrescar', async () => {
     pedidos = instalar();
     const espera = [];
     // aos minutos redondos (0, 10, 20…) o cron lê os preços das listas
-    await worker.scheduled({ scheduledTime: Math.ceil((Date.now() + 3600e3) / 600e3) * 600e3 }, env, { waitUntil: (p) => espera.push(p) });
+    await worker.scheduled({ scheduledTime: Math.ceil((Date.now() + 3600e3) / 3600e3) * 3600e3 }, env, { waitUntil: (p) => espera.push(p) }); // minuto 0 (o 30 é das escolhas)
     await Promise.all(espera);
     assert.equal(env.DB.linhas('SELECT cent FROM preco')[0].cent, 85);
 });

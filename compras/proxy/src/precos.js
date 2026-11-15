@@ -131,7 +131,8 @@ export async function juntarPrecos(db, lista) {
             const e = i.e?.emb ? est.get(i.e.k + '|' + i.e.emb) : null;
             return {
                 ...i,
-                ...(e != null ? { est: e } : {}),
+                ...(e?.merc != null ? { est: e.merc } : {}),
+                ...(e?.spar != null ? { ests: e.spar } : {}),
                 p: Object.fromEntries(Object.entries(i.p).map(([c, p]) => {
                     const r = m.get(c + ' ' + p.id);
                     if (!r || r.cent == null) return [c, p];

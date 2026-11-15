@@ -55,6 +55,17 @@
 # um id novo para uma coisa da lista: 8 letras e algarismos
 : novoid >i L k 8 { = r _an_aleat 36 P ? < r 10 + '0 r + 'a - r 10 }
 
+# ---------- as lojas da casa (volta 6) ----------
+# as seis lojas que a casa pode escolher (as quatro com preços online, a Mercadona e o SPAR estimados)
+: cad6 i>i k ? < k 4 cadeia k ? == k 4 $"mercadona" $"spar"
+: nome6 i>i k ? < k 4 nomecad k ? == k 4 $"Mercadona" $"SPAR"
+# a casa compra nesta cadeia? (sem lojas escolhidas: em todas)
+: minha i>i c {
+  = j _ar_json _an_ler $"casa"
+  = r 1
+  Se && j j.lojas { = r 0 = x pri j.lojas.cadeias W x { Se mesmo txt x c = r 1 = x seg x } }
+  r }
+
 # ---------- as cadeias ----------
 : cadeia i>i k ? == k 0 $"continente" ? == k 1 $"pingodoce" ? == k 2 $"auchan" $"lidl"
 : nomecad i>i k ? == k 0 $"Continente" ? == k 1 $"Pingo Doce" ? == k 2 $"Auchan" $"Lidl"
@@ -88,6 +99,7 @@
   `\{"id":{ pjs txt c.id },"t":{ pjs txt c.t },"q":{ N ? qq qq int c.q },"f":{ N ? >= ff 0 ff int c.f }`
   Se c.e pesp c.e mm
   Se c.est `,"est":{ N int c.est }`
+  Se c.ests `,"ests":{ N int c.ests }`
   `,"p":\{`
   = s 0 = m pri c.p
   W m {
@@ -261,7 +273,8 @@
     Se int m.pr ` 🏷`
     = p pc c k Se >= p 0 ` { eur p }`
     = s 1 } }
-  Se c.est { Se s ` · ` `Mercadona ≈ { eur * Mx 1 int c.q int c.est }` = s 1 }
+  Se && c.est minha $"mercadona" { Se s ` · ` `Mercadona ≈ { eur * Mx 1 int c.q int c.est }` = s 1 }
+  Se && c.ests minha $"spar" { Se s ` · ` `SPAR ≈ { eur * Mx 1 int c.q int c.ests }` = s 1 }
   Se ~ s `Toca para escolher os produtos` }
 # o texto para partilhar no WhatsApp (já no formato de um endereço)
 : partilha i>i its {
@@ -323,7 +336,7 @@
 # dividir por duas lojas: o melhor par que tem tudo; mostra-se se nenhuma loja sozinha tem tudo, ou se poupa o bastante
 : ddividir ii>i n pt {
   = ba -1 = bb -1 = bt 0
-  L a 4 L b 4 Se && < a b == cobre2 a b n { = t total2 a b Se || < ba 0 < t bt { = ba a = bb b = bt t } }
+  L a 4 L b 4 Se && && < a b && minha cadeia a minha cadeia b == cobre2 a b n { = t total2 a b Se || < ba 0 < t bt { = ba a = bb b = bt t } }
   Se && >= ba 0 || < pt 0 >= - pt bt poupa_min {
     `<div class="dividir"><h3>{ ? < pt 0 `Para ter tudo, duas lojas` `Compensa ir a duas lojas` }</h3>`
     `<p><b>{ crut nomecad ba } e { crut nomecad bb }: { eur bt }</b>{ Se >= pt 0 ` — poupas { eur - pt bt }` }</p>`
@@ -333,9 +346,15 @@
 : dmerc i>i n {
   = t 0 = c 0 = x pri itens
   W x { Se && ~ int x.f x.est { = t + t * Mx 1 int x.q int x.est = c + c 1 } = x seg x }
-  Se c {
+  Se && c minha $"mercadona" {
     `<div class="merc"><p><b>Mercadona ≈ { eur t }</b>{ Se < c n ` <small>(só { N c } de { N n } coisas)</small>` }</p>`
     `<p class="nota">Estimativa: a marca branca do mesmo tipo e tamanho nas outras lojas (a Mercadona não publica os preços). Os talões vão corrigi-la.</p></div>` }
+  = t 0 = c 0 = x pri itens
+  W x { Se && ~ int x.f x.ests { = t + t * Mx 1 int x.q int x.ests = c + c 1 } = x seg x }
+  Se && c minha $"spar" {
+    = j _ar_json _an_ler $"casa"
+    `<div class="merc"><p><b>{ ? && j j.lojas.spar esc j.lojas.spar `SPAR` } ≈ { eur t }</b>{ Se < c n ` <small>(só { N c } de { N n } coisas)</small>` }</p>`
+    `<p class="nota">Estimativa: as marcas de fabricante do mesmo tipo e tamanho nas outras lojas (o SPAR não tem loja online). Os talões da tua loja vão corrigi-la.</p></div>` }
   0 }
 : dmais >i {
   = h _ht_ini + 6000 * 300 quantos itens
@@ -343,10 +362,12 @@
   `<section class="mais"><h2>Mais barato</h2>`
   ? == n 0 `<p class="vazio">Não há nada por comprar na lista.</p>` {
     # quantos supermercados têm preço para tudo; o primeiro deles (na ordem de proxima) é o mais barato
-    = completos 0 L k 4 Se == cobre k n = completos + completos 1
-    = feitos 0 = pt -1
+    = completos 0 L k 4 Se && minha cadeia k == cobre k n = completos + completos 1
+    # as cadeias onde a casa não compra ficam de fora (como já mostradas)
+    = feitos 0 = pt -1 = nm 0
+    L k 4 { ? minha cadeia k { = nm + nm 1 0 } { = feitos | feitos << 1 k 0 } }
     `<ul class="cadeias">`
-    L r 4 {
+    L r nm {
       = k proxima feitos
       = feitos | feitos << 1 k
       = c cobre k = t total k
@@ -370,12 +391,13 @@
 : convite i>i cod { = u _an_ler $"url" _tx_uri texto`Junta-te à nossa lista das compras: { ? u crut u `https://nelsonsous.github.io/escolaplay/compras/` }?casa={ crut cod }` }
 : dcasa >i {
   = cod _an_ler $"codigo"
-  = h _ht_ini 4000
+  = h _ht_ini 9000
   `<section class="casa"><h2>A tua casa</h2>`
   ? cod {
       `<p>Quem tiver este código vê e muda a mesma lista:</p><p class="codigo">{ pcod cod }</p>`
       `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ convite cod }">Convidar pelo WhatsApp</a>` 0 }
     { ? @ 9 `<p>A preparar…</p>` `<p>Sem ligação ao conector.</p><button class="botao" data-onda="registar:0">Tentar outra vez</button>` 0 }
+  dlojas
   `<h3>Entrar noutra casa</h3>`
   `<div class="junta"><input data-onda="codigo" data-chave="c{ N @ 12 }" placeholder="Código (ex.: ABCD-2345)" aria-label="Código de outra casa" autocomplete="off" autocapitalize="characters" enterkeyhint="go">`
   `<button class="botao" data-onda="entrar:0">Entrar</button></div>`
@@ -474,6 +496,50 @@
     = a d }
   Se < a b faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs_sub t a b },"q":{ N q }\}`
   0 }
+# ---------- onde moras e as tuas lojas (volta 6) ----------
+: dlojas >i {
+  = j _ar_json _an_ler $"casa"
+  `<h3>Onde moras</h3><div class="junta"><input data-onda="local" data-chave="l{ N @ 12 }" value="{ Se && j j.local esc j.local }" placeholder="Localidade ou código postal" aria-label="Localidade" autocomplete="off" enterkeyhint="done">`
+  `<button class="botao" data-onda="glocal:0">Guardar</button></div>`
+  `<h3>As tuas lojas</h3><p class="nota">Só estas entram nas comparações.</p><div class="chips">`
+  L k 6 `<button class="chip{ Se minha cad6 k ` on` }" data-onda="cad:{ N k }">{ crut nome6 k }</button>`
+  `</div>`
+  Se minha $"spar" {
+    = q _ar_json _an_ler $"lojasq"
+    `<h3>A tua loja SPAR</h3>`
+    ? && q pri q.lojas {
+        `<div class="chips">`
+        = x pri q.lojas = i 0
+        W && x < i 12 { `<button class="chip{ Se && j && j.lojas mesmo txt j.lojas.spar txt x.n ` on` }" data-onda="sparl:{ N i }">{ esc x.n }<small> { esc x.l }</small></button>` = x seg x = i + i 1 }
+        `</div>` 0 }
+      `<p class="nota">Escreve a localidade (ou o código postal) e guarda, para veres as lojas SPAR de lá.</p>` }
+  0 }
+# grava a localidade e as lojas: mexe (0 a 5) troca uma loja, -1 nenhuma; sp o índice da loja SPAR escolhida (-1: fica)
+: gravar_lojas ii>i mexe sp {
+  = j _ar_json _an_ler $"casa"
+  = lt _an_ler $"localtxt"
+  = q _ar_json _an_ler $"lojasq"
+  = ls ? && q >= sp 0 idx q.lojas sp 0
+  = h _tx_abre 2000
+  `POST /api/casa/lojas{ P 10 }\{"local":{ ? lt pjs lt ? && j j.local pjs txt j.local `null` },"cadeias":[`
+  = s 0
+  L k 6 { = on minha cad6 k Se == k mexe = on ~ on Se on { Se s P 44 `"{ crut cad6 k }"` = s 1 } }
+  `]{ ? ls `,"spar":{ pjs txt ls.n }` { Se && j && j.lojas j.lojas.spar `,"spar":{ pjs txt j.lojas.spar }` 0 } }\}`
+  _tx_fecha h
+  _an_buscar h $"lido_casa"
+  0 }
+: lido_casa ii>i t estado {
+  Se == estado 200 {
+    _an_gravar $"casa" t
+    = j _ar_json t
+    Se && j j.local _an_buscar texto`/api/lojas?q={ _tx_uri txt j.local }` $"lido_lojas"
+    desenha }
+  Se == estado 400 aviso $"Escolhe pelo menos uma loja."
+  _me_solta t }
+: lido_lojas ii>i t estado {
+  Se == estado 200 { _an_gravar $"lojasq" t desenha }
+  _me_solta t }
+
 # ---------- escrever e encontrar (volta 5) ----------
 # há separadores no que se escreveu? (então são várias coisas, e não se sugere)
 : tem_sep i>i t { = n _tx_len t = r 0 L j n Se sep t j n = r 1 r }
@@ -597,7 +663,10 @@
   0 }
 : clique i>i t {
   = v arg t
-  Se eacao t $"aba" { ! 1 v _an_gravar $"aberto" 0 _an_rolar 0 }
+  Se eacao t $"aba" { ! 1 v _an_gravar $"aberto" 0 _an_rolar 0 Se && == v 2 _an_ler $"chave" _an_buscar $"/api/casa" $"lido_casa" }
+  Se eacao t $"glocal" gravar_lojas -1 -1
+  Se eacao t $"cad" gravar_lojas v -1
+  Se eacao t $"sparl" gravar_lojas -1 v
   Se eacao t $"juntar" juntar
   Se eacao t $"riscar" { = c idx itens v Se c faz texto`\{"o":"r","id":{ pjs txt c.id },"f":{ N ~ int c.f }\}` }
   Se eacao t $"abre" { = c idx itens v Se c { _an_gravar $"aberto" txt c.id procura txt c.t } }
@@ -625,6 +694,7 @@
   = v _tx_campo t 1 9
   Se mesmo nome $"junta" { fixa @ 5 v 400 agenda }
   Se mesmo nome $"codigo" fixa @ 6 v 40
+  Se mesmo nome $"local" _an_gravar $"localtxt" v
   _me_solta t }
 : main >i {
   _me_lb

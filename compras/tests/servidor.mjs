@@ -13,6 +13,7 @@ import { d1 } from './d1.mjs';
 import { PRECOS, instalar, desinstalar } from './cadeias.mjs';
 import { lerCategoria, guardarCatalogo } from '../proxy/src/catalogo.js';
 import { esquecerTipos } from '../proxy/src/sugerir.js';
+import { lerLojasSpar } from '../proxy/src/lojas.js';
 
 const RAIZ = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
@@ -46,6 +47,7 @@ export async function abrir() {
     for (const c of ['continente', 'pingodoce', 'auchan']) {
         await guardarCatalogo(env.DB, c, 'agua-sem-gas', lerCategoria(c, readFileSync(path.join(RAIZ, `compras/tests/fontes/${c}-categoria-agua.html`), 'utf8')));
     }
+    await env.KV.put('lojas:spar', JSON.stringify(lerLojasSpar(readFileSync(path.join(RAIZ, 'compras/tests/fontes/spar-lojas.html'), 'utf8'))));
     env.DB.sql.exec("INSERT INTO tipo (k, nome, n, casa) VALUES ('agua-sem-gas', 'Água sem gás', 12, 1), ('agua-com-gas', 'Água com gás', 0, 1)");
     let falha = false;
     const srv = http.createServer(async (req, res) => {
