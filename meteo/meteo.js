@@ -16,7 +16,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.25.2';
+const VERSION = '1.25.1';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -335,7 +335,7 @@ let statusP = null;
 function loadStatus() {
     statusP = (async () => {
         const had = !!st.status, was = isOwner();
-        try { st.status = await api.getStatus(); st.statusErr = ''; if (st.status?.name) api.rememberName(st.status.name); } catch (e) { st.status = null; st.statusErr = e.message; }
+        try { st.status = await api.getStatus(); st.statusErr = ''; } catch (e) { st.status = null; st.statusErr = e.message; }
         if (ownerJust && st.status) {
             toast(ownerJust === 'cleared' ? 'Código do dono esquecido neste telemóvel.' : st.status.owner ? 'Modo dono ligado neste telemóvel.'
                 : st.status.ownerCode === 'sem_codigo' ? 'Código guardado, mas o conector ainda não tem o código do dono (OWNER_CODE).' : 'O conector não aceitou este código do dono.');
@@ -1103,8 +1103,7 @@ function viewSettings() {
 // ---------- este telemóvel: o código curto e o nome (obrigatório) que o dono vê no painel Utilização ----------
 // Abrir a app não regista nada no conector: o telemóvel fica registado quando a pessoa diz o nome (antes de ligar a
 // análise, as notificações ou dar um aviso).
-// o nome vem do conector; enquanto o estado não chega (ou se falhar), vale o último que ele confirmou neste telemóvel
-const hasName = () => !!(st.status?.name || (!st.status && api.savedName()));
+const hasName = () => !!st.status?.name;
 function ensureName(then = null) {
     if (hasName()) return true;
     st.afterName = then;
@@ -1115,7 +1114,7 @@ function meHtml() {
     const S = st.status;
     if (!S) return '';
     return `<section class="sec" id="telemovel"><div class="sec-h"><h2>Este telemóvel</h2>${S.device && S.id ? `<span class="sub num">código ${esc(S.id)}</span>` : ''}</div><div class="form">
-        <div><label for="f-name">O teu nome</label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Carolina" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
+        <div><label for="f-name">O teu nome</label><div class="inl"><input id="f-name" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" value="${esc(S.name || '')}"><button type="button" class="btn pri" data-act="name-save">Guardar</button></div>
         <div class="hint">${S.owner ? 'Para reconheceres este telemóvel no painel Utilização.' : 'Só o dono da app vê este nome, no painel Utilização.'} É obrigatório para ligar a análise, as notificações e os avisos. A tua localização não é registada.</div></div>
     </div></section>`;
 }
@@ -1127,7 +1126,6 @@ async function nameSave(id = 'f-name') {
     try {
         const r = await api.setMyName(inp.value);
         st.status = { ...(st.status || {}), name: r?.name || null, device: true, ...(r?.id ? { id: r.id } : {}) };
-        api.rememberName(r?.name);
         const then = st.afterName;
         st.afterName = null;
         if (st.sheet?.kind === 'nome') closeSheet();
@@ -1325,7 +1323,7 @@ function renderSheet() {
     }
     if (s.kind === 'nome') {
         card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Como te chamas?</h2><div class="d-sub">É obrigatório para ligar a análise, as notificações e os avisos. Só o dono da app vê o nome.</div></div>${closeBtn}</div>
-            <div class="form"><input id="f-myname" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Carolina" aria-label="O teu nome">
+            <div class="form"><input id="f-myname" class="inp" type="text" maxlength="40" autocomplete="nickname" spellcheck="false" placeholder="Ex.: Ana" aria-label="O teu nome">
             <button type="button" class="btn pri blk" data-act="name-sheet-save">Continuar</button></div>`;
         setTimeout(() => $('#f-myname')?.focus(), 50);
         return;
