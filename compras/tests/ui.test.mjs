@@ -326,6 +326,25 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.setInputFiles('[data-talao]', { name: 'talao.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg, 'base64') });
         await a.waitForSelector('.toast:has-text("Talão do pingo doce: 2,83 € · 2 linhas")');
         await a.waitForFunction(() => document.querySelectorAll('.item.feito').length >= 1);
+
+        // onde moras e as tuas lojas: Portimão, só Pingo Doce, Auchan e SPAR (a loja de Portimão)
+        await a.click('#abas button >> nth=2');
+        await a.waitForSelector('[data-onda="local"]');
+        await a.fill('[data-onda="local"]', 'Portimão');
+        await a.click('[data-onda="glocal:0"]');
+        await a.waitForSelector('.chip:has-text("SPAR Portimão")');
+        for (const k of [0, 3, 4]) { await a.click(`[data-onda="cad:${k}"]`); await a.waitForFunction((k) => !document.querySelector(`[data-onda="cad:${k}"]`).classList.contains('on'), k); }
+        await a.click('.chip:has-text("SPAR Portimão")');
+        await a.waitForSelector('.chip.on:has-text("SPAR Portimão")');
+        assert.deepEqual(await a.locator('.casa .chips >> nth=0 >> .chip.on').allTextContents(), ['Pingo Doce', 'Auchan', 'SPAR']);
+        // o «Mais barato» só conta com elas; a Mercadona sai e entra o SPAR estimado, com o nome da loja
+        // (o talão riscou a água toda: volta a pôr a última, a de 6 L)
+        await a.click('#abas button >> nth=0');
+        await a.click('.item.feito .caixa >> nth=-1');
+        await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
+        await a.click('#abas button >> nth=1');
+        assert.deepEqual(await a.locator('.cadeias li b').allTextContents(), ['Pingo Doce', 'Auchan']);
+        assert.deepEqual(await a.locator('.merc b').allTextContents().then((l) => l.map((x) => x.split(' ≈')[0])), ['SPAR Portimão (M.Albuquerque)']);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });

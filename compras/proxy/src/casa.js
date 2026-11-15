@@ -57,9 +57,17 @@ export async function aparelhoDe(db, request) {
 
 // { codigo, aparelhos } (quantos telemóveis tem a casa)
 export async function casaDe(db, ap) {
-    const c = await um(db, 'SELECT codigo, (SELECT count(*) FROM aparelho WHERE casa = casa.id) AS aparelhos FROM casa WHERE id = ?', ap.casa);
+    const c = await um(db, 'SELECT codigo, local, lojas, (SELECT count(*) FROM aparelho WHERE casa = casa.id) AS aparelhos FROM casa WHERE id = ?', ap.casa);
     if (!c) throw new Erro(404, 'casa desconhecida');
-    return { codigo: c.codigo, aparelhos: Number(c.aparelhos) };
+    const r = { codigo: c.codigo, aparelhos: Number(c.aparelhos) };
+    if (c.local) r.local = c.local;
+    if (c.lojas) r.lojas = JSON.parse(c.lojas);
+    return r;
+}
+// a localidade e as lojas da casa (lojas.js); null nas lojas: todas
+export async function gravarLojas(db, ap, { local, lojas }) {
+    await db.prepare('UPDATE casa SET local = ?, lojas = ? WHERE id = ?').bind(local, lojas ? JSON.stringify(lojas) : null, ap.casa).run();
+    return casaDe(db, ap);
 }
 
 export const listaVazia = () => ({ versao: 0, itens: [] });

@@ -43,13 +43,19 @@ export async function atualizarEscolhas(db, agora = new Date()) {
 
 const mediana = (v) => { const s = [...v].sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
 
-// a estimativa da Mercadona de cada coisa com tipo e tamanho: Map «tipo|tamanho» → cêntimos
+// as estimativas de cada coisa com tipo e tamanho: Map «tipo|tamanho» → { merc, spar } em cêntimos. A Mercadona: a
+// mediana da marca branca nas outras cadeias (a dela é quase toda marca própria); o SPAR: a mediana das marcas de
+// fabricante (é o que mais vende), que os talões da loja vão corrigir
 export async function estimativas(db, itens, agora = new Date()) {
     const pares = [...new Set(itens.filter((i) => i.e?.emb).map((i) => i.e.k))];
     if (!pares.length) return new Map();
-    const { results } = await db.prepare(`SELECT tipo, emb, cent FROM preco JOIN json_each(?1) j ON preco.tipo = j.value
-        WHERE propria = 1 AND cent IS NOT NULL AND visto > ?2`).bind(JSON.stringify(pares), recente(agora)).all();
+    const { results } = await db.prepare(`SELECT tipo, emb, cent, propria FROM preco JOIN json_each(?1) j ON preco.tipo = j.value
+        WHERE cent IS NOT NULL AND visto > ?2`).bind(JSON.stringify(pares), recente(agora)).all();
     const g = new Map();
-    for (const r of results) { const k = r.tipo + '|' + r.emb; if (!g.has(k)) g.set(k, []); g.get(k).push(Number(r.cent)); }
-    return new Map([...g].map(([k, v]) => [k, mediana(v)]));
+    for (const r of results) {
+        const k = r.tipo + '|' + r.emb;
+        if (!g.has(k)) g.set(k, { b: [], f: [] });
+        g.get(k)[r.propria ? 'b' : 'f'].push(Number(r.cent));
+    }
+    return new Map([...g].map(([k, v]) => [k, { merc: mediana(v.b), spar: mediana(v.f) }]));
 }

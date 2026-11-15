@@ -2,9 +2,9 @@
 // O domínio é partilhado com a EscolaPlay e as outras apps (/escolaplay/): este SW só mexe nas caches "compras-*" e só
 // trata pedidos dentro da sua pasta (/escolaplay/compras/) e o anfitrião das apps Onda. O conector (outro domínio)
 // nunca passa por aqui.
-const CACHE = 'compras-v6'; // 0.6.0 — volta 6: talões
+const CACHE = 'compras-v7'; // 0.7.0 — volta 6: as tuas lojas
 const ASSETS = [
-    './', './index.html', './compras.css?v=0.6.0', './compras.js?v=0.6.0', './app/compras.wasm?v=0.6.0', './manifest.webmanifest',
+    './', './index.html', './compras.css?v=0.7.0', './compras.js?v=0.7.0', './app/compras.wasm?v=0.7.0', './manifest.webmanifest',
     '../onda/rt/anfitriao.js', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
 ];
 
