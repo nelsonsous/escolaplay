@@ -624,6 +624,43 @@ test('a receita: colar um link do TikTok abre a folha; sem legenda, cola-se o te
     } finally { await br.close(); await s.fechar(); }
 });
 
+test('as lojas online: 3 de cada vez (com o botão para as outras) e só as que passam nos filtros', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const agora = new Date().toISOString();
+    s.env.DB.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('bacalhau', 'Bacalhau', 2, 1)").run();
+    for (const [c, id, nome, cent] of [['continente', 'b1', 'Bacalhau Graúdo Noruega Seco', 1499], ['auchan', 'b2', 'Bacalhau Especial Islândia Seco', 1899],
+        ['pingodoce', 'b3', 'Bacalhau Crescido Noruega Seco', 1299], ['continente', 'b4', 'Bacalhau Graúdo Islândia Seco', 1999]])
+        s.env.DB.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, emb, q, tipo, visto, falhas) VALUES (?, ?, ?, ?, ?, ?, 'kg', '1 kg', 1, 'bacalhau', ?, 0)`)
+            .run(c, id, `https://www.${c}.pt/p/${id}.html`, nome, cent, cent, agora);
+    for (let i = 0; i < 5; i++) s.env.DB.sql.prepare(`INSERT INTO produtor_artigo (loja, id, nome, url, variante, cent, emb, uc, ub, tipo, disponivel, visto)
+        VALUES ('lugrade', ?, 'Especial', 'https://loja.lugrade.com/produto/especial/', ?, ?, '3,4 kg', ?, 'kg', 'bacalhau', 1, ?)`)
+        .run('e#' + i, `${i < 4 ? 'noruega' : 'islandia'} · 3.25 a 3.5kg`, 11000 + i * 100, 3200 + i * 30, agora);
+    esquecerTipos();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        await a.fill('[data-onda="junta"]', 'bacalhau');
+        await a.waitForSelector('#sug .chip:has-text("Bacalhau")');
+        await a.click('#sug .chip:has-text("Bacalhau")');
+        await a.waitForSelector('#folha .prod-t');
+        assert.equal(await a.locator('#folha li.prod').count(), 3);
+        await a.click('#folha .mais-op:has-text("Ver as 5 das lojas online")');
+        await a.waitForSelector('#folha .mais-op:has-text("Mostrar só 3")');
+        assert.equal(await a.locator('#folha li.prod').count(), 5);
+        // a Islândia: só a da Islândia
+        await a.click('#folha .chip:has-text("Islândia") >> nth=0');
+        await a.waitForSelector('#folha .prod-t:has-text("com os teus filtros")');
+        assert.equal(await a.locator('#folha li.prod').count(), 1);
+        assert.match(await a.textContent('#folha li.prod'), /islandia/);
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});
+
 test('o Afinar: com muitos vinhos, uma pergunta de cada vez (para quê → o preço, depois a região) até ficarem poucos', { skip: !pw && 'sem playwright' }, async () => {
     const s = await abrir();
     const { esquecerTipos } = await import('../proxy/src/sugerir.js');
