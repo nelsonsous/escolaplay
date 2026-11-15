@@ -106,7 +106,8 @@ export function etiquetas(nome, tipo = null) {
     const c = CORTES.find(([re]) => re.test(t));
     const a = ANIMAIS.find(([re]) => re.test(t));
     const animal = a?.[1] ?? ANIMAL_TIPO[tipo] ?? null;
-    const usos = new Set(c?.[3] ?? (animal && USOS_ANIMAL[animal]) ?? []);
+    // os usos do corte e os da espécie (um carapau inteiro é de grelhar, como o carapau)
+    const usos = new Set([...(c?.[3] ?? []), ...((animal && USOS_ANIMAL[animal]) ?? [])]);
     for (const [re, u] of USOS_NOME) if (re.test(t)) usos.add(u);
     if (!c && !animal && !usos.size) return null;
     return { animal, corte: c?.[1] ?? null, usos: USOS.filter((u) => usos.has(u)) };
