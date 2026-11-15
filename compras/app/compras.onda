@@ -304,7 +304,7 @@
   Se && ~ f c.pk dpack c lj
   `</button>`
   Se ~ f `<span class="qtd-l"><button data-onda="qm:{ N i }" aria-label="Menos">−</button><button data-onda="qp:{ N i }" aria-label="Mais">+</button></span>`
-  `<button class="tira" data-onda="tirai:{ N i }" aria-label="Tirar da lista">✕</button></li>` }
+  `<button class="tira" data-onda="tirai:{ N i }" aria-label="Tirar da lista">🗑</button></li>` }
 # o resumo de uma coisa na lista: o mais barato das tuas lojas, e em quantas mais há (o resto vê-se ao tocar)
 # a melhor forma de comprar a quantidade (packs.js): na loja escolhida, ou na primeira das tuas onde poupa
 : dpack ii>i c lj {
@@ -837,13 +837,16 @@
   = m _me_marca
   _an_parar @ 14 ! 14 0
   = t @ 5
-  ? && > _tx_len t 1 ~ tem_sep t { _an_buscar texto`/api/sugerir?q={ _tx_uri t }` $"lido_sug" 0 } { _an_gravar $"sug" 0 dsug 0 }
+  ? && > _tx_len t 1 ~ tem_sep t { _an_gravar $"sugq" t _an_buscar texto`/api/sugerir?q={ _tx_uri t }` $"lido_sug" 0 } { _an_gravar $"sug" 0 dsug 0 }
   _me_solta m }
 : lido_sug ii>i t estado {
   Se == estado 200 { _an_gravar $"sug" t dsug }
   _me_solta t }
 : lido_tipo ii>i t estado {
-  Se && == estado 200 _an_ler $"tk" { _an_gravar $"tp" t dfolha }
+  Se && == estado 200 _an_ler $"tk" {
+    _an_gravar $"tp" t
+    # juntar logo (o que se escreveu era concreto): o mais barato de cada supermercado, como o «Juntar à lista»
+    ? _an_ler $"auto" { _an_gravar $"auto" 0 = tp _ar_json t = nm txt tp.nome juntat aviso texto`✓ Juntei { crut nm } (o mais barato de cada loja). Toca na lista para ajustar.` 0 } { dfolha 0 } }
   _me_solta t }
 # passa nos filtros? fe o tamanho, fm a marca («branca»: a marca própria)
 : passa iii>i p fe fm && && || ~ _an_ler $"fes" tem_e _an_ler $"fes" txt p.emb || ~ fm ? mesmo fm $"branca" int p.pr mesmo txt p.mk fm tem_w p
@@ -1066,7 +1069,8 @@
       dprodutores tp mu
       Se minha $"mercadona" dest tp fe 0 mu
       Se minha $"spar" dest tp fe 1 mu
-      `</ul><div class="acoes"><button class="botao fraco" data-onda="fechat:0">Fechar</button><button class="botao" data-onda="juntat:0">Juntar à lista</button></div>`
+      ? _an_ler $"subst" `</ul><div class="acoes"><button class="botao fraco" data-onda="tirars:0">🗑 Tirar da lista</button><button class="botao" data-onda="juntat:0">Guardar</button></div>`
+        `</ul><div class="acoes"><button class="botao fraco" data-onda="fechat:0">Fechar</button><button class="botao" data-onda="juntat:0">Juntar à lista</button></div>`
       0 }
     `<p class="nota">A procurar…</p>`
   `</div>` }
@@ -1202,8 +1206,19 @@
       Se r aviso texto`Talão{ Se r.loja ` do { crut txt r.loja }` }: { eur int r.total } · { N quantos r.linhas } linhas{ Se int r.riscadas ` · { N int r.riscadas } riscadas na lista` }.`
       ver pede_costume 0 } 0 }
   0 }
+# juntar o que se escreveu. Uma coisa só, que a app reconhece (as sugestões já vieram para este texto): se é concreta
+# («bifes de frango», «azeite»: o primeiro sugerido é um tipo), junta-se logo o mais barato de cada supermercado (tocar
+# na lista ajusta); se é geral («frango», «pão»: o primeiro é uma secção), abre-se a escolha do primeiro tipo
 : juntar >i {
   = t @ 5 = n _tx_len t = ini 0 = j 0
+  = s ? && && > n 1 ~ tem_sep t mesmo _an_ler $"sugq" t _ar_json _an_ler $"sug" 0
+  = x ? s pri s.tipos 0 = ix 0
+  Se && x ~ x.k { = x seg x = ix 1 }
+  Se && x x.k {
+    = x0 pri s.tipos = geral ~ x0.k
+    abre_tipo ix
+    Se ~ geral _an_gravar $"auto" $"1"
+    = n 0 ! @ 5 + @ 5 1 ! 11 + @ 11 1 _an_gravar $"sug" 0 }
   Se == _tx_acha t $"https://" 0 0 { pede_receita t = n 0 ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
   W <= j n {
     = s ? == j n 1 sep t j n
@@ -1227,8 +1242,20 @@
   Se eacao t $"cad" gravar_lojas v -1
   Se eacao t $"sparl" gravar_lojas -1 v
   Se eacao t $"juntar" juntar
+  Se eacao t $"tirars" { = sb _an_ler $"subst" Se sb { faz texto`\{"o":"x","id":{ pjs sb }\}` _an_gravar $"subst" 0 } fecha_tipo }
   Se eacao t $"riscar" { = c idx itens v Se c faz texto`\{"o":"r","id":{ pjs txt c.id },"f":{ N ~ int c.f }\}` }
-  Se eacao t $"abre" { = c idx itens v Se c { _an_gravar $"aberto" txt c.id procura txt c.t } }
+  # tocar numa coisa da lista: se tem tipo, abre a escolha com os filtros dela (o tamanho, a marca, o corte) e o
+  # «Juntar» passa a guardar por cima; sem tipo, a procura simples
+  Se eacao t $"abre" { = c idx itens v Se c { ? && c.e c.e.k {
+        = k txt c.e.k = sid txt c.id
+        fecha_tipo
+        _an_gravar $"subst" sid _an_gravar $"tk" k
+        Se c.e.m _an_gravar $"fm" txt c.e.m
+        Se c.e.emb { _an_gravar $"fe" txt c.e.emb _an_gravar $"fes" texto`|{ crut txt c.e.emb }|` _an_gravar $"fer" txt c.e.emb }
+        Se c.e.w { _an_gravar $"fw" txt c.e.w _an_gravar $"fwr" txt c.e.w }
+        Se > int c.q 1 _an_gravar $"tq" texto`{ N int c.q }`
+        _an_buscar texto`/api/tipo?k={ crut _tx_uri k }` $"lido_tipo" 0 }
+      { _an_gravar $"aberto" txt c.id procura txt c.t 0 } } }
   Se eacao t $"fecha" { _an_gravar $"aberto" 0 _an_gravar $"subst" 0 fecha_tipo }
   Se eacao t $"limpar" faz $`{"o":"l"}`
   Se eacao t $"tirar" { = c item_aberto Se c { faz texto`\{"o":"x","id":{ pjs txt c.id }\}` _an_gravar $"aberto" 0 } }
