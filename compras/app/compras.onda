@@ -631,12 +631,61 @@
     ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
   0 }
 
+# ---------- as receitas (ciclo 3): o link de um vídeo (TikTok, YouTube) ou o texto colado → os ingredientes ----------
+: pede_receita i>i t {
+  _an_gravar $"receita" $"1" _an_gravar $"rcj" 0 _an_gravar $"rcerr" 0
+  L k 30 _an_gravar texto`rco{ N k }` 0
+  _an_buscar texto`POST /api/receita{ P 10 }\{"url":{ pjs t }\}` $"lido_receita" 0 }
+: pede_receita_txt >i {
+  = t _an_ler $"rctxt"
+  Se t { _an_gravar $"rcj" 0 _an_gravar $"rcerr" 0 L k 30 _an_gravar texto`rco{ N k }` 0
+    _an_buscar texto`POST /api/receita{ P 10 }\{"texto":{ pjs t }\}` $"lido_receita" }
+  0 }
+: lido_receita ii>i t estado {
+  = j _ar_json t
+  ? == estado 200 _an_gravar $"rcj" t { _an_gravar $"rcerr" ? && j j.erro texto`{ crut txt j.erro }` $"Sem ligação ao conector." 0 }
+  desenha
+  _me_solta t }
+: rcfonte i>i f ? mesmo f $"tiktok" $"TikTok" ? mesmo f $"youtube" $"YouTube" $"texto"
+: dreceita >i {
+  = j _ar_json _an_ler $"rcj" = er _an_ler $"rcerr"
+  `<div class="veu" data-onda="rcf:0"></div><div class="cartao receita" role="dialog" aria-label="Receita"><button class="fechar" data-onda="rcf:0" aria-label="Fechar">✕</button>`
+  `<h2>🔗 Da receita para a lista</h2>`
+  Se er `<p class="aviso">{ crut er }</p>`
+  Se && ~ j ~ er `<p class="nota">A ler a receita…</p>`
+  = n 0
+  Se j {
+    Se || j.prato j.titulo `<h3>{ esc ? j.prato j.prato j.titulo }</h3>`
+    Se j.autor `<p class="nota">de { esc j.autor } no { crut rcfonte txt j.fonte }</p>`
+    = i pri j.ingredientes = k 0
+    ? i {
+      `<p class="nota">Toca no que já tens em casa para não o juntar.</p><div class="chips rc">`
+      W i { = fora _an_ler texto`rco{ N k }` Se ~ fora = n + n 1
+        `<button class="chip{ Se ~ fora ` on` }" data-onda="rco:{ N k }" aria-pressed="{ ? fora `false` `true` }">{ ? fora `` `✓ ` }{ esc i.t }{ Se i.n `<small> { esc i.n }</small>` }</button>`
+        = i seg i = k + k 1 }
+      `</div>` 0 }
+      `<p class="nota">{ ? int j.semLegenda `O { crut rcfonte txt j.fonte } não deixou ler a legenda deste vídeo.` `Não encontrei ingredientes.` } Copia a descrição do vídeo (ou o texto da receita de um site ou de uma mensagem) e cola-a aqui:</p>` }
+  `<textarea data-onda="rctx" data-chave="rt{ N @ 12 }" rows="4" placeholder="Cola aqui o texto da receita" aria-label="Texto da receita"></textarea>`
+  `<button class="botao fraco" data-onda="rct:0">Ler o texto</button>`
+  `<div class="acoes"><button class="botao fraco" data-onda="rcf:0">Fechar</button>{ Se n `<button class="botao" data-onda="rcj:0">Juntar { N n } à lista</button>` }</div></div>`
+  0 }
+: rcjunta >i {
+  = j _ar_json _an_ler $"rcj"
+  Se j {
+    = i pri j.ingredientes = k 0 = n 0
+    W i { Se ~ _an_ler texto`rco{ N k }` { faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt i.t },"q":1\}` = n + n 1 } = i seg i = k + k 1 }
+    _an_gravar $"receita" 0 _an_gravar $"rctxt" 0
+    aviso texto`{ N n } ingredientes juntos à lista.`
+    ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
+  0 }
+
 : dfolha >i {
-  = h _ht_ini + + 12000 ? _an_ler $"tp" * 2 _tx_len _an_ler $"tp" 0 ? _an_ler $"nt" * 3 _tx_len _an_ler $"nt" 0
+  = h _ht_ini + + + 12000 ? _an_ler $"tp" * 2 _tx_len _an_ler $"tp" 0 ? _an_ler $"nt" * 3 _tx_len _an_ler $"nt" 0 ? _an_ler $"rcj" * 3 _tx_len _an_ler $"rcj" 0
   = c item_aberto
   Se _an_ler $"tk" dtipo
   Se && _an_ler $"natal" ~ _an_ler $"tk" dnatal
-  Se && && ~ _an_ler $"tk" ~ _an_ler $"natal" c {
+  Se && && _an_ler $"receita" ~ _an_ler $"natal" ~ _an_ler $"tk" dreceita
+  Se && && && ~ _an_ler $"tk" ~ _an_ler $"natal" ~ _an_ler $"receita" c {
     `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }"><button class="fechar" data-onda="fecha:0" aria-label="Fechar">✕</button>`
     `<h2>{ esc c.t }</h2>`
     `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
@@ -1050,6 +1099,7 @@
   0 }
 : juntar >i {
   = t @ 5 = n _tx_len t = ini 0 = j 0
+  Se == _tx_acha t $"https://" 0 0 { pede_receita t = n 0 ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
   W <= j n {
     = s ? == j n 1 sep t j n
     ? s { pedaco t ini j = ini + j s = j ini } = j + j 1 }
@@ -1090,6 +1140,10 @@
   Se eacao t $"talao" talao v
   Se eacao t $"sec" { ? _an_ler texto`sec:{ N v }` _an_gravar texto`sec:{ N v }` 0 _an_gravar texto`sec:{ N v }` $"1" }
   Se eacao t $"cpg" gravar_cp
+  Se eacao t $"rcf" { _an_gravar $"receita" 0 _an_gravar $"rcerr" 0 }
+  Se eacao t $"rco" { = kk texto`rco{ N v }` ? _an_ler kk _an_gravar kk 0 _an_gravar kk $"1" }
+  Se eacao t $"rct" pede_receita_txt
+  Se eacao t $"rcj" rcjunta
   Se eacao t $"natal" { _an_gravar $"natal" $"1" _an_gravar $"nt" 0 pede_natal }
   Se eacao t $"ntf" _an_gravar $"natal" 0
   Se eacao t $"ntm" { _an_gravar $"ntm" texto`{ N v }` _an_gravar $"nt" 0 pede_natal }
@@ -1125,6 +1179,7 @@
   Se mesmo nome $"codigo" fixa @ 6 v 40
   Se mesmo nome $"local" _an_gravar $"localtxt" v
   Se mesmo nome $"cpz" _an_gravar $"cptxt" v
+  Se mesmo nome $"rctx" _an_gravar $"rctxt" v
   _me_solta t }
 : main >i {
   _me_lb
