@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { d1, d1Linhas } from './comum.mjs';
 import { notaDasFontes, prepararNotas, notaDoProduto } from '../proxy/src/notas.js';
 import { palavras } from '../proxy/src/sugerir.js';
+import { NAO_SUGERIR } from '../proxy/src/atributos.js';
 
 const [acao, ...resto] = process.argv.slice(2);
 
@@ -33,7 +34,7 @@ if (acao === 'gravar') {
     const ps = await d1(`SELECT cadeia, nome, cent FROM preco WHERE tipo IN ('vinho-tinto', 'vinho-branco') AND suspeito IS NULL AND cent BETWEEN 450 AND 3500`);
     const sem = new Map();
     for (const p of ps) {
-        if (notaDoProduto(notas, p.nome)) continue;
+        if (notaDoProduto(notas, p.nome) || NAO_SUGERIR.test(palavras(p.nome).join(' '))) continue;
         const k = palavras(p.nome).filter((w) => !/^\d/.test(w) && !['vinho', 'cl', 'ml'].includes(w)).join(' ');
         const x = sem.get(k) ?? { exemplo: p.nome, cent: p.cent, cadeias: new Set() };
         x.cadeias.add(p.cadeia); sem.set(k, x);

@@ -155,6 +155,10 @@ export function pontosRotulo(fam, nome, cent = null) {
 // No vinho, a nota dos críticos e dos concursos (notas.js, em x.nt e x.nr) manda: os pontos passam a ser a nota (0 a
 // 100) e ct: 1 diz que vêm da crítica; os vinhos sem nota ficam com 80 + os pontos do rótulo (até 83), abaixo de
 // quase todos os que têm nota.
+// os que o utilizador não quer ver sugeridos (15/11/2026: «não gosto do Coutada Velha»): continuam à venda na lista,
+// mas não entram nas melhores compras nem nos mais bem cotados
+export const NAO_SUGERIR = /\bcoutada velha\b|\bcoutadas velhas\b/;
+const sugerivel = (x) => !NAO_SUGERIR.test(String(x.nome ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
 export function candidatosMelhores(fam, produtos, max = 150) {
     const preco = (x) => x.uc ?? x.cent;
     const pontos = (x) => {
@@ -164,11 +168,11 @@ export function candidatosMelhores(fam, produtos, max = 150) {
         if (!r || r.p < 1) return null;
         return fam === 'vinho' ? { p: 80 + Math.min(3, r.p), porque: r.porque } : r;
     };
-    return produtos.map((x, i) => ({ i, x, r: pontos(x) }))
+    return produtos.map((x, i) => ({ i, x, r: sugerivel(x) ? pontos(x) : null }))
         .filter((c) => c.r)
         .sort((a, b) => preco(a.x) - preco(b.x) || b.r.p - a.r.p)
         .slice(0, max).map((c) => ({ i: c.i, p: c.r.p, porque: c.r.porque, ...(c.r.ct ? { ct: 1 } : {}) }));
 }
 // os vinhos com nota, do melhor para o pior (e o mais barato primeiro no empate), pelo índice: as sugestões da app
-export const maisCotados = (produtos, max = 40) => produtos.map((x, i) => ({ i, x })).filter((c) => c.x.nt && c.x.cent > 0)
+export const maisCotados = (produtos, max = 40) => produtos.map((x, i) => ({ i, x })).filter((c) => c.x.nt && c.x.cent > 0 && sugerivel(c.x))
     .sort((a, b) => b.x.nt - a.x.nt || (a.x.uc ?? a.x.cent) - (b.x.uc ?? b.x.cent)).slice(0, max).map((c) => c.i);
