@@ -144,7 +144,7 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
             return (doTipo || (p.inicio && p.inicio.test(n))) && p.quer.test(n) && (!p.peca || p.peca.test(n)) && !p.fora.test(n);
         }).map((r) => {
             const { q, porque } = pontosDe(p, r.nome);
-            const o = { cadeia: r.cadeia, id: String(r.id), nome: r.nome, url: r.url, cent: r.cent, emb: r.emb ?? null, uc: r.uc ?? null, ub: r.ub ?? null, q, porque };
+            const o = { cadeia: r.cadeia, id: String(r.id), nome: r.nome, url: r.url, cent: r.cent, emb: r.emb ?? null, uc: r.uc ?? null, ub: r.ub ?? null, q, porque, tipo: r.tipo };
             if (o.uc && !ucBom(o) && o.ub !== 'un') { o.uc = null; o.ub = null; }
             if (r.marca) o.marca = r.marca;
             if (r.propria) o.propria = 1;
@@ -157,5 +157,10 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
     const centTeto = teto > 0 ? Math.round(teto * 100) : null;
     const { esc, total } = caberNoTeto(saida.filter((p) => p.opcoes.length), centTeto);
     saida.filter((p) => p.opcoes.length).forEach((p, i) => { p.escolha = esc[i]; });
+    // o nome de cada tipo (a app junta a parte à lista como uma escolha desse tipo, para se poder ajustar)
+    const ks = [...new Set(saida.flatMap((p) => p.opcoes.map((o) => o.tipo)).filter(Boolean))];
+    const nomes = ks.length ? (await db.prepare('SELECT k, nome FROM tipo WHERE k IN (SELECT value FROM json_each(?1))').bind(JSON.stringify(ks)).all()).results : [];
+    const tn = Object.fromEntries(nomes.map((r) => [r.k, r.nome]));
+    for (const p of saida) for (const o of p.opcoes) o.tn = tn[o.tipo] ?? p.nome;
     return { modo, teto: centTeto, total, cabe: !centTeto || total <= centTeto, partes: saida, aviso: 'Pelo que o nome diz (calibre, cura, idade, DOP…): confirma o rótulo na loja.' };
 }

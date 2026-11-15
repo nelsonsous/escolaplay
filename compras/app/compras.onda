@@ -609,7 +609,7 @@
       = off _an_ler texto`nto{ N i }`
       = e ntesc p i
       `<div class="parte{ Se off ` fora` }"><h3>{ esc p.icone } { esc p.nome }`
-      Se pri p.opcoes `<button class="op-x" data-onda="nto:{ N i }">{ ? off `+ Pôr no cabaz` `Tirar` }</button>`
+      Se pri p.opcoes `<span><button class="op-x" data-onda="ntv:{ N i }">🔎 Ver todos</button><button class="op-x" data-onda="nto:{ N i }">{ ? off `+ Pôr no cabaz` `Tirar` }</button></span>`
       `</h3>`
       Se ~ pri p.opcoes `<p class="nota">Ainda não há nas tuas lojas.</p>`
       Se && ~ off pri p.opcoes {
@@ -633,8 +633,8 @@
       Se && ~ _an_ler texto`nto{ N i }` o {
         = id texto`{ novoid }`
         = pr int o.produtor
-        = nm texto`{ crut txt p.nome }{ Se pr ` ({ crut ntloja txt o.cadeia }: { crut txt o.nome })` }`
-        faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nm },"q":1\}`
+        = nm texto`{ crut txt o.tn }{ Se pr ` ({ crut ntloja txt o.cadeia })` }`
+        faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nm },"q":1{ Se o.tipo `,"e":\{"k":{ pjs txt o.tipo },"n":{ pjs txt o.tn }\}` }\}`
         Se ~ pr faz texto`\{"o":"p","id":"{ crut id }","c":{ pjs txt o.cadeia },"p":\{"id":{ pjs txt o.id },"nome":{ pjs txt o.nome },"url":{ pjs txt o.url }\}\}`
         = n + n 1 }
       = p seg p = i + i 1 }
@@ -703,6 +703,7 @@
     `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
     `<p class="nota">Escolhe o produto de cada supermercado. O preço é o do site; o preço por quilo ou por litro serve para comparar embalagens e marcas.</p>`
     L k 4 dcadeia c k
+    Se && c.e c.e.k `<button class="botao fraco ajustar" data-onda="ajusta:0">🔎 Ajustar: calibre, origem, marca e outras opções</button>`
     `<div class="acoes"><button class="botao fraco" data-onda="tirar:0">Tirar da lista</button><button class="botao" data-onda="fecha:0">Fechar</button></div></div>` }
   _ht_muda $"#folha" h }
 
@@ -1122,6 +1123,8 @@
     = nome texto`{ crut txt tp.nome }{ Se || || fa fp fw ` ({ Se fa `{ crut ? far far fa }` }{ Se && fa || fp fw `, ` }{ Se fp `{ crut ? fpr fpr fp }` }{ Se && fp fw `, ` }{ Se fw `{ crut ? fwr fwr fw }` })` }{ Se _an_ler $"fer" ` { crut _an_ler $"fer" }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
     faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k },"n":{ pjs txt tp.nome }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se || || fa fp fw `,"w":{ pjs ww }` }\}\}`
     L k 3 { = p melhor_em tp k fe fm = q _an_ler texto`esc{ N k }` Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }"{ Se ~ && q mesmo txt p.id q `,"a":1` },"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
+    = sb _an_ler $"subst"
+    Se sb { faz texto`\{"o":"x","id":{ pjs sb }\}` _an_gravar $"subst" 0 }
     fecha_tipo
     _an_gravar $"sug" 0 _an_gravar $"sugsec" 0 _an_gravar $"vsecs" 0
     ! @ 5 + @ 5 1 ! 11 + @ 11 1 }
@@ -1162,7 +1165,7 @@
   Se eacao t $"juntar" juntar
   Se eacao t $"riscar" { = c idx itens v Se c faz texto`\{"o":"r","id":{ pjs txt c.id },"f":{ N ~ int c.f }\}` }
   Se eacao t $"abre" { = c idx itens v Se c { _an_gravar $"aberto" txt c.id procura txt c.t } }
-  Se eacao t $"fecha" { _an_gravar $"aberto" 0 fecha_tipo }
+  Se eacao t $"fecha" { _an_gravar $"aberto" 0 _an_gravar $"subst" 0 fecha_tipo }
   Se eacao t $"limpar" faz $`{"o":"l"}`
   Se eacao t $"tirar" { = c item_aberto Se c { faz texto`\{"o":"x","id":{ pjs txt c.id }\}` _an_gravar $"aberto" 0 } }
   Se eacao t $"mais" { = c item_aberto Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }
@@ -1182,6 +1185,11 @@
   Se eacao t $"rco" { = kk texto`rco{ N v }` ? _an_ler kk _an_gravar kk 0 _an_gravar kk $"1" }
   Se eacao t $"rct" pede_receita_txt
   Se eacao t $"rcj" rcjunta
+  Se eacao t $"ajusta" { = c item_aberto Se && c c.e {
+      = k txt c.e.k = sid txt c.id
+      _an_gravar $"aberto" 0 fecha_tipo
+      _an_gravar $"subst" sid _an_gravar $"tk" k
+      _an_buscar texto`/api/tipo?k={ crut _tx_uri k }` $"lido_tipo" } }
   Se eacao t $"nhv" { = c item_aberto Se c { = ep _ar_get c.p cadeia v
       faz texto`\{"o":"n","id":{ pjs txt c.id },"c":"{ crut cadeia v }"{ Se && ep ep.nh `,"f":0` }\}`
       aviso texto`{ ? && ep ep.nh `↺ Afinal havia no ` `✗ Fica em falta 3 dias no ` }{ crut nomecad v }.` } }
@@ -1192,6 +1200,8 @@
   Se eacao t $"nto" { = kk texto`nto{ N v }` ? _an_ler kk _an_gravar kk 0 _an_gravar kk $"1" }
   Se eacao t $"ntc" _an_gravar texto`ntc{ N / v 10 }` texto`{ N + % v 10 1 }`
   Se eacao t $"ntj" ntjunta
+  Se eacao t $"ntv" { = j _ar_json _an_ler $"nt" = p ? j idx j.partes v 0 = o ? p pri p.opcoes 0
+      Se && o o.tipo { = k txt o.tipo _an_gravar $"natal" 0 fecha_tipo _an_gravar $"tk" k _an_buscar texto`/api/tipo?k={ crut _tx_uri k }` $"lido_tipo" } }
   Se eacao t $"simples" { ? _an_ler $"simples" _an_gravar $"simples" 0 _an_gravar $"simples" $"1" }
   Se eacao t $"carr" { ? _an_ler $"carrinho" _an_gravar $"carrinho" 0 _an_gravar $"carrinho" $"1" }
   Se eacao t $"qp" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }
