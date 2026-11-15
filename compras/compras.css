@@ -221,3 +221,12 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .melhores li.prod-t small { display: block; }
 .melhores li.prod b { color: #d4a373; }
 .melhores a.mais-op { text-decoration: none; display: inline-block; }
+/* o Cabaz de Natal (volta 10) */
+.botao.natal { display: block; width: 100%; margin: 8px 0 4px; background: #2a1414; border: 1px solid #6b2a2a; color: #ffd7d7; text-align: left; }
+.botao.natal small { display: block; color: var(--fraco); font-weight: 400; font-size: 13px; }
+.cartao.natal .parte { margin-top: 14px; }
+.cartao.natal .parte h3 { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.cartao.natal .parte.fora h3 { opacity: .55; }
+.cartao.natal .parte .op-x { margin: 0; }
+.cartao.natal .total { font-size: 18px; margin: 16px 0 4px; }
+.cartao.natal .total small { color: #ffd60a; font-size: 13px; }

@@ -16,6 +16,7 @@
 //   POST /api/talao   {imagem}         a fotografia de um talão (data URL JPEG): a IA lê-o, guarda-se e risca-se na lista
 //                                      o que lá vem: { id, loja, dia, total, linhas, riscadas } (talao.js)
 //   GET  /api/costume                  o que costumas comprar (dos talões) e não está na lista: { coisas } (costume.js)
+//   GET  /api/natal?modo=qualidade|equilibrio|preco&teto=€&partes=…  o Cabaz de Natal: 3 opções por parte
 //   GET  /api/sugerir?q=…              os tipos de produto que começam pelo que se escreveu: { tipos: [{ k, nome, n }] }
 //   GET  /api/seccao?s=…              os tipos de uma secção (seccoes.js): { sec, tipos }
 //   GET  /api/tipo?k=…                 os produtos de um tipo nas cadeias, com os tamanhos e as marcas (sugerir.js)
@@ -37,6 +38,7 @@
 // cadeia de cada vez (a app pede as quatro em paralelo) e o índice fica na memória do Worker uma hora.
 import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
+import { cabazDeNatal } from './natal.js';
 import { Erro, novoAparelho, aparelhoDe, casaDe, gravarLojas, gravarCp, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
 import { lojasDaCasa, lojasDe } from './lojas.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
@@ -51,7 +53,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.30.0';
+export const VERSION = '0.31.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -290,6 +292,14 @@ async function api(request, env, url) {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
     }
     if (caminho === '/api/saude' && metodo === 'GET') return json(await saudeCurta(db));
+    if (caminho === '/api/natal' && metodo === 'GET') {
+        // o Cabaz de Natal: as cadeias da casa (ou as pedidas), o modo, o teto e as partes
+        const lista = (n) => String(url.searchParams.get(n) ?? '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 12);
+        let cadeias = lista('cadeias');
+        if (!cadeias.length) cadeias = (await casaDe(db, ap)).lojas?.cadeias ?? [];
+        return json(await cabazDeNatal(db, { modo: url.searchParams.get('modo') ?? 'equilibrio', cadeias,
+            teto: Number(url.searchParams.get('teto')) || null, partes: lista('partes') }));
+    }
     if (caminho === '/api/seccao' && metodo === 'GET') {
         const sx = Number(url.searchParams.get('s'));
         if (!(sx >= 0 && sx <= 11)) throw new Erro(400, 'secção desconhecida');
@@ -320,7 +330,7 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 7: a saúde da base' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 10: o Cabaz de Natal' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);

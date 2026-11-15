@@ -519,3 +519,51 @@ test('o modo simples: liga-se na Casa, só neste telemóvel; as secções em bot
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('o Cabaz de Natal: as partes com 3 opções, o modo, escolher outra, tirar uma parte e juntar o cabaz à lista', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const agora = new Date().toISOString();
+    const ins = (cadeia, id, nome, tipo, cent, uc, ub) => s.env.DB.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, tipo, visto, falhas)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`).run(cadeia, id, `https://www.${cadeia === 'pingodoce' ? 'pingodoce' : cadeia}.pt/produto/${id}.html`, nome, cent, uc, ub, tipo, agora);
+    ins('continente', 'b1', 'Bacalhau Especial Noruega Cura Amarela', 'bacalhau', 1699, 1699, 'kg');
+    ins('auchan', 'b2', 'Bacalhau Graúdo', 'bacalhau', 1299, 1299, 'kg');
+    ins('pingodoce', 'b3', 'Bacalhau Corrente', 'bacalhau', 899, 899, 'kg');
+    ins('continente', 'v1', 'Vinho do Porto Tawny 20 Anos', 'vinho-tinto', 2999, 3999, 'l');
+    ins('auchan', 'v2', 'Vinho do Porto Ruby', 'vinho-tinto', 599, 799, 'l');
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        await a.click('[data-onda="natal:0"]');
+        await a.waitForSelector('#folha .cartao.natal .parte h3:has-text("Bacalhau da consoada")');
+        // equilíbrio: 3 opções de bacalhau, uma no cabaz; a qualidade põe o especial à frente e diz porquê
+        assert.equal(await a.locator('#folha .parte:has-text("Bacalhau") .op').count(), 3);
+        await a.click('[data-onda="ntm:0"]');
+        await a.waitForSelector('[data-onda="ntm:0"].on');
+        await a.waitForSelector('#folha .parte:has-text("Bacalhau") .op.on:has-text("Especial")');
+        assert.match(await a.textContent('#folha .parte:has-text("Bacalhau") .op.on'), /\+ especial/);
+        assert.match(await a.textContent('#folha .total'), /46,98/); // 16,99 + 29,99
+        // o preço: o corrente e o ruby
+        await a.click('[data-onda="ntm:2"]');
+        await a.waitForSelector('#folha .parte:has-text("Bacalhau") .op.on:has-text("Corrente")');
+        // escolher outro bacalhau à mão e tirar o Porto do cabaz
+        await a.click('#folha .parte:has-text("Bacalhau") .op:has-text("Graúdo")');
+        await a.waitForSelector('#folha .parte:has-text("Bacalhau") .op.on:has-text("Graúdo")');
+        await a.click('#folha .parte:has-text("Vinho do Porto") [data-onda^="nto:"]');
+        await a.waitForSelector('#folha .parte.fora:has-text("Vinho do Porto")');
+        assert.match(await a.textContent('#folha .total'), /12,99/);
+        // as partes sem nada nas lojas dizem-no
+        assert.match(await a.textContent('#folha .parte:has-text("Bolo-rei")'), /Ainda não há/);
+        await a.click('[data-onda="ntj:0"]');
+        await a.waitForSelector('.item');
+        assert.equal(await a.locator('#folha .cartao.natal').count(), 0);
+        assert.deepEqual(await a.locator('.item .texto b').allTextContents(), ['Bacalhau da consoada']);
+        await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
+        const it = JSON.parse(s.env.DB.linhas('SELECT itens FROM casa')[0].itens)[0];
+        assert.equal(it.p.auchan.id, 'b2');
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});

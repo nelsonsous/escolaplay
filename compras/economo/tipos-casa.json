@@ -759,6 +759,60 @@
         "peixaria/polvo-lula-pota-e-choco",
         "congelados/peixe-marisco-e-carne/polvo-lulas-e-chocos-congelados"
       ]
+    },
+    {
+      "k": "vinho-do-porto",
+      "nome": "Vinho do Porto",
+      "continente": [
+        "bebidas-e-garrafeira/vinhos/vinho-do-porto"
+      ],
+      "auchan": [
+        "bebidas-e-garrafeira/garrafeira/vinho-porto-moscatel-e-vermute"
+      ],
+      "pingodoce": [
+        "vinhos/vinho-do-porto"
+      ]
+    },
+    {
+      "k": "espumante",
+      "nome": "Espumante e champanhe",
+      "continente": [
+        "bebidas-e-garrafeira/champanhe-e-espumante"
+      ],
+      "auchan": [
+        "bebidas-e-garrafeira/garrafeira/espumantes-e-champanhes"
+      ],
+      "pingodoce": [
+        "vinhos/champanhe-espumante-e-frisante"
+      ]
+    },
+    {
+      "k": "frutos-secos",
+      "nome": "Frutos secos",
+      "continente": [
+        "frutas-e-legumes/frutos-secos"
+      ],
+      "auchan": [
+        "produtos-frescos/fruta/frutos-secos-e-sementes"
+      ],
+      "pingodoce": [
+        "mercearia/batatas-fritas-snacks-e-frutos-secos/frutos-secos-e-desidratados"
+      ],
+      "fora": [
+        "amendoins",
+        "sementes",
+        "desidratados"
+      ]
+    },
+    {
+      "k": "bolo-rei",
+      "nome": "Bolo-rei e bolos de Natal",
+      "auchan": [
+        "natal/bolo-rei"
+      ],
+      "pingodoce": [
+        "padaria-e-pastelaria/pastelaria/bolos-familiares"
+      ]
     }
   ]
 }
