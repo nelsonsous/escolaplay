@@ -24,7 +24,7 @@ const sonda = (url, token = TOKEN) => call('/sonda?url=' + encodeURIComponent(ur
 test('a raiz diz a versão e a fase', async () => {
     const r = await call('/');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { app: 'compras', conector: VERSION, fase: 'volta 7: a base revista' });
+    assert.deepEqual(await r.json(), { app: 'compras', conector: VERSION, fase: 'volta 7: a saúde da base' });
 });
 
 test('sem o segredo, ou com outro, a sonda recusa e não vai à rede', async () => {
@@ -133,4 +133,19 @@ test('sonda/produto: as mesmas regras da sonda (segredo, cadeia conhecida, domí
     assert.equal((await produtoDe({ cadeia: 'continente', url: 'https://exemplo.com/produto.html' })).status, 400);
     assert.equal((await produtoDe({ cadeia: 'continente', id: '4421406' })).status, 400); // o Continente precisa do endereço
     assert.equal(pedidos.length, 0);
+});
+
+test('a saúde da base: por cadeia, as páginas lidas e a falhar, o preço mais recente; a app vê só a frescura', async () => {
+    const { saude, saudeCurta } = await import('../proxy/src/saude.js');
+    const { d1 } = await import('./d1.mjs');
+    const db = d1();
+    const agora = new Date('2026-11-15T12:00:00Z');
+    db.sql.exec(`INSERT INTO pagina (url, cadeia, tipo, marca, visto, falhas) VALUES ('a', 'continente', 'leite', 0, '2026-11-15T10:00:00Z', 0),
+        ('b', 'continente', 'leite', 0, '2026-11-15T11:00:00Z', 0), ('c', 'auchan', 'leite', 0, '2026-11-10T10:00:00Z', 3);
+        INSERT INTO preco (cadeia, id, url, nome, cent, tipo, visto, tentado) VALUES ('continente', '1', 'https://www.continente.pt/1', 'Leite', 99, 'leite', '2026-11-15T11:30:00Z', '2026-11-15T11:30:00Z');`);
+    const s = await saude(db, agora);
+    assert.equal(s.estado, 'aviso'); // o Auchan não se lê há dias
+    assert.deepEqual(s.cadeias.map((c) => [c.cadeia, c.lidas_26h, c.estado]), [['auchan', 0, 'aviso'], ['continente', 2, 'ok']]);
+    const curta = await saudeCurta(db, agora);
+    assert.deepEqual(curta.cadeias.find((c) => c.cadeia === 'continente'), { cadeia: 'continente', ultimo_preco: '2026-11-15T11:30:00Z', estado: 'ok', ha: 30 });
 });

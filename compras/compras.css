@@ -207,3 +207,9 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .melhores li.melhor .opcoes b, .melhores li.melhor .opcoes .uc { color: var(--texto); }
 .melhores .opcoes .op-t { margin: 0; padding: 8px 12px 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--n3); border-bottom: 1px solid var(--linha); }
 .melhores .opcoes .op-x { width: 100%; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--linha); background: transparent; color: var(--azul); font: inherit; font-size: 14px; }
+
+/* a frescura dos preços de cada cadeia (Casa) */
+.saude { list-style: none; padding: 0; margin: 6px 0; }
+.saude li { padding: 6px 0; border-bottom: 1px solid var(--linha); color: var(--fraco); }
+.saude li b { color: var(--texto); margin-right: 6px; }
+.saude li.aviso { color: #ff9f0a; }

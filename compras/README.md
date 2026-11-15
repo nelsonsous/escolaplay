@@ -70,3 +70,26 @@ SONDA_TOKEN_FILE=… NODE_USE_ENV_PROXY=1 node compras/economo/indice.mjs   # re
 SONDA_TOKEN_FILE=… NODE_USE_ENV_PROXY=1 node compras/economo/tipos.mjs    # os tipos e as páginas do catálogo (D1)
 SONDA_TOKEN_FILE=… NODE_USE_ENV_PROXY=1 node compras/economo/catalogo.mjs # encher o catálogo de uma vez
 ```
+
+## Como manter
+
+O conector mantém-se quase sozinho: o cron relê as páginas de categoria das três cadeias ao longo do dia (cada site
+recebe no máximo um pedido a cada seis minutos), os preços das listas de dez em dez minutos e as escolhas de hora a
+hora; cada página lida é revista (`src/revisao.js`: os produtos suspeitos saem das comparações). O que pode precisar
+de mão, e como (os comandos correm na pasta `compras`, com `SONDA_TOKEN_FILE` a apontar para o ficheiro do segredo
+da sonda e, para o wrangler, `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`):
+
+| Sinal | O que fazer |
+|---|---|
+| Ver a saúde da base | `node economo/saude.mjs` (sai com 1 se há avisos); na app, separador Casa › «Os preços» |
+| Uma cadeia com ⚠ (páginas a falhar, preços velhos) | o site mudou: guardar uma página nova em `tests/fontes/`, ajustar o leitor em `src/catalogo.js` (`continente`, `pingodoce`, `auchan`) até `npm test` passar, publicar |
+| Categorias novas nas cadeias | `node economo/tipos.mjs` (refaz os tipos e as páginas) e `node economo/catalogo.mjs` (lê as páginas novas) |
+| Produtos do talho/peixaria sem corte ou animal | `node economo/etiquetas.mjs` lista-os; acrescentar regras em `src/etiquetas.js` |
+| Os artigos do SPAR | `node economo/spar.mjs` (uma vez por mês chega) |
+| Um preço estranho | `curl -H "authorization: Bearer $(cat …)" …/sonda/revisao?k=TIPO` mostra os suspeitos desse tipo |
+| Mudar o esquema da D1 | uma migração nova em `proxy/migrations/`, `npx wrangler d1 migrations apply compras --remote`, publicar |
+| Publicar o conector | `cd proxy && npx wrangler deploy` (depois de `npm test`) |
+| Publicar a app | juntar ao `main` (o GitHub Pages serve a pasta); subir a versão em `compras.js` (`?v=`) e em `sw.js` (`CACHE`) |
+
+A tarefa semanal do Ecónomo (uma tarefa agendada no claude.ai) faz isto por ti: corre o relatório de saúde, revê os
+produtos novos sem etiqueta e as cadeias com aviso, corrige o que for preciso e abre um PR para aprovares.

@@ -18,6 +18,7 @@
 //   GET  /api/sugerir?q=…              os tipos de produto que começam pelo que se escreveu: { tipos: [{ k, nome, n }] }
 //   GET  /api/seccao?s=…              os tipos de uma secção (seccoes.js): { sec, tipos }
 //   GET  /api/tipo?k=…                 os produtos de um tipo nas cadeias, com os tamanhos e as marcas (sugerir.js)
+//   GET  /api/saude                    a hora do preço mais recente de cada cadeia (saude.js)
 // O cron (de dois em dois minutos): aos minutos redondos (0, 10, 20…) lê os preços velhos dos produtos que estão nas
 // listas (precos.js, refrescar), menos ao minuto 30, em que revê as escolhas das listas (escolhas.js); nos outros, uma
 // página de categoria de uma cadeia, à vez (catalogo.js): cada cadeia recebe no máximo um pedido a cada seis minutos.
@@ -26,6 +27,7 @@
 //   GET /sonda?url=…                   a resposta da cadeia tal e qual (estado, tempo e cabeçalhos à parte)
 //   GET /sonda/produto?cadeia=…&url=…  o produto lido pela fonte da cadeia (src/fontes/); ou &id=…, onde há endereço por número
 //   GET /sonda/catalogo?url=…          lê já uma página do catálogo (só as da tabela pagina) e guarda os produtos
+//   GET /sonda/saude                    a saúde da base: páginas lidas e a falhar por cadeia, preços recentes, suspeitos…
 //   GET /sonda/revisao?de=0&n=20        revê os tipos (os suspeitos e os nomes: revisao.js); ?k=… os suspeitos de um tipo
 // Regras da sonda: só GET, só https, só os domínios das cadeias (SONDA_HOSTS) e só com o segredo, para o conector não
 // servir de passagem a mais ninguém. Identifica-se como é (UA), não tenta passar proteções contra robôs e só se usa
@@ -40,13 +42,14 @@ import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { sugerir, produtosDoTipo, tiposDaSeccao } from './sugerir.js';
 import { revisarTipo } from './revisao.js';
+import { saude, saudeCurta } from './saude.js';
 import { atualizarEscolhas } from './escolhas.js';
 import { lerTalao, MAX_IMAGEM } from './talao.js';
 import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.25.0';
+export const VERSION = '0.26.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -253,6 +256,7 @@ async function api(request, env, url) {
     if (caminho === '/api/sugerir' && metodo === 'GET') {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
     }
+    if (caminho === '/api/saude' && metodo === 'GET') return json(await saudeCurta(db));
     if (caminho === '/api/seccao' && metodo === 'GET') {
         const sx = Number(url.searchParams.get('s'));
         if (!(sx >= 0 && sx <= 11)) throw new Erro(400, 'secção desconhecida');
@@ -283,11 +287,12 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 7: a base revista' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 7: a saúde da base' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);
         if (url.pathname === '/sonda/revisao') return sondaRevisao(request, env);
+        if (url.pathname === '/sonda/saude') { const nao = await recusa(request, env); return nao ?? json(await saude(env.DB)); }
         return json({ erro: 'não existe' }, 404);
     },
     async scheduled(evento, env, ctx) {
