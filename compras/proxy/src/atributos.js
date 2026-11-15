@@ -117,3 +117,45 @@ export function filasDaFamilia(fam, produtos) {
     }
     return { palavras, filas };
 }
+
+// ---------- a melhor compra pelo rótulo (ciclo 3, volta 8) ----------
+// Para quem não percebe de vinhos (nem de azeite ou queijo): o que o rótulo promete, em pontos, e as «melhores
+// compras» — os produtos a que nenhum outro do tipo dá mais pontos por menos dinheiro (a fronteira preço-rótulo).
+// É pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP…), não é uma nota de crítico: a app di-lo.
+const PONTOS = {
+    vinho: { gama: { grandereserva: 3, garrafeira: 3, reserva: 2, vinhasvelhas: 2, colheitasel: 1, premium: 1, bio: 0 } },
+    azeite: { categoria: { virgemextra: 2, virgem: 0, azeite: -1 }, modo: { dop: 1, bio: 1, premium: 1, acidez: 1 } },
+    queijo: { dop: { _: 2 }, cura: { velho: 1, curado: 1, amanteigado: 1 }, leite: { ovelha: 1, cabra: 1 } },
+    presunto: { cura: { c36: 3, c24: 2, c18: 1, c12: 0 }, raca: { bolota: 2, porcopreto: 1, bisaro: 1 }, origem: { barrancos: 1 } },
+};
+const NOME_PONTO = (g, id) => NOMES.get([...NOMES.keys()].find((k) => k.endsWith(`:${g}:${id}`))) ?? id;
+// { p: pontos, porque: ['Reserva', 'DOC'] } de um produto
+export function pontosRotulo(fam, nome, cent = null) {
+    const tab = PONTOS[fam];
+    if (!tab) return null;
+    const a = atributos(fam, nome, cent), porque = [];
+    let p = 0;
+    for (const [g, id] of Object.entries(a)) {
+        const t = tab[g];
+        if (!t) continue;
+        const v = t[id] ?? t._ ?? 0;
+        if (v) { p += v; porque.push(NOME_PONTO(g, id)); }
+    }
+    const n = sem(nome);
+    if (fam === 'vinho' && /\bdoc\b|\bdop\b/.test(n)) { p += 1; porque.push('DOC'); }
+    if (/\bmedalha|\bouro\b|\bgold\b|\bpremiad/.test(n)) { p += 1; porque.push('medalha'); }
+    return { p, porque };
+}
+// as melhores compras de uma lista de produtos ({ c, nome, cent, uc }): a fronteira preço-rótulo, com pelo menos 1
+// ponto, do mais barato para o mais caro (até 4); cada uma diz quanto custa a mais do que a anterior
+export function melhoresCompras(fam, produtos) {
+    const ps = produtos.map((x) => ({ ...x, r: pontosRotulo(fam, x.nome, x.cent) })).filter((x) => x.r && x.cent > 0);
+    const preco = (x) => x.uc ?? x.cent;
+    const fronteira = ps.filter((x) => x.r.p >= 1 && !ps.some((y) => y !== x && y.r.p >= x.r.p && preco(y) < preco(x)));
+    // um por nível de pontos: o mais barato
+    const porNivel = new Map();
+    for (const x of fronteira.sort((a, b) => preco(a) - preco(b))) if (!porNivel.has(x.r.p)) porNivel.set(x.r.p, x);
+    const lista = [...porNivel.values()].sort((a, b) => preco(a) - preco(b)).slice(0, 4);
+    return lista.map((x, i) => ({ c: x.c, nome: x.nome, cent: x.cent, ...(x.uc ? { uc: x.uc, ub: x.ub } : {}), p: x.r.p, porque: x.r.porque,
+        ...(i ? { mais: preco(x) - preco(lista[i - 1]) } : {}) }));
+}

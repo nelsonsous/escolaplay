@@ -894,6 +894,21 @@
 # (ev: fa para o animal ou a espécie, fw para o corte e o uso; escolhida a espécie, só os cortes e usos dela)
 : tem_a ii>i x fa { = r 0 = y pri x.a W && y ~ r { Se mesmo txt y fa = r 1 = y seg y } r }
 # as filas de uma família (atributos.js: o vinho tem a região, a gama e a casta), com os filtros fa, fp e fc
+# as melhores compras pelo rótulo (atributos.js): para quem não percebe, o que o rótulo promete por euro
+: dmelhores i>i tp {
+  = x pri tp.bc
+  Se x {
+    `<h3>🏅 Melhores compras pelo rótulo</h3><ul class="bc">`
+    W x {
+      `<li><b>{ esc x.nome }</b><span class="total">{ eur int x.cent }</span>`
+      `<small>{ crut nomec txt x.c } · o rótulo diz: `
+      = q pri x.porque = i 0
+      W q { Se i `, ` `{ esc q }` = q seg q = i + i 1 }
+      Se x.mais ` · +{ eur int x.mais }{ Se x.ub `/{ crut txt x.ub }` } para subir de gama`
+      `</small></li>`
+      = x seg x }
+    `</ul><p class="nota">Pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP, cura…): nenhum outro promete mais por menos. Não é uma nota de crítico: para isso, a nota no Vivino e os preços noutras lojas no Wine-Searcher.</p>` }
+  0 }
 : dfilas i>i tp {
   = f pri tp.filas
   Se f { linha_w tp txt f.g txt f.t _an_ler $"fa" $"fa" = f seg f }
@@ -962,7 +977,9 @@
       Se int tp.brancas `<button class="chip{ Se && fm mesmo fm $"branca" ` on` }" data-onda="fm:98">🏷 Marca branca</button>`
       = x pri tp.marcas = i 0
       W x { `<button class="chip{ Se && fm mesmo fm txt x.m ` on` }" data-onda="fm:{ N i }">{ esc x.m }</button>` = x seg x = i + i 1 }
-      `</div><h3>O mais barato em cada supermercado</h3><ul class="melhores">`
+      `</div>`
+      dmelhores tp
+      `<h3>O mais barato em cada supermercado</h3><ul class="melhores">`
       # só se comparam os preços na unidade do tipo (o quilo, o litro): o mais barato fica marcado; em grande o preço
       # por quilo, e por baixo o que se paga e por quanto
       = ub ? tp.ub txt tp.ub 0
@@ -990,7 +1007,9 @@
             ` · { esc p.nome }</small>`
             dsinais p
             # no vinho, a nota dos que já o beberam (no Vivino: só a ligação para a pesquisa, não se lê o site)
-            Se mesmo txt tp.fam $"vinho" `<a class="mais-op vivino" href="https://www.vivino.com/search/wines?q={ crut _tx_uri txt p.nome }" target="_blank" rel="noopener">⭐ Ver a nota no Vivino ↗</a>`
+            Se mesmo txt tp.fam $"vinho" {
+              `<a class="mais-op vivino" href="https://www.vivino.com/search/wines?q={ crut _tx_uri txt p.nome }" target="_blank" rel="noopener">⭐ Nota no Vivino ↗</a>`
+              `<a class="mais-op vivino" href="https://www.wine-searcher.com/find/{ crut _tx_uri txt p.nome }/1/portugal" target="_blank" rel="noopener">🍷 Outras lojas e crítica ↗</a>` }
             # outras opções neste supermercado: tocar abre a lista; escolher uma fica (à mão: a troca de hora a hora não a muda)
             = no conta_em tp k fe fm
             = ab ? _an_ler $"opc" _tx_int _an_ler $"opc" -1

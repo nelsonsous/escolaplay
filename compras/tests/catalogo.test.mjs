@@ -430,3 +430,13 @@ test('os vinhos: as páginas seguintes das categorias grandes, e as filas da fam
     assert.deepEqual(f.filas.map((x) => x.t), ['Região']); // a gama só tem um valor com 2 ou mais: não é fila
     assert.deepEqual(f.palavras.map((x) => [x.w, x.r]), [['regiaoxdouro', 'Douro'], ['regiaoxalentejo', 'Alentejo']]);
 });
+
+test('a melhor compra pelo rótulo: os pontos (Reserva, DOC, virgem extra, DOP) e a fronteira preço-rótulo', async () => {
+    const { pontosRotulo, melhoresCompras } = await import('../proxy/src/atributos.js');
+    assert.deepEqual(pontosRotulo('vinho', 'Esporão Reserva Alentejo DOC Vinho Tinto'), { p: 3, porque: ['Reserva', 'DOC'] });
+    assert.equal(pontosRotulo('azeite', 'Azeite Virgem Extra DOP Moura').p, 3);
+    assert.equal(pontosRotulo('leite', 'Leite'), null);
+    const bc = melhoresCompras('vinho', [{ c: 'a', nome: 'Tinto Alentejo', cent: 299 }, { c: 'a', nome: 'Monte Velho Reserva', cent: 499 },
+        { c: 'b', nome: 'Esporão Reserva DOC', cent: 1599 }, { c: 'b', nome: 'Douro Grande Reserva', cent: 1299 }, { c: 'c', nome: 'Outro Reserva', cent: 899 }]);
+    assert.deepEqual(bc.map((x) => [x.nome, x.p, x.mais ?? 0]), [['Monte Velho Reserva', 2, 0], ['Douro Grande Reserva', 3, 800]]);
+});

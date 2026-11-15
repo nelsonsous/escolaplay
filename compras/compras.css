@@ -242,3 +242,7 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .item small.pack { display: block; margin-top: 3px; color: #ffd60a; font-size: 13px; }
 .prods .op-x.nh { margin: 2px 0 8px; }
 .melhores a.vivino { margin-top: 6px; }
+/* as melhores compras pelo rótulo */
+.bc { list-style: none; margin: 4px 0 6px; padding: 0; }
+.bc li { padding: 8px 10px; margin-bottom: 6px; border: 1px solid #5a4a1a; border-radius: 10px; background: #1f1a0b; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; }
+.bc li small { grid-column: 1 / -1; color: var(--fraco); }
