@@ -6,8 +6,30 @@ import { Erro } from './casa.js';
 export const CADEIAS_CASA = ['continente', 'pingodoce', 'auchan', 'lidl', 'mercadona', 'spar'];
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-// as lojas SPAR da página das lojas: [{ n: nome, r: rua, cp, l: localidade }]
+// as lojas SPAR da página das lojas: [{ n: nome, r: rua, cp, l: localidade }]. A página traz a lista toda num JSON
+// (com as aspas escritas «\u0022»); se não o tiver, lê-se o texto das lojas
 export function lerLojasSpar(html) {
+    const i = String(html).indexOf('[{\\u0022id\\u0022');
+    if (i >= 0) {
+        const f = html.indexOf('}]', i);
+        try {
+            const d = JSON.parse(html.slice(i, f + 2).replace(/\\u([0-9a-fA-F]{4})/g, (m, h) => String.fromCharCode(parseInt(h, 16))));
+            const out = d.filter((x) => x?.nome).map((x) => {
+                const rua = String(x.rua ?? '').replace(/\s+/g, ' ').trim();
+                const m = rua.match(/^(.*?),?\s*(\d{4}-\d{3})\s+(.+)$/);
+                // o código postal às vezes vem com a localidade («8500-510  Portimão»)
+                const c = String(x.codpostal ?? '').replace(/\s+/g, ' ').trim().match(/^(\d{4}-\d{3}) ?(.*)$/);
+                return {
+                    n: String(x.nome).replace(/\s+/g, ' ').trim(), r: (m ? m[1] : rua).replace(/,\s*$/, ''),
+                    cp: c ? c[1] : (m ? m[2] : ''), l: (m ? m[3] : '') || (c ? c[2] : ''),
+                };
+            });
+            if (out.length) return out;
+        } catch { /* lê-se o texto */ }
+    }
+    return lerTexto(html);
+}
+function lerTexto(html) {
     const t = String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, '\n')
         .replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ');
     const ls = t.split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
