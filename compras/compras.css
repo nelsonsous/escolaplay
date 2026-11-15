@@ -189,11 +189,18 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .escolha.simples .chip { font-size: 18px; padding: 12px 16px; }
 .escolha.simples .qtd button { min-width: 64px; min-height: 64px; font-size: 28px; }
 
-/* outras opções em cada supermercado */
-.melhores .mais-op { display: block; margin-top: 8px; padding: 8px 12px; min-height: 40px; border-radius: 12px; border: 1px solid var(--linha); background: transparent; color: var(--azul); font: inherit; font-size: 14px; }
-.melhores .mao { display: inline-block; margin-top: 6px; font-size: 12px; color: var(--azul); }
-.melhores .opcoes { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.melhores .opcoes .op { text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--linha); background: var(--fundo); color: var(--texto); font: inherit; font-size: 14px; display: flex; flex-direction: column; gap: 2px; }
-.melhores .opcoes .op.on { border-color: var(--azul); background: #0b1a2e; }
-.melhores .opcoes .op .pr { color: var(--fraco); font-size: 13px; }
-.melhores .opcoes .op .sinais { margin-top: 4px; }
+/* outras opções em cada supermercado: tudo o que vem depois do preço ocupa a linha inteira */
+.melhores .sinais, .melhores .mais-op, .melhores .opcoes, .melhores .mao, .melhores .spar-art { grid-column: 1 / -1; }
+.melhores .mais-op { justify-self: start; margin-top: 8px; padding: 6px 12px; min-height: 36px; border-radius: 18px; border: 1px solid #1f3a5c; background: transparent; color: var(--azul); font: inherit; font-size: 14px; }
+.melhores .mao { margin-top: 4px; font-size: 12px; color: var(--azul); }
+.melhores .opcoes { margin: 8px 0 2px; border: 1px solid var(--linha); border-radius: 14px; overflow: hidden; }
+.melhores .opcoes .op { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--linha);
+    border-left: 3px solid transparent; background: transparent; color: var(--texto); font: inherit; font-size: 14px; }
+.melhores .opcoes .op:last-child { border-bottom: 0; }
+.melhores .opcoes .op b { font-weight: 600; line-height: 1.25; }
+.melhores .opcoes .op .uc { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.melhores .opcoes .op .uc i { font-style: normal; font-weight: 400; color: var(--fraco); font-size: 12px; }
+.melhores .opcoes .op .pr { grid-column: 1 / -1; color: var(--fraco); font-size: 13px; }
+.melhores .opcoes .op .sinais { grid-column: 1 / -1; margin-top: 2px; }
+.melhores .opcoes .op.on { border-left-color: var(--azul); background: #0b1a2e; }
+.melhores .opcoes .op.on .pr { color: var(--azul); }

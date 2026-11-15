@@ -693,7 +693,8 @@
   W && p < n 12 {
     Se && mesmo txt p.c cadeia k passa p fe fm {
       `<button class="op{ Se mesmo txt p.id txt e.id ` on` }" data-onda="esco:{ N + * k 1000 j }"><b>{ esc p.nome }</b>`
-      `<span class="pr">{ Se p.uc `{ eur int p.uc }/{ crut txt p.ub } · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }</span>`
+      `<span class="uc">{ ? p.uc `{ eur int p.uc }<i>/{ crut txt p.ub }</i>` `{ eur int p.cent }` }</span>`
+      `<span class="pr">{ Se mesmo txt p.id txt e.id `✓ escolhido · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }</span>`
       dsinais p
       `</button>` = n + n 1 }
     = p seg p = j + j 1 }
