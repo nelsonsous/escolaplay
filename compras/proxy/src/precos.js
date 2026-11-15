@@ -8,6 +8,7 @@
 // Volta 4: também o preço por quilo, por litro ou por unidade (porUnidade), para comparar embalagens; e os preços dos
 // produtos parecidos de uma procura (precosDe), para a app mostrar o mais barato por quilo ou por litro.
 import { packsDaLista } from './packs.js';
+import { emFalta } from './casa.js';
 import { FONTES } from './fontes/index.js';
 import { pedir } from './rede.js';
 import { estimativas } from './escolhas.js';
@@ -176,7 +177,7 @@ export async function juntarPrecos(db, lista0, casa = null) {
     const reais = casa ? await reaisDaCasa(db, casa, lista.itens.filter((i) => i.e?.k).map((i) => i.e.k)) : new Map();
     // o stock na zona da casa (zona.js): os esgotados na zona contam como esgotados (ez: «na tua zona»)
     const zona = casa ? new Set((await db.prepare("SELECT cadeia, id FROM zona_stock WHERE casa = ? AND disponivel = 0").bind(casa).all()).results.map((r) => r.cadeia + ' ' + r.id)) : new Set();
-    if (!m.size && !est.size && !reais.size && !zona.size) return lista;
+    if (!m.size && !est.size && !reais.size && !zona.size && !lista.itens.some((i) => i.nh)) return lista;
     // a melhor forma de comprar a quantidade (packs.js): 6 soltos ou o pack
     const pk = await packsDaLista(db, lista.itens.map((i) => ({ ...i, p: Object.fromEntries(Object.entries(i.p ?? {}).filter(([c, p]) => p && m.get(c + ' ' + p.id))) }))).catch(() => ({}));
     return {
@@ -192,7 +193,8 @@ export async function juntarPrecos(db, lista0, casa = null) {
                 ...(r?.spar ? { ests: r.spar.cent, estsr: r.spar.dia } : {}),
                 p: Object.fromEntries(Object.entries(i.p).map(([c, p]) => {
                     const r = m.get(c + ' ' + p.id);
-                    const ez = zona.has(c + ' ' + p.id) ? { esgotado: 1, ez: 1 } : {};
+                    const nh = emFalta(i, c) === p.id ? { esgotado: 1, nh: i.nh[c].ate.slice(0, 10) } : {};
+                    const ez = { ...(zona.has(c + ' ' + p.id) ? { esgotado: 1, ez: 1 } : {}), ...nh };
                     if (!r || r.cent == null) return [c, { ...p, ...ez }];
                     const x = { ...p, cent: Number(r.cent) };
                     if (r.antes != null) x.antes = Number(r.antes);

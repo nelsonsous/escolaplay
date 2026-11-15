@@ -114,6 +114,9 @@ export function produto(c, p) {
 }
 
 // aplica as operações à lista (muda-a) e diz se mudou
+export const NAO_HAVIA_DIAS = 3;
+// o que está em falta numa cadeia e ainda conta (não passou o prazo): o id, ou null
+export const emFalta = (i, c, agora = new Date()) => (i.nh?.[c] && i.nh[c].ate > agora.toISOString() ? i.nh[c].id : null);
 export function aplicar(lista, ops) {
     if (!Array.isArray(ops)) throw new Erro(400, 'ops tem de ser uma lista');
     if (ops.length > MAX_OPS) throw new Erro(400, `no máximo ${MAX_OPS} operações por pedido`);
@@ -143,6 +146,18 @@ export function aplicar(lista, ops) {
                 if (!item) break;
                 if (p) item.p[op.c] = p; else delete item.p[op.c];
                 if (item.e && !op.a) item.e.mao = 1;
+                break;
+            }
+            case 'n': {
+                // «não havia na loja»: o produto dessa cadeia fica em falta 3 dias (a troca de hora a hora passa ao
+                // seguinte, o «Mais barato» conta-o como esgotado); f: 0 desfaz («afinal havia»)
+                if (!CADEIAS.includes(op.c)) throw new Erro(400, 'cadeia desconhecida');
+                if (!item) break;
+                if (op.f === 0) { if (item.nh) { delete item.nh[op.c]; if (!Object.keys(item.nh).length) delete item.nh; } break; }
+                const id = item.p[op.c]?.id;
+                if (!id) break;
+                item.nh = { ...(item.nh ?? {}), [op.c]: { id, ate: new Date(Date.now() + NAO_HAVIA_DIAS * 24 * 3600e3).toISOString() } };
+                if (item.e) delete item.e.mao; // escolhida à mão ou não, passa a poder trocar-se
                 break;
             }
             default: throw new Erro(400, `operação desconhecida: ${String(op.o).slice(0, 10)}`);

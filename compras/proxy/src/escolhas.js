@@ -6,6 +6,7 @@
 // marca branca do mesmo tipo e tamanho nas outras cadeias, marcada «≈» na app (est, em cêntimos por unidade da coisa).
 import { etiquetas, palavrasEtiquetas, TALHO } from './etiquetas.js';
 import { palavras } from './sugerir.js';
+import { emFalta } from './casa.js';
 
 const DIA = 24 * 3600e3;
 export const CADEIAS_ESCOLHA = ['continente', 'pingodoce', 'auchan'];
@@ -17,7 +18,7 @@ export const temPalavras = (w, nome, k) => {
     return w.every((x) => n.includes(x));
 };
 // o mais barato de cada cadeia para o que a coisa é: { cadeia: { id, nome, url } }
-export async function melhores(db, e, agora = new Date()) {
+export async function melhores(db, e, agora = new Date(), excluir = new Set()) {
     const { results } = await db.prepare(`SELECT cadeia, id, nome, url FROM preco
         WHERE tipo = ?1 AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?2 AND (?3 IS NULL OR emb = ?3)
           AND (?4 IS NULL OR (?4 = 'branca' AND propria = 1) OR (?4 <> 'branca' AND lower(marca) = lower(?4)))
@@ -25,7 +26,7 @@ export async function melhores(db, e, agora = new Date()) {
     const r = {};
     const w = e.w ? String(e.w).split(' ').filter(Boolean).map((x) => ` ${x} `) : null; // a espécie e o corte: todas
     for (const p of results) {
-        if (!CADEIAS_ESCOLHA.includes(p.cadeia) || r[p.cadeia]) continue;
+        if (!CADEIAS_ESCOLHA.includes(p.cadeia) || r[p.cadeia] || excluir.has(p.cadeia + ' ' + p.id)) continue;
         // a palavra escolhida (o corte, a variante; no talho e na peixaria também as etiquetas do Ecónomo: «grelhar»)
         // (antes estava ao contrário: saltava os que tinham a palavra, e a «picanha» trocava-se por «para estufar»)
         if (w && !temPalavras(w, p.nome, e.k)) continue;
@@ -43,7 +44,9 @@ export async function atualizarEscolhas(db, agora = new Date()) {
         let mudou = false;
         for (const i of itens) {
             if (!i.e || i.e.mao || i.f) continue;
-            const m = await melhores(db, i.e, agora);
+            // o que «não havia na loja» (casa.js) fica de fora enquanto conta
+            const fora = new Set(CADEIAS_ESCOLHA.map((c) => emFalta(i, c, agora) && c + ' ' + emFalta(i, c, agora)).filter(Boolean));
+            const m = await melhores(db, i.e, agora, fora);
             for (const [cadeia, p] of Object.entries(m)) {
                 if (i.p[cadeia]?.id !== p.id) { i.p[cadeia] = p; mudou = true; mudaram++; }
             }

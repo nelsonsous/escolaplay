@@ -88,6 +88,7 @@
   Se m.antes `,"antes":{ N int m.antes }`
   Se m.unid `,"unid":{ pjs txt m.unid }`
   Se int m.esgotado `,"esgotado":1`
+  Se m.nh `,"nh":{ pjs txt m.nh }`
   Se m.visto `,"visto":{ pjs txt m.visto }`
   Se m.uc `,"uc":{ N int m.uc },"ub":{ pjs txt m.ub }`
   Se int m.pr `,"pr":1`
@@ -522,7 +523,7 @@
       Se m.antes `<s>{ eur int m.antes }</s> `
       eur int m.cent
       ? m.uc ` · { eur int m.uc }/{ crut txt m.ub }` { Se m.unid ` · { esc m.unid }` 0 }
-      Se int m.esgotado ` · { ? int m.ez `esgotado na tua zona` `esgotado no site` }` 1 }
+      Se int m.esgotado ` · { ? m.nh `não havia na loja (até { esc m.nh })` { ? int m.ez `esgotado na tua zona` `esgotado no site` } }` 1 }
     0 }
 # o preço de um produto (pelo id) nos preços q de uma procura (o nó com .produtos), ou 0
 : qpreco ii>i q id { = r 0 Se q { = p pri q.produtos W && p ~ r { Se mesmo txt p.id id = r p = p seg p } } r }
@@ -554,7 +555,9 @@
     ? ep.cent { dpreco ep ` · ` 0 } `a ver o preço… · `
     `tocar para tirar</small>`
     Se && mb mesmo mb txt ep.id `<em>o mais barato por { crut unidade txt ep.ub }</em>`
-    `</button>` }
+    `</button>`
+    # «não havia na loja»: fica em falta 3 dias nesse supermercado (a troca passa ao seguinte); tocar outra vez desfaz
+    `<button class="op-x nh" data-onda="nhv:{ N k }">{ ? ep.nh `↺ Afinal havia` `✗ Não havia na loja` }</button>` }
   ? && r mesmo txt r.q txt c.t {
       = p pri r.produtos = j 0
       ? p { W p {
@@ -1168,6 +1171,9 @@
   Se eacao t $"rco" { = kk texto`rco{ N v }` ? _an_ler kk _an_gravar kk 0 _an_gravar kk $"1" }
   Se eacao t $"rct" pede_receita_txt
   Se eacao t $"rcj" rcjunta
+  Se eacao t $"nhv" { = c item_aberto Se c { = ep _ar_get c.p cadeia v
+      faz texto`\{"o":"n","id":{ pjs txt c.id },"c":"{ crut cadeia v }"{ Se && ep ep.nh `,"f":0` }\}`
+      aviso texto`{ ? && ep ep.nh `↺ Afinal havia no ` `✗ Fica em falta 3 dias no ` }{ crut nomecad v }.` } }
   Se eacao t $"natal" { _an_gravar $"natal" $"1" _an_gravar $"nt" 0 pede_natal }
   Se eacao t $"ntf" _an_gravar $"natal" 0
   Se eacao t $"ntm" { _an_gravar $"ntm" texto`{ N v }` _an_gravar $"nt" 0 pede_natal }
