@@ -199,7 +199,7 @@
   ? && == estado 201 r { _an_gravar $"chave" txt r.chave _an_gravar $"codigo" txt r.casa.codigo ! 8 0 depois_da_chave } ! 8 1
   desenha
   _me_solta t }
-: depois_da_chave >i { = e _an_ler $"entrar" ? e entrar e { envia ver } }
+: depois_da_chave >i { = e _an_ler $"entrar" ? e entrar e { envia ver pede_costume } }
 
 # entrar noutra casa pelo código (o campo, ou um link ?casa=…)
 : entrar i>i cod Se && ~ @ 10 _an_ler $"chave" {
@@ -294,7 +294,22 @@
   `<button class="caixa" data-onda="riscar:{ N i }" aria-label="{ ? f `Voltar a pôr` `Riscar` }">{ Se f `✓` }</button>`
   `<button class="texto" data-onda="abre:{ N i }"><b>{ Se > int c.q 1 `{ N int c.q } × ` }{ esc c.t }</b><small>`
   ? < lj 0 escolhas c { = p pc c lj ? >= p 0 `{ crut nomecad lj } { eur p }` `Sem preço no { crut nomecad lj }: toca para escolher` 0 }
-  `</small></button></li>` }
+  `</small></button><button class="tira" data-onda="tirai:{ N i }" aria-label="Tirar da lista">✕</button></li>` }
+# o que costumas comprar (dos talões; /api/costume): o que está a acabar primeiro; o que já está na lista não aparece
+: na_lista i>i t { = r 0 = c pri itens W && c ~ r { Se && ~ int c.f mesmo txt c.t t = r 1 = c seg c } r }
+: pcostume >i {
+  = j _ar_json _an_ler $"costume"
+  = x ? j pri j.coisas 0 = i 0 = s 0
+  W x {
+    Se ~ na_lista txt x.t {
+      Se ~ s { `<div class="costume"><h3>Costumas comprar</h3><div class="chips">` = s 1 }
+      `<button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }">+ { esc x.t }<small> { ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` `há { N int x.ha } dias` }</small></button>` }
+    = x seg x = i + i 1 }
+  Se s `</div></div>` }
+: pede_costume >i Se _an_ler $"chave" _an_buscar $"/api/costume" $"lido_costume"
+: lido_costume ii>i t estado {
+  Se == estado 200 { _an_gravar $"costume" t desenha }
+  _me_solta t }
 : dlista >i {
   = its itens
   = n ? its quantos its 0
@@ -305,7 +320,7 @@
   `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
   `<div id="sug">` psug `</div>`
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
-  ? == n 0 `<p class="vazio">A lista está vazia. Escreve o que falta em casa, separado por vírgulas.</p>` {
+  ? == n 0 { `<p class="vazio">A lista está vazia. Escreve o que falta em casa, separado por vírgulas.</p>` pcostume 0 } {
     Se >= lj 0 {
       = nr porriscar = c cobre lj
       `<div class="loja"><p><b>Vais ao { crut nomecad lj }: { eur total lj }</b>`
@@ -322,7 +337,9 @@
         = tem ? < lj 0 1 >= pc c lj 0
         Se == tem == passo 0 ditem c i lj
         = c seg c = i + i 1 } }
-    `</ul><div class="acoes">`
+    `</ul>`
+    pcostume
+    `<div class="acoes">`
     Se feitos `<button class="botao fraco" data-onda="limpar:0">Tirar os riscados ({ N feitos })</button>`
     `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ partilha its }">Partilhar no WhatsApp</a>`
     `<label class="botao fraco talao">📷 Talão<input type="file" accept="image/*" data-talao hidden></label></div>`
@@ -642,7 +659,7 @@
     = r _ar_json _an_ler $"talao"
     ? && r r.erro aviso texto`Não consegui ler o talão: { crut txt r.erro }` {
       Se r aviso texto`Talão{ Se r.loja ` do { crut txt r.loja }` }: { eur int r.total } · { N quantos r.linhas } linhas{ Se int r.riscadas ` · { N int r.riscadas } riscadas na lista` }.`
-      ver 0 } 0 }
+      ver pede_costume 0 } 0 }
   0 }
 : juntar >i {
   = t @ 5 = n _tx_len t = ini 0 = j 0
@@ -681,6 +698,8 @@
   Se eacao t $"loja" { _an_gravar $"loja" ? < v 4 cadeia v 0 ! 1 0 _an_rolar 0 }
   Se eacao t $"tipo" abre_tipo v
   Se eacao t $"talao" talao v
+  Se eacao t $"tirai" { = c idx itens v Se c faz texto`\{"o":"x","id":{ pjs txt c.id }\}` }
+  Se eacao t $"cost" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt x.t },"q":1\}` }
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
   Se eacao t $"tmais" tq_muda 1

@@ -113,3 +113,9 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .merc small { color: var(--fraco); font-weight: 400; }
 .talao { cursor: pointer; }
 .chip small { color: var(--fraco); font-size: 12px; }
+
+/* volta 6: o ✕ de cada coisa e o que costumas comprar */
+.item .tira { flex: none; width: 36px; height: 36px; border-radius: 50%; color: var(--fraco); font-size: 16px; }
+.item .tira:active { background: var(--cartao); color: var(--vermelho); }
+.costume { margin: 16px 0 4px; }
+.costume .chip.falta { border-color: #6b5a1e; color: #ffd60a; }

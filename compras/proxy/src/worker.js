@@ -14,6 +14,7 @@
 //                                      máximo dois): { cadeia, produtos: [{ id, cent, antes, uc, ub, esgotado }] }
 //   POST /api/talao   {imagem}         a fotografia de um talão (data URL JPEG): a IA lê-o, guarda-se e risca-se na lista
 //                                      o que lá vem: { id, loja, dia, total, linhas, riscadas } (talao.js)
+//   GET  /api/costume                  o que costumas comprar (dos talões) e não está na lista: { coisas } (costume.js)
 //   GET  /api/sugerir?q=…              os tipos de produto que começam pelo que se escreveu: { tipos: [{ k, nome, n }] }
 //   GET  /api/tipo?k=…                 os produtos de um tipo nas cadeias, com os tamanhos e as marcas (sugerir.js)
 // O cron (de dois em dois minutos): aos minutos redondos (0, 10, 20…) lê os preços velhos dos produtos que estão nas
@@ -38,10 +39,11 @@ import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { sugerir, produtosDoTipo } from './sugerir.js';
 import { atualizarEscolhas } from './escolhas.js';
 import { lerTalao, MAX_IMAGEM } from './talao.js';
+import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.9.0';
+export const VERSION = '0.10.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -228,6 +230,7 @@ async function api(request, env, url) {
         const { imagem } = await corpoJSON(request, MAX_TALAO);
         return json(await lerTalao(env, ap, imagem));
     }
+    if (caminho === '/api/costume' && metodo === 'GET') return json({ coisas: await sugestoes(db, ap, await lerLista(db, ap.casa)) });
     if (caminho === '/api/sugerir' && metodo === 'GET') {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
     }
@@ -256,7 +259,7 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: as tuas lojas' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: o que costumas comprar' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);
