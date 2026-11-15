@@ -328,15 +328,26 @@ export const PORTES = {
 // a linha do produto (a «Seleção do Chef Diogo Rocha», a gourmet): o artigo de linha só se compara com o da mesma
 // linha, e o normal só com o normal (o Especial da Lugrade não é a Seleção do Chef do Continente)
 const LINHA = /\bsele[cç][aã]o\b|\bchef\b|\bgourmet\b|\bpremium\b|\breserva\b/i;
+// o peso da peça: o intervalo do produtor («3.25 a 3.5kg», «2.6kg a 3kg») e o do supermercado («3 kg», «≈ 3 kg»)
+export function intervaloPeso(s) {
+    const m = String(s ?? '').match(/(\d+(?:[.,]\d+)?)\s*(?:kg)?\s*a\s*(\d+(?:[.,]\d+)?)\s*kg/i);
+    return m ? [Number(m[1].replace(',', '.')), Number(m[2].replace(',', '.'))] : null;
+}
+const pesoKg = (emb) => { const m = String(emb ?? '').match(/(\d+(?:[.,]\d+)?)\s*kg\b/i); return m ? Number(m[1].replace(',', '.')) : null; };
+// a mesma marca no supermercado: com o mesmo peso de peça (cada marca chama «especial» ou «graúdo» a pesos diferentes:
+// a Lugrade vende o Especial de 3,25 a 3,5 kg, o Continente o Especial de ≈ 3 kg), ou, sem pesos, o mesmo calibre;
+// e sempre a mesma origem, o mesmo corte e a mesma linha
 export function mesmaMarca(produtos, loja, et, k, nome = '') {
     const re = new RegExp('\\b' + loja + '\\b', 'i');
     const linha = LINHA.test(nome);
+    const iv = intervaloPeso(nome);
     const ms = produtos.filter((p) => re.test(`${p.marca ?? ''} ${p.nome}`) && p.uc && p.ub === 'kg').filter((p) => {
         const e = etiquetas(p.nome, k);
-        return (!et?.cal || e?.cal === et.cal) && (!et?.pais || e?.pais === et.pais) && (!et?.corte || e?.corte === et.corte)
-            && LINHA.test(p.nome) === linha;
+        const w = pesoKg(p.emb);
+        const peso = iv && w ? w >= iv[0] - 0.15 && w <= iv[1] + 0.15 : (!et?.cal || e?.cal === et.cal);
+        return peso && (!et?.pais || e?.pais === et.pais) && (!et?.corte || e?.corte === et.corte) && LINHA.test(p.nome) === linha;
     }).sort((a, b) => a.uc - b.uc);
-    return ms.length ? { c: ms[0].c, uc: ms[0].uc, ub: 'kg', nome: ms[0].nome } : null;
+    return ms.length ? { c: ms[0].c, uc: ms[0].uc, ub: 'kg', nome: ms[0].nome, ...(pesoKg(ms[0].emb) ? { kg: String(pesoKg(ms[0].emb)).replace('.', ',') } : {}) } : null;
 }
 export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     const t = await db.prepare('SELECT k, nome FROM tipo WHERE k = ?').bind(k).first();
