@@ -88,6 +88,12 @@ test('Lidl no catálogo: o tipo pelo nome, só com as palavras do tipo, e o que 
     assert.equal(sin('ocean-sea-pescada-do-chile-a-posta'), 'peixe-congelado');
     assert.equal(sin('sondey-bolacha-maria-dourada'), 'peixe-fresco'); // por isso só depois do classificador (que a dá às bolachas)
     assert.equal(sin('garnier-ultra-suave-champo-abacate'), null);
+    // as correções vêm antes do classificador: o patê de azeitonas é patê; as malaguetas em azeite ficam de fora
+    const { tipoDoLidl } = await import('../economo/lidl.mjs');
+    const sempre = () => 'azeite';
+    assert.equal(tipoDoLidl('deluxe-pate-azeitonas-leccino-anchovas-e-alcaparras', sempre), 'pate-pasta');
+    assert.equal(tipoDoLidl('deluxe-malaguetas-em-azeite-virgem-extra', sempre), null);
+    assert.equal(tipoDoLidl('a-vaca-que-ri-queijo', () => null), 'queijo-barrar');
 });
 
 test('uma página que não é de produto não dá produto (e não rebenta)', () => {
