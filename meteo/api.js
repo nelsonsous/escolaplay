@@ -104,7 +104,12 @@ export function device() {
   store.set(DEVICE_KEY, dev);
   return dev;
 }
-export function resetDevice() { dev = null; store.del(DEVICE_KEY); return device(); }
+export function resetDevice() { dev = null; store.del(DEVICE_KEY); store.del(NAME_KEY); return device(); }
+/** O nome deste telemóvel, como o conector o confirmou da última vez (para não o pedir outra vez enquanto o estado não
+ *  chega — ex.: logo depois de juntar um local). */
+const NAME_KEY = 'meteo:nome';
+export const savedName = () => { const n = store.get(NAME_KEY); return typeof n === 'string' ? n : ''; };
+export function rememberName(n) { if (typeof n === 'string' && n.trim()) store.set(NAME_KEY, n.trim()); }
 export const ownerCode = () => { const c = store.get(OWNER_KEY); return typeof c === 'string' ? c : ''; };
 /** Guarda o código do dono (de ?dono=<código>) só neste telemóvel; vazio = esquecer. */
 export function setOwnerCode(code) {
