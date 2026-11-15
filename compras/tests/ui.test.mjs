@@ -684,6 +684,19 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         assert.match(bc[0], /Papa Figos.*★ 88/);
         assert.match(bc[1], /Papa Figos.*★ 88/); // e é o mais bem cotado
         assert.ok(!bc.some((t) => /DOURO RESERVA/.test(t)), bc.join(' | '));
+        // puxar a folha para baixo fecha-a (como o ✕); um puxão pequeno não (um rápido de mais de 30 px já fecha)
+        const puxar = (ate) => a.evaluate((ate) => {
+            const c = document.querySelector('#folha .cartao');
+            c.scrollTop = 0;
+            const toque = (tipo, y) => { const t = new Touch({ identifier: 1, target: c, clientX: 100, clientY: y });
+                c.dispatchEvent(new TouchEvent(tipo, { touches: tipo === 'touchend' ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true })); };
+            toque('touchstart', 100); toque('touchmove', 120); toque('touchmove', 100 + ate); toque('touchend', 100 + ate);
+        }, ate);
+        await puxar(25);
+        await a.waitForTimeout(400);
+        assert.equal(await a.locator('#folha .cartao.escolha').count(), 1);
+        await puxar(200);
+        await a.waitForSelector('#folha .cartao.escolha', { state: 'detached' });
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
