@@ -274,3 +274,12 @@ test('Continente ao quilo: «4,49 €/kg» no preço e o peso médio; com uma va
     assert.deepEqual(tp.est.w.find((x) => x.w === 'carapau'), { w: 'carapau', merc: 499, spar: null });
     assert.equal(tp.est.w.find((x) => x.w === 'salmao').merc, 1998);
 });
+
+test('os sinais de qualidade pelo nome: o que é melhor primeiro, depois o pior, depois o resto', async () => {
+    const { sinais } = await import('../proxy/src/qualidade.js');
+    assert.deepEqual(sinais('Broa da Serra de Milho com Massa Mãe'), [{ t: 'massa mãe', s: 1 }]);
+    assert.deepEqual(sinais('BROA MILHO AMARELA AUCHAN CULTIVAMOS O BOM 550G'), [{ t: 'produção local', s: 1 }]);
+    assert.deepEqual(sinais('Picanha Fatiada Congelada Selecionada'), [{ t: 'gama superior', s: 1 }, { t: 'congelado', s: -1 }]);
+    assert.deepEqual(sinais('Leite Meio Gordo Biológico Mimosa'), [{ t: 'biológico', s: 1 }, { t: 'meio-gordo', s: 0 }]);
+    assert.deepEqual(sinais('Arroz Agulha'), []);
+});

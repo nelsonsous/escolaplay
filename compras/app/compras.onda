@@ -685,6 +685,14 @@
     W e { `<button class="chip{ Se && fe mesmo fe txt e.e ` on` }" data-onda="fe:{ N i }">{ esc e.e }</button>` = e seg e = i + i 1 }
     `</div>` }
   0 }
+# o que distingue o produto (para se ver que não se compara o mesmo): a marca ou a marca branca, e os sinais do nome
+# a verde o que o põe acima (massa mãe, biológico), a vermelho o que o põe abaixo (congelado), a cinzento o resto
+: dsinais i>i p {
+  `<span class="sinais">{ ? int p.pr `<i class="z">🏷 marca branca</i>` { Se p.mk `<i class="z">{ esc p.mk }</i>` 0 } }`
+  = z pri p.sq
+  W z { `<i class="{ ? > int z.s 0 `p` { ? < int z.s 0 `n` `z` } }">{ ? > int z.s 0 `✚ ` { ? < int z.s 0 `− ` `` } }{ esc z.t }</i>` = z seg z }
+  `</span>`
+  0 }
 : dtipo >i {
   = tp _ar_json _an_ler $"tp"
   = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
@@ -727,7 +735,9 @@
             # ao quilo (uma peça inteira): o que se paga é aproximado, pelo peso médio da peça
             `<small><b class="emb">Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { Se int p.aq `≈ ` }{ esc p.emb }` }</b>{ Se int p.aq ` · vende-se ao quilo` }`
             Se u { ? == int p.uc mu ` · o mais barato por { crut unidade ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade ub }` 0 } }
-            ` · { esc p.nome }</small></li>` 0 }
+            ` · { esc p.nome }</small>`
+            dsinais p
+            `</li>` 0 }
           { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }
       Se minha $"mercadona" dest tp fe 0 mu
       Se minha $"spar" dest tp fe 1 mu

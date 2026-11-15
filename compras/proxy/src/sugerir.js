@@ -5,6 +5,7 @@
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida } from './precos.js';
+import { sinais } from './qualidade.js';
 import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS } from './etiquetas.js';
 
 const HORA = 3600e3;
@@ -288,6 +289,9 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         // o nome sem acentos nem maiúsculas, para filtrar pelas palavras; no talho e na peixaria, com as etiquetas
         // do Ecónomo (o uso, o corte, o animal: «grelhar picanha vaca»)
         x.nk = palavras(`${p.nome} ${TALHO.has(t.k) ? palavrasEtiquetas(etiquetas(p.nome, t.k)).join(' ') : ''}`).join(' ');
+        // os sinais de qualidade pelo nome (qualidade.js): massa mãe, biológico, congelado…
+        const sq = sinais(p.nome);
+        if (sq.length) x.sq = sq;
         return x;
     });
     // a unidade de medida do tipo (a mais comum: kg, l ou un): só se comparam os preços por unidade nessa
