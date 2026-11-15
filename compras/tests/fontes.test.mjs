@@ -133,9 +133,9 @@ test('o folheto do Lidl: os folhetos de promoções da página, a promoção lid
     assert.deepEqual(folhetosDaPagina(html).filter((id) => DE_PROMOCOES.test(id)), ['promocoes-semanais-a-partir-de-16-11']);
     const p = { folheto: 'promocoes-semanais-a-partir-de-16-11', pagina: 2, nome: 'Uva Branca sem Grainha Selecionada', preco: 2.19, antes: 2.79,
         emb: '500 g', uc: 4.38, ub: 'kg', plus: true, numero: 'nº80533', ate: '2026-11-22' };
-    assert.equal(idPromocao(p), 'f80533');
+    assert.equal(idPromocao(p), 'f80533p'); // com Lidl Plus
     const l = linhaDaPromocao(p, 'fruta-epoca', '2026-11-15T22:00:00Z');
-    assert.deepEqual([l.id, l.nome, l.cent, l.antes, l.uc, l.ub, l.ate], ['f80533', 'Uva Branca sem Grainha Selecionada (Lidl Plus)', 219, 279, 438, 'kg', '2026-11-22']);
+    assert.deepEqual([l.id, l.nome, l.cent, l.antes, l.uc, l.ub, l.ate], ['f80533p', 'Uva Branca sem Grainha Selecionada (Lidl Plus)', 219, 279, 438, 'kg', '2026-11-22']);
     assert.match(l.url, /folhetos\/promocoes-semanais-a-partir-de-16-11\/view\/flyer\/page\/2$/);
     // vendido ao quilo, sem preço riscado
     const k = linhaDaPromocao({ folheto: 'x', nome: 'Clementina Nacional', preco: 1.49, emb: '1 kg', uc: 1.49, ub: 'kg', ate: '2026-11-22' }, 'fruta-epoca', 'agora');

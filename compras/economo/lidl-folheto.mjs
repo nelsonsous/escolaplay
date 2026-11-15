@@ -25,7 +25,8 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 export const folhetosDaPagina = (html) => [...new Set([...String(html).matchAll(/\/l\/pt\/folhetos\/([a-z0-9-]+)\//g)].map((m) => m[1]))];
 
 // o id de uma promoção do folheto: o número do artigo («nº80533»), se o Ecónomo o leu; senão o nome
-export const idPromocao = (p) => `f${p.numero ? String(p.numero).replace(/\D/g, '') : createHash('sha1').update(`${p.folheto}|${p.nome}`).digest('hex').slice(0, 10)}`;
+// (com Lidl Plus, «p» no fim: o mesmo artigo pode ter o preço normal e o do cartão)
+export const idPromocao = (p) => `f${p.numero ? String(p.numero).replace(/\D/g, '') : createHash('sha1').update(`${p.folheto}|${p.nome}`).digest('hex').slice(0, 10)}${p.plus ? 'p' : ''}`;
 
 // uma promoção lida → a linha da tabela preco (o preço em cêntimos, o preço por unidade, a embalagem)
 export function linhaDaPromocao(p, tipo, agora) {
