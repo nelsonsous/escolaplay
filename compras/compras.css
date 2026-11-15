@@ -111,3 +111,4 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .merc { margin: 12px 0; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--linha); }
 .merc p { margin: 4px 0; }
 .merc small { color: var(--fraco); font-weight: 400; }
+.talao { cursor: pointer; }
