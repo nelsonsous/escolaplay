@@ -14,7 +14,7 @@ const recente = (agora) => new Date(agora.getTime() - 10 * DIA).toISOString();
 // o mais barato de cada cadeia para o que a coisa é: { cadeia: { id, nome, url } }
 export async function melhores(db, e, agora = new Date()) {
     const { results } = await db.prepare(`SELECT cadeia, id, nome, url FROM preco
-        WHERE tipo = ?1 AND cent IS NOT NULL AND visto > ?2 AND (?3 IS NULL OR emb = ?3)
+        WHERE tipo = ?1 AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?2 AND (?3 IS NULL OR emb = ?3)
           AND (?4 IS NULL OR (?4 = 'branca' AND propria = 1) OR (?4 <> 'branca' AND lower(marca) = lower(?4)))
         ORDER BY uc IS NULL, uc, cent, id`).bind(e.k, recente(agora), e.emb ?? null, e.m ?? null).all();
     const r = {};
@@ -59,7 +59,7 @@ export async function estimativas(db, itens, agora = new Date()) {
     const pares = [...new Set(itens.filter((i) => i.e?.emb).map((i) => i.e.k))];
     if (!pares.length) return new Map();
     const { results } = await db.prepare(`SELECT tipo, emb, cent, propria FROM preco JOIN json_each(?1) j ON preco.tipo = j.value
-        WHERE cent IS NOT NULL AND visto > ?2`).bind(JSON.stringify(pares), recente(agora)).all();
+        WHERE cent IS NOT NULL AND suspeito IS NULL AND visto > ?2`).bind(JSON.stringify(pares), recente(agora)).all();
     const g = new Map();
     for (const r of results) {
         const k = r.tipo + '|' + r.emb;

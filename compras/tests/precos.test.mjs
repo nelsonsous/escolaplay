@@ -45,7 +45,7 @@ test('escolher um produto lê logo o preço no site da cadeia, e a lista vem com
     assert.equal(pedidos.length, 2);
     // o preço guardado não leva nada da casa (é de todos)
     assert.deepEqual(Object.keys(env.DB.linhas('SELECT * FROM preco')[0]).sort(),
-        ['antes', 'ate', 'cadeia', 'cent', 'emb', 'esgotado', 'falhas', 'id', 'marca', 'nome', 'propria', 'q', 'tentado', 'tipo', 'ub', 'uc', 'unid', 'url', 'visto']);
+        ['antes', 'ate', 'cadeia', 'cent', 'emb', 'esgotado', 'falhas', 'id', 'marca', 'nome', 'propria', 'q', 'suspeito', 'tentado', 'tipo', 'ub', 'uc', 'unid', 'url', 'visto']);
 });
 
 test('o Auchan lê-se pelo JSON do produto (pelo número); no máximo dois produtos novos por pedido', async () => {
@@ -186,4 +186,6 @@ test('preços comparáveis: ao balcão e ao peso paga-se a porção; com peso ou
     assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Ovos', cent: 249, uc: 21, ub: 'un', m: medida('12 un') }), { cent: 249, uc: 21, ub: 'un' });
     // as embalagens escrevem-se igual: menos de um quilo em gramas
     assert.deepEqual([rotulo('0,15 kg'), rotulo('0,75 L'), rotulo('1,5 L'), rotulo('6 x 1,5 L')], ['150 g', '750 ml', '1,5 L', '6 × 1,5 L']);
+    // os packs de litros do Auchan sem vírgula, e o «&times;»
+    assert.deepEqual(['AGUA C/ GÁS VIMEIRO 4X150L', '6X050L', '4X15L', '6&times;1.5L', '2 x 10 L', '7UP LATA 6X33L', '6X033L'].map(rotulo), ['4 × 1,5 L', '6 × 0,5 L', '4 × 1,5 L', '6 × 1,5 L', '2 × 10 L', '6 × 0,33 L', '6 × 0,33 L']);
 });

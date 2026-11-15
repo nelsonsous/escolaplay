@@ -9,6 +9,7 @@
 //   Auchan      <div class="product-tile auc-product-tile …"> com data-gtm (name, id, price, brand, category),
 //               data-urls (absoluteProductUrl) e «0.16 €/Lt» em auc-measures--price-per-unit
 // Sem DOM e sem expressões regulares sobre a página toda (2,4 MB no Continente): corta-se por marcadores.
+import { revisarTipo, nomeCondiz } from './revisao.js';
 import { entidades, texto, numero, precoUnidade } from './fontes/comum.js';
 import { porUnidade, medida, rotulo, normaliza } from './precos.js';
 import { pedir } from './rede.js';
@@ -185,12 +186,22 @@ export async function lerPagina(db, pagina, agora = new Date()) {
         return { url: pagina.url, estado, n: 0 };
     }
     await guardarCatalogo(db, pagina.cadeia, pagina.tipo, produtos, agora);
-    const nome = pagina.cadeia === 'continente' ? nomeDoTipo(produtos[0].cat) : null;
+    // o nome de um tipo cruzado: a categoria mais comum dos produtos da página, só se condiz com a chave (antes vinha
+    // do primeiro produto, que podia ser de outra categoria: «Massas e gnocchis» no tipo «peixe»)
+    let nome = null;
+    if (pagina.cadeia === 'continente') {
+        const conta = new Map();
+        for (const p of produtos) { const n = nomeDoTipo(p.cat); if (n) conta.set(n, (conta.get(n) ?? 0) + 1); }
+        const [melhor] = [...conta].sort((a, b) => b[1] - a[1])[0] ?? [];
+        if (melhor && nomeCondiz(pagina.tipo, melhor)) nome = melhor;
+    }
     await db.batch([
         db.prepare('UPDATE pagina SET visto = ?1, tentado = ?1, falhas = 0, n = ?2 WHERE url = ?3').bind(quando, produtos.length, pagina.url),
         db.prepare(`UPDATE tipo SET n = (SELECT count(*) FROM preco WHERE tipo = ?1),
             nome = CASE WHEN casa = 0 AND ?2 IS NOT NULL THEN ?2 ELSE nome END WHERE k = ?1`).bind(pagina.tipo, nome),
     ]);
+    // e revê o tipo: os suspeitos e o nome (revisao.js)
+    await revisarTipo(db, pagina.tipo);
     return { url: pagina.url, estado, n: produtos.length };
 }
 
