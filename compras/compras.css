@@ -126,9 +126,13 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .sec button::after { content: '▾'; margin-left: auto; transition: transform .15s; }
 .sec.fechada button::after { transform: rotate(-90deg); }
 .sec small { padding: 0 8px; border-radius: 10px; background: var(--cartao); color: var(--texto); font-size: 13px; text-transform: none; letter-spacing: 0; }
-.qtd-l { display: flex; gap: 4px; flex: none; }
-.qtd-l button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font-size: 17px; line-height: 1; }
+.qtd-l { display: flex; gap: 8px; flex: none; margin-left: 4px; }
+.qtd-l button { display: grid; place-items: center; padding: 0; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font-size: 22px; line-height: 1; touch-action: manipulation; }
+.item .tira { width: 44px; height: 44px; touch-action: manipulation; }
 .item .texto small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .melhores li.est { border-bottom-style: dashed; }
 .melhores li.est small { white-space: normal; font-size: 13px; }
 .melhores li.real b, .melhores li.real .total { color: var(--azul); }
+
+/* o ✕ das folhas: sempre à vista no canto de cima, mesmo com a folha a rolar */
+.cartao .fechar { position: sticky; top: 0; float: right; z-index: 2; width: 44px; height: 44px; margin: -8px -6px 0 8px; border-radius: 50%; background: #2a2a2a; color: var(--texto); font-size: 18px; }
