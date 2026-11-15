@@ -9,7 +9,20 @@ import { etiquetas } from '../proxy/src/etiquetas.js';
 export const PRODUTORES = [
     // uma loja de bacalhau: o que não diz a espécie no nome («Especial», «Lombos Extra») é bacalhau
     { loja: 'lugrade', nome: 'Lugrade', base: 'https://loja.lugrade.com', lista: '/loja/', especie: 'Bacalhau' },
+    // a loja da Riberalves (WooCommerce; o robots.txt deixa): bacalhau demolhado ultracongelado, com a cura em meses
+    // (9 ou 12); os pratos feitos (pastéis, rissóis, bacalhau com natas) não entram
+    { loja: 'riberalves', nome: 'Riberalves', base: 'https://riberalves.pt', lista: '/lojaonline/', especie: 'Bacalhau',
+        fora: /past[eé]is|rissois|rissóis|com natas|com broa|edi[cç][aã]o p[aá]scoa/i },
 ];
+// os produtos da lista de uma loja WooCommerce: [url, nome] (o botão com aria-label, ou a ligação do cartão com o título)
+export function produtosDaLista(h) {
+    const a = [...h.matchAll(/href="(https?:\/\/[^"]+\/produto\/[^"]+)"[^>]*aria-label="([^"]+)"/g)].map((m) => [m[1], limparNome(m[2])]);
+    const b = [...h.matchAll(/href="(https?:\/\/[^"]+\/produto\/[^"]+)"[^>]*woocommerce-LoopProduct-link[\s\S]{0,1500}?woocommerce-loop-product__title">([^<]+)</g)].map((m) => [m[1], limparNome(m[2])]);
+    return [...b, ...a].filter(([u, n]) => n && !/\?add-to-cart/.test(u));
+}
+// o nome do produto como vem na lista da loja, limpo («Leia mais sobre “Ovas de Bacalhau 400g iva incluído ”»)
+export const limparNome = (s) => html(s).replace(/^(Leia mais sobre|Adicionar ao carrinho:?|Selecionar opções para)\s*/i, '')
+    .replace(/[“”"]/g, '').replace(/\s*iva inclu[ií]do\s*/i, ' ').replace(/\s+/g, ' ').trim();
 const TIPO_ANIMAL = { bacalhau: 'bacalhau', paloco: 'bacalhau' };
 const html = (s) => String(s).replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#8211;/g, '–').replace(/&#039;/g, "'");
 const n = (s) => Number(String(s).replace(',', '.'));
@@ -52,11 +65,18 @@ export function artigosDoProduto(p, h, nome, url) {
 
 async function main() {
     const agora = new Date().toISOString();
-    for (const p of PRODUTORES) {
+    const so = process.argv.find((a) => a.startsWith('--loja='))?.slice(7);
+    for (const p of PRODUTORES.filter((x) => !so || x.loja === so)) {
         const { estado, corpo } = await sonda(p.base + p.lista);
         if (estado !== 200) { console.log(p.nome, 'HTTP', estado); continue; }
-        const h = corpo.toString('utf8');
-        const prods = [...new Map([...h.matchAll(/href="(https?:\/\/[^"]+\/produto\/[^"]+)"[^>]*aria-label="([^"]+)"/g)].map((m) => [m[1], html(m[2])])).entries()];
+        let h = corpo.toString('utf8');
+        // as páginas seguintes da loja (/page/2/…), no máximo 5
+        for (const u of [...new Set([...h.matchAll(/href="([^"]+\/page\/\d+\/)"/g)].map((m) => m[1]))].slice(0, 4)) {
+            await espera(1500);
+            const r = await sonda(u).catch(() => null);
+            if (r?.estado === 200) h += r.corpo.toString('utf8');
+        }
+        const prods = [...new Map(produtosDaLista(h)).entries()].filter(([, nome]) => !p.fora || !p.fora.test(nome));
         console.log(p.nome, prods.length, 'produtos');
         const linhas = [];
         for (const [url, nome] of prods) {
@@ -68,6 +88,7 @@ async function main() {
             }
         }
         for (const l of linhas.slice(0, 40)) console.log(' ', l[2], '|', l[4], '|', l[5] / 100, '€', l[6], l[7] ? (l[7] / 100) + ' €/kg' : '', l[10] ? '' : 'esgotado');
+        if (process.argv.includes('--sem-gravar')) continue;
         await d1('DELETE FROM produtor_artigo WHERE loja = ?', [p.loja]);
         await d1Linhas('INSERT INTO produtor_artigo (loja, id, nome, url, variante, cent, emb, uc, ub, tipo, disponivel, visto)', linhas);
         console.log(p.nome, 'gravados:', linhas.length);
