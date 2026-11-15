@@ -13,14 +13,14 @@ binding = "AI"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "77a28aa5db2e4dce99d3275282b8f540"
+id = "4d9eaf4eafa74a89866401b07611cd05"
 
 # a casa, os aparelhos (só o hash do segredo de cada um), a lista de cada casa e os preços (volta 3; as tabelas em
 # migrations/, aplicadas com: npx wrangler d1 migrations apply compras --remote)
 [[d1_databases]]
 binding = "DB"
 database_name = "compras"
-database_id = "1d2a2dd2-11f1-401c-86dc-32e7bc0da3fb"
+database_id = "41757f2b-e831-4b91-8da9-7d80a76a42df"
 migrations_dir = "migrations"
 
 # de dois em dois minutos: aos minutos redondos os preços velhos dos produtos das listas (src/precos.js); nos outros,
