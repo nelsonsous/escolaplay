@@ -157,7 +157,12 @@ test('escrever e encontrar: os tipos pelo que se escreve, e os produtos de um ti
     assert.ok(!tp.marcas.some((m) => m.m === 'Auchan')); // a marca própria conta à parte
     assert.equal(tp.brancas, 3);
     // as estimativas (Mercadona: marca branca; SPAR: marcas de fabricante) e o preço real de um talão da Mercadona
-    assert.deepEqual(tp.est.tam.find((x) => x.e === '6 L'), { e: '6 L', merc: 96, spar: 214 });
+    // a estimativa de cada tamanho: o que se pagaria, por litro (a unidade do tipo), e a base (o mais barato de cada cadeia)
+    const seis = tp.est.tam.find((x) => x.e === '6 L');
+    assert.deepEqual([seis.merc, seis.spar, seis.umerc, seis.uspar], [96, 214, 16, 36]);
+    assert.deepEqual(seis.bm, [{ c: 'auchan', cent: 96 }, { c: 'pingodoce', cent: 96 }]);
+    assert.equal(tp.ub, 'l');
+    assert.ok(tp.est.mp && tp.est.sp);
     assert.equal(tp.est.uc.ub, 'l');
     assert.deepEqual(tp.reais, {});
     const casa = env.DB.linhas('SELECT casa FROM aparelho')[0].casa;
@@ -170,3 +175,14 @@ test('escrever e encontrar: os tipos pelo que se escreve, e os produtos de um ti
 async function lerPaginaDireta(env, u) {
     await worker.fetch(new Request(`https://x/sonda/catalogo?url=${encodeURIComponent(u)}`, { headers: { authorization: 'Bearer segredo' } }), env);
 }
+
+test('Pingo Doce ao quilo: «2,49 €/Kg» e o peso médio; paga-se a peça (0,21 kg ≈ 0,52 €) e compara-se a 2,49 €/kg', async () => {
+    const { normaliza, medida } = await import('../proxy/src/precos.js');
+    const tile = '<div class="product" data-pid="32816" data-gtm-info="{&quot;items&quot;:[{&quot;item_id&quot;:&quot;32816&quot;,&quot;item_name&quot;:&quot;Tomate Redondo 70/95&quot;,&quot;price&quot;:2.49,&quot;item_brand&quot;:&quot;Nossa Fruta e Legumes&quot;}]}">'
+        + '<a href="/home/produtos/frutas-e-vegetais/tomate-redondo-32816.html">Tomate</a><div class="product-unit"> 0.21 Kg </div>'
+        + '<div class="product-price "><span class="prices-list"><span class="sales "><span class="value" content="2.49"></span> 2,49 &euro;/Kg </span></span></div></div>';
+    const [p] = lerCategoria('pingodoce', tile + tile.replace(/32816/g, '1').replace('&euro;/Kg', '&euro;'));
+    assert.equal(p.aoPeso, true);
+    assert.deepEqual(normaliza({ cadeia: 'pingodoce', nome: p.nome, cent: 249, uc: 1186, ub: 'kg', m: medida(p.emb), aoPeso: p.aoPeso }), { cent: 52, uc: 249, ub: 'kg' });
+    assert.equal(lerCategoria('pingodoce', tile.replace('&euro;/Kg', '&euro;'))[0].aoPeso, undefined);
+});

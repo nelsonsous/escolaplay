@@ -3,7 +3,7 @@
 import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { UA } from '../proxy/src/worker.js';
-import { precisa, refrescar, medida, porUnidade, VALE_H } from '../proxy/src/precos.js';
+import { precisa, refrescar, medida, porUnidade, normaliza, rotulo, VALE_H } from '../proxy/src/precos.js';
 import { kv } from './kv.mjs';
 import { d1 } from './d1.mjs';
 import { PRECOS, instalar, desinstalar } from './cadeias.mjs';
@@ -168,4 +168,22 @@ test('os preços de uma procura: os conhecidos logo, e dos que faltam lê-se no 
         assert.equal((await call('/api/precos', { metodo: 'POST', chave, corpo: mau })).status, 400);
     }
     assert.equal((await call('/api/precos', { metodo: 'POST', corpo: { cadeia: 'continente', produtos: [] } })).status, 401);
+});
+
+test('preços comparáveis: ao balcão e ao peso paga-se a porção; com peso ou volume, sempre por quilo ou litro', () => {
+    // Continente, fiambre ao balcão: 12,09 €/kg e «1,81 €/un» (a porção de 150 g)
+    assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Fiambre de Peito de Frango Fatiado no Balcão', cent: 1209, uc: 181, ub: 'un', m: medida('0,15 kg') }), { cent: 181, uc: 1209, ub: 'kg' });
+    // Pingo Doce, ao balcão: o preço é o do quilo (e não 60,45 €/kg)
+    assert.deepEqual(normaliza({ cadeia: 'pingodoce', nome: 'Fiambre Peito de Frango (fatiado ao Balcão)', cent: 1209, uc: 6045, ub: 'kg', m: medida('0,2 kg') }), { cent: 242, uc: 1209, ub: 'kg' });
+    // Continente, peso variável (espetadas de 580 g a 7,89 €/kg)
+    assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Espetadas de Peru', cent: 789, uc: 458, ub: 'un', m: medida('580 g') }), { cent: 458, uc: 789, ub: 'kg' });
+    // «por unidade» com a embalagem em gramas: passa a por quilo
+    assert.deepEqual(normaliza({ cadeia: 'auchan', nome: 'QUEIJO RICOTTA 250G', cent: 169, uc: 169, ub: 'un', m: medida('250G') }), { cent: 169, uc: 676, ub: 'kg' });
+    // Auchan, «… FATIADO NO BALCÃO KG» sem peso: o preço é o de um quilo
+    assert.deepEqual(normaliza({ cadeia: 'auchan', nome: 'FIAMBRE DE PEITO FRANGO AUCHAN FATIADO NO BALCÃO KG', cent: 1209, uc: null, ub: null, m: null }), { cent: 1209, uc: 1209, ub: 'kg', emb: '1 kg' });
+    // o resto fica igual
+    assert.deepEqual(normaliza({ cadeia: 'pingodoce', nome: 'Água', cent: 96, uc: 16, ub: 'l', m: medida('6 L') }), { cent: 96, uc: 16, ub: 'l' });
+    assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Ovos', cent: 249, uc: 21, ub: 'un', m: medida('12 un') }), { cent: 249, uc: 21, ub: 'un' });
+    // as embalagens escrevem-se igual: menos de um quilo em gramas
+    assert.deepEqual([rotulo('0,15 kg'), rotulo('0,75 L'), rotulo('1,5 L'), rotulo('6 x 1,5 L')], ['150 g', '750 ml', '1,5 L', '6 × 1,5 L']);
 });

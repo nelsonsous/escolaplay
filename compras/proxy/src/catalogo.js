@@ -10,7 +10,7 @@
 //               data-urls (absoluteProductUrl) e «0.16 €/Lt» em auc-measures--price-per-unit
 // Sem DOM e sem expressões regulares sobre a página toda (2,4 MB no Continente): corta-se por marcadores.
 import { entidades, texto, numero, precoUnidade } from './fontes/comum.js';
-import { porUnidade, medida, rotulo } from './precos.js';
+import { porUnidade, medida, rotulo, normaliza } from './precos.js';
 import { pedir } from './rede.js';
 
 const BASE = { continente: 'https://www.continente.pt', pingodoce: 'https://www.pingodoce.pt', auchan: 'https://www.auchan.pt' };
@@ -68,8 +68,12 @@ function pingodoce(t) {
     const unidade = elemento(t, 'class="product-unit"'); // «6 L | 0,16 €/L»
     const [emb, pu] = unidade ? unidade.split('|').map((s) => s.trim()) : [null, null];
     const preco = numero(d.price);
+    // a fruta, os legumes e o balcão vendem-se ao quilo: o preço diz «2,49 €/Kg» e a embalagem é o peso médio
+    const v = t.indexOf('class="sales');
+    const aoPeso = v >= 0 && /(€|&euro;)\s*\/\s*kg/i.test(t.slice(v, v + 300));
     return {
         id: String(d.item_id), nome: d.item_name ?? null, marca: d.item_brand || null,
+        ...(aoPeso ? { aoPeso } : {}),
         url: h < 0 ? null : absoluto('pingodoce', t.slice(h + 6, t.indexOf('"', h + 6))),
         preco, antes: d.discount > 0 && preco != null ? Math.round((preco + Number(d.discount)) * 100) / 100 : null,
         emb: emb || null, precoUnidade: pu ? precoUnidade(pu) : null,
@@ -130,10 +134,11 @@ const cent = (v) => (v == null || !Number.isFinite(Number(v)) || Number(v) <= 0 
 export function guardarCatalogo(db, cadeia, k, produtos, agora = new Date()) {
     const quando = agora.toISOString();
     const frases = produtos.map((p) => {
-        const c = cent(p.preco);
-        const a = cent(p.antes);
-        const { uc, ub } = porUnidade({ preco: p.preco, precoUnidade: p.precoUnidade, embalagem: p.emb, nome: p.nome });
+        const pu = porUnidade({ preco: p.preco, precoUnidade: p.precoUnidade, embalagem: p.emb, nome: p.nome });
         const m = medida(p.emb) ?? medida(p.nome);
+        const { cent: c, uc, ub, emb: embKg } = normaliza({ cadeia, nome: p.nome, cent: cent(p.preco), uc: pu.uc, ub: pu.ub, m, aoPeso: p.aoPeso });
+        let a = cent(p.antes);
+        if (a != null && c != null && cent(p.preco) !== c) a = Math.round(a * c / cent(p.preco)); // o «antes» da porção
         return db.prepare(`INSERT INTO preco (cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, q, tipo, propria, visto, tentado, falhas)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
             ON CONFLICT (cadeia, id) DO UPDATE SET url = excluded.url, nome = excluded.nome, marca = excluded.marca,
@@ -141,7 +146,7 @@ export function guardarCatalogo(db, cadeia, k, produtos, agora = new Date()) {
                 q = excluded.q, tipo = excluded.tipo, propria = excluded.propria, visto = excluded.visto,
                 tentado = excluded.tentado, falhas = 0`)
             .bind(cadeia, p.id, p.url, String(p.nome ?? '').slice(0, 160), p.marca ?? null, c, a != null && c != null && a > c ? a : null,
-                rotulo(p.emb) ?? rotulo(p.nome), uc, ub, m?.q ?? null, k, propria(cadeia, p.marca), quando, quando);
+                rotulo(p.emb) ?? rotulo(p.nome) ?? embKg ?? null, uc, ub, m?.q ?? (embKg ? 1 : null), k, propria(cadeia, p.marca), quando, quando);
     });
     return frases.length ? db.batch(frases) : Promise.resolve([]);
 }

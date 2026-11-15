@@ -686,40 +686,53 @@
       = x pri tp.marcas = i 0
       W x { `<button class="chip{ Se && fm mesmo fm txt x.m ` on` }" data-onda="fm:{ N i }">{ esc x.m }</button>` = x seg x = i + i 1 }
       `</div><h3>O mais barato em cada supermercado</h3><ul class="melhores">`
-      # o mais barato de todos (por unidade de medida): fica marcado
+      # só se comparam os preços na unidade do tipo (o quilo, o litro): o mais barato fica marcado; em grande o preço
+      # por quilo, e por baixo o que se paga e por quanto
+      = ub ? tp.ub txt tp.ub 0
       = mu -1
-      L k 3 { = p melhor_em tp k fe fm Se && p p.uc Se || < mu 0 < int p.uc mu = mu int p.uc }
+      L k 3 { = p melhor_em tp k fe fm Se && && p p.uc && ub mesmo txt p.ub ub Se || < mu 0 < int p.uc mu = mu int p.uc }
       L k 3 {
         = p melhor_em tp k fe fm
         ? p {
-            # o que pesa é o preço por unidade de medida (embalagens diferentes): em grande; a embalagem por baixo,
-            # e quanto mais caro fica por unidade do que o melhor
-            ? p.uc {
-                `<li{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.uc }<i>/{ crut txt p.ub }</i></span>`
-                `<small><b class="emb">{ eur int p.cent }{ Se p.emb ` · { esc p.emb }` }</b>{ ? == int p.uc mu ` · o mais barato por { crut unidade txt p.ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade txt p.ub }` 0 } } · { esc p.nome }</small></li>` 0 }
-              { `<li><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span><small>{ esc p.nome }{ Se p.emb ` · { esc p.emb }` }</small></li>` 0 }
-            0 }
+            = u && && p.uc ub mesmo txt p.ub ub
+            ? u `<li{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.uc }<i>/{ crut ub }</i></span>`
+              `<li><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
+            `<small><b class="emb">Pagas { eur int p.cent }{ Se p.emb ` por { esc p.emb }` }</b>`
+            Se u { ? == int p.uc mu ` · o mais barato por { crut unidade ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade ub }` 0 } }
+            ` · { esc p.nome }</small></li>` 0 }
           { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }
-      Se minha $"mercadona" dest tp fe 0
-      Se minha $"spar" dest tp fe 1
+      Se minha $"mercadona" dest tp fe 0 mu
+      Se minha $"spar" dest tp fe 1 mu
       `</ul><div class="acoes"><button class="botao fraco" data-onda="fechat:0">Fechar</button><button class="botao" data-onda="juntat:0">Juntar à lista</button></div>`
       0 }
     `<p class="nota">A procurar…</p>`
   `</div>` }
-# a Mercadona (q 0) e o SPAR (q 1) na escolha: o preço do teu talão dessa loja, se há; senão a estimativa, com o porquê
-: dest iii>i tp fe q {
+# a Mercadona (q 0) e o SPAR (q 1) na escolha: o preço do teu talão dessa loja, se há; senão a estimativa do
+# tamanho escolhido (ou do mais comum), na mesma unidade das outras linhas, com a base (o que há nas outras lojas)
+# e o porquê. mu: o melhor preço por unidade das cadeias (para dizer quanto mais caro ou mais barato)
+: nomec i>i c ? mesmo c $"continente" $"Continente" ? mesmo c $"pingodoce" $"Pingo Doce" ? mesmo c $"auchan" $"Auchan" c
+: dest iiii>i tp fe q mu {
   = j _ar_json _an_ler $"casa"
   = nome ? q ? && j j.lojas.spar txt j.lojas.spar $"SPAR" $"Mercadona"
   = real _ar_get tp.reais ? q $"spar" $"mercadona"
   ? real {
-      `<li class="est real"><b>{ crut nome }</b><span class="total">{ eur int real.cent }</span><small>Do teu talão de { crut txt real.dia }: «{ esc real.t }».</small></li>` 0 }
+      `<li class="est real"><b>{ crut nome }</b><span class="total">{ eur int real.cent }</span><small><b class="emb">Pagaste { eur int real.cent }</b> · do teu talão de { crut txt real.dia }: «{ esc real.t }».</small></li>` 0 }
     {
-      # com um tamanho escolhido, o preço desse tamanho; sem, o preço por unidade de medida
-      = v 0 = e pri tp.est.tam
-      Se fe W e { Se mesmo txt e.e fe = v int ? q e.spar e.merc = e seg e }
-      = u ? fe 0 int ? q tp.est.uc.spar tp.est.uc.merc
-      Se || v u {
-        `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { ? v eur v { eur u `/{ crut txt tp.est.uc.ub }` 0 } }</span><small>`
+      = ub ? tp.ub txt tp.ub 0
+      = e0 ? fe fe ? q ? tp.est.sp txt tp.est.sp 0 ? tp.est.mp txt tp.est.mp 0
+      = x 0 = e pri tp.est.tam
+      Se e0 W && e ~ x { Se mesmo txt e.e e0 = x e = e seg e }
+      = v ? x int ? q x.spar x.merc 0
+      = uv ? x int ? q x.uspar x.umerc 0
+      Se ~ x = uv int ? q tp.est.uc.spar tp.est.uc.merc
+      Se || v uv {
+        ? && uv ub `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { eur uv }<i>/{ crut ub }</i></span><small>`
+          `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { eur v }</span><small>`
+        Se v `<b class="emb">Pagarias ≈ { eur v } por { crut e0 }</b>`
+        Se && && uv ub > mu 0 { ? > uv mu ` · ≈ +{ N / - * 100 uv * 100 mu mu }% por { crut unidade ub }` { Se < uv mu ` · ≈ { N / - * 100 mu * 100 uv mu }% mais barato por { crut unidade ub }` 0 } }
+        = b ? x ? q pri x.bs pri x.bm 0
+        Se b { ` · com base em ` = s 0 W b { Se s `, ` `{ crut nomec txt b.c }{ Se ~ q ` 🏷` } { eur int b.cent }` = s 1 = b seg b } }
+        `<br>`
         ? q `Estimativa: as marcas de fabricante do mesmo tipo e tamanho nas outras lojas. O SPAR não tem loja online e é franquiado: cada loja tem os seus preços. Os teus talões corrigem-na.`
           `Estimativa: a marca branca do mesmo tipo e tamanho no Continente, no Pingo Doce e no Auchan. A Mercadona não vende online em Portugal; não usamos preços de Espanha (o IVA e os preços são outros). Os teus talões corrigem-na.`
         `</small></li>` }

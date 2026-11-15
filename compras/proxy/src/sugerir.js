@@ -4,6 +4,7 @@
 // para a app afinar (botões) e escolher o mais barato de cada cadeia.
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
+import { medida } from './precos.js';
 
 const HORA = 3600e3;
 const TIPOS = { lista: null, quando: 0 };
@@ -97,18 +98,34 @@ export function palavrasDoTipo(k, produtos, max = 10) {
 // os produtos de um tipo, com os tamanhos e as marcas que há (os mais comuns primeiro)
 const mediana = (v) => { const s = [...v].sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
 
-// as estimativas da Mercadona e do SPAR para um tipo (por tamanho, e por unidade de medida para «todos os tamanhos»):
-// a Mercadona pela marca branca das outras cadeias, o SPAR pelas marcas de fabricante
-function estimativasDoTipo(results) {
+// as estimativas da Mercadona e do SPAR para um tipo: a Mercadona pela marca branca das outras cadeias, o SPAR
+// pelas marcas de fabricante. Por tamanho (merc, spar: o que se paga; umerc, uspar: por quilo ou litro, na unidade
+// do tipo ub; bm, bs: a base, o mais barato de cada cadeia) e por unidade de medida (uc). mp e sp: a estimativa do
+// tamanho mais comum que a tem, para quando não se escolheu tamanho.
+function estimativasDoTipo(results, ub, tamanhos = []) {
     const g = new Map(), uc = { b: [], f: [] };
-    let ub = null;
     for (const p of results) {
         const lado = p.pr ? 'b' : 'f';
-        if (p.emb) { if (!g.has(p.emb)) g.set(p.emb, { b: [], f: [] }); g.get(p.emb)[lado].push(Number(p.cent)); }
-        if (p.uc != null && p.ub) { uc[lado].push(Number(p.uc)); ub = ub ?? p.ub; }
+        if (p.emb) { if (!g.has(p.emb)) g.set(p.emb, { b: [], f: [] }); g.get(p.emb)[lado].push(p); }
+        if (p.uc != null && p.ub === ub) uc[lado].push(Number(p.uc));
     }
-    const tam = [...g].map(([e, v]) => ({ e, merc: mediana(v.b), spar: mediana(v.f) }));
-    return { tam, uc: { merc: mediana(uc.b), spar: mediana(uc.f), ub } };
+    const base = (ps) => {
+        const m = new Map();
+        for (const p of ps) if (!m.has(p.c) || Number(p.cent) < m.get(p.c)) m.set(p.c, Number(p.cent));
+        return [...m].map(([c, cent]) => ({ c, cent }));
+    };
+    const tam = [...g].map(([e, v]) => {
+        const x = { e, merc: mediana(v.b.map((p) => Number(p.cent))), spar: mediana(v.f.map((p) => Number(p.cent))), bm: base(v.b), bs: base(v.f) };
+        const q = medida(e);
+        if (q && q.ub === ub && q.q > 0) {
+            if (x.merc != null) x.umerc = Math.round(x.merc / q.q);
+            if (x.spar != null) x.uspar = Math.round(x.spar / q.q);
+        }
+        return x;
+    });
+    const ordem = [...tamanhos.map((t) => t.e), ...tam.map((t) => t.e)];
+    const primeiro = (f) => ordem.map((e) => tam.find((t) => t.e === e)).find((t) => t && t[f] != null) ?? null;
+    return { tam, uc: { merc: mediana(uc.b), spar: mediana(uc.f), ub }, mp: primeiro('merc')?.e ?? null, sp: primeiro('spar')?.e ?? null };
 }
 
 // o preço real na Mercadona e no SPAR, do talão mais recente da casa com uma linha deste tipo (as palavras do tipo
@@ -159,14 +176,22 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         x.nk = palavras(p.nome).join(' '); // o nome sem acentos nem maiúsculas, para filtrar pelas palavras
         return x;
     });
+    // a unidade de medida do tipo (a mais comum: kg, l ou un): só se comparam os preços por unidade nessa
+    const nu = new Map();
+    for (const p of results) if (p.uc != null && p.ub) nu.set(p.ub, (nu.get(p.ub) ?? 0) + 1);
+    const ub = [...nu].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    const tamanhos = conta((p) => p.emb).slice(0, 8).map(([e, n]) => ({ e, n }));
+    // o mais barato primeiro: na unidade do tipo, por esse preço; os outros depois, pelo que se paga
+    produtos.sort((a, b) => (a.ub === ub ? 0 : 1) - (b.ub === ub ? 0 : 1) || (a.ub === ub ? a.uc - b.uc : a.cent - b.cent));
     return {
         // a secção (o primeiro nível da árvore: o caminho na escolha volta a ela)
         k: t.k, nome: t.nome, s: seccaoDoTipo(t), sn: nomeSeccao(seccaoDoTipo(t)),
-        tamanhos: conta((p) => p.emb).slice(0, 8).map(([e, n]) => ({ e, n })),
+        tamanhos,
         marcas: conta((p) => (p.pr || !p.marca ? null : nomeMarca(p.marca))).slice(0, 10).map(([m, n]) => ({ m, n })),
         brancas: results.filter((p) => p.pr).length,
         palavras: palavrasDoTipo(t.k, produtos),
-        est: estimativasDoTipo(results),
+        ub,
+        est: estimativasDoTipo(results, ub, tamanhos),
         reais: await reaisDoTipo(db, casa, k),
         produtos,
     };
