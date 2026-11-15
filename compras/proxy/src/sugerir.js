@@ -21,10 +21,12 @@ function singular(w) {
 export const palavras = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .split(/[^a-z0-9]+/).filter((w) => w && !PARAR.has(w)).map(singular);
 
+// outros nomes por que se procura um tipo (as cadeias juntam todo o bovino numa categoria: a picanha é de vaca)
+const OUTROS = { 'carne-novilho': 'bovino vitelao angus', 'borrego-cabrito': 'cordeiro', 'polvo-lulas': 'choco pota' };
 async function tipos(db) {
     if (TIPOS.lista && Date.now() - TIPOS.quando < HORA) return TIPOS.lista;
     const { results } = await db.prepare('SELECT k, nome, n, casa FROM tipo WHERE n > 0').all();
-    TIPOS.lista = results.map((t) => ({ ...t, w: palavras(t.nome + ' ' + t.k.replace(/-/g, ' ')), s: seccaoDoTipo(t) }));
+    TIPOS.lista = results.map((t) => ({ ...t, w: palavras(`${t.nome} ${t.k.replace(/-/g, ' ')} ${OUTROS[t.k] ?? ''}`), s: seccaoDoTipo(t) }));
     TIPOS.quando = Date.now();
     return TIPOS.lista;
 }
