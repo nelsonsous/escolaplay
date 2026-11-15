@@ -12,7 +12,7 @@ const PEDIDO = `És um leitor de talões de supermercado portugueses. Lê a foto
 talões de desconto entram como linhas com preço negativo. Se não for um talão, responde {"linhas": []}.`;
 
 const cent = (v) => (v == null || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 100));
-const palavras = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
+export const palavras = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
 
 // o JSON que vem na resposta do modelo (às vezes vem com texto à volta, ou já como objeto)
 export function lerResposta(r) {
@@ -38,7 +38,7 @@ export function arrumar(d) {
 }
 
 // as abreviaturas dos talões: «S/GAS» é sem gás, «C/GAS» com gás
-const porExtenso = (t) => String(t).replace(/\b([sc])\//gi, (m, l) => (l.toLowerCase() === 's' ? 'sem ' : 'com '));
+export const porExtenso = (t) => String(t).replace(/\b([sc])\//gi, (m, l) => (l.toLowerCase() === 's' ? 'sem ' : 'com '));
 // as coisas por riscar da lista que aparecem no talão: todas as palavras da coisa (com mais de 2 letras) numa linha; nas
 // coisas da escolha, as palavras do tipo («agua-sem-gas»), que o texto pode ter mais coisas («marca branca», a marca)
 export function noTalao(itens, linhas) {

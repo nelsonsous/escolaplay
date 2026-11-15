@@ -42,7 +42,7 @@ iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar a
   `app/compras.wasm`. `compras.js` é a casca:
   a chave do aparelho nos pedidos ao conector e o Enter nos campos. `index.html`, `compras.css`, `sw.js`, o manifesto
   e os ícones completam a PWA.
-- `proxy/` — o conector (Worker `compras` 0.11.0, em `https://compras.mercados-proxy.workers.dev`):
+- `proxy/` — o conector (Worker `compras` 0.12.0, em `https://compras.mercados-proxy.workers.dev`):
   - a casa e a lista (`src/casa.js`), na D1 `compras` (as tabelas em `migrations/`);
   - os preços (`src/precos.js`): lidos no site da cadeia quando se escolhe um produto e pelo cron de dez em dez
     minutos (os que têm mais de 20 h, um por cadeia de cada vez), guardados na D1, com o preço por quilo ou litro;

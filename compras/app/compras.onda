@@ -655,10 +655,31 @@
             `<li{ Se && p.uc == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
             `<small>{ esc p.nome }{ Se p.emb ` · { esc p.emb }` }{ Se p.uc ` · { eur int p.uc }/{ crut txt p.ub }` }</small></li>` 0 }
           { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }
+      Se minha $"mercadona" dest tp fe 0
+      Se minha $"spar" dest tp fe 1
       `</ul><div class="acoes"><button class="botao fraco" data-onda="fechat:0">Fechar</button><button class="botao" data-onda="juntat:0">Juntar à lista</button></div>`
       0 }
     `<p class="nota">A procurar…</p>`
   `</div>` }
+# a Mercadona (q 0) e o SPAR (q 1) na escolha: o preço do teu talão dessa loja, se há; senão a estimativa, com o porquê
+: dest iii>i tp fe q {
+  = j _ar_json _an_ler $"casa"
+  = nome ? q ? && j j.lojas.spar txt j.lojas.spar $"SPAR" $"Mercadona"
+  = real _ar_get tp.reais ? q $"spar" $"mercadona"
+  ? real {
+      `<li class="est real"><b>{ crut nome }</b><span class="total">{ eur int real.cent }</span><small>Do teu talão de { crut txt real.dia }: «{ esc real.t }».</small></li>` 0 }
+    {
+      # com um tamanho escolhido, o preço desse tamanho; sem, o preço por unidade de medida
+      = v 0 = e pri tp.est.tam
+      Se fe W e { Se mesmo txt e.e fe = v int ? q e.spar e.merc = e seg e }
+      = u ? fe 0 int ? q tp.est.uc.spar tp.est.uc.merc
+      Se || v u {
+        `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { ? v eur v { eur u `/{ crut txt tp.est.uc.ub }` 0 } }</span><small>`
+        ? q `Estimativa: as marcas de fabricante do mesmo tipo e tamanho nas outras lojas. O SPAR não tem loja online e é franquiado: cada loja tem os seus preços. Os teus talões corrigem-na.`
+          `Estimativa: a marca branca do mesmo tipo e tamanho no Continente, no Pingo Doce e no Auchan. A Mercadona não vende online em Portugal; não usamos preços de Espanha (o IVA e os preços são outros). Os teus talões corrigem-na.`
+        `</small></li>` }
+      0 }
+  0 }
 : fecha_tipo >i { _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fm" 0 _an_gravar $"tq" 0 }
 : abre_tipo i>i v {
   = s _ar_json _an_ler $"sug"

@@ -129,3 +129,6 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .qtd-l { display: flex; gap: 4px; flex: none; }
 .qtd-l button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font-size: 17px; line-height: 1; }
 .item .texto small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.melhores li.est { border-bottom-style: dashed; }
+.melhores li.est small { white-space: normal; font-size: 13px; }
+.melhores li.real b, .melhores li.real .total { color: var(--azul); }

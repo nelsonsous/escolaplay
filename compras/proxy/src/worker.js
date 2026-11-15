@@ -43,7 +43,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.11.0';
+export const VERSION = '0.12.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -235,7 +235,7 @@ async function api(request, env, url) {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
     }
     if (caminho === '/api/tipo' && metodo === 'GET') {
-        const t = await produtosDoTipo(db, String(url.searchParams.get('k') ?? '').slice(0, 60));
+        const t = await produtosDoTipo(db, String(url.searchParams.get('k') ?? '').slice(0, 60), new Date(), ap.casa);
         if (!t) throw new Erro(404, 'tipo desconhecido');
         return json(t);
     }
@@ -259,7 +259,7 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: a lista arrumada' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: estimativas explicadas' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);

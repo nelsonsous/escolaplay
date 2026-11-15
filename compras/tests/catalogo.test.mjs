@@ -145,6 +145,14 @@ test('escrever e encontrar: os tipos pelo que se escreve, e os produtos de um ti
     assert.ok(tp.marcas.some((m) => m.m === 'Luso'));
     assert.ok(!tp.marcas.some((m) => m.m === 'Auchan')); // a marca própria conta à parte
     assert.equal(tp.brancas, 3);
+    // as estimativas (Mercadona: marca branca; SPAR: marcas de fabricante) e o preço real de um talão da Mercadona
+    assert.deepEqual(tp.est.tam.find((x) => x.e === '6 L'), { e: '6 L', merc: 96, spar: 214 });
+    assert.equal(tp.est.uc.ub, 'l');
+    assert.deepEqual(tp.reais, {});
+    const casa = env.DB.linhas('SELECT casa FROM aparelho')[0].casa;
+    env.DB.sql.prepare('INSERT INTO talao (id, casa, loja, dia, total, linhas, criado) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run('t1', casa, 'mercadona', '2026-11-12', 198, JSON.stringify([{ t: 'AGUA S/GAS 6L', q: 2, cent: 198 }]), new Date().toISOString());
+    assert.deepEqual((await api('/api/tipo?k=agua-sem-gas')).reais, { mercadona: { cent: 99, dia: '2026-11-12', t: 'AGUA S/GAS 6L' } });
     assert.equal((await worker.fetch(new Request('https://x/api/tipo?k=nada', { headers: { authorization: 'Bearer ' + chave } }), env)).status, 404);
 });
 
