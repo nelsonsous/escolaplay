@@ -1,0 +1,43 @@
+# Compras: o motor do «Mais barato» (volta 3). Faz as contas no telemóvel, com a lista guardada (itens), em que cada
+# produto escolhido traz o preço do site da cadeia em cêntimos (cent; o conector junta-o: proxy/src/precos.js).
+# Só contam as coisas por riscar. Um supermercado «tem tudo» quando há preço para todas; só esses se comparam entre si
+# (um total com coisas a menos parece sempre mais barato). Dividir por duas lojas: cada coisa vai para a loja onde fica
+# mais barata, e só se sugere quando se poupa pelo menos poupa_min cêntimos (ou quando nenhuma loja sozinha tem tudo).
+# O tests/ui.test.mjs confere estas contas com as mesmas feitas em JavaScript.
+
+: poupa_min >i 200
+
+# cêntimos como se escrevem: 1234 → «12,34 €»
+: eur i>i c {
+  Se < c 0 { P '- = c - 0 c }
+  N / c 100 P 44
+  = r % c 100 Se < r 10 P '0 N r
+  ` €` }
+
+# o preço (em cêntimos) da coisa c no supermercado k, para a quantidade dela; -1 se não há (sem produto escolhido,
+# ainda sem preço, ou esgotado no site)
+: pc ii>i c k {
+  = r -1
+  = m _ar_get c.p cadeia k
+  Se m { Se m.cent { Se ~ int m.esgotado = r * Mx 1 int c.q int m.cent } }
+  r }
+
+# quantas coisas por riscar têm preço em k, e quanto custam
+: cobre i>i k { = r 0 = c pri itens W c { Se && ~ int c.f >= pc c k 0 = r + r 1 = c seg c } r }
+: total i>i k { = r 0 = c pri itens W c { Se ~ int c.f { = p pc c k Se >= p 0 = r + r p } = c seg c } r }
+
+# o mesmo indo às duas lojas a e b (cada coisa na mais barata das duas)
+: melhor2 iii>i c a b { = x pc c a = y pc c b ? < x 0 y ? < y 0 x Mn x y }
+: cobre2 ii>i a b { = r 0 = c pri itens W c { Se && ~ int c.f >= melhor2 c a b 0 = r + r 1 = c seg c } r }
+: total2 ii>i a b { = r 0 = c pri itens W c { Se ~ int c.f { = p melhor2 c a b Se >= p 0 = r + r p } = c seg c } r }
+# a coisa c fica na loja a (e não na b)?
+: na_a iii>i c a b { = x pc c a = y pc c b && >= x 0 || < y 0 <= x y }
+
+# a ordem dos supermercados: primeiro os que têm preço para mais coisas, e entre esses o mais barato
+# (feitos: os já mostrados, um bit por supermercado)
+: proxima i>i feitos {
+  = b -1 = bc 0 = bt 0
+  L k 4 Se ~ & feitos << 1 k {
+    = c cobre k = t total k
+    Se || < b 0 || > c bc && == c bc < t bt { = b k = bc c = bt t } }
+  b }

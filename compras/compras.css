@@ -45,8 +45,18 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .rede { color: #ffd60a; font-size: 14px; }
 
 .cadeias { list-style: none; padding: 0; margin: 12px 0; }
-.cadeias li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--linha); }
-.cadeias span { color: var(--fraco); }
+.cadeias li {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 0; border-bottom: 1px solid var(--linha);
+}
+.cadeias .total { font-weight: 700; font-variant-numeric: tabular-nums; }
+.cadeias small { grid-column: 1 / -1; color: var(--fraco); font-size: 14px; }
+.cadeias li.melhor b, .cadeias li.melhor .total, .cadeias li.melhor small { color: var(--verde); }
+.cadeias li.parcial { color: var(--fraco); }
+.cadeias li.parcial .total { font-weight: 400; }
+.dividir { margin: 16px 0; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--linha); background: var(--cartao); }
+.dividir h3 { margin-top: 0; }
+.dividir p { margin: 6px 0; overflow-wrap: anywhere; }
+.prod s, .cadeias s { color: var(--fraco); }
 .codigo { font-size: 32px; font-weight: 700; letter-spacing: 3px; margin: 8px 0 16px; font-variant-numeric: tabular-nums; }
 
 #abas {

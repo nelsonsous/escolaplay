@@ -1,15 +1,18 @@
-// A casa e a lista no conector (volta 2), com a KV simulada.
-import { test, beforeEach } from 'node:test';
+// A casa e a lista no conector (volta 2; na D1 desde a volta 3), com a D1 simulada e os sites das cadeias a fingir.
+import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { esquecerIndices } from '../proxy/src/worker.js';
 import { montarIndice } from '../proxy/src/indice.js';
 import { aplicar, listaVazia, MAX_OPS } from '../proxy/src/casa.js';
 import { kv } from './kv.mjs';
+import { d1 } from './d1.mjs';
+import { instalar, desinstalar } from './cadeias.mjs';
 
 const ORIGIN = 'https://compras.example.workers.dev';
 const APP = 'https://nelsonsous.github.io';
 let env;
-beforeEach(() => { env = { KV: kv(), ALLOWED_ORIGINS: APP }; esquecerIndices(); });
+beforeEach(() => { env = { KV: kv(), DB: d1(), ALLOWED_ORIGINS: APP }; esquecerIndices(); instalar(); });
+after(desinstalar);
 const call = (path, { metodo = 'GET', chave, corpo, origem = APP } = {}) => worker.fetch(new Request(ORIGIN + path, {
     method: metodo,
     headers: { ...(chave ? { authorization: 'Bearer ' + chave } : {}), ...(origem ? { origin: origem } : {}), ...(corpo ? { 'content-type': 'application/json' } : {}) },
@@ -27,15 +30,16 @@ test('um aparelho novo fica numa casa nova, com um código para convidar', async
     const c = await (await call('/api/casa', { chave: a.chave })).json();
     assert.deepEqual(c, { codigo: a.casa.codigo, aparelhos: 1 });
     // só o hash do segredo fica guardado
-    const guardado = [...env.KV.m.values()].join(' ');
+    const guardado = JSON.stringify([env.DB.linhas('SELECT * FROM aparelho'), env.DB.linhas('SELECT * FROM casa')]);
+    assert.ok(guardado.includes(a.chave.split('.')[0]));
     assert.ok(!guardado.includes(a.chave.split('.')[1]));
-    assert.equal(env.KV.gravacoes, 3);
+    assert.equal(env.DB.escritas, 2);
 });
 
 test('só a app (a origem dela) cria aparelhos', async () => {
     assert.equal((await call('/api/aparelho', { metodo: 'POST', origem: 'https://outro.exemplo' })).status, 403);
     assert.equal((await call('/api/aparelho', { metodo: 'POST', origem: null })).status, 403);
-    assert.equal(env.KV.gravacoes, 0);
+    assert.equal(env.DB.escritas, 0);
 });
 
 test('sem chave, ou com uma chave errada, nada', async () => {
@@ -66,13 +70,13 @@ test('reenviar as mesmas operações não muda nada nem grava outra vez (a app r
     const { chave } = await novo();
     const l1 = [{ o: 'j', id: 'a1b2', t: 'ovos' }, { o: 'r', id: 'a1b2', f: 1 }];
     await ops(chave, l1);
-    const g = env.KV.gravacoes;
+    const g = env.DB.escritas;
     const l = await (await ops(chave, l1)).json();
     assert.equal(l.versao, 1);
     assert.equal(l.itens.length, 1);
-    assert.equal(env.KV.gravacoes, g);
+    assert.equal(env.DB.escritas, g);
     assert.equal((await ops(chave, [{ o: 'x', id: 'zzzz' }])).status, 200); // tirar o que já não está: nada
-    assert.equal(env.KV.gravacoes, g);
+    assert.equal(env.DB.escritas, g);
 });
 
 test('operações inválidas são recusadas e a lista fica como estava', async () => {
@@ -103,8 +107,7 @@ test('entrar noutra casa com o código: a lista passa a ser a mesma, e o que se 
     await ops(b.chave, [{ o: 'r', id: 'aaaa', f: 1 }]);
     assert.equal((await (await call('/api/lista', { chave: a.chave })).json()).itens[0].f, 1);
     assert.deepEqual(await (await call('/api/casa', { chave: b.chave })).json(), { codigo: a.casa.codigo, aparelhos: 2 });
-    assert.equal(env.KV.m.has('codigo:' + b.casa.codigo), false);
-    assert.equal([...env.KV.m.keys()].filter((k) => k.startsWith('casa:')).length, 1);
+    assert.deepEqual(env.DB.linhas('SELECT codigo FROM casa'), [{ codigo: a.casa.codigo }]);
 });
 
 test('um código que não existe', async () => {

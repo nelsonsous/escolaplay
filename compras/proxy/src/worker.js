@@ -4,9 +4,12 @@
 //   POST /api/aparelho                 um aparelho novo, numa casa nova: { chave, casa: { codigo } } (só da origem da app)
 //   GET  /api/casa                     { codigo, aparelhos }
 //   POST /api/casa/entrar  {codigo}    passar para outra casa (leva o que tinha na lista)
-//   GET  /api/lista                    { versao, itens }
-//   POST /api/lista        {ops}       mudar a lista (ver casa.js) e recebê-la como ficou
+//   GET  /api/lista                    { versao, itens } com o preço de cada produto escolhido (precos.js)
+//   POST /api/lista        {ops}       mudar a lista (ver casa.js) e recebê-la como ficou; um produto escolhido
+//                                      agora sem preço recente lê-se logo no site da cadeia
 //   GET  /api/procurar?cadeia=…&q=…    { cadeia, produtos: [{ id, nome, url }] } do índice dessa cadeia (indice.js)
+// O cron (de dez em dez minutos): lê os preços velhos dos produtos que estão nas listas (precos.js, refrescar).
+// A casa, a lista e os preços estão na D1 (env.DB; migrations/); a KV (env.KV) guarda o índice de cada cadeia.
 // A sonda (volta 1; com o segredo SONDA_TOKEN)
 //   GET /sonda?url=…                   a resposta da cadeia tal e qual (estado, tempo e cabeçalhos à parte)
 //   GET /sonda/produto?cadeia=…&url=…  o produto lido pela fonte da cadeia (src/fontes/); ou &id=…, onde há endereço por número
@@ -18,14 +21,15 @@
 import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
 import { Erro, novoAparelho, aparelhoDe, casaDe, lerLista, mudarLista, entrarNaCasa } from './casa.js';
+import { juntarPrecos, precosNovos, refrescar } from './precos.js';
+import { UA, pedir } from './rede.js';
 
-export const VERSION = '0.3.0';
-export const UA = 'compras/0.3 (app pessoal de comparação de preços; Cloudflare Worker)';
+export { UA };
+export const VERSION = '0.4.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org',
 ];
-const TIMEOUT_MS = 15000;
 const MAX_CORPO = 64 * 1024;
 // os cabeçalhos da resposta que dizem quem serve e se há proteção contra robôs (só os nomes dos cookies)
 const CABECALHOS = ['server', 'content-type', 'content-length', 'location', 'cache-control', 'cf-ray', 'cf-cache-status',
@@ -76,11 +80,6 @@ function alvo(s) {
     if (!hostPermitido(u.hostname)) return { erro: json({ erro: `domínio fora da lista: ${u.hostname}` }, 400) };
     return { u };
 }
-
-const pedir = (u, accept) => fetch(u.toString(), {
-    headers: { 'user-agent': UA, accept, 'accept-language': 'pt-PT,pt;q=0.9' },
-    redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT_MS),
-});
 
 function cabecalhos(r) {
     const c = {};
@@ -167,26 +166,25 @@ async function indice(env, cadeia) {
 }
 
 async function api(request, env, url) {
-    const kv = env.KV;
+    const db = env.DB;
     const caminho = url.pathname, metodo = request.method;
     if (caminho === '/api/aparelho' && metodo === 'POST') {
         if (!origemPermitida(request, env)) throw new Erro(403, 'só a app cria aparelhos');
-        return json(await novoAparelho(kv), 201);
+        return json(await novoAparelho(db), 201);
     }
-    const ap = await aparelhoDe(kv, request);
-    if (caminho === '/api/casa' && metodo === 'GET') {
-        const casa = await casaDe(kv, ap);
-        return json({ codigo: casa.codigo, aparelhos: casa.aparelhos.length });
-    }
+    const ap = await aparelhoDe(db, request);
+    if (caminho === '/api/casa' && metodo === 'GET') return json(await casaDe(db, ap));
     if (caminho === '/api/casa/entrar' && metodo === 'POST') {
         const { codigo } = await corpoJSON(request);
-        const r = await entrarNaCasa(kv, ap, codigo);
-        return json({ codigo: r.codigo, lista: await lerLista(kv, r.casa) });
+        const r = await entrarNaCasa(db, ap, codigo);
+        return json({ codigo: r.codigo, lista: await juntarPrecos(db, await lerLista(db, r.casa)) });
     }
-    if (caminho === '/api/lista' && metodo === 'GET') return json(await lerLista(kv, ap.casa));
+    if (caminho === '/api/lista' && metodo === 'GET') return json(await juntarPrecos(db, await lerLista(db, ap.casa)));
     if (caminho === '/api/lista' && metodo === 'POST') {
         const { ops } = await corpoJSON(request);
-        return json(await mudarLista(kv, ap, ops ?? []));
+        const lista = await mudarLista(db, ap, ops ?? []);
+        await precosNovos(db, ops).catch(() => {}); // sem o preço agora, o cron lê-o depois
+        return json(await juntarPrecos(db, lista));
     }
     if (caminho === '/api/procurar' && metodo === 'GET') {
         const cadeia = url.searchParams.get('cadeia');
@@ -208,9 +206,12 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 2: a lista da casa' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 3: mais barato' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         return json({ erro: 'não existe' }, 404);
+    },
+    async scheduled(evento, env, ctx) {
+        ctx.waitUntil(refrescar(env.DB, new Date(evento.scheduledTime || Date.now())).then((r) => console.log('preços', JSON.stringify(r))));
     },
 };

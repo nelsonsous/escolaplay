@@ -4,12 +4,24 @@ compatibility_date = "2026-10-01"
 # não apagar as variáveis postas no painel do Cloudflare a cada publicação (os segredos ficam sempre)
 keep_vars = true
 
-# A casa, os aparelhos (só o hash do segredo de cada um), a lista de cada casa e o índice de cada cadeia
-# (criado com: POST /accounts/:id/storage/kv/namespaces {"title":"compras-KV"}).
-# A KV grátis dá 1000 gravações por dia à conta toda (as outras apps também): grava-se pouco (ver src/casa.js).
+# O índice de cada cadeia (o Ecónomo grava-o; criado com: POST /accounts/:id/storage/kv/namespaces {"title":"compras-KV"}).
+# Até à volta 2 também tinha a casa e a lista, que passaram para a D1: a KV grátis dá só 1000 gravações por dia à
+# conta toda (as outras apps também).
 [[kv_namespaces]]
 binding = "KV"
 id = "77a28aa5db2e4dce99d3275282b8f540"
+
+# a casa, os aparelhos (só o hash do segredo de cada um), a lista de cada casa e os preços (volta 3; as tabelas em
+# migrations/, aplicadas com: npx wrangler d1 migrations apply compras --remote)
+[[d1_databases]]
+binding = "DB"
+database_name = "compras"
+database_id = "1d2a2dd2-11f1-401c-86dc-32e7bc0da3fb"
+migrations_dir = "migrations"
+
+# de dez em dez minutos, os preços velhos dos produtos das listas (src/precos.js)
+[triggers]
+crons = ["*/10 * * * *"]
 
 [vars]
 # Só a app cria aparelhos (a origem dela)

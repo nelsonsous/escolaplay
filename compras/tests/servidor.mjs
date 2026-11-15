@@ -1,5 +1,6 @@
 // Um servidor para experimentar a app no browser, sem rede: serve os ficheiros do repositório e responde a /api/* com o
-// conector a sério (compras/proxy/src/worker.js) sobre uma KV simulada, com um índice pequeno de cada cadeia.
+// conector a sério (compras/proxy/src/worker.js) sobre uma KV simulada (um índice pequeno de cada cadeia), uma D1
+// simulada (a casa, a lista e os preços) e os sites das cadeias a fingir (com os preços de PRECOS_TESTE).
 // Com falhar(true), o conector «cai» (503), para ver a app sem ligação.
 import http from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -8,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import worker, { esquecerIndices } from '../proxy/src/worker.js';
 import { montarIndice } from '../proxy/src/indice.js';
 import { kv } from './kv.mjs';
+import { d1 } from './d1.mjs';
+import { PRECOS, instalar, desinstalar } from './cadeias.mjs';
 
 const RAIZ = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
@@ -22,9 +25,20 @@ export const INDICES = {
     lidl: montarIndice('lidl', ['https://www.lidl.pt/p/mimosa-leite-meio-gordo/p701']),
 };
 
+// os preços nos sites a fingir (em euros), por «cadeia número»
+export const PRECOS_TESTE = {
+    'continente 8504295': { preco: 0.79 }, 'continente 4421406': { preco: 0.95 }, 'continente 11': { preco: 1.49 }, 'continente 12': { preco: 2.19 },
+    'pingodoce 501': { preco: 0.89, antes: 1.05 }, 'pingodoce 502': { preco: 1.39 },
+    'auchan 601': { preco: 0.99 }, 'auchan 602': { preco: 0.99 },
+    'lidl 701': { preco: 0.75 },
+};
+
 export async function abrir() {
-    const env = { KV: kv(Object.fromEntries(Object.entries(INDICES).map(([c, t]) => [`indice:${c}`, t]))) };
+    const env = { KV: kv(Object.fromEntries(Object.entries(INDICES).map(([c, t]) => [`indice:${c}`, t]))), DB: d1() };
     esquecerIndices();
+    PRECOS.clear();
+    for (const [k, v] of Object.entries(PRECOS_TESTE)) PRECOS.set(k, v);
+    instalar();
     let falha = false;
     const srv = http.createServer(async (req, res) => {
         const u = new URL(req.url, 'http://x');
@@ -46,6 +60,10 @@ export async function abrir() {
         env, base,
         url: (extra = '') => `${base}/compras/index.html?proxy=${encodeURIComponent(base)}${extra}`,
         falhar: (v) => { falha = v; },
-        fechar: () => new Promise((ok) => srv.close(ok)),
+        // um pedido ao conector, como a app o faz (com a chave de um aparelho)
+        api: async (caminho, chave, corpo) => (await worker.fetch(new Request('http://x' + caminho, {
+            method: corpo ? 'POST' : 'GET', headers: { authorization: 'Bearer ' + chave }, body: corpo ? JSON.stringify(corpo) : undefined,
+        }), env)).json(),
+        fechar: () => new Promise((ok) => srv.close(ok)).then(desinstalar),
     };
 }

@@ -24,7 +24,7 @@ const sonda = (url, token = TOKEN) => call('/sonda?url=' + encodeURIComponent(ur
 test('a raiz diz a versão e a fase', async () => {
     const r = await call('/');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { app: 'compras', conector: VERSION, fase: 'volta 2: a lista da casa' });
+    assert.deepEqual(await r.json(), { app: 'compras', conector: VERSION, fase: 'volta 3: mais barato' });
 });
 
 test('sem o segredo, ou com outro, a sonda recusa e não vai à rede', async () => {
