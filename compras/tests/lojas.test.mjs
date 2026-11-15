@@ -17,6 +17,16 @@ test('as lojas SPAR da página: nome, rua, código postal e localidade; a procur
     assert.deepEqual(lojasDe(LOJAS, 'a'), []);
 });
 
+test('as lojas SPAR do JSON da página (com as aspas escritas \\u0022), também as abertas há pouco', () => {
+    const j = JSON.stringify([{ id: 607, nome: 'SPAR Santo Tirso', latitude: '41.3', rua: 'Rua do Picoto, 342,  4780-521 Santo Tirso', codpostal: '4780-521', tipo: 'lp' },
+        { id: 1, nome: 'SPAR  Portimão (M.Albuquerque)', rua: 'R. Mouzinho de Albuquerque 18,', codpostal: '8500-510  Portimão' }]).replace(/"/g, '\\u0022');
+    const l = lerLojasSpar(`<script>const lojas = ${j};</script>`);
+    assert.deepEqual(l, [{ n: 'SPAR Santo Tirso', r: 'Rua do Picoto, 342', cp: '4780-521', l: 'Santo Tirso' },
+        { n: 'SPAR Portimão (M.Albuquerque)', r: 'R. Mouzinho de Albuquerque 18', cp: '8500-510', l: 'Portimão' }]);
+    assert.deepEqual(lojasDe(l, 'santo tirso').length, 1);
+    assert.deepEqual(lojasDe(l, '4780').length, 1);
+});
+
 test('a casa grava a localidade e as lojas; só as cadeias conhecidas, e pelo menos uma', async () => {
     const env = { KV: kv({ 'lojas:spar': JSON.stringify(LOJAS) }), DB: d1() };
     const { chave } = await (await worker.fetch(new Request('https://x/api/aparelho', { method: 'POST' }), env)).json();
