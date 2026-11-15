@@ -249,3 +249,22 @@ test('peças inteiras ao quilo: uma picanha de 1,8 kg a «17,99 €» é 17,99 �
     assert.equal(tp.produtos.find((x) => x.id === 'e').aq, undefined);
     assert.deepEqual(tp.produtos.filter((x) => /picanha/i.test(x.nome)).map((x) => x.id), ['a', 'b', 'd', 'c']); // por quilo: 17,99 · 19,00 · 19,99 · 27,00
 });
+
+test('Continente ao quilo: «4,49 €/kg» no preço e o peso médio; com uma variante escolhida, a estimativa é a dela', async () => {
+    const { normaliza, medida } = await import('../proxy/src/precos.js');
+    const tile = `<div class="product-tile col-product-tile" data-product-tile-impression='{"name":"Carapau Pequeno Fresco","id":"2147745","price":4.49,"brand":"","category":"Peixaria"}'>`
+        + '<a href="https://www.continente.pt/produto/carapau-pequeno-fresco-2147745.html">x</a><p class="pwc-tile--quantity"> Quant. M&iacute;nima = 630 gr (7 un) </p>'
+        + '<span class="pwc-tile--price-primary"> 4<span class="decimalPrice">,49&euro;/kg</span> </span><div class="pwc-tile--price-secondary "> 0,40&euro;/un </div></div>';
+    const [p] = lerCategoria('continente', tile + tile.replace(/2147745/g, '1'));
+    assert.equal(p.aoPeso, true);
+    assert.deepEqual(normaliza({ cadeia: 'continente', nome: p.nome, cent: 449, uc: 40, ub: 'un', m: medida(p.emb), aoPeso: true }), { cent: 283, uc: 449, ub: 'kg' });
+    // a estimativa por variante: só os produtos com essa palavra
+    const { produtosDoTipo } = await import('../proxy/src/sugerir.js');
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('peixe-fresco', 'Peixe fresco', 3, 1);`);
+    const q = (id, nome, preco, emb, marca) => ({ id, nome, preco, emb, marca, url: 'https://www.pingodoce.pt/' + id });
+    await guardarCatalogo(db, 'pingodoce', 'peixe-fresco', [q('1', 'Carapau Fresco', 4.99, '1 kg', 'Pingo Doce'), q('4', 'Carapau Grande Fresco', 5.49, '1 kg', 'Pingo Doce'), q('2', 'Salmão Fresco', 19.99, '1 kg', 'Pingo Doce'), q('3', 'Salmão Posta', 9.99, '500 g', 'Pingo Doce')]);
+    const tp = await produtosDoTipo(db, 'peixe-fresco', new Date());
+    assert.deepEqual(tp.est.w.find((x) => x.w === 'carapau'), { w: 'carapau', merc: 499, spar: null });
+    assert.equal(tp.est.w.find((x) => x.w === 'salmao').merc, 1998);
+});

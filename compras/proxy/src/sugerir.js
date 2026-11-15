@@ -214,6 +214,15 @@ function estimativasDoTipo(results, ub, tamanhos = []) {
     return { tam, uc: { merc: mediana(uc.b), spar: mediana(uc.f), ub }, mp: primeiro('merc')?.e ?? null, sp: primeiro('spar')?.e ?? null };
 }
 
+// com um corte ou uma variante escolhida («carapau»), a estimativa é a desses produtos (por quilo ou litro), e não a do
+// tipo todo (o peixe fresco inteiro, com o salmão e o robalo): { w, merc, spar } em cêntimos por unidade
+function estimativasPorPalavra(produtos, palavras, ub) {
+    return palavras.map(({ w }) => {
+        const ps = produtos.filter((p) => p.ub === ub && p.uc != null && ` ${p.nk} `.includes(` ${w} `));
+        return { w, merc: mediana(ps.filter((p) => p.pr).map((p) => p.uc)), spar: mediana(ps.filter((p) => !p.pr).map((p) => p.uc)) };
+    }).filter((x) => x.merc != null || x.spar != null);
+}
+
 // o preço real na Mercadona e no SPAR, do talão mais recente da casa com uma linha deste tipo (as palavras do tipo
 // todas na linha): { mercadona: { cent, dia, t }, spar: {…} }
 async function reaisDoTipo(db, casa, k) {
@@ -269,6 +278,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     for (const p of results) if (p.uc != null && p.ub) nu.set(p.ub, (nu.get(p.ub) ?? 0) + 1);
     const ub = [...nu].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     const tamanhos = conta((p) => p.emb).slice(0, 8).map(([e, n]) => ({ e, n }));
+    const escolhas = TALHO.has(t.k) ? palavrasDoTalho(t.k, results) : palavrasDoTipo(t.k, produtos);
     if (TALHO.has(t.k)) aoQuilo(produtos, t.k);
     // o mais barato primeiro: na unidade do tipo, por esse preço; os outros depois, pelo que se paga
     produtos.sort((a, b) => (a.ub === ub ? 0 : 1) - (b.ub === ub ? 0 : 1) || (a.ub === ub ? a.uc - b.uc : a.cent - b.cent));
@@ -278,9 +288,9 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         tamanhos,
         marcas: conta((p) => (p.pr || !p.marca ? null : nomeMarca(p.marca))).slice(0, 10).map(([m, n]) => ({ m, n })),
         brancas: results.filter((p) => p.pr).length,
-        palavras: TALHO.has(t.k) ? palavrasDoTalho(t.k, results) : palavrasDoTipo(t.k, produtos),
+        palavras: escolhas,
         ub,
-        est: estimativasDoTipo(results, ub, tamanhos),
+        est: { ...estimativasDoTipo(results, ub, tamanhos), w: estimativasPorPalavra(produtos, escolhas, ub) },
         reais: await reaisDoTipo(db, casa, k),
         produtos,
     };

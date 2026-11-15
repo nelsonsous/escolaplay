@@ -738,6 +738,9 @@
       = v ? x int ? q x.spar x.merc 0
       = uv ? x int ? q x.uspar x.umerc 0
       Se ~ x = uv int ? q tp.est.uc.spar tp.est.uc.merc
+      # com um corte ou variante escolhida («carapau»), a estimativa é a desses produtos, por quilo (sem: não há)
+      = fw _an_ler $"fw"
+      Se fw { = x 0 = v 0 = uv 0 = y pri tp.est.w W y { Se mesmo txt y.w fw = uv int ? q y.spar y.merc = y seg y } }
       Se || v uv {
         ? && uv ub `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { eur uv }<i>/{ crut ub }</i></span><small>`
           `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { eur v }</span><small>`
