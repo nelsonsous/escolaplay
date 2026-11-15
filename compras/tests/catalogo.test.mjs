@@ -141,6 +141,8 @@ test('escrever e encontrar: os tipos pelo que se escreve, e os produtos de um ti
     // pelos nomes dos produtos: «alcalina» não é um tipo, mas há águas alcalinas (a palavra vem com o tipo)
     assert.deepEqual((await api('/api/sugerir?q=alcalina')).tipos, [{ k: 'agua-sem-gas', nome: 'Água sem gás', n: 12, w: 'alcalina', s: 6 }]);
     const tp = await api('/api/tipo?k=agua-sem-gas');
+    assert.equal(tp.s, 6);
+    assert.equal(tp.sn, 'Bebidas');
     assert.equal(tp.nome, 'Água sem gás');
     assert.equal(tp.produtos.length, 12);
     // o mais barato por litro primeiro (empate: pela cadeia)

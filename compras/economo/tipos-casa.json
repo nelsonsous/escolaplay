@@ -671,6 +671,94 @@
       "pingodoce": [
         "bolachas-cereais-e-guloseimas/bolachas-e-biscoitos/tostas-gressinos-e-croutons"
       ]
+    },
+    {
+      "k": "peixe-fresco",
+      "nome": "Peixe fresco",
+      "continente": [
+        "peixaria/peixe-fresco",
+        "peixaria/pronto-a-cozinhar/peixe-fresco-embalado"
+      ],
+      "auchan": [
+        "produtos-frescos/peixaria/peixe-fresco"
+      ],
+      "pingodoce": [
+        "peixaria/peixe"
+      ]
+    },
+    {
+      "k": "peixe-congelado",
+      "nome": "Peixe congelado",
+      "continente": [
+        "peixaria/peixe-congelado"
+      ],
+      "auchan": [
+        "congelados/peixe",
+        "produtos-frescos/peixaria/peixe-e-mariscos-congelados/peixe-inteiro-e-posta",
+        "produtos-frescos/peixaria/peixe-e-mariscos-congelados/filetes-medalhoes-e-especialidades"
+      ],
+      "pingodoce": [
+        "congelados/peixe-marisco-e-carne/peixe-congelado"
+      ],
+      "fora": [
+        "bacalhau-e-paloco",
+        "cabecas-de-peixe",
+        "ovas",
+        "preparados-de-peixe"
+      ]
+    },
+    {
+      "k": "bacalhau",
+      "nome": "Bacalhau",
+      "continente": [
+        "peixaria/bacalhau-seco",
+        "peixaria/bacalhau-congelado"
+      ],
+      "auchan": [
+        "produtos-frescos/peixaria/bacalhau",
+        "produtos-frescos/peixaria/peixe-e-mariscos-congelados/bacalhau",
+        "congelados/peixe/bacalhau-e-paloco"
+      ],
+      "pingodoce": [
+        "peixaria/bacalhau"
+      ]
+    },
+    {
+      "k": "marisco",
+      "nome": "Marisco",
+      "continente": [
+        "peixaria/marisco-fresco",
+        "peixaria/marisco-congelado"
+      ],
+      "auchan": [
+        "produtos-frescos/peixaria/marisco",
+        "congelados/marisco-e-moluscos",
+        "produtos-frescos/peixaria/peixe-e-mariscos-congelados/ameijoa-mexilhao-e-especialidades",
+        "produtos-frescos/peixaria/peixe-e-mariscos-congelados/camarao-sapateira-e-lagosta"
+      ],
+      "pingodoce": [
+        "peixaria/marisco",
+        "congelados/peixe-marisco-e-carne/marisco-congelado"
+      ],
+      "fora": [
+        "polvo-lulas-e-choco",
+        "preparados-de-marisco"
+      ]
+    },
+    {
+      "k": "polvo-lulas",
+      "nome": "Polvo, lulas e choco",
+      "continente": [
+        "peixaria/polvo-e-lula"
+      ],
+      "auchan": [
+        "congelados/marisco-e-moluscos/polvo-lulas-e-choco",
+        "produtos-frescos/peixaria/peixe-e-mariscos-congelados/polvo-lulas-e-choco"
+      ],
+      "pingodoce": [
+        "peixaria/polvo-lula-pota-e-choco",
+        "congelados/peixe-marisco-e-carne/polvo-lulas-e-chocos-congelados"
+      ]
     }
   ]
 }

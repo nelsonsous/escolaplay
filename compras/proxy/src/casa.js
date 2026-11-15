@@ -92,6 +92,8 @@ function especie(e) {
     if (e.emb) x.emb = texto(e.emb, 20);
     if (e.m) x.m = texto(e.m, 40);
     if (e.w) x.w = texto(e.w, 30).toLowerCase();
+    // o nome do tipo (para o caminho na lista: «Carne picada»)
+    if (e.n) x.n = texto(e.n, 60);
     return x;
 }
 const quantidade = (q) => Math.min(99, Math.max(1, Math.round(Number(q)) || 1));
