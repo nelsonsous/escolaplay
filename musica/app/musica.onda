@@ -889,11 +889,11 @@
   Se ia { sug_visto sug_bloco }
   = ianm ? mesmo txt _ar_get @ 3 $"iaEscolha" $"gemini" $"Gemini" ? mesmo txt _ar_get @ 3 $"iaEscolha" $"mistral" $"Mistral Large" $"Mistral Small"
   ? && ia ~ pt {
-      `<div class="mu-duo"><button type="button" class="mu-btn mu-duo-b" data-onda="pedir"{ ? && acesso ~ || ac am 0 " disabled" }><b>⚡ Já, com o { esct ianm }</b><span>{ ? ac "a criar no Tidal…" ? am "a ler o pedido…" "em segundos" }</span></button><button type="button" class="mu-btn mu-duo-b" data-onda="pedir_m"{ ? && acesso ~ || ac am 0 " disabled" }><b>✦ Com o Claude</b><span>em minutos · mais apurada</span></button></div>` 0 }
+      `<div class="mu-duo"><button type="button" class="mu-btn mu-duo-b mu-duo-p" data-onda="pedir"{ ? && acesso ~ || ac am 0 " disabled" }><b>{ ic 7 }Já, com o { esct ianm }</b><span>{ ? ac "a criar no Tidal…" ? am "a ler o pedido…" "em segundos" }</span></button><button type="button" class="mu-btn mu-duo-b" data-onda="pedir_m"{ ? && acesso ~ || ac am 0 " disabled" }><b>{ ic 2 }Com o Claude</b><span>em minutos · mais apurada</span></button></div>` 0 }
     `<div class="mu-acoes"><button type="button" class="mu-btn" data-onda="pedir"{ ? && acesso ~ ac 0 " disabled" }>{ ic 2 }{ ? ac ? pt "A criar no Tidal…" "A enviar…" ? pt "Criar já no Tidal" "Pedir ao Maestro" }</button></div>`
   `<p class="mu-nota">`
   ? pt `A playlist nasce já no teu Tidal com as parecidas da música de partida. Depois, se quiseres, o Claude revê-a com o teu pedido, no mesmo link, e dá-lhe nome.`
-    { ? ia `<b>⚡ Já</b> — o { esct ianm } escolhe 4 músicas de partida e o Tidal junta as parecidas: fica no teu Tidal em segundos. Depois, se quiseres, o Claude revê-a.<br><b>✦ Com o Claude</b> — o Maestro (Claude) pesquisa e escolhe todas as faixas, com critério{ ? nh ": leva uns minutos e avisa-te quando estiver" " (quando estiver ligado)" }.`
+    { ? ia `<b>Já</b>: a IA escolhe 4 músicas e o Tidal junta as parecidas.<br><b>Com o Claude</b>: escolhe todas as faixas{ ? nh " e avisa-te quando estiver pronta" " (quando estiver ligado)" }.`
       `{ ? nh "O Maestro é chamado logo e cria a playlist em poucos minutos, no teu Tidal." "O Maestro ainda não está ligado: o pedido fica à espera até ser chamado." } Depois revês aqui: trocar faixas, mudar o estilo, afinar. Até lá, o pedido fica à espera no cimo da lista das playlists.{ Se iap ` <button type="button" class="mu-ligacao" data-onda="iacf&#9;1">Ligar a playlist na hora</button>: a IA da Cloudflare lê o texto do pedido e a playlist nasce logo.` }` }
   `</p>{ pd_partida }`
   # a espera (a sugestão ou a criar): uma janela por cima de tudo, para se saber que está a trabalhar e que é esperar
@@ -1162,7 +1162,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.46.4 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.46.5 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»

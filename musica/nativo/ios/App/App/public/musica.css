@@ -561,3 +561,9 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-duo-b { color: var(--fg); background: var(--panel3); }
 .mu-duo-b:active { background: var(--line2); }
 .mu-duo-b span { color: var(--mut); opacity: 1; }
+
+/* 2.46.5 — «Já» é o botão principal (branco) e «Com o Claude» o secundário (escuro); um ícone em cada, do mesmo traço */
+.mu-duo-b b { display: inline-flex; align-items: center; gap: 8px; }
+.mu-duo-b.mu-duo-p { color: #000; background: var(--fg); }
+.mu-duo-b.mu-duo-p:active { background: #d8d8da; }
+.mu-duo-b.mu-duo-p span { color: rgba(0, 0, 0, .6); }

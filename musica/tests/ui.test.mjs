@@ -1539,16 +1539,17 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).click();
         await page.locator('#mu-aviso').getByText('Autorização guardada.').waitFor();
         // dois caminhos iguais: já, com a IA (em segundos), ou com o Claude (em minutos, mais apurada)
-        await page.waitForFunction(() => (document.querySelector('#mu-body .mu-duo [data-onda="pedir"]')?.innerText || '').startsWith('⚡ Já, com o Mistral Small'));
-        assert.equal((await corpo.locator('.mu-duo [data-onda="pedir_m"]').innerText()).replace(/\s+/g, ' '), '✦ Com o Claude em minutos · mais apurada');
+        await page.waitForFunction(() => (document.querySelector('#mu-body .mu-duo [data-onda="pedir"]')?.innerText || '').startsWith('Já, com o Mistral Small'));
+        assert.equal((await corpo.locator('.mu-duo [data-onda="pedir_m"]').innerText()).replace(/\s+/g, ' '), 'Com o Claude em minutos · mais apurada');
         // num iPhone (390 px): um por baixo do outro, a toda a largura, cada um numa só linha (o texto cabe)
         const [b1, b2] = await page.$$eval('#mu-body .mu-duo .mu-duo-b', (bs) => bs.map((b) => { const r = b.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: r.height, w: r.width, cabe: b.scrollWidth <= b.clientWidth }; }));
         assert.ok(b2.top >= b1.bottom, 'um por baixo do outro');
         assert.ok(b1.h < 60 && b2.h < 60, `cada um numa linha (${b1.h}px, ${b2.h}px)`);
         assert.ok(b1.cabe && b2.cabe && b1.w === b2.w, 'o texto cabe; a mesma largura');
-        // os dois caminhos no escuro dos botões secundários (o branco cheio ficava pesado), com o texto claro
+        // «Já» é o botão principal (branco, texto preto) e «Com o Claude» o secundário (cinzento-escuro, texto claro); cada um com o seu ícone
+        assert.equal(await page.locator('#mu-body .mu-duo .mu-duo-b svg').count(), 2, 'um ícone em cada botão');
         const cores = await page.$$eval('#mu-body .mu-duo .mu-duo-b', (bs) => bs.map((b) => [getComputedStyle(b).backgroundColor, getComputedStyle(b).color].join(' / ')));
-        assert.deepEqual(cores, ['rgb(44, 44, 46) / rgb(255, 255, 255)', 'rgb(44, 44, 46) / rgb(255, 255, 255)'], `as cores dos dois caminhos (${cores})`);
+        assert.deepEqual(cores, ['rgb(255, 255, 255) / rgb(0, 0, 0)', 'rgb(44, 44, 46) / rgb(255, 255, 255)'], `as cores dos dois caminhos (${cores})`);
         // «Mudar» (as opções do pedido): a palavra cabe no botão e o botão não sai da linha
         const mudar = await page.$eval('#mu-body .mu-opcoes [data-onda="opcoes"]', (b) => { const r = b.getBoundingClientRect(), p = b.parentElement.getBoundingClientRect(), g = document.createRange(); g.selectNodeContents(b); const t = g.getBoundingClientRect(); return { cabe: t.left >= r.left - 0.5 && t.right <= r.right + 0.5, dentro: r.right <= p.right + 0.5, w: r.width, tw: t.width }; });
         assert.ok(mudar.cabe, `«Mudar»: a palavra cabe no botão (${mudar.tw}px em ${mudar.w}px)`);
@@ -1559,7 +1560,7 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         const estreito = await page.$$eval('#mu-body .mu-duo .mu-duo-b, #mu-body .mu-opcoes [data-onda="opcoes"]', (bs) => bs.map((b) => { const r = b.getBoundingClientRect(), g = document.createRange(); g.selectNodeContents(b); const t = g.getBoundingClientRect(); return `${t.left >= r.left - 0.5 && t.right <= r.right + 0.5 && r.right <= document.documentElement.clientWidth + 0.5} ${Math.round(t.width)}/${Math.round(r.width)}`; }));
         assert.ok(estreito.every((x) => x.startsWith('true')), `a 320 px, o texto cabe nos botões (${estreito.join(', ')})`);
         await page.setViewportSize({ width: 390, height: 844 });
-        assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Mistral Small escolhe 4 músicas de partida e o Tidal junta as parecidas: fica no teu Tidal em segundos\. Depois, se quiseres, o Claude revê-a\.\n✦ Com o Claude — o Maestro \(Claude\) pesquisa e escolhe todas as faixas, com critério \(quando estiver ligado\)\.$/);
+        assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^Já: a IA escolhe 4 músicas e o Tidal junta as parecidas\.\nCom o Claude: escolhe todas as faixas \(quando estiver ligado\)\.$/);
         assert.equal(await corpo.locator('.mu-duo [data-onda="pedir_m"]').count(), 1, 'e dá para escolher o Claude');
         assert.equal(await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).count(), 0);
         assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), texto, 'o texto fica');
@@ -1840,7 +1841,7 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         // «Pedir» diz que IA vai começar
         await nav(3);
         await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
-        assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Mistral Large escolhe 4 músicas de partida/);
+        assert.match(await corpo.locator('.mu-duo [data-onda="pedir"]').innerText(), /^Já, com o Mistral Large/);
         // o Gemini: a conta Google, ligada da mesma maneira
         await nav(5);
         await corpo.locator('.mu-ia-esc').getByRole('button', { name: 'Gemini' }).click();
@@ -1854,7 +1855,7 @@ test('a IA de cada pessoa: ligar a conta Mistral nos Ajustes (chave errada, chav
         assert.ok(!(await page.content()).includes('AIzaUiBoa'), 'a chave nunca volta à app');
         await nav(3);
         await corpo.locator('[data-onda="ptx"]').fill('Jazz modal');
-        assert.match(await corpo.locator('.mu-duo + .mu-nota').first().innerText(), /^⚡ Já — o Gemini escolhe 4 músicas de partida/);
+        assert.match(await corpo.locator('.mu-duo [data-onda="pedir"]').innerText(), /^Já, com o Gemini/);
         await nav(5);
         // com o Gemini: a prioridade — rapidez (por omissão) ou qualidade (o melhor modelo da conta)
         const qual = corpo.locator('.mu-ia-qual');
