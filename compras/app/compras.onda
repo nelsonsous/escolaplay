@@ -935,6 +935,34 @@
 : kgtxt i>i g { = k / g 1000 = r / % g 1000 100 ? r texto`{ N k },{ N r }` texto`{ N k }` }
 # quanto o preço desceu ou subiu desde o preço anterior (o histórico, nos últimos 30 dias)
 : dvar i>i p ? p.vd ` · <b class="desce">↓ { N int p.vd }%</b>` { ? p.vs ` · <b class="sobe">↑ { N int p.vs }%</b>` `` }
+# os filtros escolhidos, um a um, para a coisa os guardar (e a escolha os repor ao tocar nela)
+: fjs ii>i k v Se v `"{ crut k }":{ pjs v },`
+: dfiltros_json >i {
+  `,"f":\{`
+  fjs $"fa" _an_ler $"fa" fjs $"far" _an_ler $"far" fjs $"fp" _an_ler $"fp" fjs $"fpr" _an_ler $"fpr"
+  fjs $"fc" _an_ler $"fc" fjs $"fcr" _an_ler $"fcr" fjs $"fw" _an_ler $"fw" fjs $"fwr" _an_ler $"fwr"
+  fjs $"fes" _an_ler $"fes" fjs $"fer" _an_ler $"fer"
+  `"v":1\}` 0 }
+# repõe os filtros guardados numa coisa (e.f); as coisas antigas só têm e.w («islandia especial»): cada palavra filtra à parte
+: repoe_filtros i>i e {
+  = f e.f
+  ? f {
+      Se f.fa { _an_gravar $"fa" txt f.fa _an_gravar $"far" txt ? f.far f.far f.fa }
+      Se f.fp { _an_gravar $"fp" txt f.fp _an_gravar $"fpr" txt ? f.fpr f.fpr f.fp }
+      Se f.fc { _an_gravar $"fc" txt f.fc _an_gravar $"fcr" txt ? f.fcr f.fcr f.fc }
+      Se f.fw { _an_gravar $"fw" txt f.fw _an_gravar $"fwr" txt ? f.fwr f.fwr f.fw }
+      Se f.fes { _an_gravar $"fes" txt f.fes _an_gravar $"fer" txt ? f.fer f.fer f.fes } 0 }
+    { Se e.w {
+        # as palavras de e.w, uma em cada filtro (fa, fp, fc, fw): cada uma tem de estar no nome, em qualquer ordem
+        = w txt e.w = n _tx_len w = i 0 = ini 0 = q 0
+        W <= i n {
+          Se || == i n == _tx_b w i 32 {
+            Se > i ini { = pal _tx_abre + 4 - i ini L j - i ini P _tx_b w + ini j _tx_fecha pal
+              ? == q 0 { _an_gravar $"fa" pal _an_gravar $"far" pal 0 } { ? == q 1 { _an_gravar $"fp" pal _an_gravar $"fpr" pal 0 } { ? == q 2 { _an_gravar $"fc" pal _an_gravar $"fcr" pal 0 } { _an_gravar $"fw" pal _an_gravar $"fwr" pal 0 } } }
+              = q + q 1 }
+            = ini + i 1 }
+          = i + i 1 } } 0 }
+  0 }
 # o índice de uma cadeia (o contrário de «cadeia»: continente 0, pingodoce 1, auchan 2, lidl 3)
 : icad i>i c ? mesmo c $"continente" 0 ? mesmo c $"pingodoce" 1 ? mesmo c $"auchan" 2 3
 # a nota ★ e, se houver, a ligação para a notícia (abre fora da app; não escolhe o produto)
@@ -1191,7 +1219,7 @@
     Se fc { = fp texto`{ Se fp `{ crut fp } ` }{ crut fc }` = fpr texto`{ Se fp `{ crut ? fpr fpr fp }, ` }{ crut ? fcr fcr fc }` }
     = ww texto`{ Se fa `{ crut fa } ` }{ Se fp `{ crut fp } ` }{ Se fw `{ crut fw }` }`
     = nome texto`{ crut txt tp.nome }{ Se || || fa fp fw ` ({ Se fa `{ crut ? far far fa }` }{ Se && fa || fp fw `, ` }{ Se fp `{ crut ? fpr fpr fp }` }{ Se && fp fw `, ` }{ Se fw `{ crut ? fwr fwr fw }` })` }{ Se _an_ler $"fer" ` { crut _an_ler $"fer" }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
-    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k },"n":{ pjs txt tp.nome }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se || || fa fp fw `,"w":{ pjs ww }` }\}\}`
+    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k },"n":{ pjs txt tp.nome }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se || || fa fp fw `,"w":{ pjs ww }` }{ dfiltros_json }\}\}`
     L k 4 { = p melhor_em tp k fe fm = q _an_ler texto`esc{ N k }` Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }"{ Se ~ && q mesmo txt p.id q `,"a":1` },"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
     = sb _an_ler $"subst"
     Se sb { faz texto`\{"o":"x","id":{ pjs sb }\}` _an_gravar $"subst" 0 }
@@ -1254,7 +1282,7 @@
         _an_gravar $"subst" sid _an_gravar $"tk" k
         Se c.e.m _an_gravar $"fm" txt c.e.m
         Se c.e.emb { _an_gravar $"fe" txt c.e.emb _an_gravar $"fes" texto`|{ crut txt c.e.emb }|` _an_gravar $"fer" txt c.e.emb }
-        Se c.e.w { _an_gravar $"fw" txt c.e.w _an_gravar $"fwr" txt c.e.w }
+        repoe_filtros c.e
         Se > int c.q 1 _an_gravar $"tq" texto`{ N int c.q }`
         _an_buscar texto`/api/tipo?k={ crut _tx_uri k }` $"lido_tipo" 0 }
       { _an_gravar $"aberto" txt c.id procura txt c.t 0 } } }
