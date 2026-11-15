@@ -307,6 +307,15 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await page.click('[data-act="name-sheet-save"]');
     await toastIs(/Ligada\. A primeira análise chega hoje às 19:42/);
     assert.deepEqual(namePatches, [{ name: 'Ana' }]);
+    // o nome confirmado fica neste telemóvel: com o estado do conector ainda por chegar, não volta a ser pedido
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('meteo:nome'))), 'Ana');
+    const keepStatus = await page.evaluate(() => { const s = window.__mt.st.status; window.__mt.st.status = null; return s; });
+    await page.click('#cl-teaser ~ * [data-act="report"], [data-act="report"]');
+    await page.waitForSelector('#mt-sheet:not([hidden])');
+    assert.equal(await page.locator('#f-myname').count(), 0, 'não volta a pedir o nome');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    await page.evaluate((s) => { window.__mt.st.status = s; }, keepStatus);
     assert.deepEqual(postBody, { name: RAW.place.name, lat: LAT, lon: LON });
     await page.waitForFunction(() => /A análise está ligada para este local/.test(document.querySelector('#cl-teaser').textContent));
     // a tarefa agendada fez a primeira análise
