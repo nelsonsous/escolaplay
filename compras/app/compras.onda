@@ -906,17 +906,21 @@
     Se && && p > int x.p mx passa p fe fm {
       Se ~ n `<h3>🏅 Melhores compras</h3><ul class="bc">`
       = pr ? p.uc int p.uc int p.cent
-      `<li><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }</span>`
-      ? int x.ct { = cts 1 `<small>{ crut nomec txt p.c } · ★ { N int x.p } · ` } `<small>{ crut nomec txt p.c } · o rótulo diz: `
+      `<li data-onda="esco:{ N + * icad txt p.c 1000 int x.i }"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }</span>`
+      ? int x.ct { = cts 1 `<small>{ crut nomec txt p.c } · { dnota int x.p x.nu } · ` } `<small>{ crut nomec txt p.c } · o rótulo diz: `
       = q pri x.porque = i 0
       W q { Se i `, ` `{ esc q }` = q seg q = i + i 1 }
       Se >= ant 0 ` · +{ eur - pr ant }{ Se p.ub `/{ crut txt p.ub }` } para subir de gama`
       `</small></li>`
       = mx int x.p = ant pr = n + n 1 }
     = x seg x }
-  Se n { ? cts `</ul><p class="nota">★ é a nota dos críticos e dos concursos (de 0 a 100: revistas, guias, medalhas), recolhida pelo Ecónomo com a fonte; sem nota, conta o que o rótulo diz (Reserva, DOC…). Só entre os que escolheste: nenhum outro vale mais por menos.</p>` `</ul><p class="nota">Pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP, cura…), só entre os que escolheste: nenhum outro promete mais por menos. Não é uma nota de crítico.</p>` }
+  Se n { ? cts `</ul><p class="nota">★ é a nota dos críticos e dos concursos (de 0 a 100: revistas, guias, medalhas), recolhida pelo Ecónomo; toca na ★ para ler a fonte e no vinho para o escolher. Sem nota, conta o que o rótulo diz (Reserva, DOC…). Só garrafas (o bag-in-box e o garrafão ficam de fora) e só entre os que escolheste: nenhum outro vale mais por menos.</p>` `</ul><p class="nota">Pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP, cura…), só entre os que escolheste: nenhum outro promete mais por menos. Não é uma nota de crítico.</p>` }
   dcotados tp fe fm
   0 }
+# o índice de uma cadeia (o contrário de «cadeia»: continente 0, pingodoce 1, auchan 2, lidl 3)
+: icad i>i c ? mesmo c $"continente" 0 ? mesmo c $"pingodoce" 1 ? mesmo c $"auchan" 2 3
+# a nota ★ e, se houver, a ligação para a notícia (abre fora da app; não escolhe o produto)
+: dnota ii>i n u ? u `<a class="fonte" href="{ esc u }" target="_blank" rel="noopener" data-onda="fonte:0">★ { N n } ↗</a>` `★ { N n }`
 # as sugestões no vinho: os mais bem cotados pela crítica (tp.bnt, do melhor para o pior) que passam nos filtros (até 3)
 : dcotados iii>i tp fe fm {
   = x pri tp.bnt = n 0
@@ -924,8 +928,8 @@
     = p idx tp.produtos int x
     Se && p passa p fe fm {
       Se ~ n `<h3>⭐ Os mais bem cotados</h3><ul class="bc">`
-      `<li><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }</span>`
-      `<small>{ crut nomec txt p.c } · ★ { N int p.nt } · { esc p.nr }</small></li>`
+      `<li data-onda="esco:{ N + * icad txt p.c 1000 int x }"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }</span>`
+      `<small>{ crut nomec txt p.c } · { dnota int p.nt p.nu } · { esc p.nr }</small></li>`
       = n + n 1 }
     = x seg x }
   Se n `</ul>`

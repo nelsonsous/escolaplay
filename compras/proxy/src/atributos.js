@@ -159,6 +159,14 @@ export function pontosRotulo(fam, nome, cent = null) {
 // mas não entram nas melhores compras nem nos mais bem cotados
 export const NAO_SUGERIR = /\bcoutada velha\b|\bcoutadas velhas\b/;
 const sugerivel = (x) => !NAO_SUGERIR.test(String(x.nome ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+// no vinho, o bag-in-box e o garrafão (2 L ou mais) não se comparam com as garrafas: ficam fora das sugestões (o
+// preço por litro deles é outro campeonato)
+export function formatoGrande(x) {
+    const t = `${x.nome ?? ''} ${x.emb ?? ''}`.toLowerCase();
+    if (/bag[ -]?in[ -]?box|\bbib\b|garraf[aã]o/.test(t)) return true;
+    const m = t.match(/(\d+(?:[.,]\d+)?)\s*(l|lt|litros?)\b/);
+    return !!m && Number(m[1].replace(',', '.')) >= 2;
+}
 export function candidatosMelhores(fam, produtos, max = 150) {
     const preco = (x) => x.uc ?? x.cent;
     const pontos = (x) => {
@@ -168,11 +176,11 @@ export function candidatosMelhores(fam, produtos, max = 150) {
         if (!r || r.p < 1) return null;
         return fam === 'vinho' ? { p: 80 + Math.min(3, r.p), porque: r.porque } : r;
     };
-    return produtos.map((x, i) => ({ i, x, r: sugerivel(x) ? pontos(x) : null }))
+    return produtos.map((x, i) => ({ i, x, r: sugerivel(x) && !(fam === 'vinho' && formatoGrande(x)) ? pontos(x) : null }))
         .filter((c) => c.r)
         .sort((a, b) => preco(a.x) - preco(b.x) || b.r.p - a.r.p)
-        .slice(0, max).map((c) => ({ i: c.i, p: c.r.p, porque: c.r.porque, ...(c.r.ct ? { ct: 1 } : {}) }));
+        .slice(0, max).map((c) => ({ i: c.i, p: c.r.p, porque: c.r.porque, ...(c.r.ct ? { ct: 1 } : {}), ...(c.r.ct && c.x.nu ? { nu: c.x.nu } : {}) }));
 }
 // os vinhos com nota, do melhor para o pior (e o mais barato primeiro no empate), pelo índice: as sugestões da app
-export const maisCotados = (produtos, max = 40) => produtos.map((x, i) => ({ i, x })).filter((c) => c.x.nt && c.x.cent > 0 && sugerivel(c.x))
+export const maisCotados = (produtos, max = 40) => produtos.map((x, i) => ({ i, x })).filter((c) => c.x.nt && c.x.cent > 0 && sugerivel(c.x) && !formatoGrande(c.x))
     .sort((a, b) => b.x.nt - a.x.nt || (a.x.uc ?? a.x.cent) - (b.x.uc ?? b.x.cent)).slice(0, max).map((c) => c.i);
