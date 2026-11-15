@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 const toml = readFileSync(new URL('../proxy/wrangler.toml', import.meta.url), 'utf8');
 export const WORKER = process.env.COMPRAS_WORKER || 'https://compras.compras-nelson.workers.dev';
-export const ACCOUNT = process.env.CF_ACCOUNT_ID || 'e5f9f94050228b1fa9f74443667b20a6';
+export const ACCOUNT = process.env.CF_ACCOUNT_ID || '24857c1703cd4aa76f382bccbeda2c3c';
 export const KV_NS = (toml.match(/binding = "KV"\s*\nid = "([0-9a-f]+)"/) || [])[1];
 // o token da Cloudflare é injetado pelo proxy do ambiente (ou vem de CLOUDFLARE_API_TOKEN)
 const CF_AUTH = { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN || 'proxy-injected'}` };
