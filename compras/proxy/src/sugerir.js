@@ -5,7 +5,7 @@
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida, pecaAoPeso } from './precos.js';
-import { familiaDe, atributos, palavrasAtributos, filasDaFamilia, melhoresCompras } from './atributos.js';
+import { familiaDe, atributos, palavrasAtributos, filasDaFamilia, candidatosMelhores } from './atributos.js';
 import { sinais } from './qualidade.js';
 import { etiquetas, palavrasEtiquetas, nomeEtiqueta, TALHO, USOS, ORDEM_CALIBRE } from './etiquetas.js';
 
@@ -395,7 +395,10 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         // as filas da família (vinho: região, gama, casta; azeite; queijo), por ordem: a app usa-as com os filtros fa, fp, fc
         ...(ff?.filas.length ? { filas: ff.filas, fam } : fam ? { fam } : {}),
         // as melhores compras pelo rótulo (atributos.js): a fronteira preço-rótulo
-        ...(fam ? { bc: melhoresCompras(fam, results.map((p) => ({ c: p.c, nome: p.nome, cent: p.cent, uc: p.uc, ub: p.ub }))) } : {}),
+        // os candidatos às melhores compras pelo rótulo (atributos.js): os produtos com pontos, do mais barato para o
+        // mais caro, pelo índice na lista; a app tira deles a fronteira preço-rótulo só com os que passam nos filtros
+        // escolhidos (a região, o preço, a casta, o tamanho, a marca)
+        ...(fam ? { bcc: candidatosMelhores(fam, produtos) } : {}),
         ub,
         est: { ...estimativasDoTipo(results, ub, tamanhos), w: estimativasPorPalavra(produtos, escolhas, ub) },
         reais: await reaisDoTipo(db, casa, k),

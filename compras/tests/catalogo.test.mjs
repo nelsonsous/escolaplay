@@ -432,11 +432,17 @@ test('os vinhos: as páginas seguintes das categorias grandes, e as filas da fam
 });
 
 test('a melhor compra pelo rótulo: os pontos (Reserva, DOC, virgem extra, DOP) e a fronteira preço-rótulo', async () => {
-    const { pontosRotulo, melhoresCompras } = await import('../proxy/src/atributos.js');
+    const { pontosRotulo, candidatosMelhores } = await import('../proxy/src/atributos.js');
     assert.deepEqual(pontosRotulo('vinho', 'Esporão Reserva Alentejo DOC Vinho Tinto'), { p: 3, porque: ['Reserva', 'DOC'] });
     assert.equal(pontosRotulo('azeite', 'Azeite Virgem Extra DOP Moura').p, 3);
     assert.equal(pontosRotulo('leite', 'Leite'), null);
-    const bc = melhoresCompras('vinho', [{ c: 'a', nome: 'Tinto Alentejo', cent: 299 }, { c: 'a', nome: 'Monte Velho Reserva', cent: 499 },
-        { c: 'b', nome: 'Esporão Reserva DOC', cent: 1599 }, { c: 'b', nome: 'Douro Grande Reserva', cent: 1299 }, { c: 'c', nome: 'Outro Reserva', cent: 899 }]);
-    assert.deepEqual(bc.map((x) => [x.nome, x.p, x.mais ?? 0]), [['Monte Velho Reserva', 2, 0], ['Douro Grande Reserva', 3, 800]]);
+    // os candidatos: só os com pontos, do mais barato para o mais caro, pelo índice (a app tira a fronteira deles)
+    const ps = [{ c: 'a', nome: 'Tinto Alentejo', cent: 299 }, { c: 'b', nome: 'Esporão Reserva DOC', cent: 1599 }, { c: 'a', nome: 'Monte Velho Reserva', cent: 499 },
+        { c: 'b', nome: 'Douro Grande Reserva', cent: 1299 }, { c: 'c', nome: 'Outro Reserva', cent: 899 }];
+    const cs = candidatosMelhores('vinho', ps);
+    assert.deepEqual(cs.map((x) => [x.i, x.p]), [[2, 2], [4, 2], [3, 3], [1, 3]]);
+    // a fronteira, como a app a tira: cada um que promete mais do que todos os mais baratos
+    let mx = 0;
+    const fr = cs.filter((x) => x.p > mx && (mx = x.p));
+    assert.deepEqual(fr.map((x) => ps[x.i].nome), ['Monte Velho Reserva', 'Douro Grande Reserva']);
 });

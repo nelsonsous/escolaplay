@@ -146,16 +146,14 @@ export function pontosRotulo(fam, nome, cent = null) {
     if (/\bmedalha|\bouro\b|\bgold\b|\bpremiad/.test(n)) { p += 1; porque.push('medalha'); }
     return { p, porque };
 }
-// as melhores compras de uma lista de produtos ({ c, nome, cent, uc }): a fronteira preço-rótulo, com pelo menos 1
-// ponto, do mais barato para o mais caro (até 4); cada uma diz quanto custa a mais do que a anterior
-export function melhoresCompras(fam, produtos) {
-    const ps = produtos.map((x) => ({ ...x, r: pontosRotulo(fam, x.nome, x.cent) })).filter((x) => x.r && x.cent > 0);
+
+// os candidatos (ciclo 4): os produtos com pelo menos 1 ponto, pelo índice na lista dada, do mais barato (por unidade,
+// senão pelo que se paga) para o mais caro: { i, p, porque }. Percorridos por esta ordem, cada um que dá mais pontos
+// do que todos os anteriores está na fronteira — é o que a app faz, só com os produtos que passam nos filtros.
+export function candidatosMelhores(fam, produtos, max = 150) {
     const preco = (x) => x.uc ?? x.cent;
-    const fronteira = ps.filter((x) => x.r.p >= 1 && !ps.some((y) => y !== x && y.r.p >= x.r.p && preco(y) < preco(x)));
-    // um por nível de pontos: o mais barato
-    const porNivel = new Map();
-    for (const x of fronteira.sort((a, b) => preco(a) - preco(b))) if (!porNivel.has(x.r.p)) porNivel.set(x.r.p, x);
-    const lista = [...porNivel.values()].sort((a, b) => preco(a) - preco(b)).slice(0, 4);
-    return lista.map((x, i) => ({ c: x.c, nome: x.nome, cent: x.cent, ...(x.uc ? { uc: x.uc, ub: x.ub } : {}), p: x.r.p, porque: x.r.porque,
-        ...(i ? { mais: preco(x) - preco(lista[i - 1]) } : {}) }));
+    return produtos.map((x, i) => ({ i, x, r: x.cent > 0 ? pontosRotulo(fam, x.nome, x.cent) : null }))
+        .filter((c) => c.r && c.r.p >= 1)
+        .sort((a, b) => preco(a.x) - preco(b.x) || b.r.p - a.r.p)
+        .slice(0, max).map((c) => ({ i: c.i, p: c.r.p, porque: c.r.porque }));
 }

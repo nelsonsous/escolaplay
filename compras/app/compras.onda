@@ -895,19 +895,25 @@
 : tem_a ii>i x fa { = r 0 = y pri x.a W && y ~ r { Se mesmo txt y fa = r 1 = y seg y } r }
 # as filas de uma família (atributos.js: o vinho tem a região, a gama e a casta), com os filtros fa, fp e fc
 # as melhores compras pelo rótulo (atributos.js): para quem não percebe, o que o rótulo promete por euro
+# a fronteira tira-se dos candidatos (do mais barato para o mais caro) que passam nos filtros escolhidos (a região,
+# o preço, a casta, o tamanho, a marca): cada um que promete mais do que todos os mais baratos entra (até 4)
 : dmelhores i>i tp {
-  = x pri tp.bc
-  Se x {
-    `<h3>🏅 Melhores compras pelo rótulo</h3><ul class="bc">`
-    W x {
-      `<li><b>{ esc x.nome }</b><span class="total">{ eur int x.cent }</span>`
-      `<small>{ crut nomec txt x.c } · o rótulo diz: `
+  = fe _an_ler $"fe" = fm _an_ler $"fm"
+  = x pri tp.bcc = mx 0 = n 0 = ant -1
+  W && x < n 4 {
+    = p idx tp.produtos int x.i
+    Se && && p > int x.p mx passa p fe fm {
+      Se ~ n `<h3>🏅 Melhores compras pelo rótulo</h3><ul class="bc">`
+      = pr ? p.uc int p.uc int p.cent
+      `<li><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }</span>`
+      `<small>{ crut nomec txt p.c } · o rótulo diz: `
       = q pri x.porque = i 0
       W q { Se i `, ` `{ esc q }` = q seg q = i + i 1 }
-      Se x.mais ` · +{ eur int x.mais }{ Se x.ub `/{ crut txt x.ub }` } para subir de gama`
+      Se >= ant 0 ` · +{ eur - pr ant }{ Se p.ub `/{ crut txt p.ub }` } para subir de gama`
       `</small></li>`
-      = x seg x }
-    `</ul><p class="nota">Pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP, cura…): nenhum outro promete mais por menos. Não é uma nota de crítico: para isso, a nota no Vivino e os preços noutras lojas no Wine-Searcher.</p>` }
+      = mx int x.p = ant pr = n + n 1 }
+    = x seg x }
+  Se n `</ul><p class="nota">Pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP, cura…), só entre os que escolheste: nenhum outro promete mais por menos. Não é uma nota de crítico: para isso, a nota no Vivino e os preços noutras lojas no Wine-Searcher.</p>`
   0 }
 : dfilas i>i tp {
   = f pri tp.filas
