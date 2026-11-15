@@ -709,7 +709,8 @@
             = u && && p.uc ub mesmo txt p.ub ub
             ? u `<li{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.uc }<i>/{ crut ub }</i></span>`
               `<li><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
-            `<small><b class="emb">Pagas { eur int p.cent }{ Se p.emb ` por { esc p.emb }` }</b>`
+            # ao quilo (uma peça inteira): o que se paga é aproximado, pelo peso médio da peça
+            `<small><b class="emb">Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { Se int p.aq `≈ ` }{ esc p.emb }` }</b>{ Se int p.aq ` · vende-se ao quilo` }`
             Se u { ? == int p.uc mu ` · o mais barato por { crut unidade ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade ub }` 0 } }
             ` · { esc p.nome }</small></li>` 0 }
           { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }

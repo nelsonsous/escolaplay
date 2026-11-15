@@ -233,3 +233,19 @@ test('as etiquetas do Ecónomo: animal, corte e usos pelo nome; no tipo, as esco
     const ws = palavrasDoTalho('carne-novilho', ['Picanha de Bovino', 'Picanha Fatiada', 'Acém de Novilho', 'Acém de Vitela', 'Vazia de Bovino'].map((nome) => ({ nome })));
     assert.deepEqual(ws.map((x) => [x.g, x.r]), [['uso', 'para grelhar'], ['uso', 'para assar'], ['uso', 'para estufar'], ['uso', 'para cozer'], ['corte', 'picanha'], ['corte', 'acém']]); // só um animal com dois ou mais: não há fila do animal
 });
+
+test('peças inteiras ao quilo: uma picanha de 1,8 kg a «17,99 €» é 17,99 €/kg e paga-se ≈ 32,38 €', async (t) => {
+    const { produtosDoTipo } = await import('../proxy/src/sugerir.js');
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('carne-novilho', 'Carne de vaca, novilho e vitela', 5, 1);`);
+    const p = (id, nome, preco, emb) => ({ id, nome, preco, emb, url: 'https://www.continente.pt/' + id });
+    const agora = new Date();
+    await guardarCatalogo(db, 'continente', 'carne-novilho', [p('a', 'Picanha de Bovino Inteira Continente', 17.99, '1,8 kg'), p('b', 'Picanha Fatiada', 7.6, '400 g'),
+        p('c', 'Picanha de Bovino Fatiada Angus', 7.83, '290 g'), p('d', 'Picanha Selecionada', 17.99, '900 g'), p('e', 'Bifes Pack Familiar', 9.99, '1,2 kg')], agora);
+    const tp = await produtosDoTipo(db, 'carne-novilho', agora);
+    const a = tp.produtos.find((x) => x.id === 'a');
+    assert.deepEqual([a.uc, a.cent, a.aq], [1799, 3238, 1]);
+    // o pack familiar de bifes (outro corte, sem vizinhos pequenos) fica como está
+    assert.equal(tp.produtos.find((x) => x.id === 'e').aq, undefined);
+    assert.deepEqual(tp.produtos.filter((x) => /picanha/i.test(x.nome)).map((x) => x.id), ['a', 'b', 'd', 'c']); // por quilo: 17,99 · 19,00 · 19,99 · 27,00
+});
