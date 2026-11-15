@@ -121,7 +121,7 @@ export function lerCategoria(cadeia, html) {
 // as marcas próprias de cada cadeia (a «marca branca»); o resto são marcas de fabricante
 const PROPRIAS = {
     continente: /^(continente|é$|é continente)/i,
-    pingodoce: /^(pingo doce|amanhecer|pura vida)/i,
+    pingodoce: /^(pingo doce|amanhecer|pura vida|nosso talho|nossa peixaria|nossa padaria|nossa fruta|nossa charcutaria|nossa pastelaria)/i,
     auchan: /^(auchan|polegar)/i,
 };
 export const propria = (cadeia, marca) => (marca && PROPRIAS[cadeia]?.test(String(marca).trim()) ? 1 : 0);
