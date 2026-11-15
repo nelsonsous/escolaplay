@@ -9,6 +9,7 @@
 // produtos parecidos de uma procura (precosDe), para a app mostrar o mais barato por quilo ou por litro.
 import { FONTES } from './fontes/index.js';
 import { pedir } from './rede.js';
+import { estimativas } from './escolhas.js';
 
 export const VALE_H = 20, POR_PEDIDO = 2, POR_CRON = 4;
 const HORA = 3600e3;
@@ -122,24 +123,29 @@ async function linhas(db, produtos) {
 // a lista com o preço de cada produto escolhido: cent, antes (o riscado), unid, esgotado (1) e visto (o dia)
 export async function juntarPrecos(db, lista) {
     const m = await linhas(db, produtosDe(lista.itens));
-    if (!m.size) return lista;
+    const est = await estimativas(db, lista.itens);
+    if (!m.size && !est.size) return lista;
     return {
         ...lista,
-        itens: lista.itens.map((i) => ({
-            ...i,
-            p: Object.fromEntries(Object.entries(i.p).map(([c, p]) => {
-                const r = m.get(c + ' ' + p.id);
-                if (!r || r.cent == null) return [c, p];
-                const x = { ...p, cent: Number(r.cent) };
-                if (r.antes != null) x.antes = Number(r.antes);
-                if (r.unid) x.unid = r.unid;
-                if (r.esgotado) x.esgotado = 1;
-                if (r.visto) x.visto = r.visto.slice(0, 10);
-                if (r.uc != null && r.ub) { x.uc = Number(r.uc); x.ub = r.ub; }
-                if (r.propria) x.pr = 1;
-                return [c, x];
-            })),
-        })),
+        itens: lista.itens.map((i) => {
+            const e = i.e?.emb ? est.get(i.e.k + '|' + i.e.emb) : null;
+            return {
+                ...i,
+                ...(e != null ? { est: e } : {}),
+                p: Object.fromEntries(Object.entries(i.p).map(([c, p]) => {
+                    const r = m.get(c + ' ' + p.id);
+                    if (!r || r.cent == null) return [c, p];
+                    const x = { ...p, cent: Number(r.cent) };
+                    if (r.antes != null) x.antes = Number(r.antes);
+                    if (r.unid) x.unid = r.unid;
+                    if (r.esgotado) x.esgotado = 1;
+                    if (r.visto) x.visto = r.visto.slice(0, 10);
+                    if (r.uc != null && r.ub) { x.uc = Number(r.uc); x.ub = r.ub; }
+                    if (r.propria) x.pr = 1;
+                    return [c, x];
+                })),
+            };
+        }),
     };
 }
 

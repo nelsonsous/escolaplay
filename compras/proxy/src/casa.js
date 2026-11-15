@@ -4,8 +4,10 @@
 // As tabelas estão em migrations/0001_casa_lista_precos.sql.
 //
 // A lista muda por operações pequenas, que a app manda (e guarda enquanto não há rede):
-//   {o:'j', id, t, q}  juntar      {o:'r', id, f}  riscar (f 1) ou voltar (f 0)    {o:'x', id}  tirar
-//   {o:'q', id, q}     quantidade  {o:'p', id, c, p}  o produto da cadeia c ({id, nome, url}; null tira)
+//   {o:'j', id, t, q, e?}  juntar (e: o que é, vindo da escolha: { k: o tipo, emb: o tamanho, m: a marca ou 'branca'})
+//   {o:'r', id, f}  riscar (f 1) ou voltar (f 0)    {o:'x', id}  tirar    {o:'q', id, q}  quantidade
+//   {o:'p', id, c, p, a?}  o produto da cadeia c ({id, nome, url}; null tira); a: escolhido pela app (não pela mão).
+//                      Escolher à mão uma coisa com e fixa-a (e.mao): o conector deixa de trocar o produto sozinho.
 //   {o:'l'}            tirar os riscados
 // Valem aplicadas mais do que uma vez (juntar um id que já lá está não faz nada), por isso a app pode reenviar.
 // Cada pedido grava a lista uma vez, e só se mudou; se outro telemóvel a gravou entretanto (a versão já não é a
@@ -73,6 +75,16 @@ async function gravarLista(db, casa, lista, antes) {
 }
 
 const texto = (s, max) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+// o que é uma coisa (da escolha da volta 5): o tipo, o tamanho e a marca
+function especie(e) {
+    if (!e || typeof e !== 'object') return null;
+    const k = texto(e.k, 60);
+    if (!/^[a-z0-9-]{2,60}$/.test(k)) return null;
+    const x = { k };
+    if (e.emb) x.emb = texto(e.emb, 20);
+    if (e.m) x.m = texto(e.m, 40);
+    return x;
+}
 const quantidade = (q) => Math.min(99, Math.max(1, Math.round(Number(q)) || 1));
 
 export function produto(c, p) {
@@ -100,7 +112,8 @@ export function aplicar(lista, ops) {
                 const t = texto(op.t, 80);
                 if (!t) throw new Erro(400, 'falta o texto');
                 if (lista.itens.length >= MAX_ITENS) throw new Erro(400, `a lista tem no máximo ${MAX_ITENS} coisas`);
-                lista.itens.push({ id: op.id, t, q: quantidade(op.q), f: 0, p: {} });
+                const e = especie(op.e);
+                lista.itens.push({ id: op.id, t, q: quantidade(op.q), f: 0, p: {}, ...(e ? { e } : {}) });
                 break;
             }
             case 'r': if (item) item.f = op.f ? 1 : 0; break;
@@ -111,6 +124,7 @@ export function aplicar(lista, ops) {
                 const p = produto(op.c, op.p);
                 if (!item) break;
                 if (p) item.p[op.c] = p; else delete item.p[op.c];
+                if (item.e && !op.a) item.e.mao = 1;
                 break;
             }
             default: throw new Erro(400, `operação desconhecida: ${String(op.o).slice(0, 10)}`);

@@ -13,8 +13,8 @@
 //   GET  /api/sugerir?q=…              os tipos de produto que começam pelo que se escreveu: { tipos: [{ k, nome, n }] }
 //   GET  /api/tipo?k=…                 os produtos de um tipo nas cadeias, com os tamanhos e as marcas (sugerir.js)
 // O cron (de dois em dois minutos): aos minutos redondos (0, 10, 20…) lê os preços velhos dos produtos que estão nas
-// listas (precos.js, refrescar); nos outros, uma página de categoria de uma cadeia, à vez (catalogo.js): cada cadeia
-// recebe no máximo um pedido a cada seis minutos.
+// listas (precos.js, refrescar), menos ao minuto 30, em que revê as escolhas das listas (escolhas.js); nos outros, uma
+// página de categoria de uma cadeia, à vez (catalogo.js): cada cadeia recebe no máximo um pedido a cada seis minutos.
 // A casa, a lista e os preços estão na D1 (env.DB; migrations/); a KV (env.KV) guarda o índice de cada cadeia.
 // A sonda (volta 1; com o segredo SONDA_TOKEN)
 //   GET /sonda?url=…                   a resposta da cadeia tal e qual (estado, tempo e cabeçalhos à parte)
@@ -31,10 +31,11 @@ import { Erro, novoAparelho, aparelhoDe, casaDe, lerLista, mudarLista, entrarNaC
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { sugerir, produtosDoTipo } from './sugerir.js';
+import { atualizarEscolhas } from './escolhas.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org',
@@ -239,7 +240,7 @@ export default {
             }
         }
         if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
-        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 5: catálogo e escrita' });
+        if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'volta 6: a escolha que se mantém' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
         if (url.pathname === '/sonda/catalogo') return sondaCatalogo(request, env);
@@ -248,7 +249,9 @@ export default {
     async scheduled(evento, env, ctx) {
         const agora = new Date(evento.scheduledTime || Date.now());
         const m = agora.getUTCMinutes();
-        const tarefa = m % 10 === 0
+        const tarefa = m === 30
+            ? atualizarEscolhas(env.DB, agora).then((r) => ['escolhas', r])
+            : m % 10 === 0
             ? refrescar(env.DB, agora).then((r) => ['preços', r])
             : cronCatalogo(env.DB, CADEIAS_CATALOGO[Math.floor(m / 2) % CADEIAS_CATALOGO.length], agora).then((r) => ['catálogo', r]);
         ctx.waitUntil(tarefa.then(([o, r]) => console.log(o, JSON.stringify(r))).catch((e) => console.log('cron falhou', String(e))));

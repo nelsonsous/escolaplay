@@ -6,13 +6,15 @@ A lista das compras da casa, e em que supermercado fica mais barata. O plano das
 Endereço (depois de juntar ao `main`): **https://nelsonsous.github.io/escolaplay/compras/**. No telemóvel:
 iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar app*.
 
-## O que já faz (voltas 2 a 5)
+## O que já faz (voltas 2 a 6)
 
 - **A lista da casa.** Escreve-se como sai («2 leites, pão de forma e ovos»): a app separa por vírgulas e por « e »
   e lê a quantidade à frente. Riscar, tirar os riscados, mudar a quantidade, tirar uma coisa.
 - **Escrever e encontrar.** Enquanto se escreve aparecem os tipos do catálogo («ág» → Água sem gás). Tocar num abre a
   escolha: o tamanho, a marca ou «🏷 Marca branca», e o mais barato de cada supermercado (por litro ou por quilo).
-  «Juntar à lista» põe a coisa já com o produto de cada um.
+  «Juntar à lista» põe a coisa já com o produto de cada um, e o conector mantém-no o mais barato (revê de hora a hora;
+  o que se escolhe à mão fica). A Mercadona aparece com uma estimativa «≈»: a marca branca do mesmo tipo e tamanho nas
+  outras lojas (a Mercadona não publica os preços).
 - **O produto de cada supermercado, com o preço.** Tocar numa coisa abre a folha com os produtos parecidos no
   Continente, no Pingo Doce, no Auchan e no Lidl, e escolhe-se o de cada um. O preço é o do site da cadeia (com o
   riscado das promoções e o preço por quilo ou por litro), lido quando se escolhe o produto e depois uma vez por dia.
@@ -32,11 +34,12 @@ iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar a
   `app/compras.wasm`. `compras.js` é a casca:
   a chave do aparelho nos pedidos ao conector e o Enter nos campos. `index.html`, `compras.css`, `sw.js`, o manifesto
   e os ícones completam a PWA.
-- `proxy/` — o conector (Worker `compras` 0.6.0, em `https://compras.mercados-proxy.workers.dev`):
+- `proxy/` — o conector (Worker `compras` 0.7.0, em `https://compras.mercados-proxy.workers.dev`):
   - a casa e a lista (`src/casa.js`), na D1 `compras` (as tabelas em `migrations/`);
   - os preços (`src/precos.js`): lidos no site da cadeia quando se escolhe um produto e pelo cron de dez em dez
     minutos (os que têm mais de 20 h, um por cadeia de cada vez), guardados na D1, com o preço por quilo ou litro;
     e os preços dos produtos de uma procura (`/api/precos`);
+  - a escolha que se mantém e a estimativa da Mercadona (`src/escolhas.js`);
   - o catálogo (`src/catalogo.js`): as páginas de categoria das cadeias, lidas pelo cron (uma a cada dois minutos, à
     vez por cadeia), com o tipo de cada produto; e a escrita (`src/sugerir.js`: `/api/sugerir` e `/api/tipo`);
   - a procura no índice de cada cadeia (`src/indice.js`; o índice está na KV);
@@ -50,7 +53,7 @@ iPhone *Partilhar → Adicionar ao ecrã principal*; Android *⋮ → Instalar a
   (`cadeias.mjs`).
 
 ```bash
-cd compras && npm test                                         # 61 testes (a app precisa do Playwright)
+cd compras && npm test                                         # 64 testes (a app precisa do Playwright)
 node compras/compilar.mjs                                      # app/compras.onda → app/compras.wasm
 cd compras/proxy && npx wrangler d1 migrations apply compras --remote   # as tabelas da D1 (uma vez por migração)
 cd compras/proxy && npx wrangler deploy                        # publicar o conector (e o cron)

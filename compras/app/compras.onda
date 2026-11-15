@@ -81,9 +81,14 @@
   Se m.uc `,"uc":{ N int m.uc },"ub":{ pjs txt m.ub }`
   Se int m.pr `,"pr":1`
   `\}` }
-: pitem iiiiii>i c qq ff pc pn sep {
+# o que a coisa é (c.e, da escolha) e a estimativa da Mercadona (c.est) passam como estão; mm: escolheu-se à mão
+: pesp ii>i e mm `,"e":\{"k":{ pjs txt e.k }{ Se e.emb `,"emb":{ pjs txt e.emb }` }{ Se e.m `,"m":{ pjs txt e.m }` }{ Se || mm int e.mao `,"mao":1` }\}`
+: pitem iiiiiii>i c qq ff pc pn sep mm {
   Se sep P 44
-  `\{"id":{ pjs txt c.id },"t":{ pjs txt c.t },"q":{ N ? qq qq int c.q },"f":{ N ? >= ff 0 ff int c.f },"p":\{`
+  `\{"id":{ pjs txt c.id },"t":{ pjs txt c.t },"q":{ N ? qq qq int c.q },"f":{ N ? >= ff 0 ff int c.f }`
+  Se c.e pesp c.e mm
+  Se c.est `,"est":{ N int c.est }`
+  `,"p":\{`
   = s 0 = m pri c.p
   W m {
     = k _ar_chave m
@@ -108,12 +113,12 @@
     Se && este == o 'x = fica 0
     Se && == o 'l int c.f = fica 0
     Se fica {
-      = qq 0 = ff -1 = pc 0 = pn 0
+      = qq 0 = ff -1 = pc 0 = pn 0 = mm 0
       Se este {
         Se == o 'r = ff ? int op.f 1 0
         Se == o 'q = qq Mx 1 Mn 99 int op.q
-        Se == o 'p { = pc txt op.c = pn ? == tipo op.p 7 op.p 0 } }
-      pitem c qq ff pc pn s
+        Se == o 'p { = pc txt op.c = pn ? == tipo op.p 7 op.p 0 = mm ~ int op.a } }
+      pitem c qq ff pc pn s mm
       = s 1 }
     = c seg c }
   Se && == o 'j ~ tem {
@@ -256,6 +261,7 @@
     Se int m.pr ` 🏷`
     = p pc c k Se >= p 0 ` { eur p }`
     = s 1 } }
+  Se c.est { Se s ` · ` `Mercadona ≈ { eur * Mx 1 int c.q int c.est }` = s 1 }
   Se ~ s `Toca para escolher os produtos` }
 # o texto para partilhar no WhatsApp (já no formato de um endereço)
 : partilha i>i its {
@@ -322,6 +328,14 @@
     `<p><b>{ crut nomecad ba } e { crut nomecad bb }: { eur bt }</b>{ Se >= pt 0 ` — poupas { eur - pt bt }` }</p>`
     `<p class="nota">No { crut nomecad ba }: { nomes_em ba bb }.</p><p class="nota">No { crut nomecad bb }: { nomes_em bb ba }.</p></div>` }
   0 }
+# a Mercadona, à parte: a estimativa (a marca branca do mesmo tipo e tamanho nas outras lojas), nunca «o mais barato»
+: dmerc i>i n {
+  = t 0 = c 0 = x pri itens
+  W x { Se && ~ int x.f x.est { = t + t * Mx 1 int x.q int x.est = c + c 1 } = x seg x }
+  Se c {
+    `<div class="merc"><p><b>Mercadona ≈ { eur t }</b>{ Se < c n ` <small>(só { N c } de { N n } coisas)</small>` }</p>`
+    `<p class="nota">Estimativa: a marca branca do mesmo tipo e tamanho nas outras lojas (a Mercadona não publica os preços). Os talões vão corrigi-la.</p></div>` }
+  0 }
 : dmais >i {
   = h _ht_ini + 6000 * 300 quantos itens
   = n porriscar
@@ -345,6 +359,7 @@
           Se c `<button class="ir" data-onda="loja:{ N k }">Vou a este</button>`
           `</li>` 0 } }
     `</ul>`
+    dmerc n
     ddividir n pt
     Se == completos 0 `<p class="nota">Para comparar, toca em cada coisa da lista e escolhe o produto de cada supermercado.</p>`
     0 }
@@ -547,8 +562,8 @@
     = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
     = id texto`{ novoid }`
     = nome texto`{ crut txt tp.nome }{ Se fe ` { crut fe }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
-    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 }\}`
-    L k 3 { = p melhor_em tp k fe fm Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }","p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
+    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }\}\}`
+    L k 3 { = p melhor_em tp k fe fm Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }","a":1,"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
     fecha_tipo
     _an_gravar $"sug" 0
     ! @ 5 + @ 5 1 ! 11 + @ 11 1 }

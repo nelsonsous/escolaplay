@@ -309,6 +309,17 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.click('#folha [data-onda="juntat:0"]');
         await a.waitForSelector('.item >> nth=1');
         await a.waitForSelector('.item .texto small:has-text("Pingo Doce 🏷 0,96 €")');
+        // com o tamanho escolhido, a Mercadona tem estimativa (a marca branca de 6 L nas outras lojas)
+        await a.fill('[data-onda="junta"]', 'agua');
+        await a.click('#sug .chip >> nth=0');
+        await a.waitForSelector('#folha .escolha .chips');
+        await a.click('#folha .chip >> text="6 L"');
+        await a.click('#folha [data-onda="juntat:0"]');
+        await a.waitForSelector('.item .texto small:has-text("Mercadona ≈ 0,96 €")');
+        await a.click('#abas button >> nth=1');
+        await a.waitForSelector('.merc');
+        assert.match(await a.textContent('.merc b'), /^Mercadona ≈ 0,96 €/);
+        assert.match(await a.textContent('.merc small'), /só 1 de 3 coisas/);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
