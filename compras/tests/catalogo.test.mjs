@@ -416,6 +416,16 @@ test('os vinhos: as páginas seguintes das categorias grandes, e as filas da fam
     assert.deepEqual(atributos('vinho', 'Periquita Península de Setúbal Vinho Tinto'), { regiao: 'setubal' });
     assert.deepEqual(atributos('azeite', 'Azeite Virgem Extra DOP Moura'), { categoria: 'virgemextra', regiao: 'moura', modo: 'dop' });
     assert.deepEqual(atributos('queijo', 'Queijo Serra da Estrela DOP Amanteigado Ovelha'), { leite: 'ovelha', cura: 'amanteigado', dop: 'serraestrela' });
+    assert.equal(familiaDe('fruta', 0), 'fruta');
+    assert.equal(familiaDe('pao-do-dia', 1), 'padaria');
+    assert.deepEqual(atributos('fruta', 'Maçã Gala Nacional Categoria I'), { origem: 'nacional', variedade: 'gala', qualidade: 'extra' });
+    assert.deepEqual(atributos('padaria', 'Pão de Centeio com Massa Mãe Fatiado'), { farinha: 'centeio', fermento: 'massamae', dieta: 'fatiado' });
+    assert.deepEqual(atributos('presunto', 'Presunto Bolota 24 Meses Barrancos'), { cura: 'c24', origem: 'barrancos', raca: 'bolota' });
+    assert.equal(atributos('vinho', 'Esporão Reserva Alentejo Vinho Tinto', 1599).preco, 'de10a20');
+    const { temPalavras } = await import('../proxy/src/escolhas.js');
+    assert.ok(temPalavras([' regiaoxdouro '], 'Papa Figos Douro Vinho Tinto', 'vinho-tinto', 699));
+    assert.ok(temPalavras([' precoxde5a10 '], 'Papa Figos Douro Vinho Tinto', 'vinho-tinto', 699));
+    assert.ok(!temPalavras([' precoxde5a10 '], 'Papa Figos Douro Vinho Tinto', 'vinho-tinto', 1299));
     const f = filasDaFamilia('vinho', ['Douro Reserva', 'Douro Colheita', 'Alentejo Reserva', 'Alentejo Tinto', 'Dão Tinto'].map((nome) => ({ nome })));
     assert.deepEqual(f.filas.map((x) => x.t), ['Região']); // a gama só tem um valor com 2 ou mais: não é fila
     assert.deepEqual(f.palavras.map((x) => [x.w, x.r]), [['regiaoxdouro', 'Douro'], ['regiaoxalentejo', 'Alentejo']]);
