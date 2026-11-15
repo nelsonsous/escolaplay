@@ -69,8 +69,8 @@ export function normaliza({ cadeia, nome, cent: c, uc, ub, m, aoPeso = false }) 
     if (c != null && !m && /\bkg\.?\s*$/i.test(nome ?? '')) return { cent: c, uc: c, ub: 'kg', emb: '1 kg' };
     if (c == null || !m || !(m.q > 0) || m.ub === 'un') return { cent: c, uc, ub };
     const porcao = Math.round(c * m.q);
-    if (m.ub === 'kg' && m.q < 1 && (aoPeso || /balc[aã]o/i.test(nome ?? '')
-        || (cadeia === 'continente' && ub === 'un' && m.q >= 0.05 && uc != null && Math.abs(uc - porcao) <= Math.max(2, porcao * 0.03)))) {
+    if (m.ub === 'kg' && (aoPeso || (m.q < 1 && /balc[aã]o/i.test(nome ?? '')))) return { cent: porcao, uc: c, ub: 'kg' };
+    if (m.ub === 'kg' && cadeia === 'continente' && ub === 'un' && m.q >= 0.05 && uc != null && Math.abs(uc - porcao) <= Math.max(2, porcao * 0.03)) {
         return { cent: porcao, uc: c, ub: 'kg' };
     }
     if (ub !== m.ub || uc == null) return { cent: c, uc: Math.round(c / m.q), ub: m.ub };

@@ -156,6 +156,31 @@ export function palavrasDoTalho(k, produtos) {
     return [...lista('uso', 5), ...lista('corte', 14), ...(animais.length > 1 ? animais : [])];
 }
 
+// as peças inteiras vendidas ao peso (uma picanha de 1,8 kg) vêm com o preço do quilo onde devia estar o da peça, e o
+// «por quilo» sai a metade (17,99 € ÷ 1,8 kg = 9,99 €/kg). O Ecónomo reconhece-as pelos vizinhos do mesmo corte: com
+// 1 kg ou mais, o «por quilo» muito abaixo dos das embalagens pequenas (menos de 75% da mediana) e o preço parecido com
+// esse quilo. Então o preço é o do quilo e paga-se ≈ preço × peso (aq: ao quilo, o que se paga é aproximado).
+function aoQuilo(produtos, k) {
+    const grupo = new Map();
+    for (const p of produtos) {
+        if (p.ub !== 'kg' || p.uc == null) continue;
+        const c = etiquetas(p.nome, k)?.corte ?? '-';
+        if (!grupo.has(c)) grupo.set(c, []);
+        grupo.get(c).push(p);
+    }
+    for (const ps of grupo.values()) {
+        const peq = ps.filter((p) => (medida(p.emb)?.q ?? 0) < 1).map((p) => p.uc);
+        const med = mediana(peq.length >= 2 ? peq : ps.map((p) => p.uc));
+        if (!med) continue;
+        for (const p of ps) {
+            const q = medida(p.emb)?.q ?? 0;
+            if (q >= 1 && p.uc < med * 0.75 && p.cent >= med * 0.75 && p.cent <= med * 1.6) {
+                p.uc = p.cent; p.cent = Math.round(p.cent * q); p.aq = 1;
+            }
+        }
+    }
+}
+
 // os produtos de um tipo, com os tamanhos e as marcas que há (os mais comuns primeiro)
 const mediana = (v) => { const s = [...v].sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
 
@@ -244,6 +269,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     for (const p of results) if (p.uc != null && p.ub) nu.set(p.ub, (nu.get(p.ub) ?? 0) + 1);
     const ub = [...nu].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     const tamanhos = conta((p) => p.emb).slice(0, 8).map(([e, n]) => ({ e, n }));
+    if (TALHO.has(t.k)) aoQuilo(produtos, t.k);
     // o mais barato primeiro: na unidade do tipo, por esse preço; os outros depois, pelo que se paga
     produtos.sort((a, b) => (a.ub === ub ? 0 : 1) - (b.ub === ub ? 0 : 1) || (a.ub === ub ? a.uc - b.uc : a.cent - b.cent));
     return {
