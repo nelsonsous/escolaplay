@@ -47,7 +47,7 @@
             .then((o) => (o && o.title ? JSON.stringify({ ...c, legenda: o.title, autor: o.author_name }) : corpo), () => corpo);
     }
 
-    fetch('app/compras.wasm?v=0.44.0')
+    fetch('app/compras.wasm?v=0.44.2')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })
@@ -63,6 +63,40 @@
         if (campo === 'junta') { e.preventDefault(); evento('juntar:0'); }
         if (campo === 'codigo') { e.preventDefault(); evento('entrar:0'); }
     });
+    // as folhas (.cartao) fecham-se também a puxar para baixo, como no telemóvel: só quando a folha está no topo (senão
+    // é rolar) e o gesto é mais vertical do que horizontal (as filas de escolhas rolam para o lado); a folha acompanha o
+    // dedo e, passados 90 px (ou um puxão rápido), fecha
+    let puxa = null;
+    document.addEventListener('touchstart', (e) => {
+        const c = e.target && e.target.closest ? e.target.closest('.cartao') : null;
+        puxa = c && c.scrollTop <= 0 && e.touches.length === 1 ? { c, x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), dy: 0, ativo: false } : null;
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+        if (!puxa) return;
+        const dx = e.touches[0].clientX - puxa.x, dy = e.touches[0].clientY - puxa.y;
+        if (!puxa.ativo) {
+            if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+            if (dy <= 0 || Math.abs(dx) > Math.abs(dy) || puxa.c.scrollTop > 0) { puxa = null; return; }
+            puxa.ativo = true;
+            puxa.c.style.transition = 'none';
+        }
+        e.preventDefault();
+        puxa.dy = Math.max(0, dy);
+        puxa.c.style.transform = `translateY(${puxa.dy}px)`;
+    }, { passive: false });
+    document.addEventListener('touchend', () => {
+        if (!puxa || !puxa.ativo) { puxa = null; return; }
+        const { c, dy, t } = puxa;
+        puxa = null;
+        c.style.transition = 'transform 0.18s ease-out';
+        if (dy > 90 || (dy > 30 && Date.now() - t < 250)) {
+            c.style.transform = 'translateY(100%)';
+            // cada folha tem a sua forma de fechar: a do ✕ dela (fecha, fechat, ntf, rcf)
+            const x = c.querySelector('.fechar[data-onda]');
+            setTimeout(() => evento(x ? x.dataset.onda : 'fecha:0'), 150);
+        } else c.style.transform = '';
+    });
+
     // o talão: a fotografia reduz-se aqui (no máximo 1600 px, JPEG) e vai para o conector; a app só mostra o resultado
     function reduzir(ficheiro) {
         return new Promise((ok, falha) => {
