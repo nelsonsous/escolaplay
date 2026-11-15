@@ -9,7 +9,7 @@
 //   Auchan      <div class="product-tile auc-product-tile …"> com data-gtm (name, id, price, brand, category),
 //               data-urls (absoluteProductUrl) e «0.16 €/Lt» em auc-measures--price-per-unit
 // Sem DOM e sem expressões regulares sobre a página toda (2,4 MB no Continente): corta-se por marcadores.
-import { revisarTipo, nomeCondiz } from './revisao.js';
+import { revisarTipo, nomeCondiz, acentua } from './revisao.js';
 import { entidades, texto, numero, precoUnidade } from './fontes/comum.js';
 import { porUnidade, medida, rotulo, normaliza } from './precos.js';
 import { pedir } from './rede.js';
@@ -200,7 +200,7 @@ export async function lerPagina(db, pagina, agora = new Date()) {
         const conta = new Map();
         for (const p of produtos) { const n = nomeDoTipo(p.cat); if (n) conta.set(n, (conta.get(n) ?? 0) + 1); }
         const [melhor] = [...conta].sort((a, b) => b[1] - a[1])[0] ?? [];
-        if (melhor && nomeCondiz(pagina.tipo, melhor)) nome = melhor;
+        if (melhor && nomeCondiz(pagina.tipo, melhor)) nome = acentua(melhor);
     }
     await db.batch([
         db.prepare('UPDATE pagina SET visto = ?1, tentado = ?1, falhas = 0, n = ?2 WHERE url = ?3').bind(quando, produtos.length, pagina.url),

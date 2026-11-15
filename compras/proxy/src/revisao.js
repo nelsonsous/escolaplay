@@ -11,12 +11,31 @@ const ANIMAIS_DO_TIPO = { 'carne-novilho': ['vaca', 'novilho', 'vitela', 'vitela
     peru: ['peru'], 'borrego-cabrito': ['borrego', 'cabrito'] };
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-// o nome tem a ver com a chave? (uma palavra da chave, pelo começo, no nome)
+// o nome tem a ver com a chave? (todas as palavras da chave, pelo começo, no nome: «Bebida aveia» não é o tipo
+// «bebida-soja»; os plurais em «-ães» e «-ões» contam como o singular: «pães» é «pão»)
+const singular = (w) => w.replace(/(?:aes|oes)$/, 'ao');
 export const nomeCondiz = (k, nome) => {
-    const ws = sem(nome).split(/[^a-z0-9]+/).filter((w) => w.length > 2);
-    return String(k).split('-').filter((x) => x.length > 2).some((x) => ws.some((w) => w.startsWith(x.slice(0, 5)) || x.startsWith(w.slice(0, 5))));
+    const ws = sem(nome).split(/[^a-z0-9]+/).filter((w) => w.length > 2).map(singular);
+    return String(k).split('-').filter((x) => x.length > 2).every((x) => ws.some((w) => w.startsWith(x.slice(0, 5)) || x.startsWith(w.slice(0, 5))));
 };
-export const nomeDaChave = (k) => { const t = String(k).replace(/-/g, ' '); return t[0].toUpperCase() + t.slice(1); };
+// os acentos que faltam nos nomes que vêm sem eles (os endereços do Auchan e do Pingo Doce, as chaves): «Tampao» → «Tampão»
+const ACENTOS = new Map(Object.entries({ agua: 'água', aguas: 'águas', tonica: 'tónica', tonicas: 'tónicas', tampao: 'tampão', tampoes: 'tampões',
+    pure: 'puré', hidratacao: 'hidratação', protecao: 'proteção', intima: 'íntima', higienico: 'higiénico', higienicos: 'higiénicos',
+    epoca: 'época', tremoco: 'tremoço', tremocos: 'tremoços', pate: 'paté', pates: 'patés', pas: 'pás', refeicao: 'refeição',
+    refeicoes: 'refeições', depilatorio: 'depilatório', depilatorios: 'depilatórios', multisuperficie: 'multisuperfície',
+    multisuperficies: 'multisuperfícies', pao: 'pão', paes: 'pães', feijao: 'feijão', grao: 'grão', acucar: 'açúcar', cafe: 'café',
+    cha: 'chá', chas: 'chás', loica: 'loiça', oleo: 'óleo', salmao: 'salmão', camarao: 'camarão', leitao: 'leitão', limao: 'limão',
+    mexilhao: 'mexilhão', bebe: 'bebé', bebes: 'bebés', sabao: 'sabão', champo: 'champô', lixivia: 'lixívia', higiene: 'higiene',
+    infusao: 'infusão', infusoes: 'infusões', acessorios: 'acessórios', liquido: 'líquido', liquidos: 'líquidos', soluvel: 'solúvel',
+    cereal: 'cereal', lacteo: 'lácteo', lacteos: 'lácteos', lactea: 'láctea', lacteas: 'lácteas', bolacha: 'bolacha', proteses: 'próteses',
+    protese: 'prótese', eletrico: 'elétrico', eletricos: 'elétricos', automatico: 'automático', automaticos: 'automáticos', fogao: 'fogão',
+    frigorifico: 'frigorífico', especifica: 'específica', pessego: 'pêssego', pessegos: 'pêssegos', maca: 'maçã', macas: 'maçãs' }));
+export const acentua = (nome) => String(nome ?? '').replace(/[A-Za-zÀ-ÿ]+/g, (w) => {
+    const a = ACENTOS.get(w.toLowerCase());
+    if (!a || w !== w.toLowerCase() && w !== w[0] + w.slice(1).toLowerCase()) return w;
+    return w[0] === w[0].toUpperCase() && w[0] !== w[0].toLowerCase() ? a[0].toUpperCase() + a.slice(1) : a;
+});
+export const nomeDaChave = (k) => { const t = acentua(String(k).replace(/-/g, ' ')); return t[0].toUpperCase() + t.slice(1); };
 
 // a razão para um produto ser suspeito (null se não é):
 //   - «tipo»: no talho, o animal do nome não é o do tipo;
@@ -45,7 +64,9 @@ export async function revisarTipo(db, k) {
     const r = suspeitos(k, results);
     const mudar = results.map((p, i) => [p, r[i]]).filter(([p, s]) => (p.suspeito ?? null) !== s);
     const frases = mudar.map(([p, s]) => db.prepare('UPDATE preco SET suspeito = ? WHERE cadeia = ? AND id = ?').bind(s, p.cadeia, p.id));
-    if (!t.casa && !nomeCondiz(k, t.nome)) frases.push(db.prepare('UPDATE tipo SET nome = ? WHERE k = ?').bind(nomeDaChave(k), k));
+    // o nome de um tipo automático: o que condiz com a chave (senão o da chave), com os acentos
+    const nome = t.casa ? t.nome : nomeCondiz(k, t.nome) ? acentua(t.nome) : nomeDaChave(k);
+    if (nome !== t.nome) frases.push(db.prepare('UPDATE tipo SET nome = ? WHERE k = ?').bind(nome, k));
     if (frases.length) await db.batch(frases);
     return { k, produtos: results.length, suspeitos: r.filter(Boolean).length, mudados: mudar.length };
 }

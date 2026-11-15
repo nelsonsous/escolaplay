@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { sonda, kvGetTexto, d1, d1Linhas, espera } from './comum.mjs';
+import { acentua } from '../proxy/src/revisao.js';
 
 // as palavras que não contam para o nome de um tipo; «com» e «sem» contam (água com gás não é água sem gás)
 const PARAR = new Set(['e', 'de', 'do', 'da', 'dos', 'das', 'em', 'para', 'a', 'o', 'os', 'as', 'no', 'na', 'nos', 'nas', 'ao', 'ou']);
@@ -144,7 +145,7 @@ async function main() {
     if (args.includes('--sem-gravar')) return;
     // os nomes da casa ficam; os automáticos só entram se o tipo é novo (o cron põe-lhes o nome com acentos)
     await d1Linhas('INSERT INTO tipo (k, nome, casa)', [...t].filter(([, v]) => v.casa).map(([k, v]) => [k, v.nome, 1]), 'ON CONFLICT (k) DO UPDATE SET nome = excluded.nome, casa = 1 WHERE tipo.nome IS NOT excluded.nome OR tipo.casa IS NOT 1');
-    await d1Linhas('INSERT INTO tipo (k, nome)', [...t].filter(([, v]) => !v.casa).map(([k, v]) => [k, v.nome[0].toUpperCase() + v.nome.slice(1)]), 'ON CONFLICT (k) DO NOTHING');
+    await d1Linhas('INSERT INTO tipo (k, nome)', [...t].filter(([, v]) => !v.casa).map(([k, v]) => [k, acentua(v.nome[0].toUpperCase() + v.nome.slice(1))]), 'ON CONFLICT (k) DO NOTHING');
     await d1Linhas('INSERT INTO pagina (url, cadeia, tipo, marca)', paginas, 'ON CONFLICT (url) DO UPDATE SET tipo = excluded.tipo, marca = excluded.marca WHERE pagina.tipo IS NOT excluded.tipo OR pagina.marca IS NOT excluded.marca');
     // as páginas que já não estão em nenhum tipo saem
     const agora = new Set(paginas.map((p) => p[0]));

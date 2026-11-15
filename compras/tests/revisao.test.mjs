@@ -2,7 +2,7 @@
 // cruzados que não condizem com a chave.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suspeitos, revisarTipo, nomeCondiz } from '../proxy/src/revisao.js';
+import { suspeitos, revisarTipo, nomeCondiz, acentua, nomeDaChave } from '../proxy/src/revisao.js';
 import { guardarCatalogo } from '../proxy/src/catalogo.js';
 import { produtosDoTipo } from '../proxy/src/sugerir.js';
 import { d1 } from './d1.mjs';
@@ -20,6 +20,18 @@ test('o nome condiz com a chave? («Massas e gnocchis» no tipo «peixe» não)'
     assert.equal(nomeCondiz('espetada', 'Peru'), false);
     assert.equal(nomeCondiz('espetada', 'Espetadas'), true);
     assert.equal(nomeCondiz('feijao-grao', 'Feijão e grão'), true);
+    // todas as palavras da chave: «Bebida aveia» não é a bebida de soja; «pães» é «pão»
+    assert.equal(nomeCondiz('bebida-soja', 'Bebida aveia'), false);
+    assert.equal(nomeCondiz('croissant-pao-leite', 'Croissants e pães de leite'), true);
+});
+
+test('os acentos que faltam nos nomes automáticos («Tampao», «Aguas tonicas»)', () => {
+    assert.deepEqual(['Tampao', 'Aguas tonicas', 'Pure', 'Fruta da epoca', 'Pates e pastas', 'Higiene intima', 'Vassoura pas', 'Refeicao congelada'].map(acentua),
+        ['Tampão', 'Águas tónicas', 'Puré', 'Fruta da época', 'Patés e pastas', 'Higiene íntima', 'Vassoura pás', 'Refeição congelada']);
+    // o que já tem acento, ou está todo em maiúsculas (uma marca), fica
+    assert.deepEqual(['Pão do dia', 'Café moído', 'PURE'].map(acentua), ['Pão do dia', 'Café moído', 'PURE']);
+    assert.equal(nomeDaChave('bebida-soja'), 'Bebida soja');
+    assert.equal(nomeDaChave('agua-tonica'), 'Água tónica');
 });
 
 test('revisarTipo: marca os suspeitos (que saem da escolha) e dá nome aos tipos cruzados que não condizem', async () => {
