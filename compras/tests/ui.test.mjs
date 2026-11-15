@@ -295,7 +295,19 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         assert.equal(await a.textContent('#sug .sec-n'), 'Bebidas');
         await a.click('#sug .chip:has-text("Água sem gás")');
         await a.waitForSelector('#folha .escolha h2:has-text("Água sem gás")');
-        await a.click('#folha .fechar');
+        // o caminho no topo, uma cor por nível; tocar na secção volta aos tipos irmãos, «Todas» às secções
+        const caminho = () => a.locator('#folha .caminho button, #folha .caminho b').evaluateAll((l) => l.map((x) => x.className + ' ' + x.textContent));
+        assert.deepEqual(await caminho(), ['n0 Todas', 'n1 Bebidas', 'n2 Água sem gás']);
+        await a.click('#folha .caminho .n1');
+        await a.waitForSelector('#sug .chip.n2:has-text("Água sem gás")');
+        assert.equal(await a.locator('#folha .cartao').count(), 0);
+        assert.equal(await a.textContent('#sug .sec-n'), 'Bebidas');
+        await a.click('#sug .chip:has-text("Água sem gás")');
+        await a.waitForSelector('#folha .escolha h2:has-text("Água sem gás")');
+        await a.click('#folha .caminho .n0');
+        await a.waitForSelector('#sug .sec-c');
+        assert.equal(await a.locator('#folha .cartao').count(), 0);
+        assert.equal(await a.locator('#sug .sec-c').count(), 12);
                 // escrever «ág» mostra o tipo; com vírgulas (várias coisas) não sugere nada
         await a.fill('[data-onda="junta"]', 'ovos, ág');
         await a.waitForTimeout(700);
@@ -324,11 +336,14 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         assert.deepEqual(est.map((e) => e.slice(0, 2)), [['Mercadona ≈', '≈ 0,96 €'], ['SPAR ≈', '≈ 2,14 €']]);
         assert.match(est[0][2], /não vende online em Portugal; não usamos preços de Espanha/);
         assert.match(est[1][2], /não tem loja online e é franquiado/);
+        assert.deepEqual((await caminho()).slice(3), ['n4 6 L']);
+        if (process.env.FOTO) await a.screenshot({ path: process.env.FOTO });
         // Luso, de qualquer tamanho, 2 unidades
         await a.click('#folha [data-onda="fe:99"]');
         await a.click('#folha .chip:has-text("Luso")');
         await a.click('#folha [data-onda="tmais:0"]');
         assert.equal(await a.textContent('#folha .qtd b'), '2');
+        assert.deepEqual(await caminho(), ['n0 Todas', 'n1 Bebidas', 'n2 Água sem gás', 'n5 Luso']);
         assert.deepEqual((await linhas()).map((l) => l[1] + ' ' + l[3].split(' · ')[0]), ['Continente 1,99 €', 'Pingo Doce 1,83 €', 'Auchan 1,99 €']);
         await a.click('#folha [data-onda="juntat:0"]');
         assert.equal(await a.locator('#folha .cartao').count(), 0);
@@ -336,7 +351,9 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
         assert.deepEqual(await a.locator('.item .texto b').allTextContents(), ['2 × Água sem gás Luso']);
         await a.waitForSelector('.item .texto small:has-text("Pingo Doce 3,66 €")');
-        assert.equal(await a.textContent('.item .texto small'), 'Pingo Doce 3,66 € · mais 2 lojas');
+        assert.equal(await a.textContent('.item .texto small:not(.cam)'), 'Pingo Doce 3,66 € · mais 2 lojas');
+        // na lista, o caminho do tipo (a secção já é o título do grupo)
+        assert.equal(await a.textContent('.item .texto small.cam'), 'Água sem gás');
         const l = await s.api('/api/lista', chave);
         assert.deepEqual(Object.keys(l.itens[0].p), ['continente', 'pingodoce', 'auchan']);
         assert.equal(l.itens[0].p.pingodoce.cent, 183);

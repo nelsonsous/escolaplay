@@ -138,6 +138,25 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .cartao .fechar { position: sticky; top: 0; float: right; z-index: 2; width: 44px; height: 44px; margin: -8px -6px 0 8px; border-radius: 50%; background: #2a2a2a; color: var(--texto); font-size: 18px; }
 .melhores .total i { font-style: normal; font-weight: 400; font-size: 14px; color: var(--fraco); }
 .melhores small .emb { color: var(--texto); font-weight: 600; }
-.sug .sec-c { border-color: #3a5bd9; color: #9db4ff; }
-.sug .volta { color: var(--fraco); }
-.sug .sec-n { align-self: center; color: var(--fraco); font-size: 14px; text-transform: uppercase; letter-spacing: .5px; }
+/* a árvore, uma cor por nível: secção (azul) › tipo (verde) › variante (amarelo) › tamanho (lilás) › marca (cinzento) */
+:root { --n1: #9db4ff; --n1f: #3a5bd9; --n2: #6fe08d; --n2f: #2d6a3e; --n3: #ffd60a; --n3f: #6b5a1e; --n4: #d0a8ff; --n4f: #5b3d8a; --n5: #c7c7cc; --n5f: #48484a; }
+.sug .chip.n1 { border-color: var(--n1f); color: var(--n1); }
+.sug .chip.n2 { border-color: var(--n2f); color: var(--n2); }
+.chip small.n3 { color: var(--n3); }
+.caminho { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; margin: 0 40px 8px 0; font-size: 14px; }
+.caminho i { color: var(--fraco); font-style: normal; }
+.caminho button, .caminho b { min-height: 32px; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--linha); background: transparent; font: inherit; font-weight: 600; }
+.caminho .n0 { color: var(--fraco); }
+.caminho .n1 { color: var(--n1); border-color: var(--n1f); }
+.caminho .n2 { color: var(--n2); border-color: var(--n2f); }
+.caminho .n3 { color: var(--n3); border-color: var(--n3f); }
+.caminho .n4 { color: var(--n4); border-color: var(--n4f); }
+.caminho .n5 { color: var(--n5); border-color: var(--n5f); }
+.caminho > :last-child { background: var(--cartao); }
+.chips.n3 .chip.on { border-color: var(--n3); background: #2a2408; color: var(--n3); }
+.chips.n4 .chip.on { border-color: var(--n4); background: #22163a; color: var(--n4); }
+.chips.n5 .chip.on { border-color: var(--n5); background: #2c2c2e; color: var(--n5); }
+.item small.cam { font-size: 12px; }
+.item small.cam i { font-style: normal; }
+.item small.cam .n1 { color: var(--n1); }
+.item small.cam .n2 { color: var(--n2); }

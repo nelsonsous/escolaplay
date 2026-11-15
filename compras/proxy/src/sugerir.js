@@ -160,7 +160,8 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         return x;
     });
     return {
-        k: t.k, nome: t.nome,
+        // a secção (o primeiro nível da árvore: o caminho na escolha volta a ela)
+        k: t.k, nome: t.nome, s: seccaoDoTipo(t), sn: nomeSeccao(seccaoDoTipo(t)),
         tamanhos: conta((p) => p.emb).slice(0, 8).map(([e, n]) => ({ e, n })),
         marcas: conta((p) => (p.pr || !p.marca ? null : nomeMarca(p.marca))).slice(0, 10).map(([m, n]) => ({ m, n })),
         brancas: results.filter((p) => p.pr).length,
