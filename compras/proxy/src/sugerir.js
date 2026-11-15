@@ -177,7 +177,8 @@ export function palavrasDoTalho(k, produtos) {
 }
 
 // as peças inteiras vendidas ao peso (uma picanha de 1,8 kg) vêm com o preço do quilo onde devia estar o da peça, e o
-// «por quilo» sai a metade (17,99 € ÷ 1,8 kg = 9,99 €/kg). O Ecónomo reconhece-as pelos vizinhos do mesmo corte: com
+// «por quilo» sai a metade (17,99 € ÷ 1,8 kg = 9,99 €/kg); e as embalagens pequenas ao peso lidas antes de se perceber o
+// «€/kg» (bife da vazia a 27,99 €/kg em 340 g: o «por quilo» saía 82,32 €/kg). O Ecónomo reconhece-as pelos vizinhos do mesmo corte: com
 // 1 kg ou mais, o «por quilo» muito abaixo dos das embalagens pequenas (menos de 75% da mediana) e o preço parecido com
 // esse quilo. Então o preço é o do quilo e paga-se ≈ preço × peso (aq: ao quilo, o que se paga é aproximado).
 function aoQuilo(produtos, k) {
@@ -194,7 +195,10 @@ function aoQuilo(produtos, k) {
         if (!med) continue;
         for (const p of ps) {
             const q = medida(p.emb)?.q ?? 0;
-            if (q >= 1 && p.uc < med * 0.75 && p.cent >= med * 0.75 && p.cent <= med * 1.6) {
+            // a peça grande com o preço do quilo (o «por quilo» sai a metade), ou a embalagem pequena com o preço do quilo
+            // (27,99 €/kg em 340 g: o «por quilo» sai 82 €/kg): nos dois casos o preço parece-se com o quilo dos vizinhos
+            const pareceQuilo = p.cent >= med * 0.75 && p.cent <= med * 1.6;
+            if (pareceQuilo && ((q >= 1 && p.uc < med * 0.75) || (q > 0 && q < 1 && p.uc > med * 2.5))) {
                 p.uc = p.cent; p.cent = Math.round(p.cent * q); p.aq = 1;
             }
         }

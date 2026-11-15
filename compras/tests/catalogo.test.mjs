@@ -254,6 +254,10 @@ test('peças inteiras ao quilo: uma picanha de 1,8 kg a «17,99 €» é 17,99 �
     // o pack familiar de bifes (outro corte, sem vizinhos pequenos) fica como está
     assert.equal(tp.produtos.find((x) => x.id === 'e').aq, undefined);
     assert.deepEqual(tp.produtos.filter((x) => /picanha/i.test(x.nome)).map((x) => x.id), ['a', 'b', 'd', 'c']); // por quilo: 17,99 · 19,00 · 19,99 · 27,00
+    // a embalagem pequena com o preço do quilo (27,99 € por 340 g: 82 €/kg) também se percebe
+    await guardarCatalogo(db, 'continente', 'carne-novilho', [p('f', 'Picanha Seleção Continente', 27.99, '340 g')], agora);
+    const f = (await produtosDoTipo(db, 'carne-novilho', agora)).produtos.find((x) => x.id === 'f');
+    assert.deepEqual([f.uc, f.cent, f.aq], [2799, 952, 1]);
 });
 
 test('Continente ao quilo: «4,49 €/kg» no preço e o peso médio; com uma variante escolhida, a estimativa é a dela', async () => {
