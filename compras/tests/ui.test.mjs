@@ -739,6 +739,7 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         // «Escolher por: ⭐ Melhor nota»: no Continente passa a ser o Papa Figos (★ 88), não o Monte Velho (mais barato)
         const cont = async () => (await a.locator('#folha .melhores > li').allTextContents()).find((t) => /Continente/i.test(t)) ?? '';
         assert.match(await cont(), /Monte Velho/);
+        assert.match(await cont(), /4,49 €\/garrafa/); // no vinho, o preço por garrafa de 75 cl, não por litro
         await a.click('#folha .chip:has-text("Melhor nota")');
         await a.waitForSelector('#folha h3:has-text("O melhor cotado em cada supermercado")');
         assert.match(await cont(), /Papa Figos/);
