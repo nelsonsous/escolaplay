@@ -71,7 +71,11 @@ export function clDoNome(nome) {
 export function lerSoares(h, url) {
     const x = produtoJsonLd(h);
     if (!x) return null;
-    return { id: String(x.sku ?? url.match(/item_(\d+)/)?.[1]), nome: x.nome.replace(/\s+\d+(?:[.,]\d+)?\s*c?l$/i, '').trim(), nomeCompleto: x.nome, url,
+    // a região (additionalProperty «Região»), no fim do nome, para o filtro da região da app («… Colheita Alentejo»)
+    const prop = (n) => [].concat(x.p.additionalProperty ?? []).find((a) => a?.name === n)?.value;
+    const regiao = prop('Região') ? html(prop('Região')) : null;
+    const nome = x.nome.replace(/\s+\d+(?:[.,]\d+)?\s*c?l$/i, '').trim();
+    return { id: String(x.sku ?? url.match(/item_(\d+)/)?.[1]), nome: regiao && !nome.toLowerCase().includes(regiao.toLowerCase()) ? `${nome} ${regiao}` : nome, nomeCompleto: x.nome, url,
         tipo: tipoDoSlug(url), cent: x.cent, cl: clDoNome(x.nome) ?? (x.p.size ? Math.round(parseFloat(x.p.size) * 100) : null), colheita: null, ean: x.ean,
         disponivel: x.disponivel, vivino: null, votos: null, fontes: [] };
 }

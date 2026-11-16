@@ -236,10 +236,10 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 |---|---|---|---|
 | Vinhos | Vinha (vinha.pt) | ✔ deixa ler `/vinho/`; preço no JSON-LD; mostra a média do Vivino («4/5») e notas de prova | **no catálogo (0.50.0):** os vinhos que também há nos supermercados (≈190 dos 4 335), com a Vivino, os portes (4,99 €, grátis acima de 70 €), a mesma garrafa no supermercado mais barato, e as notas dos críticos da página juntas às notas dos vinhos (`economo/vinha.mjs`) |
 | Vinhos | Garrafeira Soares (garrafeirasoares.pt) | ✔ robots.txt deixa (crawl-delay 1); preço e EAN nos dados da página; 3 mil vinhos no mapa do site | **no catálogo (0.52.0):** os vinhos que também há nos supermercados, ao lado do Vinha (`economo/vinha.mjs --loja=soares`); portes grátis a partir de 49,99 € |
-| Vinhos | Onwine | robots.txt deixa; o mapa do site tem produtores e produtos | por ligar |
+| Vinhos | Onwine | robots.txt deixa; o mapa do site tem 1 737 vinhos | ✗ (16/11/2026) o mapa do site está desatualizado: os vinhos experimentados redirecionam para a pesquisa (302). Fica de fora |
 | Vinhos | Garrafeira Nacional, Portugal Vineyards, Wine House | bloqueiam robôs (validação humana, Cloudflare) | não se leem |
 | Vinhos | Vinho em Casa | o site não responde (530) | — |
-| Café | Delta Cafés (loja online) | robots.txt deixa | ver as páginas de produto |
+| Café | Delta Cafés (deltacafes.com) | robots.txt deixa | ✗ (16/11/2026) não é Shopify e não tem os preços nos dados da página; o café Delta vende-se nos supermercados (já comparado) |
 | Mercearia, bolachas | A Vida Portuguesa | robots.txt deixa | ver as páginas de produto |
 | Frutas e legumes | Cascarija (cabazes, Shopify) | robots.txt deixa a todos | ver o JSON dos produtos |
 | Bacalhau | Lugrade, Riberalves | ✔ já no catálogo (produtores); a Singular (marca Lugrade) redireciona | — |
@@ -334,3 +334,5 @@ Store, o programa de programador da Apple.
 **O Afinar (0.51.0, 15/11/2026):** com muitas opções (142 vinhos no Auchan), a folha do tipo pergunta uma coisa de cada vez em vez de mostrar todas as filas: no vinho «Para quê é o vinho?» (o preço da garrafa), depois a região e a gama; nas outras famílias (azeite, queijo, presunto, fruta, pão), as filas pela ordem. Cada resposta é um filtro (fica guardado na coisa, para a análise do Claude saber o que escolheste); «Tanto faz» salta; pára quando ficam 8 ou menos («Ficam N opções»).
 
 **Leituras da D1 (0.52.0, 15/11/2026):** o limite grátis diário (5 milhões de linhas lidas) acabou às 23:45 UTC. 4 milhões eram do Cabaz de Natal: cada abertura lia 333 mil linhas (a procura por nome, LIKE, linha a linha com cada palavra). Agora as linhas do Cabaz guardam-se 6 horas na KV e a procura por nome é uma só passagem. Ver com `npx wrangler d1 insights compras --sort-by reads`.
+
+**A Garrafeira Soares com a região (0.55.1):** a região vem dos dados da página («Região: Alentejo») e junta-se ao nome, para os filtros da região. A Singular (Shopify) não responde ao `products.json`: fica de fora.
