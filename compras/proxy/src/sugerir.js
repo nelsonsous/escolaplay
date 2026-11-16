@@ -126,7 +126,10 @@ export async function sugerir(db, q, max = 8) {
         const topo = Math.max(...results.map((r) => Number(r.n)), 0);
         for (const r of results.filter((r) => Number(r.n) >= Math.max(2, topo * 0.2))) {
             const t = porK.get(r.tipo);
-            if (t && !bons.some((b) => b.k === t.k)) bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: -1e6 + Number(r.n), w: ws.join(' ') });
+            if (!t || bons.some((b) => b.k === t.k)) continue;
+            // a variante: as palavras que não são do próprio tipo («agua alcalina» na água: «alcalina»)
+            const resto = ws.filter((w) => !t.w.some((x) => x.startsWith(w)));
+            bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: -1e6 + Number(r.n), w: (resto.length ? resto : ws).join(' ') });
         }
     }
     // mais de uma palavra sem tipo que as tenha todas («pão milho»): o tipo pela primeira e as outras como variante

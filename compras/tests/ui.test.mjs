@@ -943,7 +943,7 @@ test('juntar depressa: «bifes de frango» junta logo o mais barato; «frango» 
         assert.equal(it.p.continente.id, 'b1');
         assert.equal(it.p.pingodoce.id, 'p1');
         // tocar abre a escolha do tipo, com o corte escolhido (os filtros guardados na coisa), e o Continente continua lá
-        assert.equal(JSON.parse(s.env.DB.linhas('SELECT itens FROM casa')[0].itens)[0].e.f.fw, 'bife frango');
+        assert.equal(JSON.parse(s.env.DB.linhas('SELECT itens FROM casa')[0].itens)[0].e.f.fw, 'bife'); // (a palavra do tipo, «frango», sai do filtro)
         await a.click('.item .texto');
         await a.waitForSelector('#folha .escolha h2:has-text("Frango")');
         const cont = (await a.locator('#folha .melhores > li').allTextContents()).find((t) => /Continente/.test(t)) ?? '';
