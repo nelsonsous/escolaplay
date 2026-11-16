@@ -16,6 +16,12 @@ binding = "AI"
 binding = "KV"
 id = "f3574d08325242b88f73354859b291ff"
 
+# Histórico em SQL (D1): as tabelas de cada dia (o KV apaga-as aos 70 dias) e as versões do perfil do dono.
+[[d1_databases]]
+binding = "HIST"
+database_name = "musica-historico"
+database_id = "54cbaadc-3661-4a6e-a558-28fa4433501c"
+
 [vars]
 APP_URL = "https://nelsonsous.github.io/escolaplay/musica/"
 PAIS = "PT"

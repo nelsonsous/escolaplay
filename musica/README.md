@@ -64,6 +64,22 @@ Endereço: **https://nelsonsous.github.io/escolaplay/musica/** (no iPhone: *Part
   Capacitor) leva os ficheiros da app lá dentro — `nativo/montar.mjs`, chamado pelo `npm run onda` — e o login do
   Tidal volta a ela.
 
+## Histórico em SQL (conector 1.39.0)
+
+O KV guarda o retrato das tabelas de cada dia só **70 dias** e reescreve o perfil de gosto a cada atualização. A
+evolução fica numa base SQL **D1** da Cloudflare, `musica-historico` (binding `HIST`; esquema em
+[`proxy/historico.sql`](proxy/historico.sql); grava o Worker, em [`proxy/src/historico.js`](proxy/src/historico.js)):
+
+| Tabela | O que guarda | Quando |
+|---|---|---|
+| `tendencias` | as tabelas de cada dia (Apple Music PT e EUA, Deezer mundo), um lugar por linha, para sempre | no cron diário (e no «recolher» à mão) |
+| `perfis` | **só o do dono**: cada versão do perfil (resumo de artistas, géneros, décadas e qualidade; a lista das favoritas) | quando o perfil se atualiza e mudou |
+| `favoritas` | cada favorita que passou pelo perfil do dono: quando a adicionaste no Tidal e entre que versões esteve lá | idem |
+
+Playlists, pedidos, capas e prévias não vão para lá: as playlists já ficam para sempre no KV e o resto é cache.
+`node musica/proxy/recuperar-historico.mjs` copia o que ainda está no KV (a 16/11: 8 dias de tabelas e o perfil atual).
+Se a D1 falhar, a resposta segue na mesma.
+
 ## Partilhar com outras pessoas
 
 Nos **Ajustes**, «Convidar alguém» cria um link (serve uma vez, durante 14 dias) para enviar por WhatsApp ou email.
