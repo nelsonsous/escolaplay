@@ -336,3 +336,5 @@ Store, o programa de programador da Apple.
 **Leituras da D1 (0.52.0, 15/11/2026):** o limite grátis diário (5 milhões de linhas lidas) acabou às 23:45 UTC. 4 milhões eram do Cabaz de Natal: cada abertura lia 333 mil linhas (a procura por nome, LIKE, linha a linha com cada palavra). Agora as linhas do Cabaz guardam-se 6 horas na KV e a procura por nome é uma só passagem. Ver com `npx wrangler d1 insights compras --sort-by reads`.
 
 **A Garrafeira Soares com a região (0.55.1):** a região vem dos dados da página («Região: Alentejo») e junta-se ao nome, para os filtros da região. A Singular (Shopify) não responde ao `products.json`: fica de fora.
+
+**Leituras da D1, revistas a 16/11/2026 (0.55.2):** depois do Cabaz de Natal (agora 20 mil linhas por abertura, guardado 6 h), o que mais lia era a sugestão enquanto se escreve (a procura pelos nomes dos produtos, 16 mil linhas por pesquisa): fica 6 horas na memória do Worker, por palavras. O resto do dia (o catálogo pelo cron, cerca de 230 mil; os tipos) fica muito abaixo dos 5 milhões grátis.

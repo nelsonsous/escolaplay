@@ -14,7 +14,7 @@ import { mesmoVinho } from './vinha.js';
 
 const HORA = 3600e3;
 const TIPOS = { lista: null, quando: 0 };
-export const esquecerTipos = () => { TIPOS.lista = null; CORTES.clear(); RAMOS_CACHE.m = null; };
+export const esquecerTipos = () => { POR_NOMES.clear(); TIPOS.lista = null; CORTES.clear(); RAMOS_CACHE.m = null; };
 
 const PARAR = new Set(['e', 'de', 'do', 'da', 'dos', 'das', 'em', 'para', 'a', 'o', 'os', 'as', 'no', 'na', 'ou']);
 function singular(w) {
@@ -29,6 +29,20 @@ export const palavras = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]
 
 // outros nomes por que se procura um tipo (as cadeias juntam todo o bovino numa categoria: a picanha é de vaca)
 const OUTROS = { 'carne-novilho': 'bovino vitelao angus', 'borrego-cabrito': 'cordeiro', 'polvo-lulas': 'choco pota' };
+// os tipos onde há produtos com estas palavras no nome: a procura (LIKE) lê a tabela preco toda (16 mil linhas), e
+// faz-se a cada letra que se escreve; guarda-se 6 horas na memória do Worker, por palavras (no máximo 500)
+const POR_NOMES = new Map();
+export const esquecerPorNomes = () => POR_NOMES.clear();
+async function porNomes(db, ws, max) {
+    const k = `${ws.join(' ')}|${max}`, agora = Date.now();
+    const g = POR_NOMES.get(k);
+    if (g && agora - g.quando < 6 * HORA) return g.r;
+    const { results } = await db.prepare(`SELECT tipo, count(*) AS n FROM preco WHERE tipo IS NOT NULL AND cent IS NOT NULL
+        AND ${ws.map(() => 'nome LIKE ?').join(' AND ')} GROUP BY tipo ORDER BY n DESC LIMIT ?`).bind(...ws.map((w) => `%${w}%`), max).all();
+    if (POR_NOMES.size >= 500) POR_NOMES.delete(POR_NOMES.keys().next().value);
+    POR_NOMES.set(k, { r: results, quando: agora });
+    return results;
+}
 async function tipos(db) {
     if (TIPOS.lista && Date.now() - TIPOS.quando < HORA) return TIPOS.lista;
     const { results } = await db.prepare('SELECT k, nome, n, casa FROM tipo WHERE n > 0').all();
@@ -101,8 +115,7 @@ export async function sugerir(db, q, max = 8) {
     }
     // também pelos nomes dos produtos («picanha», «estufar», «carne»): os tipos onde há produtos com essas palavras
     if (bons.length < max && ws.every((w) => w.length >= 3)) {
-        const { results } = await db.prepare(`SELECT tipo, count(*) AS n FROM preco WHERE tipo IS NOT NULL AND cent IS NOT NULL
-            AND ${ws.map(() => 'nome LIKE ?').join(' AND ')} GROUP BY tipo ORDER BY n DESC LIMIT ?`).bind(...ws.map((w) => `%${w}%`), max).all();
+        const results = await porNomes(db, ws, max);
         const porK = new Map((await tipos(db)).map((t) => [t.k, t]));
         // só os tipos onde a palavra é comum (um produto solto noutro tipo é ruído: «farinha» com «carne»)
         const topo = Math.max(...results.map((r) => Number(r.n)), 0);
