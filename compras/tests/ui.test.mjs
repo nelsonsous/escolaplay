@@ -475,9 +475,9 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         const linhas = await a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => x.querySelector('.pnome')?.textContent ?? x.textContent));
         assert.match(linhas[0], /Carapau Médio Fresco/);
         // o nome em destaque e «✓ Escolher este» (mesmo com uma só opção) fica à mão
-        await a.click('#folha #cad0 .escolhe');
+        await a.click('#folha #cad0 .pnome'); // tocar na caixa escolhe
         await a.waitForSelector('#folha #cad0 .mao');
-        assert.equal(await a.locator('#folha #cad0 .escolhe').count(), 0);
+        assert.equal(await a.getAttribute('#folha #cad0', 'data-onda'), null); // já escolhido: a caixa não volta a escolher
         // o que distingue cada produto: os sinais do nome (fresco) e a marca
         assert.match(await a.locator('#folha .melhores li >> nth=0 >> .sinais').textContent(), /✚ fresco/);
         assert.match(linhas[2], /CARAPAU MEDIO/);
