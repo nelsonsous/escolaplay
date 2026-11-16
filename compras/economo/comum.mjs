@@ -19,12 +19,15 @@ function segredo() {
     throw new Error('Falta o segredo da sonda (SONDA_TOKEN ou SONDA_TOKEN_FILE).');
 }
 
-// os dados da análise de uma casa (proxy/src/analise.js), pelo código da casa
-export async function analise(codigo) {
-    const r = await fetch(`${WORKER}/sonda/analise?codigo=${encodeURIComponent(codigo)}`, { headers: { authorization: `Bearer ${segredo()}` } });
-    if (r.status !== 200) throw new Error(`conector: HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+// as rotas da análise no conector (/sonda/analise…), com o segredo da sonda: GET (corpo null) ou POST (JSON)
+export async function sondaJson(caminho, corpo = null) {
+    const r = await fetch(`${WORKER}${caminho}`, { method: corpo ? 'POST' : 'GET',
+        headers: { authorization: `Bearer ${segredo()}`, ...(corpo ? { 'content-type': 'application/json' } : {}) }, ...(corpo ? { body: JSON.stringify(corpo) } : {}) });
+    if (r.status !== 200) throw new Error(`conector: HTTP ${r.status}: ${(await r.text()).slice(0, 300)}`);
     return r.json();
 }
+// os dados da análise de uma casa (proxy/src/analise.js), pelo código da casa
+export const analise = (codigo) => sondaJson(`/sonda/analise?codigo=${encodeURIComponent(codigo)}`);
 
 // uma página de uma cadeia, pelo conector: { estado, corpo (Buffer) }
 export async function sonda(url, { accept } = {}) {

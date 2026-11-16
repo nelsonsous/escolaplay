@@ -249,6 +249,7 @@ Tudo o que foi pedido, com o estado. As voltas trabalham a partir daqui; nada sa
 | Carne | Carnes da Montanha | não responde | — |
 
 **À espera de ti**
+- **A análise do Claude na hora** (como o Maestro da Música): em claude.ai/code/routines, na tarefa «Compras — análise a pedido», criar o gatilho «API» e guardar o endereço e o token no Worker: `npx wrangler secret put ANALISE_FIRE_URL` e `npx wrangler secret put ANALISE_TOKEN` (em compras/proxy). Sem isto, os pedidos esperam pela corrida seguinte (9:41, 13:41, 18:41, 21:41).
 - O plano pago da Cloudflare (5 US$/mês) só se o limite grátis voltar a não chegar.
 
 **Resolvido**

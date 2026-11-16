@@ -701,6 +701,40 @@ test('o vinho: a fila «Nota» (críticos e Vivino) filtra os supermercados e as
     } finally { await br.close(); await s.fechar(); }
 });
 
+test('a análise do Claude: pedir com uma pergunta, esperar, ver o resultado e tocar numa pergunta para afinar', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { gravarResultado } = await import('../proxy/src/pedidos.js');
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        assert.equal(await a.locator('[data-onda="anl:0"]').count(), 0); // com a lista vazia não há o que analisar
+        await a.fill('[data-onda="junta"]', 'pão, leite');
+        await a.click('[data-onda="juntar:0"]');
+        await a.waitForSelector('[data-onda="anl:0"]');
+        await a.click('[data-onda="anl:0"]');
+        await a.waitForSelector('#folha .cartao.analise h3:has-text("Pedir a análise")');
+        await a.fill('#folha [data-onda="anq"]', 'só uma loja');
+        await a.click('#folha [data-onda="anpe:0"]');
+        await a.waitForSelector('#folha .cartao.analise .espera');
+        assert.match(await a.textContent('#folha .cartao.analise'), /Perguntaste: «só uma loja».*próxima corrida/s);
+        // a tarefa do Claude grava o resultado
+        const { id } = s.env.DB.sql.prepare('SELECT id FROM analise').get();
+        await gravarResultado(s.env.DB, id, { resumo: 'Vai só ao Lidl: fica 2 € mais barato.', lojas: [{ loja: 'Lidl', porque: 'o mais barato no total', coisas: ['pão', 'leite'] }],
+            online: [], perguntas: ['Precisas de leite sem lactose?'] });
+        await a.click('#folha [data-onda="anv:0"]');
+        await a.waitForSelector('#folha .cartao.analise .resumo');
+        assert.equal(await a.textContent('#folha .cartao.analise .resumo'), 'Vai só ao Lidl: fica 2 € mais barato.');
+        assert.match(await a.textContent('#folha .cartao.analise ul.an'), /Lidl.*pão, leite/s);
+        await a.click('#folha .cartao.analise .chip:has-text("sem lactose")');
+        await a.waitForFunction(() => document.querySelector('#folha [data-onda="anq"]').value.startsWith('«Precisas de leite sem lactose?» '));
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});
+
 test('o Afinar: com muitos vinhos, uma pergunta de cada vez (para quê → o preço, depois a região) até ficarem poucos', { skip: !pw && 'sem playwright' }, async () => {
     const s = await abrir();
     const { esquecerTipos } = await import('../proxy/src/sugerir.js');

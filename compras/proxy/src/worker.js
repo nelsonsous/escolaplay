@@ -42,6 +42,7 @@ import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
 import { cabazDeNatal } from './natal.js';
 import { dadosDaAnalise } from './analise.js';
+import { pedirAnalise, ultimaAnalise, pendentes, gravarResultado } from './pedidos.js';
 import { lerReceita } from './receita.js';
 import { Erro, codigoLimpo, novoAparelho, aparelhoDe, casaDe, gravarLojas, gravarPessoas, gravarCp, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
 import { lojasDaCasa, lojasDe } from './lojas.js';
@@ -57,7 +58,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.53.2';
+export const VERSION = '0.54.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -308,6 +309,9 @@ async function api(request, env, url) {
     if (caminho === '/api/saude' && metodo === 'GET') return json(await saudeCurta(db));
     // os dados da análise (analise.js): a lista com o que se pesquisou, os filtros e as escolhas, os preços e as lojas
     if (caminho === '/api/analise' && metodo === 'GET') return json(await dadosDaAnalise(db, ap));
+    // a análise do Claude a pedido (pedidos.js): pedir (com uma pergunta opcional) e ver a última
+    if (caminho === '/api/analise/pedir' && metodo === 'POST') return json(await pedirAnalise(db, env, ap.casa, (await corpoJSON(request)).pergunta, env.espera));
+    if (caminho === '/api/analise/ultima' && metodo === 'GET') return json(await ultimaAnalise(db, env, ap.casa, env.espera));
     if (caminho === '/api/receita' && metodo === 'POST') {
         // a ligação de um vídeo de receita (TikTok, YouTube): os ingredientes para juntar à lista
         return json(await lerReceita(env, await corpoJSON(request)));
@@ -340,7 +344,9 @@ async function api(request, env, url) {
 }
 
 export default {
-    async fetch(request, env) {
+    async fetch(request, env0, ctx) {
+        // env.espera: o que corre depois da resposta (chamar a tarefa da análise)
+        const env = { ...env0, espera: ctx?.waitUntil ? (p) => ctx.waitUntil(p) : null };
         const url = new URL(request.url);
         if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
         if (url.pathname.startsWith('/api/')) {
@@ -349,7 +355,8 @@ export default {
                 return json({ erro: 'erro no conector' }, 500);
             }
         }
-        if (request.method !== 'GET') return json({ erro: 'só GET' }, 405);
+        // só GET, menos gravar o resultado da análise (com o segredo da sonda)
+        if (request.method !== 'GET' && !(request.method === 'POST' && url.pathname === '/sonda/analise/resultado')) return json({ erro: 'só GET' }, 405);
         if (url.pathname === '/') return json({ app: 'compras', conector: VERSION, fase: 'ciclo 3: receitas de um link' });
         if (url.pathname === '/sonda') return sonda(request, env);
         if (url.pathname === '/sonda/produto') return sondaProduto(request, env);
@@ -361,12 +368,23 @@ export default {
             if (nao) return nao;
             try { return json(await lerReceita(env, { url: url.searchParams.get('url'), texto: url.searchParams.get('texto') })); } catch (e) { return json({ erro: e.message }, e.status ?? 500); }
         }
-        // os dados da análise de uma casa, pelo código da casa (para o Ecónomo: economo/analise.mjs)
-        if (url.pathname === '/sonda/analise') {
+        // os dados da análise de uma casa, pelo código da casa ou pelo pedido (para o Ecónomo: economo/analise.mjs); os
+        // pedidos à espera; e gravar o resultado de um pedido
+        if (url.pathname.startsWith('/sonda/analise')) {
             const nao = await recusa(request, env);
             if (nao) return nao;
-            const c = await env.DB.prepare('SELECT id FROM casa WHERE codigo = ?').bind(codigoLimpo(url.searchParams.get('codigo'))).first();
-            return c ? json(await dadosDaAnalise(env.DB, { casa: c.id })) : json({ erro: 'casa desconhecida' }, 404);
+            try {
+                if (url.pathname === '/sonda/analise/pendentes') return json({ pendentes: await pendentes(env.DB) });
+                if (url.pathname === '/sonda/analise/resultado' && request.method === 'POST') {
+                    const b = await request.json().catch(() => ({}));
+                    return json({ ok: true, resultado: await gravarResultado(env.DB, String(b.id ?? ''), b.resultado) });
+                }
+                const pid = url.searchParams.get('pedido');
+                const c = pid ? await env.DB.prepare('SELECT a.casa AS id, a.pergunta FROM analise a WHERE a.id = ?').bind(pid).first()
+                    : await env.DB.prepare('SELECT id FROM casa WHERE codigo = ?').bind(codigoLimpo(url.searchParams.get('codigo'))).first();
+                return c ? json({ ...(await dadosDaAnalise(env.DB, { casa: c.id })), ...(pid ? { pedido: pid, pergunta: c.pergunta ?? null } : {}) })
+                    : json({ erro: 'casa ou pedido desconhecido' }, 404);
+            } catch (e) { return json({ erro: e.message }, e.status ?? 500); }
         }
         if (url.pathname === '/sonda/saude') { const nao = await recusa(request, env); return nao ?? json(await saude(env.DB)); }
         return json({ erro: 'não existe' }, 404);
