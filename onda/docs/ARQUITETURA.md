@@ -96,7 +96,7 @@ de cima, com o estado dentro da Onda.
 | `mercados/onda/` | a análise, a decisão consolidada, os separadores e o cartão «Decisão» da Mercados | 3 226 linhas, módulo de 402 KB |
 | `mercados/conselheiro/onda/` | os scripts da tarefa do Claude | 2 046 linhas, módulo de 393 KB |
 | `mercados/proto/` | gráficos vivos e o mapa do mercado (o guia: `docs/CAMPOS.md`) | 265 linhas, módulo de 27 KB |
-| `musica/onda/` | o motor e o curador da Música (de outra sessão; usa ainda o `lib/app.onda`) | 231 linhas |
+| `musica/onda/` | o motor e o curador da Música (a app e os scripts do Maestro já usam a biblioteca nova) | 231 linhas |
 | `meteo/onda/` | os campos da Meteo: o gráfico da chuva das próximas 2 horas (WebAssembly) e o céu do cartão «Agora» (GLSL) | 91 + 169 linhas, 11 KB de WASM e 32 KB de GLSL |
 
 ## Estado de cada app
@@ -139,7 +139,7 @@ Cada camada só conhece a de baixo, e cada uma tem o seu teste.
 5. **Leitor de JSON em fluxo** — o conector da Cloudflare tem 10 ms de CPU por pedido; a árvore da biblioteca demora
    20 ms em 645 KB (o `JSON.parse` 3 ms). Só com um leitor que tire os valores sem montar a árvore é que o conector
    pode passar para a Onda.
-6. **A Música na biblioteca nova** (`onda/lib` em vez do `lib/app.onda`) — pertence a outra sessão.
+6. ~~**A Música na biblioteca nova**~~ — feita: a app (`musica/app/musica.onda`) e os scripts do Maestro (`musica/curador/onda/`, o `dados.onda` e o `publicar.onda`) montam-se só com `onda/lib`; o `lib/app.onda` fica para quem ainda o usa (os testes da Onda).
 
 ## Limites, com honestidade
 

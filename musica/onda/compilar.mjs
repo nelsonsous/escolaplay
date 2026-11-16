@@ -2,7 +2,7 @@
 //   curador.wasm — motor.onda + curador.onda: o programa de linha de comando (tarefa agendada, testes)
 //   curador.c    — o mesmo em C, para o juiz (testes) compilar em nativo e comparar ao bit
 //   ../app/musica.wasm — a biblioteca da Onda (onda/lib) + motor.onda + ../app/musica.onda: a app, uma «app em Onda»
-//   ../curador/maestro.wasm — onda/lib/app.onda + motor.onda + os scripts do Maestro (../curador/onda)
+//   ../curador/maestro.wasm — a biblioteca da Onda (onda/lib) + motor.onda + os scripts do Maestro (../curador/onda)
 //
 //   node musica/onda/compilar.mjs [--verificar]        (ONDAC=/caminho/ondac.wasm para usar outro compilador)
 // --verificar: não grava; falha se algum compilado não corresponder às fontes.
@@ -51,7 +51,7 @@ export async function ondac(compilador, fonte, flags) {
     return all;
 }
 
-// A biblioteca da Onda que a app junta, por esta ordem (cada módulo só usa os de cima; no -w só entra o que a app usa)
+// A biblioteca da Onda que a app e os scripts do Maestro juntam, por esta ordem (cada módulo só usa os de cima; no -w só entra o que se usa)
 export const MODULOS = ['memoria', 'texto', 'numero', 'valor', 'json', 'arvore', 'data', 'ordenar', 'html', 'grafico', 'anfitriao', 'fala'];
 
 // As entradas da app: o main e as funções que o anfitrião chama pelo nome (cliques, campos, respostas da rede,
@@ -66,18 +66,22 @@ export function entradas(fonteApp) {
 // As fontes de cada compilado (a Onda junta-se por concatenação)
 export function fontes() {
     const ler = (f) => readFileSync(join(AQUI, f), 'utf8');
+    const lerLib = (m) => readFileSync(join(AQUI, '..', '..', 'onda', 'lib', m + '.onda'), 'utf8');
     const motor = ler('motor.onda');
     const dirLib = join(AQUI, '..', '..', 'onda', 'lib');
-    const lib = join(dirLib, 'app.onda');
     const app = join(AQUI, '..', 'app', 'musica.onda');
     const temApp = existsSync(app) && MODULOS.every((m) => existsSync(join(dirLib, m + '.onda')));
+    // os scripts do Maestro (a tarefa agendada): dados, publicar e o main que escolhe pelo 1.º argumento
+    const scripts = ['dados', 'publicar', 'maestro'].map((s) => readFileSync(join(AQUI, '..', 'curador', 'onda', s + '.onda'), 'utf8')).join('\n');
+    const temLib = MODULOS.every((m) => existsSync(join(dirLib, m + '.onda')));
     return {
         curador: motor + '\n' + ler('curador.onda'),
         app: temApp ? [...MODULOS.map((m) => readFileSync(join(dirLib, m + '.onda'), 'utf8')), motor, readFileSync(app, 'utf8')].join('\n') : null,
         entradasApp: temApp ? entradas(readFileSync(app, 'utf8')) : [],
-        // os scripts do Maestro (a tarefa agendada), com a biblioteca de apps (textos e JSON), para o anfitrião Node
-        // (dados, publicar com o motor, e o main que escolhe pelo 1.º argumento)
-        maestro: existsSync(lib) ? [readFileSync(lib, 'utf8'), motor, ...['dados', 'publicar', 'maestro'].map((s) => readFileSync(join(AQUI, '..', 'curador', 'onda', s + '.onda'), 'utf8'))].join('\n') : null,
+        // os scripts do Maestro, com a biblioteca da Onda e o motor, para o anfitrião Node; as entradas são o main e as
+        // funções que o anfitrião chama pelo nome (as respostas dos pedidos: $"lido", $"pb_lido")
+        maestro: temLib ? [...MODULOS.map(lerLib), motor, scripts].join('\n') : null,
+        entradasMaestro: temLib ? entradas(scripts) : [],
     };
 }
 export async function compilarTudo(compilador) {
@@ -86,7 +90,7 @@ export async function compilarTudo(compilador) {
         'curador.wasm': await ondac(compilador, f.curador, ['-w']),
         'curador.c': await ondac(compilador, f.curador, []),
         ...(f.app ? { '../app/musica.wasm': await ondac(compilador, f.app, ['-w', ...f.entradasApp]) } : {}),
-        ...(f.maestro ? { '../curador/maestro.wasm': await ondac(compilador, f.maestro, ['-w']) } : {}),
+        ...(f.maestro ? { '../curador/maestro.wasm': await ondac(compilador, f.maestro, ['-w', ...f.entradasMaestro]) } : {}),
     };
 }
 
