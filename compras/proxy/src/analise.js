@@ -8,7 +8,7 @@ import { juntarPrecos } from './precos.js';
 import { PORTES } from './sugerir.js';
 
 const NOMES = { continente: 'Continente', pingodoce: 'Pingo Doce', auchan: 'Auchan', lidl: 'Lidl' };
-const FILTROS = [['far', 'fa'], ['fpr', 'fp'], ['fcr', 'fc'], ['fwr', 'fw'], ['fer', 'fes']];
+const FILTROS = [['far', 'fa'], ['fpr', 'fp'], ['fcr', 'fc'], ['fwr', 'fw'], ['fnr', 'fn'], ['fer', 'fes']];
 
 // os filtros escolhidos, legíveis («Islândia», «Especial», «1 kg»)
 export function filtrosLegiveis(f) {

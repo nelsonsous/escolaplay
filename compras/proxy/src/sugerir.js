@@ -419,8 +419,10 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         return x;
     });
     // no vinho, a nota dos críticos e dos concursos (notas.js; a tabela vinho_nota, do Ecónomo)
+    let notasV = null;
     if (fam === 'vinho') {
         const notas = prepararNotas((await db.prepare('SELECT palavras, fora, nota, resumo, fontes FROM vinho_nota').all()).results);
+        notasV = notas;
         if (notas.length) for (const x of produtos) { const r = notaDoProduto(notas, x.nome); if (r) { x.nt = r.nota; x.nr = r.resumo; if (r.url) x.nu = r.url; } }
     }
     // o histórico (preco_historico, a migração 0012): quanto desceu (vd) ou subiu (vs) cada produto desde o preço anterior,
@@ -443,7 +445,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     // as pessoas da casa: no talho e na peixaria, o limite das embalagens para o mais barato (porcoes.js)
     const pes = casa ? (await db.prepare('SELECT pessoas FROM casa WHERE id = ?').bind(casa).first())?.pessoas : null;
     const lim = limiteGramas(t.k, pes);
-    return {
+    const res = {
         ...(lim ? { lim, pes: Number(pes) } : {}),
         // a secção (o primeiro nível da árvore: o caminho na escolha volta a ela)
         k: t.k, nome: t.nome, s: seccaoDoTipo(t), sn: nomeSeccao(seccaoDoTipo(t)),
@@ -480,7 +482,8 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
             const mc = et ? mesmaMarca(results, a.loja, et, k, nome) : null;
             if (mc) x.mc = mc;
             // o vinho: a nota da Vivino («4,1», com os votos) e a mesma garrafa no supermercado mais barato
-            if (a.vivino) { x.vv = String(a.vivino).replace('.', ','); x.vn = a.votos; }
+            if (a.vivino) { x.vv = String(a.vivino).replace('.', ','); x.vn = a.votos; x.vivino = a.vivino; }
+            if (notasV?.length) { const r = notaDoProduto(notasV, nome); if (r) x.nt = r.nota; }
             const mv = fam === 'vinho' ? mesmoVinho(results, a.chave) : null;
             if (mv) x.mv = mv;
             return x;
@@ -490,4 +493,18 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
             ORDER BY propria DESC, eq_cent IS NULL, eq_cent LIMIT 30`).bind(k).all()).results,
         produtos,
     };
+    // no vinho, a fila «Nota»: a dos críticos (★ 90+, 87+) e a da Vivino nas lojas online (4,2+, 4,0+), como palavras no
+    // nome (notax90…) para os filtros da app; só os valores que algum vinho tem
+    if (fam === 'vinho') {
+        const pal = (x) => [...(x.nt >= 90 ? ['notax90'] : []), ...(x.nt >= 87 ? ['notax87'] : []), ...(x.vivino >= 4.2 ? ['notaxv42'] : []), ...(x.vivino >= 4 ? ['notaxv40'] : [])];
+        const conta = new Map();
+        for (const x of [...res.produtos, ...res.pd]) { const ws = pal(x); if (ws.length) { x.nk = `${x.nk} ${ws.join(' ')}`; for (const w of ws) conta.set(w, (conta.get(w) ?? 0) + 1); } }
+        const NOMES_NOTA = [['notax90', '★ Críticos 90+'], ['notax87', '★ Críticos 87+'], ['notaxv42', 'Vivino 4,2+'], ['notaxv40', 'Vivino 4,0+']];
+        const vs = NOMES_NOTA.filter(([w]) => conta.get(w));
+        if (vs.length && res.filas) {
+            res.filas = [...res.filas, { g: 'nota', t: 'Nota' }];
+            res.palavras = [...res.palavras, ...vs.map(([w, r]) => ({ w, r, n: conta.get(w), g: 'nota' }))];
+        }
+    }
+    return res;
 }

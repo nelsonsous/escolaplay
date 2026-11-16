@@ -115,7 +115,7 @@ function especie(e) {
     // os filtros escolhidos, um a um (a espécie, a origem, o calibre, o corte, os tamanhos), para a escolha os repor
     if (e.f && typeof e.f === 'object') {
         const f = {};
-        for (const c of ['fa', 'far', 'fp', 'fpr', 'fc', 'fcr', 'fw', 'fwr', 'fes', 'fer']) if (e.f[c]) f[c] = texto(e.f[c], 80);
+        for (const c of ['fa', 'far', 'fp', 'fpr', 'fc', 'fcr', 'fw', 'fwr', 'fes', 'fer', 'fn', 'fnr']) if (e.f[c]) f[c] = texto(e.f[c], 80);
         if (Object.keys(f).length) x.f = f;
     }
     return x;

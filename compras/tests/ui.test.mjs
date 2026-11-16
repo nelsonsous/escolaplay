@@ -661,6 +661,46 @@ test('as lojas online: 3 de cada vez (com o botão para as outras) e só as que 
     } finally { await br.close(); await s.fechar(); }
 });
 
+test('o vinho: a fila «Nota» (críticos e Vivino) filtra os supermercados e as lojas online; o nome do vinho à vista', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const agora = new Date().toISOString();
+    s.env.DB.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('vinho-tinto', 'Vinho tinto', 4, 1)").run();
+    const ins = (cadeia, id, nome, cent) => s.env.DB.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, emb, q, tipo, visto, falhas)
+        VALUES (?, ?, ?, ?, ?, ?, 'l', '75 cl', 0.75, 'vinho-tinto', ?, 0)`).run(cadeia, id, `https://www.${cadeia}.pt/p/${id}.html`, nome, cent, Math.round(cent / 0.75), agora);
+    ins('continente', 'v1', 'Papa Figos Douro Vinho Tinto', 699); ins('continente', 'v2', 'Monte Velho Alentejo Vinho Tinto', 449);
+    ins('auchan', 'v3', 'VINHO TINTO DOURO RESERVA 0.75L', 899); ins('pingodoce', 'v4', 'Vinho Tinto Alentejo Pingo Doce', 299);
+    s.env.DB.sql.prepare(`INSERT INTO vinho_nota (palavras, fora, nome, nota, n, resumo, fontes, visto) VALUES ('papa figos tinto', '', 'Papa Figos', 91, 1, 'Revista de Vinhos 17/20', '[]', ?)`).run(agora);
+    s.env.DB.sql.prepare(`INSERT INTO produtor_artigo (loja, id, nome, url, cent, emb, uc, ub, tipo, disponivel, visto, vivino, votos) VALUES
+        ('vinha', 'w1', 'Vinho Tinto Quinta X Grande Reserva 2020 Douro', 'https://www.vinha.pt/vinho/x/', 2500, '75 cl', 3333, 'l', 'vinho-tinto', 1, ?, 4.3, 900),
+        ('vinha', 'w2', 'Vinho Tinto Quinta Y 2022 Alentejo', 'https://www.vinha.pt/vinho/y/', 900, '75 cl', 1200, 'l', 'vinho-tinto', 1, ?, 3.6, 100)`).run(agora, agora);
+    esquecerTipos();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+        await a.fill('[data-onda="junta"]', 'vinho');
+        await a.waitForSelector('#sug .chip:has-text("Vinho tinto")');
+        await a.click('#sug .chip:has-text("Vinho tinto")');
+        await a.waitForSelector('#folha h3:has-text("Nota")');
+        // o nome do vinho é o título do cartão da loja online, e a Vivino lê-se
+        assert.equal(await a.locator('#folha li.prod b >> nth=0').textContent(), 'Vinho Tinto Quinta X Grande Reserva 2020 Douro');
+        assert.match(await a.textContent('#folha li.prod >> nth=0'), /Vivino 4,3\/5 \(900 votos\)/);
+        await a.click('#folha .chip:has-text("Críticos 87+")');
+        await a.waitForSelector('#folha .caminho button:has-text("Críticos 87+")');
+        const nomes = await a.locator('#folha .melhores > li:not(.est) small').allTextContents();
+        assert.ok(nomes.some((t) => /o mais barato por garrafa.*Papa Figos/.test(t)) && !nomes.some((t) => /Monte Velho|RESERVA|Pingo Doce/.test(t)), nomes.join(' | '));
+        assert.equal(await a.locator('#folha li.prod').count(), 0); // nenhum da loja online tem nota de crítico
+        await a.click('#folha .chip:has-text("Vivino 4,2+")');
+        await a.waitForSelector('#folha .caminho button:has-text("Vivino 4,2+")');
+        assert.equal(await a.locator('#folha li.prod').count(), 1);
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});
+
 test('o Afinar: com muitos vinhos, uma pergunta de cada vez (para quê → o preço, depois a região) até ficarem poucos', { skip: !pw && 'sem playwright' }, async () => {
     const s = await abrir();
     const { esquecerTipos } = await import('../proxy/src/sugerir.js');
