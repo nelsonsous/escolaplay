@@ -969,7 +969,8 @@
         = p seg p = j + j 1 } 0 }
     { = p pri tp.produtos = j 0
       W && p < n 14 { Se && mesmo txt p.c cadeia k passa p fe fm { dop1 p k j e = n + n 1 } = p seg p = j + j 1 } 0 }
-  `</div>`
+  # fechar sem subir: o botão no fim da lista (escolher uma também a fecha)
+  `<button class="op-x op-f" data-onda="opc:{ N k }">✕ Fechar as opções</button></div>`
   0 }
 # uma fila de escolhas do «corte ou variante» (as do grupo g; sem grupo: todas), com o título; fw a escolhida
 # (ev: fa para o animal ou a espécie, fw para o corte e o uso; escolhida a espécie, só os cortes e usos dela)
@@ -1042,7 +1043,7 @@
     = p idx tp.produtos int x
     Se && p passa p fe fm {
       Se ~ n `<h3>⭐ Os mais bem cotados</h3><ul class="bc">`
-      `<li data-onda="esco:{ N + * icad txt p.c 1000 int x }"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }{ Se p.uc `<small class="un">{ crut puc int p.uc txt p.ub }</small>` }</span>`
+      `<li data-onda="escb:{ N + * icad txt p.c 1000 int x }"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }{ Se p.uc `<small class="un">{ crut puc int p.uc txt p.ub }</small>` }</span>`
       `<small>{ crut nomec txt p.c } · { dnota int p.nt p.nu } · { esc p.nr }</small></li>`
       = n + n 1 }
     = x seg x }
@@ -1460,9 +1461,9 @@
   Se eacao t $"pdt" { ? v _an_gravar $"pdt" $"1" _an_gravar $"pdt" 0 }
   Se eacao t $"pq" _an_gravar texto`pq{ N v }` $"1"
   Se eacao t $"ord" { ? v _an_gravar $"ord" $"1" _an_gravar $"ord" 0 }
-  Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v _an_gravar $"opc" 0 _an_gravar $"opc" texto`{ N v }` }
+  Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v { _an_gravar $"opc" 0 _an_gravar $"rolar" texto`#cad{ N v }` } _an_gravar $"opc" texto`{ N v }` }
   # escolher outra opção: a lista fica aberta (vê-se a barra azul mudar) e um aviso diz o que ficou
-  Se eacao t $"esco" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id aviso texto`✓ No { crut nomecad / v 1000 }: { crut txt x.nome }` _an_gravar $"rolar" texto`#cad{ N / v 1000 }` } }
+  Se || eacao t $"esco" eacao t $"escb" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id aviso texto`✓ No { crut nomecad / v 1000 }: { crut txt x.nome }` _an_gravar $"rolar" texto`#cad{ N / v 1000 }` _an_gravar $"opc" ? eacao t $"escb" texto`{ N / v 1000 }` 0 } }
   Se eacao t $"escx" { _an_gravar texto`esc{ N v }` 0 aviso texto`↺ No { crut nomecad v }: o mais barato outra vez` }
   Se eacao t $"fc" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fc" 0 _an_gravar $"fcr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fc" txt x.w _an_gravar $"fcr" txt ? x.r x.r x.w } 0 } }
   Se eacao t $"fp" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fp" 0 _an_gravar $"fpr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fp" txt x.w _an_gravar $"fpr" txt ? x.r x.r x.w } 0 } }

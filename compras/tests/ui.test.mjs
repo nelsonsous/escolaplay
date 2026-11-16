@@ -487,13 +487,14 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         // na peixaria, arrumadas por corte (os filetes), e os sem corte em «Outros»
         assert.deepEqual(await a.locator('#folha .opcoes .op-t').allTextContents(), ['filetes', 'Outros']);
         await a.click('#folha .opcoes .op:has-text("Carapau Pequeno")');
-        // a lista fica aberta, com a escolhida marcada, e um aviso diz o que ficou; dá para voltar ao mais barato
-        assert.match(await a.textContent('#folha .opcoes .op.on'), /Carapau Pequeno/);
+        // escolher fecha a lista e um aviso diz o que ficou; ao reabrir, a escolhida marcada e dá para voltar ao mais barato
         await a.waitForSelector('.toast:has-text("No Continente: Carapau Pequeno Fresco")');
-        await a.click('#folha .opcoes .op-x');
+        assert.equal(await a.locator('#folha .opcoes').count(), 0);
+        await a.click('#folha [data-onda="opc:0"]');
+        assert.match(await a.textContent('#folha .opcoes .op.on'), /Carapau Pequeno/);
+        await a.click('#folha .opcoes .op-x:not(.op-f)');
         assert.match(await a.textContent('#folha .opcoes .op.on'), /Carapau Médio/);
         await a.click('#folha .opcoes .op:has-text("Carapau Pequeno")');
-        await a.click('#folha [data-onda="opc:0"]');
         assert.equal(await a.locator('#folha .opcoes').count(), 0);
         assert.match(await a.locator('#folha .melhores > li >> nth=0').textContent(), /Carapau Pequeno Fresco.*escolhido por ti/);
         await a.click('#folha [data-onda="juntat:0"]');
