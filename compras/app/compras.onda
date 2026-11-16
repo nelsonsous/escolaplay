@@ -845,7 +845,7 @@
   Se && == estado 200 _an_ler $"tk" {
     _an_gravar $"tp" t
     # juntar logo (o que se escreveu era concreto): o mais barato de cada supermercado, como o «Juntar à lista»
-    ? _an_ler $"auto" { _an_gravar $"auto" 0 = tp _ar_json t = nm txt tp.nome juntat aviso texto`✓ Juntei { crut nm } (o mais barato de cada loja). Toca na lista para ajustar.` 0 } { dfolha 0 } }
+    ? _an_ler $"auto" { _an_gravar $"auto" 0 _an_gravar $"jauto" $"1" = tp _ar_json t = nm txt tp.nome juntat aviso texto`✓ Juntei { crut nm } (o mais barato de cada loja). Toca na lista para ajustar.` 0 } { dfolha 0 } }
   _me_solta t }
 # passa nos filtros? fe o tamanho, fm a marca («branca»: a marca própria)
 : passa iii>i p fe fm && && || ~ _an_ler $"fes" tem_e _an_ler $"fes" txt p.emb || ~ fm ? mesmo fm $"branca" int p.pr mesmo txt p.mk fm tem_w p
@@ -1261,7 +1261,8 @@
     Se fc { = fp texto`{ Se fp `{ crut fp } ` }{ crut fc }` = fpr texto`{ Se fp `{ crut ? fpr fpr fp }, ` }{ crut ? fcr fcr fc }` }
     = ww texto`{ Se fa `{ crut fa } ` }{ Se fp `{ crut fp } ` }{ Se fw `{ crut fw }` }`
     = nome texto`{ crut txt tp.nome }{ Se || || fa fp fw ` ({ Se fa `{ crut ? far far fa }` }{ Se && fa || fp fw `, ` }{ Se fp `{ crut ? fpr fpr fp }` }{ Se && fp fw `, ` }{ Se fw `{ crut ? fwr fwr fw }` })` }{ Se _an_ler $"fer" ` { crut _an_ler $"fer" }` }{ Se fm ` { ? mesmo fm $"branca" `marca branca` crut fm }` }`
-    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k },"n":{ pjs txt tp.nome }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se || || fa fp fw `,"w":{ pjs ww }` }{ dfiltros_json }\}\}`
+    faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs nome },"q":{ N ? tq _tx_int tq 1 },"e":\{"k":{ pjs txt tp.k },"n":{ pjs txt tp.nome }{ Se fe `,"emb":{ pjs fe }` }{ Se fm `,"m":{ pjs fm }` }{ Se || || fa fp fw `,"w":{ pjs ww }` }{ Se _an_ler $"sugq" `,"q":{ pjs _an_ler $"sugq" }` }{ Se _an_ler $"jauto" `,"au":1` }{ dfiltros_json }\}\}`
+    _an_gravar $"jauto" 0
     L k 4 { = p melhor_em tp k fe fm = q _an_ler texto`esc{ N k }` Se p faz texto`\{"o":"p","id":"{ crut id }","c":"{ crut cadeia k }"{ Se ~ && q mesmo txt p.id q `,"a":1` },"p":\{"id":{ pjs txt p.id },"nome":{ pjs txt p.nome },"url":{ pjs txt p.url }\}\}` }
     = sb _an_ler $"subst"
     Se sb { faz texto`\{"o":"x","id":{ pjs sb }\}` _an_gravar $"subst" 0 }
