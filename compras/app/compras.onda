@@ -492,6 +492,7 @@
     ddividir n pt
     Se == completos 0 `<p class="nota">Para comparar, toca em cada coisa da lista e escolhe o produto de cada supermercado.</p>`
     0 }
+  dgastos
   `<p class="nota">Os preços são os dos sites dos supermercados, vistos uma vez por dia; na loja podem ser outros, e os descontos de cartão não contam.</p></section>`
   _ht_muda $"#vista" h }
 
@@ -846,6 +847,20 @@
     desenha }
   Se == estado 400 aviso $"Escolhe pelo menos uma loja."
   _me_solta t }
+: lido_gastos ii>i t estado {
+  Se == estado 200 { _an_gravar $"gastos" t desenha }
+  _me_solta t }
+# o que compraste (o histórico: o que riscaste na lista, compras.js): a semana, o mês, o que poupaste, por loja
+: dgastos >i {
+  = g _ar_json _an_ler $"gastos"
+  Se && g || int g.mes int g.semana {
+    `<div class="gastos"><h3>📒 O que compraste</h3><p><b>Esta semana { eur int g.semana }</b> · nos últimos 30 dias { eur int g.mes } ({ N int g.coisas_mes } coisas)</p>`
+    Se > int g.poupado_mes 0 `<p class="poupado">💚 Poupaste { eur int g.poupado_mes } face à loja mais cara de cada coisa</p>`
+    = x pri g.lojas Se x { `<p class="nota">` = pr 1 W x { Se ~ pr ` · ` `{ esc x.nome } { eur int x.cent }` = pr 0 = x seg x } `</p>` }
+    = x pri g.mais Se x { `<p class="nota">Compras mais vezes: ` = pr 1 W x { Se ~ pr `, ` `{ esc x.t } ({ N int x.vezes }×)` = pr 0 = x seg x } `</p>` }
+    Se int g.estimadas `<p class="nota">{ N int g.estimadas } sem loja escolhida: conta-se a mais barata. Em «Vou a este» a app sabe onde compraste.</p>`
+    `</div>` }
+  0 }
 : lido_lojas ii>i t estado {
   Se == estado 200 { _an_gravar $"lojasq" t desenha }
   _me_solta t }
@@ -1388,13 +1403,14 @@
   0 }
 : clique i>i t {
   = v arg t
-  Se eacao t $"aba" { ! 1 v _an_gravar $"aberto" 0 _an_rolar 0 Se && == v 2 _an_ler $"chave" { _an_buscar $"/api/casa" $"lido_casa" _an_buscar $"/api/saude" $"lido_saude" } }
+  Se eacao t $"aba" { ! 1 v _an_gravar $"aberto" 0 _an_rolar 0 Se && == v 1 _an_ler $"chave" _an_buscar $"/api/gastos" $"lido_gastos"
+    Se && == v 2 _an_ler $"chave" { _an_buscar $"/api/casa" $"lido_casa" _an_buscar $"/api/saude" $"lido_saude" } }
   Se eacao t $"glocal" gravar_lojas -1 -1
   Se eacao t $"cad" gravar_lojas v -1
   Se eacao t $"sparl" gravar_lojas -1 v
   Se eacao t $"juntar" juntar
   Se eacao t $"tirars" { = sb _an_ler $"subst" Se sb { faz texto`\{"o":"x","id":{ pjs sb }\}` _an_gravar $"subst" 0 } fecha_tipo }
-  Se eacao t $"riscar" { = c idx itens v Se c faz texto`\{"o":"r","id":{ pjs txt c.id },"f":{ N ~ int c.f }\}` }
+  Se eacao t $"riscar" { = c idx itens v Se c faz texto`\{"o":"r","id":{ pjs txt c.id },"f":{ N ~ int c.f }{ Se >= loja 0 `,"c":{ pjs cadeia loja }` }\}` }
   # tocar numa coisa da lista: se tem tipo, abre a escolha com os filtros dela (o tamanho, a marca, o corte) e o
   # «Juntar» passa a guardar por cima; sem tipo, a procura simples
   Se eacao t $"abre" { = c idx itens v Se c { ? && c.e c.e.k {

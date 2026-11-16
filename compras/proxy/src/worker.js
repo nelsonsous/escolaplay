@@ -7,6 +7,7 @@
 //   POST /api/casa/lojas {local, cadeias, spar}  a localidade e as lojas da casa (lojas.js)
 //   GET  /api/lojas?q=…                as lojas SPAR de uma localidade ou código postal
 //   POST /api/casa/entrar  {codigo}    passar para outra casa (leva o que tinha na lista)
+//   GET  /api/gastos                   o que se comprou (riscado): a semana, o mês, o que se poupou, por loja (compras.js)
 //   GET  /api/lista                    { versao, itens } com o preço de cada produto escolhido (precos.js)
 //   POST /api/lista        {ops}       mudar a lista (ver casa.js) e recebê-la como ficou; um produto escolhido
 //                                      agora sem preço recente lê-se logo no site da cadeia
@@ -50,6 +51,7 @@ import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { sugerir, produtosDoTipo, tiposDaSeccao } from './sugerir.js';
 import { revisarTipo } from './revisao.js';
+import { registarCompras, gastos } from './compras.js';
 import { saude, saudeCurta } from './saude.js';
 import { zonaContinente, produtoNaZona, stockZonas, cpValido } from './zona.js';
 import { atualizarEscolhas } from './escolhas.js';
@@ -58,7 +60,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.56.8';
+export const VERSION = '0.57.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -292,7 +294,9 @@ async function api(request, env, url) {
         const { ops } = await corpoJSON(request);
         const lista = await mudarLista(db, ap, ops ?? []);
         await precosNovos(db, ops).catch(() => {}); // sem o preço agora, o cron lê-o depois
-        return json(await juntarPrecos(db, lista, ap.casa));
+        const jl = await juntarPrecos(db, lista, ap.casa);
+        await registarCompras(db, ap.casa, { ...jl, riscou: lista.riscou }).catch(() => {}); // o histórico do que se compra (compras.js)
+        return json(jl);
     }
     if (caminho === '/api/precos' && metodo === 'POST') {
         const { cadeia, produtos } = await corpoJSON(request);
@@ -305,6 +309,7 @@ async function api(request, env, url) {
         const { imagem } = await corpoJSON(request, MAX_TALAO);
         return json(await lerTalao(env, ap, imagem));
     }
+    if (caminho === '/api/gastos' && metodo === 'GET') return json(await gastos(db, ap.casa));
     if (caminho === '/api/costume' && metodo === 'GET') return json({ coisas: await sugestoes(db, ap, await lerLista(db, ap.casa)) });
     if (caminho === '/api/sugerir' && metodo === 'GET') {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
