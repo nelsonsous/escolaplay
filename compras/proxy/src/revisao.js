@@ -52,7 +52,8 @@ export const FORA_DO_TIPO = {
     fiambre: [/chourica|vegetarian|vegan|\bsabor a\b/], leite: [/\blatte\b|macchiato|infantil|\bnan\b|cappuccino/],
     iogurtes: [/meal to go|refeicao|\bbebida lactea\b/], vinagre: [/biscoito|nectar/], 'peixe-fresco': [/congelad|descongelad/],
     bacalhau: [/paloco/], 'queijo-fresco': [/ralado/], cerveja: [/panache/], lixivia: [/bloco sanitario/], 'gel-de-banho': [/esponja|puff/],
-    ovos: [/codorniz|chocolate|pascoa|liquid/], azeite: [/aromatiz/],
+    ovos: [/codorniz|chocolate|pascoa|liquid/],
+    'rolos-de-cozinha': [/guardanapo/], 'papel-higienico': [/humido/], 'lenco-papel': [/toalhita/], azeite: [/aromatiz/],
 };
 export const foraDoTipo = (k, nome) => (FORA_DO_TIPO[k] ?? []).some((r) => r.test(sem(nome)));
 

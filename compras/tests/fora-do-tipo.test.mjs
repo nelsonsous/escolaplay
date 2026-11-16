@@ -12,5 +12,7 @@ test('fora do tipo: os preparados na carne picada, e os da própria carne picada
     assert.ok(foraDoTipo('bacalhau', 'Migas de Paloco Embalado'));
     assert.ok(!foraDoTipo('arroz', 'Arroz Risotto Cigala')); // o arroz para risotto é arroz
     assert.ok(foraDoTipo('arroz', 'Arroz Agulha Pronto a Comer Cigala'));
+    assert.ok(foraDoTipo('rolos-de-cozinha', 'GUARDANAPOS DE FOLHA SIMPLES TIPO E RENOVA BRANCO 30X32CM 70 UNIDADES'));
+    assert.ok(!foraDoTipo('rolos-de-cozinha', 'Rolo de Cozinha Clássico Continente'));
     assert.ok(!foraDoTipo('azeite', 'Azeite Virgem Extra Seleção Azeitonas Maduras Oliveira da Serra'));
 });
