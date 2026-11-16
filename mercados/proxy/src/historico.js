@@ -2,7 +2,8 @@
 // O KV continua a ser o que a app lê; aqui fica a evolução, gravada pelo Worker:
 //   - cada conselho do Claude, quando a app o vai buscar (/advice): a tarefa grava-o no KV, e o Worker copia-o para aqui
 //     na primeira leitura (uma vez por conselho; isto não depende da tarefa, escrita em Onda);
-//   - as sugestões automáticas que a app regista uma vez por dia (/journal);
+//   - as sugestões automáticas que a app do dono regista uma vez por dia (/journal; as das outras apps não: saem das
+//     mesmas regras e preços, e o teste no passado regenera-as);
 //   - a Carteira do dono, uma fotografia por dia (as quantidades e o investido; o total em € como a app o calcula).
 // Gravar aqui nunca impede a resposta: quem chama apanha o erro e segue.
 

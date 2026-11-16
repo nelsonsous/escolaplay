@@ -497,12 +497,12 @@ test('histórico (D1): conselhos copiados na leitura, diário de cada app e a Ca
     await get('/advice?id=' + OUTRA);
     assert.deepEqual(HIST.rows("SELECT titulo FROM conselhos WHERE para = ?", OUTRA), [{ titulo: 'Só tua' }]);
 
-    // o diário: as sugestões de cada app; a Carteira (quantidades, investido, total) só a do dono
+    // o diário: as sugestões e a Carteira (quantidades, investido, total) só da app do dono
     const items = [{ s: 'MSFT', p: 523.1, a: 'buy', l: 61, m: 40, sh: 12, o: 1 }, { s: 'c:BTC', p: 58635.7, a: 'neutral', l: 50, m: 10, sh: -5, o: 0 }];
     const lots = { MSFT: { qty: 2, cost: 900, pm: 50, hz: 'long' }, 'c:BTC': { buys: [{ d: '2026-10-01', e: 500 }, { d: '2026-11-01', e: 250 }] } };
     assert.equal(await post({ id: OWNER, date: '2026-11-16', items, lots, carteira: { v: 1834.27, cp: 0.41 } }), 200);
     assert.equal(await post({ id: OUTRA, date: '2026-11-16', items, lots, carteira: { v: 99999 } }), 200);
-    assert.equal(HIST.rows('SELECT count(*) AS n FROM sugestoes')[0].n, 4);
+    assert.deepEqual(HIST.rows('SELECT DISTINCT app FROM sugestoes'), [{ app: OWNER }]);
     assert.deepEqual(HIST.rows('SELECT ativo, quantidade, investido, preco, por_mes, prazo FROM carteira ORDER BY ativo'), [
         { ativo: 'MSFT', quantidade: 2, investido: 900, preco: 523.1, por_mes: 50, prazo: 'long' },
         { ativo: 'c:BTC', quantidade: null, investido: 750, preco: 58635.7, por_mes: null, prazo: null }]);

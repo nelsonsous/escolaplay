@@ -7,3 +7,6 @@ dist/
 package-lock.json
 
 .wrangler/
+
+# exportações do histórico (dados pessoais: ficam fora do repositório)
+historico/export/

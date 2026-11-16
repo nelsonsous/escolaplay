@@ -2,6 +2,7 @@
 // vez por dia (cron), guarda um retrato por dia na KV (60 dias) e vê, para cada tabela, o que sobe, o que é novo e o
 // que dura. Cruzado com o gosto de cada pessoa dá o «para ti». A app mostra-o e o Maestro usa-o nas propostas.
 import { normal } from '../../lib/tidal.js';
+import { trendRows, runD1 } from './historico.js';
 
 const txt = (v, max = 160) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 const lerApple = (j) => (j?.feed?.results || []).map((r) => ({ artista: txt(r.artistName), titulo: txt(r.name),
@@ -39,6 +40,8 @@ export async function recolher(env, agora = Date.now()) {
     if (!Object.keys(fontes).length) return { ok: false, erros };
     const hoje = dia(agora);
     await env.KV.put(`tendencias:dia:${hoje}`, JSON.stringify({ fontes }), { expirationTtl: 70 * 86400 });
+    // o histórico (D1): no KV o dia apaga-se aos 70 dias, aqui fica (se falhar, o retrato do KV já está gravado)
+    await runD1(env.HIST, trendRows(hoje, fontes)).catch((e) => erros.push(`histórico: ${e.message}`));
     const dias = [...new Set([...((await env.KV.get('tendencias:dias', 'json')) || []), hoje])].sort().slice(-DIAS);
     await env.KV.put('tendencias:dias', JSON.stringify(dias));
     const hist = await Promise.all(dias.map((d) => env.KV.get(`tendencias:dia:${d}`, 'json')));

@@ -7,9 +7,10 @@ import { API, LOGIN, TOKEN, SCOPES, JSONAPI, MAX_IDS, MAX_ITENS, faixas as lerFa
 import { normalizarOpcoes } from '../../lib/playlist.js';
 import { perfilGosto, sinais } from '../../lib/sinais.js';
 import { recolher, paraTi } from './tendencias.js';
+import { saveProfile } from './historico.js';
 import { validSubscription, newVapidKeys, sendPush } from './push.js';
 
-const VERSION = '1.38.1';
+const VERSION = '1.39.0';
 const CORS = { 'access-control-allow-origin': '*' };
 const PERFIL_TTL = 6 * 3600 * 1000;
 const MAX_RESOLVER = 10; // faixas por pedido a /api/resolver (cada uma é uma pesquisa no Tidal)
@@ -635,6 +636,8 @@ async function perfil(env, fresco) {
     };
     const out = { geradoEm: new Date().toISOString(), utilizador: t.utilizador, pais, favoritas, artistas, playlists, resumo };
     await env.KV.put('perfil', JSON.stringify(out));
+    // o histórico (D1), só o do dono: a versão do perfil, se mudou (as favoritas que entram e saem, o resumo)
+    if (env.UID === DONO) await saveProfile(env.HIST, out).catch((e) => console.error('histórico', e));
     return out;
 }
 

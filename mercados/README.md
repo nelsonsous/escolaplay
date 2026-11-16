@@ -106,14 +106,14 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
 |---|---|---|
 | `conselhos` | cada conselho do Claude (o do dono e os das outras apps, pelo código), com o documento inteiro | na primeira leitura em `/advice` (a tarefa, em Onda, só grava o KV) |
 | `acoes` | o que cada conselho dizia de cada ativo (chave, ação, porquê, preço) | idem |
-| `sugestoes` | as sugestões automáticas de cada app, um dia por linha e por ativo | no registo diário (`POST /journal`) |
+| `sugestoes` | as sugestões automáticas da app do dono, um dia por linha e por ativo (as das outras apps não: saem das mesmas regras e preços) | no registo diário (`POST /journal`) |
 | `carteira` | **só a do dono**: quantidade, investido, preço, € por mês e prazo de cada ativo, uma fotografia por dia | no registo diário e quando o dono muda a Carteira |
 | `carteira_dia` | **só a do dono**: o total em € (como a app o calcula, a partir da 4.28.0), o investido e a parte em cripto | idem |
 
 - `GET /history?id=<dono>[&ativo=MSFT][&days=90]` (só o dono): a Carteira dia a dia, os conselhos e, com um ativo, o que
   o Claude e a app disseram dele e quanto se tinha.
-- `node mercados/proxy/recuperar-historico.mjs` copia o que ainda está no KV (a 16/11: 13 conselhos desde 05/11 e 12 dias
-  de diário de 4 apps). Pode correr-se mais de uma vez.
+- `node mercados/proxy/recuperar-historico.mjs` copia o que ainda está no KV (a 16/11: 13 conselhos desde 05/11 e o diário
+  da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
 ## Dados e limites

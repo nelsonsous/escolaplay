@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS acoes (
 CREATE INDEX IF NOT EXISTS acoes_ativo ON acoes (ativo, data);
 
 CREATE TABLE IF NOT EXISTS sugestoes (
-    app TEXT NOT NULL,            -- código anónimo da app (o diário)
+    app TEXT NOT NULL,            -- o código da app do dono (o diário; desde a 1.11.1 só a dele)
     data TEXT NOT NULL,
     ativo TEXT NOT NULL,
     preco REAL,                   -- moeda do ativo

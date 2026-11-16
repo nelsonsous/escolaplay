@@ -37,7 +37,7 @@
 
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
 
-const VERSION = '1.11.0';
+const VERSION = '1.11.1';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -601,13 +601,14 @@ async function journal(request, url, env) {
     // (só compras ou dias de execução iguais aos que já lá estão), não se grava
     if (!hasItems && old && JSON.stringify(doc) === JSON.stringify(old)) return { body: { ok: true, days: Object.keys(doc.days).length, same: true } };
     await env.JOURNAL.put('j:' + b.id, JSON.stringify(doc), { metadata: { s: seen, c: doc.claude ? 1 : 0 } });
-    // o histórico (D1): as sugestões do dia e, na app do dono, a fotografia da Carteira (sem os preços do registo de
-    // hoje, os do diário desse dia). Se falhar, o diário já está gravado.
-    if (env.HIST) {
+    // o histórico (D1), só da app do dono (1.11.1: as sugestões das outras saem das mesmas regras e preços, e o teste no
+    // passado regenera-as): as sugestões do dia e a fotografia da Carteira (sem os preços do registo de hoje, os do
+    // diário desse dia). Se falhar, o diário já está gravado.
+    if (env.HIST && (hasItems || lots) && (await isOwner(env, b.id))) {
         try {
             const day = JDATE.test(b.date || '') ? b.date : lisbonDay();
             const stmts = hasItems ? journalRows(b.id, b.date, items) : [];
-            if (lots && (await isOwner(env, b.id))) stmts.push(...walletRows(day, lots, { items: hasItems ? items : doc.days[day] || null, carteira: cleanCarteira(b.carteira) }));
+            if (lots) stmts.push(...walletRows(day, lots, { items: hasItems ? items : doc.days[day] || null, carteira: cleanCarteira(b.carteira) }));
             await runD1(env.HIST, stmts);
         } catch (e) { console.error('histórico', e); }
     }

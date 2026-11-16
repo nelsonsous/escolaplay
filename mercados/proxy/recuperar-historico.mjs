@@ -1,5 +1,5 @@
 // Copia para o histórico (D1 mercados-historico) o que ainda está no KV: os conselhos de cada dia (advice:<data>,
-// advice:latest), os das outras apps (ua:<id>), o diário de cada app (j:<id>: as sugestões de cada dia) e a Carteira
+// advice:latest), os das outras apps (ua:<id>), o diário da app do dono (j:<id>: as sugestões de cada dia) e a Carteira
 // atual do dono (a fotografia de hoje). Pode correr-se mais de uma vez (não duplica). Corre aqui, não no Worker:
 //   NODE_USE_ENV_PROXY=1 node mercados/proxy/recuperar-historico.mjs
 // (o token da Cloudflare é injetado pelo proxy do ambiente, ou vem de CLOUDFLARE_API_TOKEN)
@@ -50,7 +50,9 @@ for (const k of await kvKeys('ua:')) {
 }
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
 for (const k of await kvKeys('j:')) {
-    const id = k.slice(2), doc = await kvGet(k);
+    const id = k.slice(2);
+    if (id !== owner) continue; // só o diário da app do dono (as sugestões das outras regeneram-se)
+    const doc = await kvGet(k);
     if (!doc?.days) continue;
     const rows = [];
     for (const [date, items] of Object.entries(doc.days)) { const it = cleanItems(items) || []; if (it.length) { rows.push(...journalRows(id, date, it)); dias++; } }

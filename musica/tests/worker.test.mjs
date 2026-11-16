@@ -42,7 +42,7 @@ async function ligarPrimeiraVez() {
 test('estado, CORS, raiz e pedidos sem chave', async () => {
     const r = await get('/api/estado');
     assert.equal(r.status, 200);
-    assert.deepEqual(await r.json(), { versao: '1.38.1', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
+    assert.deepEqual(await r.json(), { versao: '1.39.0', clientId: true, ligado: false, retorno: ORIGIN + '/tidal/retorno' });
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const pre = await call('/api/perfil', { method: 'OPTIONS' });
     assert.equal(pre.status, 204);
@@ -1640,4 +1640,43 @@ test('avisos no telemóvel: ligar, teste, «propostas prontas» uma vez por pedi
     const des = await call('/api/push', { method: 'DELETE', headers: { authorization: `Bearer ${chave}`, 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: tel.sub.endpoint }) });
     assert.equal(des.status, 200);
     assert.equal((await post('/api/push/teste', {}, chave)).status, 409, 'desligados');
+});
+
+test('histórico (D1): as tabelas de cada dia ficam para sempre e o perfil do dono guarda-se quando muda', async () => {
+    const { fakeD1 } = await import('./fixtures/d1.mjs');
+    const { recolher } = await import('../proxy/src/tendencias.js');
+    const { profileRows } = await import('../proxy/src/historico.js');
+    env.HIST = fakeD1(new URL('../proxy/historico.sql', import.meta.url));
+    const { chave } = await ligarPrimeiraVez();
+    await get('/api/perfil', chave);
+    const p1 = env.HIST.rows('SELECT gerado_em, favoritas, ids FROM perfis');
+    assert.equal(p1.length, 1);
+    assert.ok(p1[0].favoritas > 0);
+    const nFav = env.HIST.rows('SELECT count(*) AS n FROM favoritas')[0].n;
+    assert.equal(nFav, p1[0].favoritas);
+    // da cache (menos de 6 h) e atualizado sem mudanças: nenhuma versão nova
+    await get('/api/perfil', chave);
+    await get('/api/perfil?fresco=1', chave);
+    assert.equal(env.HIST.rows('SELECT count(*) AS n FROM perfis')[0].n, 1);
+    // uma favorita a menos: versão nova; a que saiu fica com a última vez em que esteve
+    const last = env.HIST.rows('SELECT ids, resumo FROM perfis')[0];
+    const doc = JSON.parse(env.KV.m.get('perfil'));
+    const menos = { ...doc, geradoEm: new Date(Date.parse(doc.geradoEm) + 7 * 36e5).toISOString(), favoritas: doc.favoritas.slice(1) };
+    assert.deepEqual(profileRows(doc, last), [], 'igual à última: nada');
+    const rows = profileRows(menos, last);
+    assert.equal(rows.length, 1 + menos.favoritas.length);
+    // as tabelas: um lugar por linha, cada dia; o retrato do KV continua a ter os 70 dias
+    sim.tabelas.pt = [['Nina Simone', 'Feeling Good', 'Jazz'], ['Alguém', 'Subida', 'Pop']];
+    sim.tabelas.mundo = [['Artista Mundo', 'Global', '']];
+    sim.tabelas.eua = [['Outro', 'Canção', 'Rock']];
+    const D = Date.parse('2026-11-15T04:23:00Z');
+    assert.equal((await recolher(env, D)).ok, true);
+    assert.equal((await recolher(env, D + 864e5)).ok, true);
+    assert.deepEqual(env.HIST.rows("SELECT dia, lugar, artista FROM tendencias WHERE fonte = 'pt' ORDER BY dia, lugar"), [
+        { dia: '2026-11-15', lugar: 1, artista: 'Nina Simone' }, { dia: '2026-11-15', lugar: 2, artista: 'Alguém' },
+        { dia: '2026-11-16', lugar: 1, artista: 'Nina Simone' }, { dia: '2026-11-16', lugar: 2, artista: 'Alguém' }]);
+    assert.equal(env.HIST.rows('SELECT count(*) AS n FROM tendencias')[0].n, 8);
+    // sem a base, recolhe na mesma
+    delete env.HIST;
+    assert.equal((await recolher(env, D + 2 * 864e5)).ok, true);
 });
