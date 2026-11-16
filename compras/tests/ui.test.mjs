@@ -809,6 +809,8 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         assert.equal(await a.getAttribute('#folha .bc a.fonte >> nth=0', 'href'), 'https://www.revistadevinhos.pt/papa-figos');
         await a.click('#folha .bc li:has-text("Papa Figos") b >> nth=0');
         await a.waitForSelector('#aviso .toast:has-text("No Continente: Papa Figos")');
+        // e a folha salta para a linha do Continente, onde o vinho ficou escolhido
+        await a.waitForFunction(() => { const r = document.querySelector('#cad0')?.getBoundingClientRect(); return r && r.top >= -2 && r.top < 200; });
         await a.evaluate(() => window.app.chamar('clique', window.app.escrever('escx:0'))); // volta ao mais barato no Continente
         // «Escolher por: ⭐ Melhor nota»: no Continente passa a ser o Papa Figos (★ 88), não o Monte Velho (mais barato)
         const cont = async () => (await a.locator('#folha .melhores > li').allTextContents()).find((t) => /Continente/i.test(t)) ?? '';

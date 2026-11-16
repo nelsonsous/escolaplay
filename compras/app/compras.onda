@@ -764,7 +764,9 @@
     `<div class="acoes"><button class="botao fraco" data-onda="tirar:0">Tirar da lista</button><button class="botao" data-onda="fecha:0">Fechar</button></div></div>` }
   _ht_muda $"#folha" h }
 
-: desenha >i { dabas dvista dfolha }
+# depois de desenhar, rola até ao que se pediu (rolar: o seletor; ao escolher um vinho nos mais bem cotados, a linha
+# da loja onde ficou escolhido)
+: desenha >i { dabas dvista dfolha = r _an_ler $"rolar" Se r { _an_rolar r _an_gravar $"rolar" 0 } 0 }
 
 # ---------- os eventos ----------
 # o separador do campo «juntar»: «,» «;» uma mudança de linha (1) ou « e » (3)
@@ -1172,8 +1174,8 @@
         = p melhor_em tp k fe fm
         ? p {
             = u && && p.uc ub mesmo txt p.ub ub
-            ? u `<li{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ crut puc int p.uc ub }</span>`
-              `<li><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
+            ? u `<li id="cad{ N k }"{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ crut puc int p.uc ub }</span>`
+              `<li id="cad{ N k }"><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
             # ao quilo (uma peça inteira): o que se paga é aproximado, pelo peso médio da peça
             `<small><b class="emb">Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { Se int p.aq `≈ ` }{ esc p.emb }` }</b>{ Se int p.aq ` · vende-se ao quilo` }{ dvar p }`
             Se u { ? == int p.uc mu ` · o mais barato por { crut unidade ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade ub }` 0 } }
@@ -1447,7 +1449,7 @@
   Se eacao t $"ord" { ? v _an_gravar $"ord" $"1" _an_gravar $"ord" 0 }
   Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v _an_gravar $"opc" 0 _an_gravar $"opc" texto`{ N v }` }
   # escolher outra opção: a lista fica aberta (vê-se a barra azul mudar) e um aviso diz o que ficou
-  Se eacao t $"esco" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id aviso texto`✓ No { crut nomecad / v 1000 }: { crut txt x.nome }` } }
+  Se eacao t $"esco" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id aviso texto`✓ No { crut nomecad / v 1000 }: { crut txt x.nome }` _an_gravar $"rolar" texto`#cad{ N / v 1000 }` } }
   Se eacao t $"escx" { _an_gravar texto`esc{ N v }` 0 aviso texto`↺ No { crut nomecad v }: o mais barato outra vez` }
   Se eacao t $"fc" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fc" 0 _an_gravar $"fcr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fc" txt x.w _an_gravar $"fcr" txt ? x.r x.r x.w } 0 } }
   Se eacao t $"fp" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fp" 0 _an_gravar $"fpr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fp" txt x.w _an_gravar $"fpr" txt ? x.r x.r x.w } 0 } }
