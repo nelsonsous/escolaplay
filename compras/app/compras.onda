@@ -189,7 +189,7 @@
 : lido_ver ii>i t estado {
   ? == estado 200 {
       ! 8 0
-      Se && && ~ @ 3 vazio _an_ler $"pend" ~ mesmo t _an_ler $"lista" { Se _ar_json t { _an_gravar $"lista" t desenha } } 0 }
+      Se && && ~ @ 3 vazio _an_ler $"pend" ~ mesmo t _an_ler $"lista" { Se _ar_json t { _an_gravar $"lista" t desenha avisa_desc t } } 0 }
     { Se == estado 401 sem_chave Se == estado 0 { ! 8 1 desenha } 0 }
   _me_solta t }
 
@@ -291,6 +291,14 @@
 # a loja escolhida em «Vou a este» (o número da cadeia), ou -1
 : loja >i { = l _an_ler $"loja" = r -1 Se l L k 4 Se mesmo l cadeia k = r k r }
 # uma coisa da lista (o nó c, no lugar i); lj a loja escolhida (-1: nenhuma)
+# a maior descida de preço de uma coisa (preco_historico, últimos 7 dias): a cadeia (0 a 3) ou -1
+: kvd i>i c { = m 0 = r -1 L k 4 { = p _ar_get c.p cadeia k Se && p > int p.vd m { = m int p.vd = r k } } r }
+# o aviso ao abrir a app: a maior descida da lista (uma vez cada)
+: avisa_desc i>i t {
+  = j _ar_json t = d ? && j j.descidas pri j.descidas 0
+  Se d { = k texto`{ crut txt d.id }{ crut txt d.c }{ N int d.vd }`
+    Se ~ mesmo k _an_ler $"descvista" { _an_gravar $"descvista" k aviso texto`↓ { crut txt d.t }: desceu { N int d.vd }% no { crut nomec txt d.c } ({ eur int d.de } → { eur int d.para })` } }
+  0 }
 : ditem iii>i c i lj {
   = f int c.f
   `<li class="item{ Se f ` feito` }" data-chave="{ esc c.id }">`
@@ -301,6 +309,8 @@
   `<small>`
   ? < lj 0 resumo c { = p pc c lj ? >= p 0 `{ crut nomecad lj } { eur p }` `Sem preço no { crut nomecad lj }: toca para escolher` 0 }
   `</small>`
+  = kd ? f -1 kvd c
+  Se >= kd 0 { = pd _ar_get c.p cadeia kd `<small class="desce">↓ { N int pd.vd }% no { crut nomecad kd } (era { eur int pd.de })</small>` }
   Se && ~ f c.pk dpack c lj
   `</button>`
   Se ~ f `<span class="qtd-l"><button data-onda="qm:{ N i }" aria-label="Menos">−</button><button data-onda="qp:{ N i }" aria-label="Mais">+</button></span>`

@@ -266,3 +266,4 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .cartao.analise ul.an small, .cartao.analise ul.an .coisas { display: block; color: var(--fraco); font-size: 14px; margin-top: 2px; }
 .cartao.analise input { width: 100%; box-sizing: border-box; margin: 6px 0; }
 .cartao.analise .espera { font-size: 16px; }
+.item small.desce { color: #4ade80; font-weight: 600; }
