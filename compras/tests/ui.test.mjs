@@ -691,7 +691,7 @@ test('o Afinar: com muitos vinhos, uma pergunta de cada vez (para quê → o pre
         await a.click('#folha .afinar .chip:has-text("Douro")');
         await a.waitForSelector('#folha .afinado');
         assert.equal(await a.locator('#folha .afinar').count(), 0);
-        assert.match(await a.textContent('#folha .afinado'), /Ficam 4 opções/);
+        assert.match(await a.textContent('#folha .afinado'), /Ficam 4 nos supermercados/);
         assert.equal(await a.locator('#folha .caminho button:has-text("Douro")').count(), 1);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
