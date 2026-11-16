@@ -62,7 +62,8 @@ export async function casaDe(db, ap) {
     const r = { codigo: c.codigo, aparelhos: Number(c.aparelhos) };
     if (c.local) r.local = c.local;
     if (c.lojas) r.lojas = JSON.parse(c.lojas);
-    if (c.cp) { r.cp = c.cp; if (c.zona) r.zona = c.zona; }
+    // lz: só a terra da loja online que serve a zona («Valongo - WEB - Zn 2» → «Valongo»): não é onde a casa mora
+    if (c.cp) { r.cp = c.cp; if (c.zona) { r.zona = c.zona; r.lz = String(c.zona).split(/\s+-\s+/)[0].trim(); } }
     if (c.pessoas) r.pessoas = Number(c.pessoas);
     return r;
 }
