@@ -1,0 +1,44 @@
+// Escolher entre as opções (0.56.5): tocar num dos mais bem cotados escolhe-o e abre as opções dessa loja; escolher
+// uma opção fecha a lista; no fim da lista, «✕ Fechar as opções».
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { abrir } from './servidor.mjs';
+let pw = null;
+try { pw = createRequire(import.meta.url)('playwright'); } catch { /* sem playwright */ }
+test('os mais bem cotados abrem as opções da loja; escolher fecha-as', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const { esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const agora = new Date().toISOString();
+    s.env.DB.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('vinho-tinto', 'Vinho tinto', 4, 1)").run();
+    const ins = (cadeia, id, nome, cent) => s.env.DB.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, uc, ub, emb, q, tipo, visto, falhas)
+        VALUES (?, ?, ?, ?, ?, ?, 'l', '75 cl', 0.75, 'vinho-tinto', ?, 0)`).run(cadeia, id, `https://www.${cadeia}.pt/p/${id}.html`, nome, cent, Math.round(cent / 0.75), agora);
+    ins('continente', 'v1', 'Papa Figos Douro Vinho Tinto', 699); ins('continente', 'v2', 'Monte Velho Alentejo Vinho Tinto', 449);
+    ins('auchan', 'v3', 'VINHO TINTO DOURO RESERVA 0.75L', 899); ins('auchan', 'v5', 'VINHO TINTO PAPA FIGOS 0.75L', 799); ins('auchan', 'v6', 'VINHO TINTO BARATO 0.75L', 199);
+    ins('pingodoce', 'v4', 'Vinho Tinto Alentejo Pingo Doce', 299);
+    s.env.DB.sql.prepare(`INSERT INTO vinho_nota (palavras, fora, nome, nota, n, resumo, fontes, visto) VALUES ('papa figos tinto', '', 'Papa Figos', 91, 1, 'Revista de Vinhos 17/20', '[]', ?)`).run(agora);
+    esquecerTipos();
+    const br = await pw.chromium.launch();
+    const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+    const erros = [];
+    a.on('pageerror', (e) => erros.push(e.message));
+    await a.goto(s.url());
+    await a.waitForFunction(() => localStorage.getItem('compras:chave'));
+    await a.fill('[data-onda="junta"]', 'vinho');
+    await a.click('#sug .chip:has-text("Vinho tinto")');
+    await a.waitForSelector('#folha h3:has-text("Nota")');
+    await a.click('#folha ul.bc li:has-text("PAPA FIGOS 0.75L")');
+    await a.waitForSelector('#cad2 .opcoes .op.on:has-text("PAPA FIGOS")');
+    assert.match(await a.textContent('#cad2 .pnome'), /PAPA FIGOS/);
+    // fechar no fim da lista
+    await a.click('#cad2 .opcoes .op-f');
+    await a.waitForSelector('#cad2 .opcoes', { state: 'detached' });
+    // abrir e escolher outra: fica escolhida e a lista fecha
+    await a.click('#cad2 [data-onda^="opc:"]');
+    await a.click('#cad2 .opcoes .op:has-text("BARATO")');
+    await a.waitForSelector('#cad2 .opcoes', { state: 'detached' });
+    assert.match(await a.textContent('#cad2 .pnome'), /BARATO/);
+    assert.equal(await a.locator('#cad2 .mao').count(), 1);
+    assert.deepEqual(erros, []);
+    await br.close(); await s.fechar?.();
+});
