@@ -692,7 +692,7 @@ test('o vinho: a fila «Nota» (críticos e Vivino) filtra os supermercados e as
         await a.click('#folha .chip:has-text("Críticos 87+")');
         await a.waitForSelector('#folha .caminho button:has-text("Críticos 87+")');
         const nomes = await a.locator('#folha .melhores > li:not(.est) small').allTextContents();
-        assert.ok(nomes.some((t) => /o mais barato por garrafa.*Papa Figos/.test(t)) && !nomes.some((t) => /Monte Velho|RESERVA|Pingo Doce/.test(t)), nomes.join(' | '));
+        assert.ok(nomes.some((t) => /o mais barato por litro.*Papa Figos/.test(t)) && !nomes.some((t) => /Monte Velho|RESERVA|Pingo Doce/.test(t)), nomes.join(' | '));
         assert.equal(await a.locator('#folha li.prod').count(), 0); // nenhum da loja online tem nota de crítico
         await a.click('#folha .chip:has-text("Vivino 4,2+")');
         await a.waitForSelector('#folha .caminho button:has-text("Vivino 4,2+")');
@@ -839,7 +839,7 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         // «Escolher por: ⭐ Melhor nota»: no Continente passa a ser o Papa Figos (★ 88), não o Monte Velho (mais barato)
         const cont = async () => (await a.locator('#folha .melhores > li').allTextContents()).find((t) => /Continente/i.test(t)) ?? '';
         assert.match(await cont(), /Monte Velho/);
-        assert.match(await cont(), /4,49 €\/garrafa/); // no vinho, o preço por garrafa de 75 cl, não por litro
+        assert.match(await cont(), /4,49 €5,99 €\/l/); // no vinho, em grande o preço da garrafa e por baixo o preço por litro
         await a.click('#folha .chip:has-text("Melhor nota")');
         await a.waitForSelector('#folha h3:has-text("O melhor cotado em cada supermercado")');
         assert.match(await cont(), /Papa Figos/);
