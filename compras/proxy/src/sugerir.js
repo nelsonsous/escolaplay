@@ -106,6 +106,8 @@ async function grupo(db, g, nome) {
     return [{ sec: g.s, nome: nomeSeccao(g.s) }, ...ts.map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: t.s, gr: t.gr })), ...c.lista];
 }
 
+// as palavras que dizem a embalagem ou o objeto, e não uma variante (umas cadeias escrevem-nas, outras não)
+const GENERICAS = new Set(['papel', 'rolo', 'rolos', 'pacote', 'pack', 'embalagem', 'garrafa', 'garrafas', 'lata', 'latas', 'frasco', 'saco', 'caixa', 'unidade', 'unidades']);
 // os tipos que correspondem ao que se escreveu: cada palavra escrita é o início de uma palavra do tipo
 export async function sugerir(db, q, max = 8) {
     const ws = palavras(q).slice(0, 4);
@@ -128,8 +130,9 @@ export async function sugerir(db, q, max = 8) {
             const t = porK.get(r.tipo);
             if (!t || bons.some((b) => b.k === t.k)) continue;
             // a variante: as palavras que não são do próprio tipo («agua alcalina» na água: «alcalina»)
-            const resto = ws.filter((w) => !t.w.some((x) => x.startsWith(w)));
-            bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: -1e6 + Number(r.n), w: (resto.length ? resto : ws).join(' ') });
+            // (as palavras genéricas, «papel», «rolo», «pacote», não são variante: «papel cozinha» é o rolo de cozinha todo)
+            const resto = ws.filter((w) => !t.w.some((x) => x.startsWith(w)) && !GENERICAS.has(w));
+            bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: -1e6 + Number(r.n), ...(resto.length ? { w: resto.join(' ') } : ws.every((w) => GENERICAS.has(w) || t.w.some((x) => x.startsWith(w))) ? {} : { w: ws.join(' ') }) });
         }
     }
     // mais de uma palavra sem tipo que as tenha todas («pão milho»): o tipo pela primeira e as outras como variante

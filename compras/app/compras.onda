@@ -1230,7 +1230,9 @@
             Se > no 1 `<button class="mais-op" data-onda="opc:{ N k }" aria-expanded="{ ? == ab k `true` `false` }">{ ? == ab k `Fechar as opções ▴` `Outras opções no { crut nomecad k } ({ N - no 1 }) ▾` }</button>`
             Se && == ab k > no 1 dopcoes tp k fe fm p
             `</li>` 0 }
-          { Se || < k 3 conta_em tp k 0 0 `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>Nada assim neste supermercado</small></li>` 0 } }
+          { = nt conta_em tp k 0 0
+            # com os filtros não há, mas há do tipo: quantos, e um toque para tirar os filtros (o tipo todo)
+            Se || < k 3 nt `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">—</span><small>{ ? nt `Nada com estes filtros; há { N nt } { esc tp.nome } sem eles` `Nada assim neste supermercado` }</small>{ Se nt `<button class="mais-op" data-onda="cam:1">Ver sem os filtros ▸</button>` }</li>` 0 } }
       dprodutores tp mu
       Se minha $"mercadona" dest tp fe 0 mu
       Se minha $"spar" dest tp fe 1 mu
