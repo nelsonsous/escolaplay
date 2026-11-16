@@ -115,7 +115,7 @@ _dt_pquando 1762588800000                                             -> "sábad
 
 ## Vindo do `app.onda`
 
-O `lib/app.onda` (it.137) fica tal e qual para quem ainda o usa (a Música). Os nomes correspondem assim:
+O `lib/app.onda` (it.137) fica tal e qual para quem ainda o usa (os testes da Onda; a Música já não). Os nomes correspondem assim:
 `tnovo` `_tx_novo`, `tlen` `_tx_len`, `tbyte` `_tx_b`, `tpor` `_tx_p`, `tigual` `_tx_igual`, `tcomeca` `_tx_comeca`,
 `tcampo t i` `_tx_campo t i 9`, `tint` `_tx_int`, `thtml` `_tx_html`, `pint n` `_nu_intl F n 0`, `pdec x d`
 `_nu_intl x d` (agora o do `Intl`, ao decimal mais curto: `1.005` com 2 casas dá `1,01`), `json` `_ar_json` (a mesma
