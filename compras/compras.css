@@ -276,3 +276,5 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .gastos h3 { margin-top: 0; }
 .gastos .poupado { color: var(--verde); font-weight: 600; }
 .melhores .promo { grid-column: 1 / -1; justify-self: start; margin: 2px 0; padding: 2px 10px; border-radius: 999px; background: #3a1d0b; color: #ffb36b; font-size: 14px; font-weight: 600; }
+.melhores > li[data-onda] { cursor: pointer; border-radius: 12px; transition: background .15s; }
+.melhores > li[data-onda]:active { background: var(--cartao); }
