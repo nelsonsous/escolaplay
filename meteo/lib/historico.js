@@ -1,7 +1,8 @@
 // Histórico da Meteo (base D1 «meteo-historico»; esquema em proxy/historico.sql).
 // Aqui só se montam as instruções SQL ({ sql, params }); quem as corre é o Worker (binding HIST, runD1) ou a tarefa
-// agendada (API da Cloudflare, analista/comum.mjs). Gravar no histórico nunca impede a publicação: quem chama apanha
-// o erro e segue (o KV, que a app lê, já está gravado).
+// agendada (API da Cloudflare, analista/comum.mjs). Desde o conector 1.11 a D1 é também a caixa de correio: a tarefa
+// grava a análise aqui e o Worker lê aqui a última (latestAnalysis). Se a D1 falhar, a análise vai para o KV, e quem
+// lê fica com a mais recente das duas (newest).
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const txt = (v, n = 4000) => (typeof v === 'string' && v ? v.slice(0, n) : null);
@@ -47,6 +48,17 @@ export function observedRows(id, days, { today, at = new Date().toISOString() } 
             num(d.model?.tmax), num(d.model?.tmin), num(d.model?.rain), at],
     }));
 }
+
+/** A última análise publicada de um local (o documento inteiro, como a app o recebe), ou null. */
+export async function latestAnalysis(db, id) {
+    if (!db || !id) return null;
+    const r = await db.prepare('SELECT doc FROM analises WHERE local = ? ORDER BY gerada_em DESC LIMIT 1').bind(id).first();
+    if (!r?.doc) return null;
+    try { return JSON.parse(r.doc); } catch { return null; }
+}
+
+/** A mais recente de duas análises (D1 e KV): a caixa de correio é a D1, o KV fica de reserva. */
+export const newest = (a, b) => (!a ? b || null : !b ? a : (Date.parse(b.generatedAt || '') || 0) > (Date.parse(a.generatedAt || '') || 0) ? b : a);
 
 /** Corre as instruções numa base D1 (binding do Worker), todas de uma vez. */
 export async function runD1(db, stmts) {

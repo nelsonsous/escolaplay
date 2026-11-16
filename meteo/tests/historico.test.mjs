@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeD1 } from './fixtures/d1.mjs';
-import { analysisRows, observedRows, runD1, readHistory } from '../lib/historico.js';
+import { analysisRows, observedRows, runD1, readHistory, latestAnalysis, newest } from '../lib/historico.js';
 
 const SCHEMA = new URL('../proxy/historico.sql', import.meta.url);
 const doc = (at, over = {}) => ({
@@ -68,4 +68,20 @@ test('a leitura do histórico: análises recentes primeiro e, por dia, o previst
     assert.deepEqual(h.dias.map((d) => [d.dia, d.previsto.length, d.observado?.tmax ?? null]), [['2026-11-12', 0, 19], ['2026-11-14', 2, 17.1], ['2026-11-15', 2, null]]);
     // só os últimos N dias
     assert.equal((await readHistory(db, 'casa', { days: 1, now: Date.parse('2026-11-16T10:00:00Z') })).analises.length, 0);
+});
+
+test('caixa de correio: a última análise do local (o documento inteiro) e a mais recente de duas', async () => {
+    const db = fakeD1(SCHEMA);
+    assert.equal(await latestAnalysis(db, 'casa'), null);
+    await runD1(db, [...analysisRows(doc('2026-11-14T07:40:00.000Z')), ...analysisRows(doc('2026-11-14T14:20:00.000Z', { titulo: 'A última' }))]);
+    const a = await latestAnalysis(db, 'casa');
+    assert.equal(a.titulo, 'A última');
+    assert.deepEqual(a.numeros, doc('x').numeros, 'o documento volta tal como foi publicado');
+    assert.equal(await latestAnalysis(null, 'casa'), null);
+    const kv = { titulo: 'KV', generatedAt: '2026-11-14T15:00:00.000Z' };
+    assert.equal(newest(a, kv).titulo, 'KV');
+    assert.equal(newest(a, { ...kv, generatedAt: '2026-11-13T00:00:00Z' }).titulo, 'A última');
+    assert.equal(newest(null, kv).titulo, 'KV');
+    assert.equal(newest(a, null).titulo, 'A última');
+    assert.equal(newest(null, null), null);
 });

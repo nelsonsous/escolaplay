@@ -60,4 +60,33 @@ export async function d1Run(stmts) {
     return stmts.length;
 }
 
+/** Uma consulta de leitura no histórico (D1): as linhas. */
+export async function d1Query(sql, params = []) {
+    if (!D1_ID) throw new Error('sem a base D1 (binding HIST) no wrangler.toml');
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/d1/database/${D1_ID}/query`, {
+        method: 'POST', headers: { ...CF_AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify({ sql, params }) });
+    const b = await r.json().catch(() => null);
+    if (!r.ok || !b || !b.success) throw new Error(`Cloudflare D1: HTTP ${r.status} ${JSON.stringify(b && b.errors)}`);
+    return b.result[0].results || [];
+}
+const parse = (t) => { try { return JSON.parse(t); } catch { return null; } };
+const at = (a) => Date.parse(a?.generatedAt || '') || 0;
+
+/**
+ * As análises de um local, as mais recentes primeiro (desde: ISO; até n). A caixa de correio é a D1 (desde o conector
+ * 1.11); juntam-se as do KV (as de antes e as que lá ficaram quando a D1 falhou), sem repetir.
+ */
+export async function analysesOf(id, { since = '', n = 12 } = {}) {
+    const [d1, kv] = await Promise.all([
+        d1Query('SELECT doc FROM analises WHERE local = ? AND gerada_em >= ? ORDER BY gerada_em DESC LIMIT ?', [id, since, n])
+            .then((rows) => rows.map((r) => parse(r.doc)).filter(Boolean)).catch(() => []),
+        (async () => {
+            const keys = [`analysis:${id}`, ...(await kvList(`analysis:${id}:`).catch(() => [])).filter((k) => k.slice(-13) >= since.slice(0, 13)).sort().slice(-n)];
+            return (await Promise.all(keys.map((k) => kvGet(k).catch(() => null)))).filter((a) => a && typeof a === 'object' && at(a) && (!since || a.generatedAt >= since));
+        })(),
+    ]);
+    const seen = new Set();
+    return [...d1, ...kv].sort((a, b) => at(b) - at(a)).filter((a) => !seen.has(a.generatedAt) && seen.add(a.generatedAt)).slice(0, n);
+}
+
 export const arg = (name, def = null) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : def; };

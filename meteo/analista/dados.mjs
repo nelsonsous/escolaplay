@@ -16,7 +16,7 @@ import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { selectPlaces, isOwnerPlace, placeOwner, placeMembers, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
 import { mergeMemory } from '../lib/learn.js';
 import { verifyNumbers, claudeWeights, numbersReport } from '../lib/nums.js';
-import { WORKER, getJSON, kvGet, kvPut as kvPutReal, kvList, kvDelete as kvDeleteReal, d1Run, arg } from './comum.mjs';
+import { WORKER, getJSON, kvGet, kvPut as kvPutReal, kvList, kvDelete as kvDeleteReal, d1Run, analysesOf, arg } from './comum.mjs';
 import { observedRows } from '../lib/historico.js';
 
 const DRY = process.argv.includes('--sem-gravar');
@@ -101,7 +101,7 @@ for (const [i, place] of places.entries()) {
         await saveLearning(place, memory, fc).catch((e) => out.push(`(memória da aprendizagem não gravada: ${e.message})`));
         await saveObsHistories(raw, fc, place).catch((e) => out.push(`(histórico IPMA não gravado: ${e.message})`));
         if (raw.ipma?.forecast) await saveIpmaRun(raw.ipma.forecast, runs).catch((e) => out.push(`(previsão IPMA não arquivada: ${e.message})`));
-        const prev = await kvGet('analysis:' + place.id).catch(() => null);
+        const prev = (await analysesOf(place.id, { n: 1 }).catch(() => []))[0] || null;
         const lessons = (await kvGet('lessons:' + place.id).catch(() => null)) || [];
         // avisos do utilizador ("Está a chover?") no local nas últimas 48 h (os do telemóvel dono do local, KV reports:<id>):
         // o que se via lá, para o "agora" e a verificação
@@ -195,9 +195,9 @@ async function verifyClaude(place, fc) {
     const off = fc.location?.utcOffsetSeconds || 0;
     const today = new Date(Date.parse(fc.generatedAt) + off * 1000).toISOString().slice(0, 10);
     const mem = await kvGet('nums:' + place.id).catch(() => null);
-    const since = new Date(Date.now() - 4 * 864e5).toISOString().slice(0, 13);
-    const keys = (await kvList(`analysis:${place.id}:`)).filter((k) => k.slice(-13) >= since).sort().slice(-12);
-    const issues = (await Promise.all(keys.map((k) => kvGet(k).catch(() => null)))).filter((a) => a?.numeros?.length && a.consenso?.length);
+    // as análises dos últimos 4 dias (até 12), da D1 e do KV de reserva
+    const since = new Date(Date.now() - 4 * 864e5).toISOString();
+    const issues = (await analysesOf(place.id, { since, n: 12 })).reverse().filter((a) => a?.numeros?.length && a.consenso?.length);
     const next = verifyNumbers(mem, issues, fc.observed?.days || [], { off, today });
     const pesos = claudeWeights(next, { today });
     const dias = (fc.daily || []).slice(0, 3).map((d) => ({ data: d.date, tmax: d.tmax, tmin: d.tmin, chuva: d.precip, rajada: d.gustMax }));

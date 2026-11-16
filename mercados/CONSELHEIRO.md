@@ -165,6 +165,23 @@ A ficha de cada ativo tem um só cartão, **Decisão**, que junta seis fontes nu
 7. **À sexta-feira, antes de propor regras**: correr `NODE_USE_ENV_PROXY=1 node mercados/conselheiro/backtest.mjs 5 90` (5 anos, preços ajustados com dividendos, comissão de 1 € por compra manual). Ler com o **viés de sobrevivência** em mente: a lista são as vencedoras de hoje, por isso quase tudo "bate" o VWCE olhando para trás — o que conta é a diferença **entre** sugestões (ex.: "Comprar" vs "Evitar"). Uma regra só muda se melhorar nas **duas metades**.
 8. **Só à sexta-feira**: se o diário e os veredictos anteriores mostrarem com evidência (não um dia mau) que uma regra da análise está a errar, abrir um **PR em rascunho** com a alteração (as regras estão em `mercados/onda/*.onda`, a análise que a app corre, e em `mercados/analise.js`, a referência: muda-se nos dois, `node mercados/onda/build.mjs` e `node mercados/conselheiro/onda/build.mjs` — os scripts levam a mesma análise), testes a passar (`node --test mercados/tests/*.test.*`) e os números que a justificam. **Nunca fazer merge** — o investidor decide.
 
+## O histórico (opcional, só leitura)
+
+Cada conselho, o que dizia de cada ativo, as sugestões automáticas da app do dono e a Carteira dele dia a dia ficam na
+base D1 `mercados-historico`. O `dados.md` já traz os veredictos anteriores e o diário; quando for preciso olhar mais
+para trás (desde quando dizes «aos poucos» num ativo, se mudaste de ideia muitas vezes, como evoluiu a Carteira),
+pergunta à base — **no máximo 3 consultas por corrida**, curtas e agregadas:
+
+```
+NODE_USE_ENV_PROXY=1 node historico/consultar.mjs mercados --esquema
+NODE_USE_ENV_PROXY=1 node historico/consultar.mjs mercados "SELECT data, chave, acao FROM acoes WHERE para = 'dono' AND ativo = 'MSFT' ORDER BY gerado_em DESC LIMIT 10"
+```
+
+Tabelas: `conselhos` (cada conselho, `para` = 'dono' ou o código de outra app), `acoes` (por ativo: chave, ação,
+porquê, preço), `sugestoes` (as automáticas da app do dono), `carteira` (posições por dia) e `carteira_dia` (valor,
+investido e parte em cripto por dia). Só aceita SELECT. A Carteira é dados pessoais do dono: usa-a para aconselhar, não a
+repitas por extenso.
+
 ## Regras
 
 - Os scripts (`conselheiro/*.mjs`) são escritos em Onda (`conselheiro/onda/*.onda`, compilados para `conselheiro/conselheiro.wasm`); os `.mjs` só os lançam. A versão em JavaScript (`conselheiro/js/`) fica como referência dos testes.

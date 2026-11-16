@@ -138,6 +138,23 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
 - **Estações**: diz quanto valem para o ponto (distância, rumo, altitude; se estão no mesmo vale ou num alto).
 - **Incêndios** e **satélite** também com distância e rumo ao ponto.
 
+## O histórico (opcional, só leitura)
+
+Todas as análises, os números dia a dia e o que as estações mediram ficam na base D1 `meteo-historico`. Os dados de
+hoje (`dados.mjs`) já trazem o essencial: a verificação da véspera e "Os teus números anteriores". Quando isso não chega
+para uma decisão (um erro que se repete com um tipo de tempo, um local que falha sempre para o mesmo lado), pergunta à
+base — **no máximo 3 consultas por corrida**, curtas e agregadas (GROUP BY), porque cada linha gasta tokens:
+
+```
+NODE_USE_ENV_PROXY=1 node historico/consultar.mjs meteo --esquema
+NODE_USE_ENV_PROXY=1 node historico/consultar.mjs meteo "SELECT prazo, ROUND(AVG(ABS(erro_chuva)),1) AS erro, ROUND(AVG(ABS(erro_c_chuva)),1) AS modelos FROM acertos WHERE local = 'santo-tirso' GROUP BY prazo"
+```
+
+Tabelas: `analises` (cada análise: título, resumo, pesos e o documento), `numeros` (o que cada análise deu por dia, com o
+consenso da mesma corrida), `observado` (o medido e o consenso da véspera) e a vista `acertos` (erro = previsto −
+observado; `erro_c_*` é o dos modelos). Só aceita SELECT. Usa o que aprendes nos números e nas lições; não cites
+consultas no texto da análise.
+
 ## Notas
 
 - A app mostra a análise só no telemóvel dono do local (e ao dono da app), no cartão **Análise do Claude**, sempre com o

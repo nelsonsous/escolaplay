@@ -66,7 +66,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.10.0');
+    assert.equal(j.version, '1.11.0');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -897,4 +897,33 @@ test('histórico (D1): o telemóvel vê o do seu local, o dono vê todos; sem a 
     // o dono vê todos
     assert.equal((await J('GET', '/api/history?place=tia&days=7', { owner: CODE })).body.analises.length, 1);
     assert.equal((await J('GET', '/api/history?place=casa', { owner: CODE })).body.analises.length, 0);
+});
+
+test('caixa de correio (1.11): a última análise vem da D1; o KV é reserva e vale se for mais recente; a análise imediata do local grava na D1', async () => {
+    const g = device();
+    const pl = (await J('POST', '/api/places', { d: g, body: { name: 'Casa', lat: 38.72, lon: -9.14 } })).body;
+    const ago = (min) => new Date(Date.now() - min * 6e4).toISOString();
+    env.KV.m.set('analysis:' + pl.id, JSON.stringify({ titulo: 'Do KV', generatedAt: ago(300) }));
+    env.HIST = fakeD1(new URL('../proxy/historico.sql', import.meta.url));
+    const get = async () => (await J('GET', '/api/analysis?lat=38.75&lon=-9.15', { d: g })).body.analysis;
+    assert.equal((await get()).titulo, 'Do KV', 'D1 ainda vazia: vale o KV');
+    await runD1(env.HIST, analysisRows({ ...ANALISE, titulo: 'Da D1', generatedAt: ago(60), place: { id: pl.id, name: 'Casa', lat: 38.72, lon: -9.14 } }));
+    assert.equal((await get()).titulo, 'Da D1', 'a D1 é mais recente');
+    env.KV.m.set('analysis:' + pl.id, JSON.stringify({ titulo: 'Reserva', generatedAt: ago(5) }));
+    assert.equal((await get()).titulo, 'Reserva', 'gravada no KV quando a D1 falhou: é mais recente');
+    // a D1 em baixo: a app continua a ter a do KV
+    env.HIST = { prepare: () => ({ bind: () => ({ first: async () => { throw new Error('D1 em baixo'); } }) }) };
+    assert.equal((await get()).titulo, 'Reserva');
+    // a análise imediata no local: vai para a D1, não para o KV
+    env.HIST = fakeD1(new URL('../proxy/historico.sql', import.meta.url));
+    env.KV.m.delete('analysis:' + pl.id);
+    env.ANTHROPIC_API_KEY = 'chave-de-teste';
+    globalThis.fetch = async (u) => (String(u?.url || u).startsWith('https://api.anthropic.com/')
+        ? new Response(JSON.stringify({ id: 'msg_1', type: 'message', role: 'assistant', model: 'm', content: [{ type: 'text', text: JSON.stringify(ANALISE) }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200, headers: { 'content-type': 'application/json' } })
+        : new Response('{}', { status: 200 }));
+    const r = await J('POST', '/api/analysis/refresh?lat=38.72&lon=-9.14', { d: g, body: { summary: 'x'.repeat(500), name: 'Casa' } });
+    assert.equal(r.status, 200);
+    assert.equal(env.HIST.rows('SELECT count(*) AS n FROM analises')[0].n, 1);
+    assert.equal(env.KV.m.has('analysis:' + pl.id), false, 'com a D1 a funcionar, o KV não se escreve');
+    assert.equal((await get()).titulo, ANALISE.titulo);
 });
