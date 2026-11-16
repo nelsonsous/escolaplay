@@ -272,3 +272,6 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .total small.un, .uc small.un { display: block; font-size: 12px; font-weight: 400; color: var(--fraco); text-align: right; }
 .total small.un i, .uc small.un i { font-style: normal; }
 .melhores .opcoes .op-f { border-bottom: 0; border-top: 1px solid var(--linha); text-align: center; font-weight: 600; }
+.gastos { margin: 16px 0; padding: 12px 14px; border: 1px solid var(--linha); border-radius: 14px; background: var(--cartao); }
+.gastos h3 { margin-top: 0; }
+.gastos .poupado { color: var(--verde); font-weight: 600; }

@@ -155,7 +155,7 @@ export function aplicar(lista, ops) {
                 lista.itens.push({ id: op.id, t, q: quantidade(op.q), f: 0, p: {}, ...(e ? { e } : {}) });
                 break;
             }
-            case 'r': if (item) item.f = op.f ? 1 : 0; break;
+            case 'r': if (item && item.f !== (op.f ? 1 : 0)) { item.f = op.f ? 1 : 0; (lista.riscou ??= []).push({ id: op.id, f: item.f, c: op.c }); } break;
             case 'x': if (item) lista.itens.splice(i, 1); break;
             case 'q': if (item) item.q = quantidade(op.q); break;
             case 'p': {
