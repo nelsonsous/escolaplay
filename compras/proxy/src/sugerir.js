@@ -29,6 +29,11 @@ export const palavras = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]
 
 // outros nomes por que se procura um tipo (as cadeias juntam todo o bovino numa categoria: a picanha é de vaca)
 const OUTROS = { 'carne-novilho': 'bovino vitelao angus', 'borrego-cabrito': 'cordeiro', 'polvo-lulas': 'choco pota' };
+// o nome sem acentos, em SQL (o LIKE só ignora maiúsculas no ASCII: «esporao» não apanha «Esporão» nem «ESPORÃO»)
+const ACENTOS = [['á', 'a'], ['à', 'a'], ['â', 'a'], ['ã', 'a'], ['é', 'e'], ['ê', 'e'], ['í', 'i'], ['ó', 'o'], ['ô', 'o'], ['õ', 'o'], ['ú', 'u'], ['ç', 'c'],
+    ['Á', 'a'], ['À', 'a'], ['Â', 'a'], ['Ã', 'a'], ['É', 'e'], ['Ê', 'e'], ['Í', 'i'], ['Ó', 'o'], ['Ô', 'o'], ['Õ', 'o'], ['Ú', 'u'], ['Ç', 'c']];
+export const NOME_SEM_ACENTOS = ACENTOS.reduce((e, [a, b]) => `replace(${e}, '${a}', '${b}')`, 'nome');
+
 // os tipos onde há produtos com estas palavras no nome: a procura (LIKE) lê a tabela preco toda (16 mil linhas), e
 // faz-se a cada letra que se escreve; guarda-se 6 horas na memória do Worker, por palavras (no máximo 500)
 const POR_NOMES = new Map();
@@ -38,7 +43,7 @@ async function porNomes(db, ws, max) {
     const g = POR_NOMES.get(k);
     if (g && agora - g.quando < 6 * HORA) return g.r;
     const { results } = await db.prepare(`SELECT tipo, count(*) AS n FROM preco WHERE tipo IS NOT NULL AND cent IS NOT NULL
-        AND ${ws.map(() => 'nome LIKE ?').join(' AND ')} GROUP BY tipo ORDER BY n DESC LIMIT ?`).bind(...ws.map((w) => `%${w}%`), max).all();
+        AND ${ws.map(() => `${NOME_SEM_ACENTOS} LIKE ?`).join(' AND ')} GROUP BY tipo ORDER BY n DESC LIMIT ?`).bind(...ws.map((w) => `%${w}%`), max).all();
     if (POR_NOMES.size >= 500) POR_NOMES.delete(POR_NOMES.keys().next().value);
     POR_NOMES.set(k, { r: results, quando: agora });
     return results;
@@ -121,14 +126,17 @@ export async function sugerir(db, q, max = 8) {
         const topo = Math.max(...results.map((r) => Number(r.n)), 0);
         for (const r of results.filter((r) => Number(r.n) >= Math.max(2, topo * 0.2))) {
             const t = porK.get(r.tipo);
-            if (t && !bons.some((b) => b.k === t.k)) bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: -1e6 + Number(r.n), w: ws.join(' ') });
+            if (!t || bons.some((b) => b.k === t.k)) continue;
+            // a variante: as palavras que não são do próprio tipo («agua alcalina» na água: «alcalina»)
+            const resto = ws.filter((w) => !t.w.some((x) => x.startsWith(w)));
+            bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: -1e6 + Number(r.n), w: (resto.length ? resto : ws).join(' ') });
         }
     }
     // mais de uma palavra sem tipo que as tenha todas («pão milho»): o tipo pela primeira e as outras como variante
     if (!bons.length && ws.length > 1) {
         const resto = ws.slice(1).join(' ');
         for (const t of (await tipos(db)).filter((t) => t.w.some((x) => x.startsWith(ws[0])))) {
-            const r = await db.prepare(`SELECT count(*) AS n FROM preco WHERE tipo = ? AND cent IS NOT NULL AND ${ws.slice(1).map(() => 'nome LIKE ?').join(' AND ')}`)
+            const r = await db.prepare(`SELECT count(*) AS n FROM preco WHERE tipo = ? AND cent IS NOT NULL AND ${ws.slice(1).map(() => `${NOME_SEM_ACENTOS} LIKE ?`).join(' AND ')}`)
                 .bind(t.k, ...ws.slice(1).map((w) => `%${w}%`)).first();
             if (Number(r?.n)) bons.push({ k: t.k, nome: t.nome, n: Number(t.n), pontos: Number(r.n), w: resto });
         }
