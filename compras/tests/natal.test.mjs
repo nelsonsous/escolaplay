@@ -86,7 +86,7 @@ test('o vinho da ceia e o Porto pela nota dos críticos e pela Vivino; o bacalha
     const v = c.partes.find((p) => p.k === 'vinho');
     assert.deepEqual(v.opcoes.map((o) => o.id), ['w1', 'v1', 'v2']); // Vivino 4,3 e Grande Reserva; o Papa Figos ★ 92; nem Coutada Velha nem bag-in-box
     assert.match(v.opcoes[1].porque[0], /★ 92 \(Revista de Vinhos 17\/20\)/);
-    assert.equal(v.opcoes[0].uc, null); // compara-se a garrafa, não o litro
+    assert.equal(v.opcoes[0].uc, undefined); // compara-se a garrafa, não o litro (e sem o campo: a app lê null como 0)
     // pelo preço, continua a ser só entre garrafas com nota ou gama: nada de litros, garrafões nem tintos sem nota
     const pv = (await cabazDeNatal(db, { modo: 'preco' }, AGORA)).partes.find((p) => p.k === 'vinho');
     assert.deepEqual(pv.opcoes.map((o) => o.id), ['v2', 'v1', 'w1']);
