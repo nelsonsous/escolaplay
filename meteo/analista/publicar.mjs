@@ -5,11 +5,13 @@
 // Grava analysis:<id> (a app lê-a em /api/analysis, só o telemóvel do local e o dono), o arquivo
 // analysis:<id>:<data-hora> (30 dias), lessons:<id> e conta a análise no dia (stats:<data de Lisboa>, painel "Utilização").
 // Junta à análise o consenso dos modelos desta corrida e o peso atual dos números do Claude (nums:<id>, do dados.mjs).
+// E guarda-a no histórico (D1 meteo-historico: analises + numeros), que fica para sempre (o KV só tem a última).
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { validateAnalysis, regionalPhrases } from '../lib/analysis.js';
 import { isOwnerPlace, placeKind, bumpStats, lisbon, STATS_TTL, KIND_PT } from '../lib/places.js';
-import { kvGet, kvPut as kvPutReal, arg } from './comum.mjs';
+import { kvGet, kvPut as kvPutReal, d1Run, arg } from './comum.mjs';
+import { analysisRows } from '../lib/historico.js';
 
 const DRY = process.argv.includes('--sem-gravar');
 const kvPut = DRY ? async () => {} : kvPutReal;
@@ -48,6 +50,8 @@ const doc = { ...value, generatedAt: new Date().toISOString(), by: 'claude-agend
 await kvPut('analysis:' + id, doc);
 await kvPut(`analysis:${id}:${doc.generatedAt.slice(0, 13)}`, doc, { ttl: 30 * 86400 });
 if (value.licoes.length) await kvPut('lessons:' + id, value.licoes);
+// o histórico: se falhar, a análise já está publicada (o KV é o que a app lê)
+if (!DRY) { try { await d1Run(analysisRows(doc)); } catch (e) { console.error(`(histórico não gravado: ${e.message})`); } }
 // contador do dia (painel "Utilização" do dono): agendadas e quantas foram para locais de outros telemóveis
 const day = 'stats:' + lisbon().date;
 try { await kvPut(day, bumpStats(await kvGet(day), { kind: 'scheduled', guest: !isOwnerPlace(place) }), { ttl: STATS_TTL }); }

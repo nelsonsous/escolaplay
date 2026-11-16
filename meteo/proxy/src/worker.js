@@ -9,11 +9,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl, REPORT_KINDS } from '../../lib/sources.js';
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
+import { analysisRows, runD1, readHistory } from '../../lib/historico.js';
 import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner, placeMembers, lastSeenOfPlace, isOwnerPlace, placeKind, othersMode, approx, lisbon,
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.9.1';
+const VERSION = '1.10.0';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -110,6 +111,7 @@ async function route(req, env, ctx, url) {
     // --- análises, locais e avisos: dependem de quem pede (cabeçalhos x-meteo-device / x-meteo-owner) ---
     if (m === 'GET' && p === '/api/analysis') return getAnalysis(req, env, url, ctx);
     if (m === 'GET' && p === '/api/learning') return getLearning(req, env, url);
+    if (m === 'GET' && p === '/api/history') return getHistory(req, env, url);
     if (m === 'GET' && p === '/api/push/key') return pushKey(env);
     if (p === '/api/push') {
         if (m === 'GET') return getPush(req, env, url);
@@ -618,6 +620,20 @@ async function getLearning(req, env, url) {
         { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
+// ---------- histórico (D1 meteo-historico, esquema em historico.sql) ----------
+// GET /api/history?place=<id>&days=30: as análises do local (mais recentes primeiro) e, por dia, o que cada uma deu,
+// o consenso dos modelos da mesma corrida e o que as estações mediram. Vê-o o telemóvel do local e o dono.
+async function getHistory(req, env, url) {
+    const me = await who(req, env, url);
+    if (me.error) return me.error;
+    if (!env.HIST) return json({ error: 'sem_historico', message: 'O histórico ainda não está ligado no conector.' }, 501);
+    const id = url.searchParams.get('place') || '';
+    const place = (await getPlaces(env)).find((x) => x.id === id);
+    if (!place || !(me.owner || mine(me, place))) return json({ error: 'nao_encontrado', message: 'Local desconhecido.' }, 404);
+    const days = Math.min(Math.max(parseInt(url.searchParams.get('days') || '30', 10) || 30, 1), 366);
+    return json({ place: { id: place.id, name: place.name }, days, ...(await readHistory(env.HIST, place.id, { days })) });
+}
+
 // ---------- notificações do fim do dia (Web Push; cifra e VAPID em push.js) ----------
 // push:vapid = par de chaves (criado no primeiro uso); push:index = uma entrada por telemóvel:
 // { id, ep, k: { p256dh, auth }, time: 'HH:MM', tz, sunday, place, last: dia local da última enviada }.
@@ -862,6 +878,8 @@ async function refresh(req, env, url) {
     if (place) {
         await env.KV.put('analysis:' + place.id, JSON.stringify(analysis));
         if (value.licoes.length) await env.KV.put('lessons:' + place.id, JSON.stringify(value.licoes));
+        // o histórico (D1): se falhar, a análise já está no KV, que é o que a app lê
+        await runD1(env.HIST, analysisRows(analysis)).catch((e) => console.error('histórico', e));
     } else if (me.id) await env.KV.put(adhocKey(me.id), JSON.stringify(analysis), { expirationTtl: 86400 });
     // contador do dia (painel "Utilização"): lido de novo, a tarefa agendada pode ter contado entretanto
     await env.KV.put(statsKey, JSON.stringify(bumpStats(await env.KV.get(statsKey, 'json'), { kind: 'instant', guest: !me.owner })), { expirationTtl: STATS_TTL });

@@ -153,6 +153,26 @@ Os locais dos outros seguem a «Análise dos outros» (desligada: nunca; 1× por
 
 Para desligar, apaga os dois segredos (ou o token, na página da tarefa): volta às horas marcadas.
 
+## Histórico em SQL (conector 1.10)
+
+O KV guarda só a **última** análise de cada local: é a cache que a app lê (e o arquivo `analysis:<id>:<data-hora>`
+dura 30 dias). Para ver a evolução, tudo fica também numa base SQL **D1** da Cloudflare, `meteo-historico` (binding
+`HIST` do Worker; esquema em [`proxy/historico.sql`](proxy/historico.sql), plano gratuito: 5 GB, 100 mil escritas por dia):
+
+| Tabela | O que guarda | Quem grava |
+|---|---|---|
+| `analises` | cada análise publicada (título, resumo, pesos e o documento inteiro) | `publicar.mjs` (tarefa) e o Worker (análise com chave da API) |
+| `numeros` | o que cada análise deu para cada dia (máx., mín., chuva, rajada), com o prazo e o consenso dos modelos da mesma corrida | idem |
+| `observado` | o que as estações mediram em cada dia acabado (mediana e quantas) e o que o consenso dava na véspera | `dados.mjs` (cada corrida regrava os últimos dias) |
+| vista `acertos` | previsto × observado: o erro da análise e o do consenso, por dia e prazo | — |
+
+- Gravar no histórico nunca impede a publicação: se a D1 falhar, a análise já está no KV e a tarefa só avisa.
+- A tarefa escreve pela mesma API da Cloudflare que usa para o KV (`d1Run` em `analista/comum.mjs`; o token é o injetado).
+- `GET /api/history?place=<id>&days=30` (o telemóvel do local e o dono) — ver [docs/API.md](docs/API.md).
+- `node meteo/analista/historico.mjs` mostra o que lá está; `--recuperar` copia o que ainda está no KV; `--observado`
+  grava já os dias observados (sem esperar pela próxima análise). A 16/11 recuperaram-se 36 análises (desde 06/11).
+- Consultas à mão: `cd meteo/proxy && npx wrangler d1 execute meteo-historico --remote --command "SELECT * FROM acertos WHERE local = 'santo-tirso'"`.
+
 ## Os meus locais (1.15)
 
 Tocar no nome do local (no topo) abre **Os meus locais**: os locais guardados (até 12) e os que o Claude analisa todos os

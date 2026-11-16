@@ -11,6 +11,12 @@ keep_vars = true
 binding = "KV"
 id = "df3dfce3ae1b40cdb97071b58df3e7b0"
 
+# Histórico em SQL (D1): o KV fica a cache do que a app lê; aqui guarda-se a evolução. Esquema em historico.sql.
+[[d1_databases]]
+binding = "HIST"
+database_name = "meteo-historico"
+database_id = "b7144964-3aab-46e2-8bbc-f11235e909b9"
+
 # Notificações do fim do dia: o conector acorda de 15 em 15 min e envia as que chegaram à hora (scheduled → runPush)
 [triggers]
 crons = ["*/15 * * * *"]

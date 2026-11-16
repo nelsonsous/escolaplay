@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.27.1';
+    const VERSION = '4.28.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -534,7 +534,10 @@
         const keys = Object.keys(AN).filter((k) => investable(k) && AN[k].advice && fin(qv(k).price));
         if (keys.length < 5) return;
         const items = keys.map((k) => { const r = AN[k]; return { s: k, p: +qv(k).price.toPrecision(8), a: r.advice.key, l: r.horizons.long ? r.horizons.long.score : null, m: r.horizons.mid.score, sh: r.horizons.short.score, o: r.discount && r.discount.opp ? 1 : 0 }; });
-        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: lotsEnvio(), plano: planoEnvio(), saveDays: cfg.saveDays, claude: !!cfg.claude, my: myList() }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
+        // 4.28.0: e o total da Carteira em € (o conector guarda, só da app do dono, a evolução dia a dia no histórico)
+        let carteira;
+        try { const ch = carteiraHoje(); if (fin(ch.v) && ch.v > 0) carteira = { v: Math.round(ch.v * 100) / 100, cp: Math.round(ch.cp * 1000) / 1000 }; } catch { /* sem o total: o diário vai na mesma */ }
+        try { await pxPost('/journal', { id: cfg.jid, date: day, items, lots: lotsEnvio(), plano: planoEnvio(), saveDays: cfg.saveDays, claude: !!cfg.claude, my: myList(), carteira }); cfg.jLast = day; saveCfg(); JOURNAL = null; } catch { /* tenta noutra altura */ }
     }
     // ---------- datas de compra de cripto (isenção de IRS aos 365 dias) ----------
     const lotOf = (k) => cfg.lots[k] || { plan: '', buys: [] };
