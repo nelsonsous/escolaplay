@@ -37,7 +37,27 @@ export const acentua = (nome) => String(nome ?? '').replace(/[A-Za-zÀ-ÿ]+/g, (
 });
 export const nomeDaChave = (k) => { const t = acentua(String(k).replace(/-/g, ' ')); return t[0].toUpperCase() + t.slice(1); };
 
+// o que não é deste tipo, embora venha na página da categoria (revisão de 16/11/2026 às 181 categorias): a página da
+// «carne picada» do Auchan traz almôndegas e hambúrgueres, a dos vinhos tintos traz brancos e conjuntos… Estes ficam
+// «tipo» (fora das comparações); os do tipo certo vêm da página desse tipo.
+const PREPARADOS = /hamburg|almondeg|salsich|espetad|panad|rolo de carne|confitad|desfiad|nugget|croquete|lasanha|empada/;
+export const FORA_DO_TIPO = {
+    'carne-picada': [PREPARADOS, /\bpato\b|bifinhos|bifes/],
+    'carne-novilho': [PREPARADOS], porco: [PREPARADOS], frango: [PREPARADOS, /canja/], peru: [PREPARADOS], 'borrego-cabrito': [PREPARADOS],
+    'vinho-tinto': [/vinho branco|vinho rose|\bconjunto\b|\bpack\b.*\+|espumante/], 'vinho-branco': [/vinho tinto|vinho rose|\bconjunto\b|espumante/],
+    'vinho-rose': [/espumante|\bbebida\b/], espumante: [/frisante|aromatizad|aperitivo|bellini/], 'vinho-do-porto': [/moscatel|vermute/],
+    'agua-sem-gas': [/agua de coco|com gas|gaseific|aromatiz|sabor/], 'agua-com-gas': [/mocktail/], refrigerantes: [/^agua|concentrado/],
+    manteiga: [/creme vegetal|meenteiga|margarina|amendoim/], sal: [/bicarbonato/], acucar: [/adocante|xarope|stevia/], mel: [/maple|agave|polen/],
+    atum: [/proteina vegetal|\bvuna\b|\bpate\b|sardinha|cavala/], arroz: [/pronto a comer|cozinhad/], salsicha: [/tofu|vegetal|vegan/],
+    fiambre: [/chourica|vegetarian|vegan|\bsabor a\b/], leite: [/\blatte\b|macchiato|infantil|\bnan\b|cappuccino/],
+    iogurtes: [/meal to go|refeicao|\bbebida lactea\b/], vinagre: [/biscoito|nectar/], 'peixe-fresco': [/congelad|descongelad/],
+    bacalhau: [/paloco/], 'queijo-fresco': [/ralado/], cerveja: [/panache/], lixivia: [/bloco sanitario/], 'gel-de-banho': [/esponja|puff/],
+    ovos: [/codorniz|chocolate|pascoa|liquid/], azeite: [/aromatiz/],
+};
+export const foraDoTipo = (k, nome) => (FORA_DO_TIPO[k] ?? []).some((r) => r.test(sem(nome)));
+
 // a razão para um produto ser suspeito (null se não é):
+//   - «tipo»: o nome diz que é outra coisa (FORA_DO_TIPO);
 //   - «tipo»: no talho, o animal do nome não é o do tipo;
 //   - «unidade»: o preço por quilo ou litro não bate com o preço e a embalagem (mais de três vezes: um dos dois está mal
 //     lido, «leite 6 × 1 L a 6,42 €/l»; menos do que isso pode ser o peso escorrido do atum, que é verdadeiro). O «por
@@ -45,6 +65,7 @@ export const nomeDaChave = (k) => { const t = acentua(String(k).replace(/-/g, ' 
 //     por ser muito diferente dos outros: o sal grosso a 0,29 €/kg e o wagyu a 139 €/kg são verdadeiros.
 export function suspeitos(k, produtos) {
     return produtos.map((p) => {
+        if (foraDoTipo(k, p.nome)) return 'tipo';
         const a = ANIMAIS_DO_TIPO[k] && etiquetas(p.nome, k)?.animal;
         if (a && !ANIMAIS_DO_TIPO[k].includes(a)) return 'tipo';
         const m = medida(p.emb);
