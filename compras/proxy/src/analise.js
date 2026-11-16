@@ -88,6 +88,6 @@ export async function dadosDaAnalise(db, ap, agora = new Date()) {
         itens: saida,
         totais: Object.fromEntries(Object.entries(totais).map(([c, t]) => [c, { nome: NOMES[c] ?? c, ...t }])),
         coisas: saida.length,
-        notas: 'Preços em cêntimos; uc é o preço por unidade (ub: kg, l, un). «escolha»: à mão (o utilizador escolheu o produto), automática ou pela app (o mais barato quando juntou). «pesquisa» é o que escreveu; «filtros» o que escolheu. As lojas online têm portes (null: vê-se no checkout).',
+        notas: 'Preços em cêntimos; uc é o preço por unidade (ub: kg, l, un). «escolha»: à mão (o utilizador escolheu o produto), automática ou pela app (o mais barato quando juntou). «pesquisa» é o que escreveu; «filtros» o que escolheu. As lojas online têm portes em cêntimos (sem «portes»: vê-se no checkout). As respostas não levam null: um campo que falta é «não há».',
     };
 }
