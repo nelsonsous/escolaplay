@@ -258,3 +258,11 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .afinar .q { margin: 4px 0 6px; font-weight: 600; }
 .afinado { margin: 4px 0 10px; }
 .chip.discreto { opacity: .75; font-size: 13px; }
+.botao.analisar { display: block; width: 100%; margin: 8px 0 4px; text-align: left; background: #13202f; border: 1px solid #2c4a6b; color: #dbeafe; }
+.botao.analisar small { display: block; color: var(--fraco); font-weight: 400; font-size: 13px; }
+.cartao.analise .resumo { font-size: 17px; line-height: 1.45; }
+.cartao.analise ul.an { list-style: none; padding: 0; margin: 6px 0; }
+.cartao.analise ul.an li { padding: 8px 0; border-bottom: 1px solid var(--linha, #333); }
+.cartao.analise ul.an small, .cartao.analise ul.an .coisas { display: block; color: var(--fraco); font-size: 14px; margin-top: 2px; }
+.cartao.analise input { width: 100%; box-sizing: border-box; margin: 6px 0; }
+.cartao.analise .espera { font-size: 16px; }

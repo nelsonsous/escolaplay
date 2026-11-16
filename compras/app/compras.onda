@@ -382,6 +382,7 @@
   `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="{ ? sp `Ou escreve (o 🎤 do teclado deixa falar)` `O que falta? (ex.: 2 leites, pão, ovos)` }" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
   `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
   Se ~ sp { `<div id="sug">` psug `</div>` }
+  Se > n 0 `<button class="botao analisar" data-onda="anl:0">🧠 Como fazer estas compras? <small>pergunta ao Claude: uma loja ou várias, e o que comprar online</small></button>`
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
   ? == n 0 { `<p class="vazio">A lista está vazia. { ? sp `Toca numa secção ou no que costumas comprar.` `Escreve o que falta em casa, separado por vírgulas.` }</p>` Se ~ sp pcostume 0 } {
     Se >= lj 0 {
@@ -664,6 +665,55 @@
   ? == estado 200 _an_gravar $"rcj" t { _an_gravar $"rcerr" ? && j j.erro texto`{ crut txt j.erro }` $"Sem ligação ao conector." 0 }
   desenha
   _me_solta t }
+# ---------- a análise do Claude a pedido (volta 16): onde comprar, numa ou em várias lojas, e o que vale a pena online ----------
+# a app pede (com uma pergunta opcional), o conector chama a tarefa do Claude, e a app vai vendo até estar feita
+: pede_analise >i { _an_gravar $"anerr" 0 = q _an_ler $"antxt" _an_buscar texto`POST /api/analise/pedir{ P 10 }\{"pergunta":{ ? q pjs q `null` }\}` $"lido_analise" 0 }
+: ve_analise >i { _an_gravar $"anerr" 0 _an_buscar $"/api/analise/ultima" $"lido_analise" 0 }
+: lido_analise ii>i t estado {
+  = j _ar_json t
+  ? == estado 200 _an_gravar $"anj" t { _an_gravar $"anerr" ? && j j.erro texto`{ crut txt j.erro }` $"Sem ligação ao conector." 0 }
+  desenha
+  _me_solta t }
+: danalise >i {
+  = j _ar_json _an_ler $"anj" = er _an_ler $"anerr"
+  `<div class="veu" data-onda="anf:0"></div><div class="cartao analise" role="dialog" aria-label="Análise das compras"><button class="fechar" data-onda="anf:0" aria-label="Fechar">✕</button>`
+  `<h2>🧠 Como fazer as compras</h2>`
+  Se er `<p class="aviso">{ crut er }</p>`
+  Se && ~ j ~ er `<p class="nota">A ver…</p>`
+  = a ? j j.analise 0
+  Se && j ~ a `<p class="nota">O Claude olha para a tua lista, os preços de cada loja (e como mudaram), as lojas online e as promoções do Lidl, e diz se compensa ir a uma ou a várias lojas, a quais, e o que comprar online. Usa o que pesquisaste, os filtros e o que escolheste à mão.</p>`
+  Se a {
+    Se a.pergunta `<p class="nota">Perguntaste: «{ esc a.pergunta }»</p>`
+    ? mesmo txt a.estado $"pendente" {
+        `<p class="espera">⏳ O Claude está a analisar a tua lista{ ? int j.naHora ` (uns minutos)` ` (na próxima corrida, até 3 horas)` }.</p><button class="botao fraco" data-onda="anv:0">Ver se já está</button>` 0 }
+      { = r a.resultado
+        Se r {
+          `<p class="resumo">{ esc r.resumo }</p>`
+          = l pri r.lojas
+          Se l `<h3>Onde comprar</h3><ul class="an">`
+          W l {
+            `<li><b>{ esc l.loja }</b>{ Se l.porque `<small>{ esc l.porque }</small>` }`
+            = c pri l.coisas = i 0
+            Se c `<span class="coisas">`
+            W c { Se i `, ` `{ esc c }` = c seg c = i + i 1 }
+            Se pri l.coisas `</span>`
+            `</li>` = l seg l }
+          Se pri r.lojas `</ul>`
+          = o pri r.online
+          Se o `<h3>Online</h3><ul class="an">`
+          W o { `<li><b>{ esc o.loja }</b>{ Se o.o_que ` — { esc o.o_que }` }{ Se o.porque `<small>{ esc o.porque }</small>` }{ Se o.url `<a href="{ esc o.url }" target="_blank" rel="noopener">Ver no site ↗</a>` }</li>` = o seg o }
+          Se pri r.online `</ul>`
+          = v pri r.avisos
+          W v { `<p class="nota">⚠️ { esc v }</p>` = v seg v }
+          = p pri r.perguntas = i 0
+          Se p `<h3>Para afinar</h3><p class="nota">Toca numa pergunta, responde por baixo e pede outra vez.</p><div class="chips">`
+          W p { `<button class="chip" data-onda="anp:{ N i }">{ esc p }</button>` = p seg p = i + i 1 }
+          Se pri r.perguntas `</div>`
+          `<p class="nota">Feita a { esc a.feita }. É uma sugestão do Claude com os preços dos sites: confirma na loja.</p>` } 0 } }
+  `<h3>{ ? a `Pedir outra análise` `Pedir a análise` }</h3>`
+  `<input data-onda="anq" value="{ Se _an_ler $"antxt" esct _an_ler $"antxt" }" placeholder="Opcional: só uma loja; um tinto para peixe…" aria-label="Pergunta ao Claude" autocomplete="off">`
+  `<div class="acoes"><button class="botao fraco" data-onda="anf:0">Fechar</button><button class="botao" data-onda="anpe:0">Pedir ao Claude</button></div></div>`
+  0 }
 : rcfonte i>i f ? mesmo f $"tiktok" $"TikTok" ? mesmo f $"youtube" $"YouTube" $"texto"
 : dreceita >i {
   = j _ar_json _an_ler $"rcj" = er _an_ler $"rcerr"
@@ -698,12 +748,13 @@
   0 }
 
 : dfolha >i {
-  = h _ht_ini + + + 12000 ? _an_ler $"tp" * 2 _tx_len _an_ler $"tp" 0 ? _an_ler $"nt" * 3 _tx_len _an_ler $"nt" 0 ? _an_ler $"rcj" * 3 _tx_len _an_ler $"rcj" 0
+  = h _ht_ini + + + 12000 ? _an_ler $"tp" * 2 _tx_len _an_ler $"tp" 0 ? _an_ler $"nt" * 3 _tx_len _an_ler $"nt" 0 ? _an_ler $"rcj" * 3 _tx_len _an_ler $"rcj" 0 ? _an_ler $"anj" * 3 _tx_len _an_ler $"anj" 0
   = c item_aberto
   Se _an_ler $"tk" dtipo
   Se && _an_ler $"natal" ~ _an_ler $"tk" dnatal
+  Se && && && _an_ler $"analise" ~ _an_ler $"tk" ~ _an_ler $"natal" ~ _an_ler $"receita" danalise
   Se && && _an_ler $"receita" ~ _an_ler $"natal" ~ _an_ler $"tk" dreceita
-  Se && && && ~ _an_ler $"tk" ~ _an_ler $"natal" ~ _an_ler $"receita" c {
+  Se && && && && ~ _an_ler $"tk" ~ _an_ler $"natal" ~ _an_ler $"receita" ~ _an_ler $"analise" c {
     `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }"><button class="fechar" data-onda="fecha:0" aria-label="Fechar">✕</button>`
     `<h2>{ esc c.t }</h2>`
     `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
@@ -1386,6 +1437,11 @@
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
   Se eacao t $"pes" { = h _tx_abre 100 `POST /api/casa/pessoas{ P 10 }\{"n":{ ? v N v `null` }\}` _tx_fecha h _an_buscar h $"lido_casa" }
+  Se eacao t $"anl" { _an_gravar $"analise" $"1" _an_gravar $"anj" 0 ve_analise }
+  Se eacao t $"anf" { _an_gravar $"analise" 0 _an_gravar $"anerr" 0 }
+  Se eacao t $"anv" ve_analise
+  Se eacao t $"anpe" pede_analise
+  Se eacao t $"anp" { = j _ar_json _an_ler $"anj" = p ? && j j.analise idx j.analise.resultado.perguntas v 0 Se p _an_gravar $"antxt" texto`«{ crut txt p }» ` }
   Se eacao t $"pdt" { ? v _an_gravar $"pdt" $"1" _an_gravar $"pdt" 0 }
   Se eacao t $"pq" _an_gravar texto`pq{ N v }` $"1"
   Se eacao t $"ord" { ? v _an_gravar $"ord" $"1" _an_gravar $"ord" 0 }
@@ -1412,6 +1468,7 @@
   Se mesmo nome $"local" _an_gravar $"localtxt" v
   Se mesmo nome $"cpz" _an_gravar $"cptxt" v
   Se mesmo nome $"rctx" _an_gravar $"rctxt" v
+  Se mesmo nome $"anq" _an_gravar $"antxt" v
   _me_solta t }
 : main >i {
   _me_lb
