@@ -1008,7 +1008,11 @@
       = x seg x = i + i 1 }
     `<button class="chip" data-onda="pq:{ N q }">Tanto faz</button></div>`
     `<button class="mais-op" data-onda="pq:9">Ver tudo sem perguntas</button></div>` 0 }
-  Se && feitas || <= n 8 _an_ler $"pq9" `<p class="nota afinado">🧭 Ficam <b>{ N n }</b> { ? == n 1 `opção` `opções` } com o que escolheste (muda nos filtros abaixo).</p>`
+  # as das lojas online que passam nos mesmos filtros (o Vinha tem os Grande Reserva que os supermercados não têm)
+  = on 0 = y pri tp.pd W y { Se && ~ int y.esg tem_w y = on + on 1 = y seg y }
+  Se && feitas || <= n 8 _an_ler $"pq9" {
+    ? || n on `<p class="nota afinado">🧭 Ficam <b>{ N n }</b> nos supermercados{ Se on ` e <b>{ N on }</b> nas lojas online (mais abaixo)` } com o que escolheste.</p>`
+      `<p class="nota afinado">🧭 Nada com isto, nem nas lojas online. Toca num filtro no caminho, lá em cima, para o tirar.</p>` 0 }
   0 }
 : dfilas i>i tp {
   = f pri tp.filas

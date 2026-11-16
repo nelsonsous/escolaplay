@@ -12,7 +12,7 @@ test('Vinha: o preço, o EAN, a Vivino e as notas dos críticos com o ano', () =
     const v = lerVinho(readFileSync(new URL('./fontes/vinha-esporao-reserva.html', import.meta.url), 'utf8'), URL_ESP);
     assert.deepEqual([v.id, v.tipo, v.cent, v.cl, v.colheita, v.ean, v.disponivel, v.vivino, v.votos],
         ['100168', 'vinho-tinto', 1679, 75, 2023, '5601989980809', 1, 4.1, 903]);
-    assert.equal(v.nome, 'Vinho Tinto Herdade do Esporão Esporão Reserva 2023');
+    assert.equal(v.nome, 'Vinho Tinto Herdade do Esporão Esporão Reserva 2023 Alentejo');
     assert.deepEqual(v.fontes[0], { fonte: 'Wine Spectator', tipo: 'critico', valor: '90/100', colheita: 2023 });
     assert.ok(v.fontes.some((f) => f.fonte === 'Robert Parker' && f.colheita === 2016));
     assert.ok(!v.fontes.some((f) => f.valor === '90/00')); // a gralha da página não conta
@@ -74,4 +74,13 @@ test('Garrafeira Soares: o preço, o EAN e o tamanho dos dados da página; o tip
     const esc = escolher([u, 'https://www.garrafeirasoares.pt/pt/portugal/vinhos/vinho-tinto-esporao-reserva-1-5-l/item_10017.html'],
         [{ nome: 'Esporão Colheita Alentejo Vinho Tinto', tipo: 'vinho-tinto', q: 0.75 }, { nome: 'Esporão Reserva Alentejo Vinho Tinto', tipo: 'vinho-tinto', q: 0.75 }]);
     assert.deepEqual([...esc], [[u, 'esporao colheita tinto']]);
+});
+
+test('Vinha: os extras são portugueses de 75 cl, de gama alta primeiro, sem os já escolhidos', async () => {
+    const { extras } = await import('../economo/vinha.mjs');
+    const b = 'https://www.vinha.pt/vinho/';
+    const urls = [b + 'vinho-tinto-x-2022-75cl-douro/', b + 'vinho-tinto-y-grande-reserva-2019-75cl-douro/', b + 'vinho-tinto-z-reserva-2021-75cl-alentejo/',
+        b + 'vinho-tinto-w-grande-reserva-2018-75cl-bordeus-franca/', b + 'vinho-tinto-v-grande-reserva-2018-15l-douro/', b + 'vinho-tinto-u-reserva-2020-75cl-dao/'];
+    assert.deepEqual(extras(urls, new Set([b + 'vinho-tinto-u-reserva-2020-75cl-dao/']), 3),
+        [b + 'vinho-tinto-y-grande-reserva-2019-75cl-douro/', b + 'vinho-tinto-z-reserva-2021-75cl-alentejo/', b + 'vinho-tinto-x-2022-75cl-douro/']);
 });

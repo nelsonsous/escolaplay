@@ -106,7 +106,7 @@ export function lerVinho(h, url) {
     if (pr) fontes.push(...premiosDoTexto(pr[1]));
     const vistas = new Set();
     return {
-        id: String(p.sku ?? url.split('/vinho/')[1]?.replace(/\/$/, '')), nome: nome.replace(/,\s*\d+(?:[.,]\d+)?\s*c?l\b.*$/i, '').trim(),
+        id: String(p.sku ?? url.split('/vinho/')[1]?.replace(/\/$/, '')), nome: nome.replace(/,\s*\d+(?:[.,]\d+)?\s*c?l\b/i, '').replace(/\s+/g, ' ').trim(), // com a região («… 2023 Alentejo»), para o filtro da região
         nomeCompleto: nome, url, tipo: tipoDoSlug(url), cent: Math.round(preco * 100), cl, colheita, ean: p.gtin13 ?? null,
         disponivel: /InStock/i.test(of?.availability ?? '') ? 1 : 0, vivino, votos: vivino ? Number(ar.ratingCount) : null,
         fontes: fontes.filter((f) => { const k = `${f.fonte}|${f.valor}|${f.colheita}`.toLowerCase(); if (vistas.has(k)) return false; vistas.add(k); return true; }),
