@@ -868,9 +868,12 @@
 : conta_em iiii>i tp k fe fm { = n 0 = p pri tp.produtos W p { Se && mesmo txt p.c cadeia k passa p fe fm = n + n 1 = p seg p } n }
 # as outras opções do supermercado k (até 14, as mais baratas por unidade primeiro); a escolhida (e) marcada. No talho e
 # na peixaria arrumam-se por corte (os cortes pela ordem do mais barato de cada um), cada corte com o título
+# o preço por unidade como se mostra: no vinho, por garrafa de 75 cl (o litro × 3/4: o garrafão e o bag-in-box ficam
+# comparáveis com a garrafa); no resto, por quilo, litro ou unidade. famv: a folha aberta é de vinho
+: puc ii>i c u ? && _an_ler $"famv" mesmo u $"l" texto`{ eur / * c 3 4 }<i>/garrafa</i>` texto`{ eur c }<i>/{ crut u }</i>`
 : dop1 iiii>i p k j e {
   `<button class="op{ Se mesmo txt p.id txt e.id ` on` }" data-onda="esco:{ N + * k 1000 j }"><b>{ esc p.nome }</b>`
-  `<span class="uc">{ ? p.uc `{ eur int p.uc }<i>/{ crut txt p.ub }</i>` `{ eur int p.cent }` }</span>`
+  `<span class="uc">{ ? p.uc { crut puc int p.uc txt p.ub } `{ eur int p.cent }` }</span>`
   `<span class="pr">{ Se mesmo txt p.id txt e.id `✓ escolhido · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }{ dvar p }</span>`
   dsinais p
   `</button>` 0 }
@@ -1052,6 +1055,7 @@
   0 }
 : dtipo >i {
   = tp _ar_json _an_ler $"tp"
+  ? && tp mesmo txt tp.fam $"vinho" _an_gravar $"famv" $"1" _an_gravar $"famv" 0
   = fe _an_ler $"fe" = fm _an_ler $"fm" = tq _an_ler $"tq"
   `<div class="veu" data-onda="fechat:0"></div><div class="cartao escolha{ Se _an_ler $"simples" ` simples` }" role="dialog" aria-label="Escolher o produto"><button class="fechar" data-onda="fechat:0" aria-label="Fechar">✕</button>`
   ? tp {
@@ -1104,14 +1108,14 @@
         W px {
           Se && && && ~ int px.esg tem_w px px.uc mesmo txt px.ub ub { ? pm { Se < int px.uc int pm.uc = pm px 0 } { = pm px 0 } }
           = px seg px }
-        `<p class="veredicto">🏆 Mais barato por { crut unidade ub }: <b>{ crut nomecad mk }</b>, { eur mu }/{ crut ub }`
-        Se && pm < int pm.uc mu ` · na loja <b>{ crut nomeprod txt pm.loja }</b> fica { N / - * 100 mu * 100 int pm.uc mu }% mais barato ({ eur int pm.uc }/{ crut ub }){ ? pm.po { ? int pm.po `, mais { eur int pm.po } de portes` `, sem portes` } `` }`
+        `<p class="veredicto">🏆 Mais barato { ? _an_ler $"famv" `por garrafa (75 cl)` `por { crut unidade ub }` }: <b>{ crut nomecad mk }</b>, { crut puc mu ub }`
+        Se && pm < int pm.uc mu ` · na loja <b>{ crut nomeprod txt pm.loja }</b> fica { N / - * 100 mu * 100 int pm.uc mu }% mais barato ({ crut puc int pm.uc ub }){ ? pm.po { ? int pm.po `, mais { eur int pm.po } de portes` `, sem portes` } `` }`
         `</p>` }
       L k 4 {
         = p melhor_em tp k fe fm
         ? p {
             = u && && p.uc ub mesmo txt p.ub ub
-            ? u `<li{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.uc }<i>/{ crut ub }</i></span>`
+            ? u `<li{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ crut puc int p.uc ub }</span>`
               `<li><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
             # ao quilo (uma peça inteira): o que se paga é aproximado, pelo peso médio da peça
             `<small><b class="emb">Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { Se int p.aq `≈ ` }{ esc p.emb }` }</b>{ Se int p.aq ` · vende-se ao quilo` }{ dvar p }`
@@ -1169,10 +1173,10 @@
   W && x || todos < n 3 {
     Se && ~ int x.esg tem_w x {
       Se ~ n `<li class="prod-t"><b>Lojas online <small>({ N t }{ Se || _an_ler $"fa" || _an_ler $"fp" || _an_ler $"fc" _an_ler $"fw" `, com os teus filtros` })</small></b><small>Compra-se no site deles, com portes de envio; não entra no «Mais barato».</small></li>`
-      `<li class="prod"><b>{ crut nomeprod txt x.loja }</b><span class="total">{ ? x.uc `{ eur int x.uc }<i>/{ crut txt x.ub }</i>` `{ eur int x.cent }` }</span>`
-      `<small><b class="emb">Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }{ Se x.po { ? int x.po ` + { eur int x.po } de portes` ` · sem portes` } }</b>{ Se && x.uc > mu 0 { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por quilo` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por quilo` } } · { esc x.nome }</small>`
+      `<li class="prod"><b>{ crut nomeprod txt x.loja }</b><span class="total">{ ? x.uc { crut puc int x.uc txt x.ub } `{ eur int x.cent }` }</span>`
+      `<small><b class="emb">Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }{ Se x.po { ? int x.po ` + { eur int x.po } de portes` ` · sem portes` } }</b>{ Se && x.uc > mu 0 { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% { ? _an_ler $"famv" `por garrafa` `por quilo` }` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato { ? _an_ler $"famv" `por garrafa` `por quilo` }` } } · { esc x.nome }</small>`
       dsinais x
-      Se x.vv `<small class="mesmo">★ Vivino <b>{ esc txt x.vv }</b>/5{ Se x.vn ` ({ N int x.vn } votos)` }</small>`
+      Se x.vv `<small class="mesmo">★ Vivino <b>{ esc x.vv }</b>/5{ Se x.vn ` ({ N int x.vn } votos)` }</small>`
       Se x.mv `<small class="mesmo">O mesmo no { crut nomec txt x.mv.c }: <b>{ eur int x.mv.cent }</b>{ ? < int x.mv.cent int x.cent ` (mais barato lá)` ? > int x.mv.cent int x.cent ` (mais caro lá)` ` (igual)` }</small>`
       Se x.mc `<small class="mesmo">A mesma marca no { crut nomec txt x.mc.c }{ Se x.mc.kg `, peça de ≈ { esc txt x.mc.kg } kg` }: <b>{ eur int x.mc.uc }/kg</b>{ ? < int x.mc.uc int x.uc ` (mais barato lá)` ` (mais caro lá)` }</small>`
       `<small class="mesmo">{ Se x.pn `Portes: { esc x.pn } · ` }<a href="{ esc x.url }" target="_blank" rel="noopener">Ver no site ↗</a></small></li>`
@@ -1198,7 +1202,7 @@
       = fw _an_ler $"fw" Se ~ fw = fw _an_ler $"fa"
       Se fw { = x 0 = v 0 = uv 0 = y pri tp.est.w W y { Se mesmo txt y.w fw = uv int ? q y.spar y.merc = y seg y } }
       Se || v uv {
-        ? && uv ub `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { eur uv }<i>/{ crut ub }</i></span><small>`
+        ? && uv ub `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { crut puc uv ub }</span><small>`
           `<li class="est"><b>{ crut nome } ≈</b><span class="total">≈ { eur v }</span><small>`
         Se v `<b class="emb">Pagarias ≈ { eur v } por { crut e0 }</b>`
         Se && && uv ub > mu 0 { ? > uv mu ` · ≈ +{ N / - * 100 uv * 100 mu mu }% por { crut unidade ub }` { Se < uv mu ` · ≈ { N / - * 100 mu * 100 uv mu }% mais barato por { crut unidade ub }` 0 } }
