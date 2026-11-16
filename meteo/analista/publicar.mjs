@@ -5,7 +5,8 @@
 // Grava analysis:<id> (a app lê-a em /api/analysis, só o telemóvel do local e o dono), o arquivo
 // analysis:<id>:<data-hora> (30 dias), lessons:<id> e conta a análise no dia (stats:<data de Lisboa>, painel "Utilização").
 // Junta à análise o consenso dos modelos desta corrida e o peso atual dos números do Claude (nums:<id>, do dados.mjs).
-// E guarda-a no histórico (D1 meteo-historico: analises + numeros), que fica para sempre (o KV só tem a última).
+// Desde o conector 1.11 a caixa de correio é a D1 (meteo-historico: analises + numeros, para sempre): o Worker lê lá a
+// última. Se a D1 falhar, a análise vai para o KV (analysis:<id> e o arquivo de 30 dias), e o Worker lê a mais recente.
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { validateAnalysis, regionalPhrases } from '../lib/analysis.js';
@@ -47,14 +48,16 @@ const sameRun = nm?.consenso?.at && Math.abs(Date.now() - Date.parse(nm.consenso
 const doc = { ...value, generatedAt: new Date().toISOString(), by: 'claude-agendado', model: arg('--model', 'claude'),
     place: { id: place.id, name: place.name, lat: place.lat, lon: place.lon },
     ...(sameRun ? { consenso: nm.consenso.dias } : {}), ...(nm?.pesos ? { pesos: nm.pesos } : {}) };
-await kvPut('analysis:' + id, doc);
-await kvPut(`analysis:${id}:${doc.generatedAt.slice(0, 13)}`, doc, { ttl: 30 * 86400 });
+let naD1 = false;
+if (!DRY) { try { naD1 = (await d1Run(analysisRows(doc))) > 0; } catch (e) { console.error(`(D1 falhou: ${e.message}; a análise vai para o KV)`); } }
+if (!naD1) {
+    await kvPut('analysis:' + id, doc);
+    await kvPut(`analysis:${id}:${doc.generatedAt.slice(0, 13)}`, doc, { ttl: 30 * 86400 });
+}
 if (value.licoes.length) await kvPut('lessons:' + id, value.licoes);
-// o histórico: se falhar, a análise já está publicada (o KV é o que a app lê)
-if (!DRY) { try { await d1Run(analysisRows(doc)); } catch (e) { console.error(`(histórico não gravado: ${e.message})`); } }
 // contador do dia (painel "Utilização" do dono): agendadas e quantas foram para locais de outros telemóveis
 const day = 'stats:' + lisbon().date;
 try { await kvPut(day, bumpStats(await kvGet(day), { kind: 'scheduled', guest: !isOwnerPlace(place) }), { ttl: STATS_TTL }); }
 catch (e) { console.error(`(contador do dia não gravado: ${e.message})`); }
-console.log(`${DRY ? 'Válida (nada gravado)' : 'Publicado'}: ${place.name} (${KIND_PT[placeKind(place)]}) — "${doc.titulo}" (${value.alertas.length} alertas, ${value.licoes.length} lições; ` +
+console.log(`${DRY ? 'Válida (nada gravado)' : naD1 ? 'Publicado (D1)' : 'Publicado (KV, de reserva)'}: ${place.name} (${KIND_PT[placeKind(place)]}) — "${doc.titulo}" (${value.alertas.length} alertas, ${value.licoes.length} lições; ` +
     `números de ${value.numeros.length} dias${doc.pesos ? `, peso do Claude máx. ${Math.round(doc.pesos.tmax * 100)}% · mín. ${Math.round(doc.pesos.tmin * 100)}% · chuva ${Math.round(doc.pesos.chuva * 100)}%` : ''}${sameRun ? '' : '; sem o consenso desta corrida'}).`);

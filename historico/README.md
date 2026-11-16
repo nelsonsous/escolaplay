@@ -13,6 +13,18 @@ da sua app (binding `HIST`):
 Triagem (16/11): guarda-se o que não se consegue voltar a obter — o que o Claude escreveu, os dados do dono e as
 verificações. O que é público e se volta a buscar (previsões dos modelos, preços, playlists, capas) fica de fora.
 
+## Perguntar ao histórico (só leitura)
+
+    NODE_USE_ENV_PROXY=1 node historico/consultar.mjs <meteo|mercados|musica> "SELECT …" [--json]
+    NODE_USE_ENV_PROXY=1 node historico/consultar.mjs <app> --esquema
+
+Uma instrução SELECT (ou WITH … SELECT), até 200 linhas. As tarefas agendadas usam-na (ANALISTA.md, CONSELHEIRO.md:
+no máximo 3 consultas por corrida). Nas conversas do claude.ai, o conector «Cloudflare Developer Platform» faz o mesmo
+(`d1_database_query`), e o painel Data «Histórico das apps» lê as bases ao vivo por ele.
+
+Desde a Meteo 1.11 a base `meteo-historico` é também a caixa de correio da análise (o Worker lê lá a última; o KV fica
+de reserva).
+
 ## Levar os dados para o Excel ou o Google Sheets
 
     NODE_USE_ENV_PROXY=1 node historico/exportar.mjs [meteo|mercados|musica] [--pasta <dir>] [--ponto]

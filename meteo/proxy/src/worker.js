@@ -9,12 +9,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl, REPORT_KINDS } from '../../lib/sources.js';
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
-import { analysisRows, runD1, readHistory } from '../../lib/historico.js';
+import { analysisRows, runD1, readHistory, latestAnalysis, newest } from '../../lib/historico.js';
 import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner, placeMembers, lastSeenOfPlace, isOwnerPlace, placeKind, othersMode, approx, lisbon,
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.10.0';
+const VERSION = '1.11.0';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -577,6 +577,17 @@ export async function watchWants(env, now = Date.now()) {
     return f;
 }
 
+// A última análise de um local. Desde a 1.11 a caixa de correio é a D1 (a tarefa grava lá cada análise, e o
+// histórico fica junto); o KV (analysis:<id>) é a reserva: lá ficam as de antes e as que se gravaram quando a D1
+// falhou. Lê as duas ao mesmo tempo e vale a mais recente.
+async function lastAnalysis(env, id) {
+    const [d1, kv] = await Promise.all([
+        latestAnalysis(env.HIST, id).catch((e) => { console.error('histórico', e); return null; }),
+        env.KV ? env.KV.get('analysis:' + id, 'json').catch(() => null) : null,
+    ]);
+    return newest(d1, kv);
+}
+
 async function getAnalysis(req, env, url, ctx) {
     const c = coords(url.searchParams);
     if (!c) return bad('coordenadas inválidas');
@@ -584,7 +595,7 @@ async function getAnalysis(req, env, url, ctx) {
     if (me.error) return me.error;
     const [places, mode] = await Promise.all([getPlaces(env), getSettings(env).then(othersMode)]);
     const near = nearestOf(me, places, c.lat, c.lon, 10);
-    let analysis = near && env.KV ? await env.KV.get('analysis:' + near.p.id, 'json') : null;
+    let analysis = near ? await lastAnalysis(env, near.p.id) : null;
     // ao abrir a app: a análise do seu local com mais de 6 h → chama a tarefa (fica pronta para a vez seguinte)
     let refreshing = false;
     if (onOpenOn(env) && near && env.KV && mine(me, near.p) && !near.p.off) {
@@ -689,7 +700,7 @@ async function deletePush(req, env, url) {
     return new Response(null, { status: 204 });
 }
 async function deliver(env, e, { keys, places, analyses, weekly, nowMs }) {
-    if (!analyses.has(e.place)) analyses.set(e.place, await env.KV.get('analysis:' + e.place, 'json').catch(() => null));
+    if (!analyses.has(e.place)) analyses.set(e.place, await lastAnalysis(env, e.place));
     const place = places.find((p) => p.id === e.place);
     const msg = pushMessage(analyses.get(e.place), { name: place?.name, weekly, url: `${appUrl(env)}?tab=analise`, nowMs });
     return sendPush({ endpoint: e.ep, keys: e.k }, msg, keys, { subject: appUrl(env) });
@@ -813,7 +824,7 @@ async function refreshByTask(req, env, url) {
     if (!c) return bad('coordenadas inválidas');
     const near = nearestOf(me, await getPlaces(env), c.lat, c.lon, 10);
     if (!near || !mine(me, near.p) || near.p.off) return json({ error: 'sem_local', message: 'Pedir a análise é para o teu local com análise ligada: liga-a primeiro (Análise → «Análise para este local»).' }, 409);
-    const a = await env.KV.get('analysis:' + near.p.id, 'json');
+    const a = await lastAnalysis(env, near.p.id);
     if (a?.generatedAt && Date.now() - Date.parse(a.generatedAt) < 30 * 6e4) return json({ error: 'limite', message: 'A análise deste local tem menos de 30 min.' }, 429);
     const f = await wantAnalysis(env, near.p, 'pedida na app');
     if (f.full) return json({ error: 'limite', message: 'Já se pediram muitas análises nesta hora; tenta mais tarde.' }, 429);
@@ -840,7 +851,7 @@ async function refresh(req, env, url) {
 
     // só conta como análise de um local se for um dos seus, para o mesmo ponto (≤ 2 km, como na app); senão fica à parte
     const place = nearestOf(me, (await getPlaces(env)).filter((p) => mine(me, p)), c.lat, c.lon, 2)?.p || null;
-    const previous = place ? await env.KV.get('analysis:' + place.id, 'json') : null;
+    const previous = place ? await lastAnalysis(env, place.id) : null;
     const lessons = place ? (await env.KV.get('lessons:' + place.id, 'json')) || [] : [];
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
     const model = env.CLAUDE_MODEL;
@@ -876,10 +887,10 @@ async function refresh(req, env, url) {
     const analysis = { ...value, generatedAt: new Date().toISOString(), by: 'claude-api', model: msg.model || model,
         place: place ? { id: place.id, name: place.name, lat: c.lat, lon: c.lon } : { id: null, name: typeof b?.name === 'string' ? b.name.slice(0, 40) : null, lat: c.lat, lon: c.lon } };
     if (place) {
-        await env.KV.put('analysis:' + place.id, JSON.stringify(analysis));
+        // a caixa de correio é a D1 (com o histórico); o KV só se a D1 falhar ou não estiver ligada
+        const naD1 = await runD1(env.HIST, analysisRows(analysis)).then((n) => n > 0).catch((e) => { console.error('histórico', e); return false; });
+        if (!naD1) await env.KV.put('analysis:' + place.id, JSON.stringify(analysis));
         if (value.licoes.length) await env.KV.put('lessons:' + place.id, JSON.stringify(value.licoes));
-        // o histórico (D1): se falhar, a análise já está no KV, que é o que a app lê
-        await runD1(env.HIST, analysisRows(analysis)).catch((e) => console.error('histórico', e));
     } else if (me.id) await env.KV.put(adhocKey(me.id), JSON.stringify(analysis), { expirationTtl: 86400 });
     // contador do dia (painel "Utilização"): lido de novo, a tarefa agendada pode ter contado entretanto
     await env.KV.put(statsKey, JSON.stringify(bumpStats(await env.KV.get(statsKey, 'json'), { kind: 'instant', guest: !me.owner })), { expirationTtl: STATS_TTL });

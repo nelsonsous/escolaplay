@@ -166,7 +166,12 @@ dura 30 dias). Para ver a evolução, tudo fica também numa base SQL **D1** da 
 | `observado` | o que as estações mediram em cada dia acabado (mediana e quantas) e o que o consenso dava na véspera | `dados.mjs` (cada corrida regrava os últimos dias) |
 | vista `acertos` | previsto × observado: o erro da análise e o do consenso, por dia e prazo | — |
 
-- Gravar no histórico nunca impede a publicação: se a D1 falhar, a análise já está no KV e a tarefa só avisa.
+- **Caixa de correio (conector 1.11):** a D1 é também onde o Worker vai buscar a última análise de cada local. A tarefa
+  grava lá primeiro; só se a D1 falhar grava no KV (`analysis:<id>` e o arquivo de 30 dias), e o Worker, a notificação
+  e a tarefa ficam com a mais recente das duas. Menos escritas no KV (o limite grátis de 1000/dia é para as três apps)
+  e a análise aparece logo (o KV podia levar até ~1 min).
+- As tarefas podem fazer perguntas ao histórico (só leitura): `node historico/consultar.mjs meteo "SELECT …"` (ver
+  ANALISTA.md, no máximo 3 por corrida).
 - A tarefa escreve pela mesma API da Cloudflare que usa para o KV (`d1Run` em `analista/comum.mjs`; o token é o injetado).
 - `GET /api/history?place=<id>&days=30` (o telemóvel do local e o dono) — ver [docs/API.md](docs/API.md).
 - `node meteo/analista/historico.mjs` mostra o que lá está; `--recuperar` copia o que ainda está no KV; `--observado`
