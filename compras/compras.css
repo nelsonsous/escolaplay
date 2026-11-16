@@ -101,6 +101,8 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .sug .chip { border-color: #2d4a35; }
 .melhores { list-style: none; padding: 0; margin: 8px 0 12px; }
 .melhores li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--linha); }
+.melhores .pnome { grid-column: 1 / -1; font-weight: 600; font-size: 16px; color: var(--texto, inherit); overflow-wrap: anywhere; }
+.melhores .escolhe { font-weight: 600; }
 .melhores .total { font-weight: 700; font-variant-numeric: tabular-nums; }
 .melhores small { grid-column: 1 / -1; color: var(--fraco); font-size: 14px; overflow-wrap: anywhere; }
 .melhores li.melhor b, .melhores li.melhor .total { color: var(--verde); }

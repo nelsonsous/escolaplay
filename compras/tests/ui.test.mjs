@@ -299,7 +299,7 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         a.on('pageerror', (e) => erros.push(e.message));
         await a.goto(s.url());
         const chave = await (await a.waitForFunction(() => localStorage.getItem('compras:chave'))).jsonValue();
-        const linhas = () => a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => [x.className, x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector(':scope > small').textContent]));
+        const linhas = () => a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => [x.className, x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector(':scope > small').textContent, x.querySelector('.pnome')?.textContent ?? ''].filter((v, i) => i < 4 || v)));
 
         // a árvore: com o campo vazio, «Ver por secções» → Bebidas › → os tipos dela → a escolha
         await a.click('#sug [data-onda="vsecs:1"]');
@@ -340,9 +340,9 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         // sem filtro: o mais barato por litro de cada um; o melhor fica marcado
         // em grande o que se paga e, por baixo, o preço por litro (o que pesa com embalagens diferentes); por baixo a embalagem
         assert.deepEqual(await linhas(), [
-            ['', 'Continente', '1,99 €0,28 €/l', 'Pagas 1,99 € por 7 L · +75% por litro · Água sem Gás Garrafão Luso'],
-            ['melhor', 'Pingo Doce 🏷', '0,96 €0,16 €/l', 'Pagas 0,96 € por 6 L · o mais barato por litro · Água sem Gás Garrafão'],
-            ['melhor', 'Auchan 🏷', '0,96 €0,16 €/l', 'Pagas 0,96 € por 6 L · o mais barato por litro · ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L'],
+            ['', 'Continente', '1,99 €0,28 €/l', 'Pagas 1,99 € por 7 L · +75% por litro', 'Água sem Gás Garrafão Luso'],
+            ['melhor', 'Pingo Doce 🏷', '0,96 €0,16 €/l', 'Pagas 0,96 € por 6 L · o mais barato por litro', 'Água sem Gás Garrafão'],
+            ['melhor', 'Auchan 🏷', '0,96 €0,16 €/l', 'Pagas 0,96 € por 6 L · o mais barato por litro', 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L'],
         ]);
         // 6 L: o Continente não tem
         await a.click('#folha .chip >> text="6 L"');
@@ -472,8 +472,12 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         await a.click('#folha [data-onda^="fw:"]:has-text("para grelhar")');
         const caminho = await a.locator('#folha .caminho button, #folha .caminho b').allTextContents();
         assert.deepEqual(caminho, ['Todas', 'Talho e peixaria', 'Peixe fresco', 'carapau', 'para grelhar']);
-        const linhas = await a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => x.querySelector(':scope > small').textContent));
+        const linhas = await a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => x.querySelector('.pnome')?.textContent ?? x.textContent));
         assert.match(linhas[0], /Carapau Médio Fresco/);
+        // o nome em destaque e «✓ Escolher este» (mesmo com uma só opção) fica à mão
+        await a.click('#folha #cad0 .escolhe');
+        await a.waitForSelector('#folha #cad0 .mao');
+        assert.equal(await a.locator('#folha #cad0 .escolhe').count(), 0);
         // o que distingue cada produto: os sinais do nome (fresco) e a marca
         assert.match(await a.locator('#folha .melhores li >> nth=0 >> .sinais').textContent(), /✚ fresco/);
         assert.match(linhas[2], /CARAPAU MEDIO/);
@@ -691,8 +695,8 @@ test('o vinho: a fila «Nota» (críticos e Vivino) filtra os supermercados e as
         assert.match(await a.textContent('#folha li.prod >> nth=0'), /Vivino 4,3\/5 \(900 votos\)/);
         await a.click('#folha .chip:has-text("Críticos 87+")');
         await a.waitForSelector('#folha .caminho button:has-text("Críticos 87+")');
-        const nomes = await a.locator('#folha .melhores > li:not(.est) small').allTextContents();
-        assert.ok(nomes.some((t) => /o mais barato por litro.*Papa Figos/.test(t)) && !nomes.some((t) => /Monte Velho|RESERVA|Pingo Doce/.test(t)), nomes.join(' | '));
+        const nomes = await a.locator('#folha .melhores > li:not(.est)').evaluateAll((l) => l.map((x) => (x.querySelector('.pnome')?.textContent ?? '') + ' ' + (x.querySelector(':scope > small')?.textContent ?? '')));
+        assert.ok(nomes.some((t) => /Papa Figos.*o mais barato por litro/.test(t)) && !nomes.some((t) => /Monte Velho|RESERVA|Pingo Doce/.test(t)), nomes.join(' | '));
         assert.equal(await a.locator('#folha li.prod').count(), 0); // nenhum da loja online tem nota de crítico
         await a.click('#folha .chip:has-text("Vivino 4,2+")');
         await a.waitForSelector('#folha .caminho button:has-text("Vivino 4,2+")');
@@ -847,7 +851,7 @@ test('o vinho: as filas Região e Gama (não palavras soltas), escolher «Douro�
         await a.waitForSelector('#folha h3:has-text("O mais barato em cada supermercado")');
         await a.click('#folha .chip:has-text("Douro")');
         await a.waitForSelector('#folha .caminho button:has-text("Douro")');
-        const nomes = await a.locator('#folha .melhores > li small').allTextContents();
+        const nomes = await a.locator('#folha .melhores > li').evaluateAll((l) => l.map((x) => (x.querySelector('.pnome')?.textContent ?? '') + ' ' + (x.querySelector(':scope > small')?.textContent ?? '')));
         assert.ok(nomes.filter((t) => /Douro|DOURO/.test(t)).length >= 3 && !nomes.some((t) => /Alentejo|ALENTEJO/.test(t)), nomes.join(' | '));
         assert.match(await a.getAttribute('#folha a.vivino >> nth=0', 'href'), /^https:\/\/www\.vivino\.com\/search\/wines\?q=.*Douro/i);
         assert.match(await a.getAttribute('#folha a.vivino >> nth=1', 'href'), /^https:\/\/www\.wine-searcher\.com\/find\/.*\/1\/portugal$/);
