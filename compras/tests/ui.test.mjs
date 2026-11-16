@@ -299,7 +299,7 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         a.on('pageerror', (e) => erros.push(e.message));
         await a.goto(s.url());
         const chave = await (await a.waitForFunction(() => localStorage.getItem('compras:chave'))).jsonValue();
-        const linhas = () => a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => [x.className, x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector(':scope > small').textContent, x.querySelector('.pnome')?.textContent ?? ''].filter((v, i) => i < 4 || v)));
+        const linhas = () => a.locator('#folha .melhores li:not(.est)').evaluateAll((l) => l.map((x) => [x.className.trim(), x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector(':scope > small').textContent, x.querySelector('.pnome')?.textContent ?? ''].filter((v, i) => i < 4 || v)));
 
         // a árvore: com o campo vazio, «Ver por secções» → Bebidas › → os tipos dela → a escolha
         await a.click('#sug [data-onda="vsecs:1"]');
@@ -477,6 +477,8 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         // o nome em destaque e «✓ Escolher este» (mesmo com uma só opção) fica à mão
         await a.click('#folha #cad0 .pnome'); // tocar na caixa escolhe
         await a.waitForSelector('#folha #cad0 .mao');
+        assert.match(await a.getAttribute('#folha #cad0', 'class'), /escolhido/); // a caixa em destaque, com «✓ Escolhido»
+        assert.equal(await a.textContent('#folha #cad0 .tag-esc'), '✓ Escolhido');
         assert.equal(await a.getAttribute('#folha #cad0', 'data-onda'), null); // já escolhido: a caixa não volta a escolher
         // o que distingue cada produto: os sinais do nome (fresco) e a marca
         assert.match(await a.locator('#folha .melhores li >> nth=0 >> .sinais').textContent(), /✚ fresco/);

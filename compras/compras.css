@@ -194,7 +194,7 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 /* outras opções em cada supermercado: tudo o que vem depois do preço ocupa a linha inteira */
 .melhores .sinais, .melhores .mais-op, .melhores .opcoes, .melhores .mao, .melhores .spar-art { grid-column: 1 / -1; }
 .melhores .mais-op { justify-self: start; margin-top: 8px; padding: 6px 12px; min-height: 36px; border-radius: 18px; border: 1px solid #1f3a5c; background: transparent; color: var(--azul); font: inherit; font-size: 14px; }
-.melhores .mao { margin-top: 4px; font-size: 12px; color: var(--azul); }
+.melhores .mao { margin-top: 4px; font-size: 13px; color: var(--azul); }
 .melhores .opcoes { margin: 8px 0 2px; border: 1px solid var(--linha); border-radius: 14px; overflow: hidden; }
 .melhores .opcoes .op { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--linha);
     border-left: 3px solid transparent; background: transparent; color: var(--texto); font: inherit; font-size: 14px; }
@@ -278,3 +278,7 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .melhores .promo { grid-column: 1 / -1; justify-self: start; margin: 2px 0; padding: 2px 10px; border-radius: 999px; background: #3a1d0b; color: #ffb36b; font-size: 14px; font-weight: 600; }
 .melhores > li[data-onda] { cursor: pointer; border-radius: 12px; transition: background .15s; }
 .melhores > li[data-onda]:active { background: var(--cartao); }
+.melhores > li.escolhido { border: 2px solid var(--azul); border-radius: 14px; padding: 10px 12px; margin: 6px 0; background: #0b1a2e; }
+.melhores .tag-esc { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--azul); color: #fff; font-size: 13px; font-weight: 700; vertical-align: middle; }
+.melhores > li.flash { animation: flash-esc 1.2s ease-out; }
+@keyframes flash-esc { 0% { box-shadow: 0 0 0 6px rgba(80, 150, 255, .7); } 100% { box-shadow: 0 0 0 0 rgba(80, 150, 255, 0); } }
