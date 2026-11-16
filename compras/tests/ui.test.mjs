@@ -201,7 +201,7 @@ function maisBarato(itens) {
     }
     return {
         lojas: lojas.map((l) => l.c === n
-            ? [l === completos[0] ? 'melhor' : 'tudo', NOME[l.k], eur(l.t), l === completos[0] ? (completos.length > 1 ? 'Mais barato' : 'O único com preço para tudo') : `mais ${eur(l.t - pt)}`]
+            ? [l === completos[0] ? 'melhor' : 'tudo', NOME[l.k], eur(l.t), l === completos[0] ? (completos.length > 1 ? 'Mais barato' : 'O único com preço para tudo') : `mais ${eur(l.t - pt)}, mas fazes tudo aqui`]
             : ['parcial', NOME[l.k], l.c ? eur(l.t) : '—', l.c ? `só ${l.c} de ${n} coisas com preço` : 'sem produtos escolhidos']),
         dividir: par && (pt < 0 || pt - par.t >= 200) ? `${NOME[par.a]} e ${NOME[par.b]}: ${eur(par.t)}${pt >= 0 ? ` — poupas ${eur(pt - par.t)}` : ''}` : null,
     };
@@ -272,7 +272,7 @@ test('mais barato: o total em cada supermercado e quando compensa dividir por du
         await a.waitForFunction(() => !localStorage.getItem('compras:pend') && !localStorage.getItem('compras:envio'));
         v = await ver();
         assert.deepEqual(v, maisBarato((await s.api('/api/lista', chave)).itens));
-        assert.deepEqual(v.lojas.slice(0, 2), [['melhor', 'Continente', '6,23 €', 'Mais barato'], ['tudo', 'Pingo Doce', '6,73 €', 'mais 0,50 €']]);
+        assert.deepEqual(v.lojas.slice(0, 2), [['melhor', 'Continente', '6,23 €', 'Mais barato'], ['tudo', 'Pingo Doce', '6,73 €', 'mais 0,50 €, mas fazes tudo aqui']]);
         assert.equal(v.dividir, null);
 
         // sem produto num supermercado nenhum: nada se compara

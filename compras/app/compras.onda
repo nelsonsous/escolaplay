@@ -473,7 +473,7 @@
     # as cadeias onde a casa não compra ficam de fora (como já mostradas)
     = feitos 0 = pt -1 = nm 0
     L k 4 { ? minha cadeia k { = nm + nm 1 0 } { = feitos | feitos << 1 k 0 } }
-    `<ul class="cadeias">`
+    `<h3>Tudo numa só loja</h3><ul class="cadeias">`
     L r nm {
       = k proxima feitos
       = feitos | feitos << 1 k
@@ -481,7 +481,7 @@
       ? == c n {
           `<li class="{ ? < pt 0 `melhor` `tudo` }"><b>{ crut nomecad k }</b><span class="total">{ eur t }</span>`
           ? < pt 0 { = pt t `<small>{ ? > completos 1 `Mais barato` `O único com preço para tudo` }</small>` 0 }
-            `<small>mais { eur - t pt }</small>`
+            `<small>mais { eur - t pt }, mas fazes tudo aqui</small>`
           `<button class="ir" data-onda="loja:{ N k }">Vou a este</button></li>` 0 }
         { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">{ ? c eur t `—` }</span>`
           `<small>{ ? c `só { N c } de { N n } coisas com preço` `sem produtos escolhidos` }</small>`
@@ -1165,7 +1165,7 @@
       Se mesmo txt tp.fam $"vinho" {
         `<h3>Escolher por</h3><div class="chips"><button class="chip{ Se ~ ord ` on` }" data-onda="ord:0">💶 Mais barato</button>`
         `<button class="chip{ Se ord ` on` }" data-onda="ord:1">⭐ Melhor nota</button></div>` }
-      ? && ord mesmo txt tp.fam $"vinho" `<h3>O melhor cotado em cada supermercado</h3><ul class="melhores">` `<h3>O mais barato em cada supermercado</h3><ul class="melhores">`
+      ? && ord mesmo txt tp.fam $"vinho" `<h3>O melhor cotado em cada supermercado</h3><p class="nota">Escolher aqui não te prende a uma loja: a lista guarda o produto de cada supermercado, e em «Mais barato» vês o total de tudo em cada um (e se compensa ir a dois).</p><ul class="melhores">` `<h3>O mais barato em cada supermercado</h3><p class="nota">Escolher aqui não te prende a uma loja: a lista guarda o produto de cada supermercado, e em «Mais barato» vês o total de tudo em cada um (e se compensa ir a dois).</p><ul class="melhores">`
       Se tp.lim `<p class="nota">👥 Para { N int tp.pes } { ? == int tp.pes 1 `pessoa` `pessoas` }: o mais barato em embalagens até { ? >= int tp.lim 1000 `{ crut kgtxt int tp.lim } kg` `{ N int tp.lim } g` } (as pessoas mudam-se na Casa; escolher outra continua a dar).</p>`
       # só se comparam os preços na unidade do tipo (o quilo, o litro): o mais barato fica marcado; em grande o preço
       # por quilo, e por baixo o que se paga e por quanto
