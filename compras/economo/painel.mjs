@@ -30,6 +30,8 @@ export const CABAZ = [
     ['agua-sem-gas', 6, 'l', /agua/, /com gas|gaseific|sabor|aromatiz|tonica|coco|limao/],
 ];
 
+// os preços em euros (a página mostra-os assim, e cada número tem de bater com a fonte)
+const eur = (c) => Math.round(Number(c)) / 100;
 const codigo = (f) => ({ label: path.basename(f), value: readFileSync(new URL(import.meta.url), 'utf8'), type: 'code', lang: 'javascript' });
 
 async function main(pasta) {
@@ -48,8 +50,8 @@ async function main(pasta) {
             const l = linhas.filter((x) => x.tipo === k && x.cadeia === c && x.ub === ub && quer.test(sem(x.nome)) && !fora.test(sem(x.nome))
                 && Number(x.uc) * 25 >= Number(x.cent)).sort((a, b) => a.uc - b.uc)[0];
             if (!l) continue;
-            cabaz.push({ tipo: k, tipo_nome: nomes[k] ?? k, cadeia: c, cadeia_nome: CADEIAS[c], uc_cent: Number(l.uc), ub, qtd,
-                custo_cent: Math.round(Number(l.uc) * qtd), produto: l.nome, emb: l.emb ?? '', preco_cent: Number(l.cent) });
+            cabaz.push({ tipo: k, tipo_nome: nomes[k] ?? k, cadeia: c, cadeia_nome: CADEIAS[c], preco_unidade: eur(l.uc), ub, qtd,
+                custo_semana: eur(Math.round(Number(l.uc) * qtd)), produto: l.nome, emb: l.emb ?? '', preco: eur(l.cent) });
         }
     }
     // os preços que mudaram nos últimos 7 dias: a última mudança de cada produto (de, para)
@@ -65,7 +67,7 @@ async function main(pasta) {
         if (hs.length < 2) continue;
         const a = hs[hs.length - 2], b = hs[hs.length - 1];
         if (!(a.cent > 0) || a.cent === b.cent || b.quando < desde) continue;
-        mudancas.push({ cadeia_nome: CADEIAS[b.cadeia] ?? b.cadeia, produto: b.nome, tipo_nome: b.tipo_nome ?? '', de_cent: a.cent, para_cent: b.cent,
+        mudancas.push({ cadeia_nome: CADEIAS[b.cadeia] ?? b.cadeia, produto: b.nome, tipo_nome: b.tipo_nome ?? '', antes: eur(a.cent), agora: eur(b.cent),
             pct: Math.round(((b.cent - a.cent) / a.cent) * 1000) / 10, dia: b.quando.slice(0, 10) });
     }
     mudancas.sort((x, y) => x.pct - y.pct);
@@ -79,10 +81,10 @@ async function main(pasta) {
         if (!n || n.nota < 87) continue;
         const k = `${n.palavras}`;
         const ant = melhor.get(k);
-        if (!ant || v.cent < ant.preco_cent) melhor.set(k, { vinho: v.nome, cor: v.tipo === 'vinho-tinto' ? 'Tinto' : 'Branco', nota: n.nota,
-            fonte: String(n.resumo).split(' · ')[0], cadeia_nome: CADEIAS[v.cadeia], preco_cent: Number(v.cent) });
+        if (!ant || eur(v.cent) < ant.preco) melhor.set(k, { vinho: v.nome, cor: v.tipo === 'vinho-tinto' ? 'Tinto' : 'Branco', nota: n.nota,
+            fonte: String(n.resumo).split(' · ')[0], cadeia_nome: CADEIAS[v.cadeia], preco: eur(v.cent) });
     }
-    const vinhos = [...melhor.values()].sort((a, b) => b.nota - a.nota || a.preco_cent - b.preco_cent).slice(0, 40);
+    const vinhos = [...melhor.values()].sort((a, b) => b.nota - a.nota || a.preco - b.preco).slice(0, 40);
     const meta = (o) => [{ label: 'Lido da base da Compras', value: agora.toISOString().slice(0, 16).replace('T', ' ') + ' UTC' }, { label: 'Como', value: o }, codigo('painel.mjs')];
     const grava = (f, rows, como) => writeFileSync(path.join(pasta, f), JSON.stringify({ rows, meta: meta(como) }));
     grava('cabaz.json', cabaz, 'O produto mais barato por unidade (kg, l, un) de cada básico em cada cadeia, visto nos últimos 10 dias; custo = preço por unidade × quantidade de referência.');
