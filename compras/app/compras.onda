@@ -513,7 +513,7 @@
   `<h3>Stock do Continente na tua zona</h3><p class="nota">Com o código postal, o conector pergunta ao Continente que loja online serve a tua zona e vê, de hora a hora, se os produtos da lista estão lá disponíveis. O código postal só se usa para isto.</p>`
   `<div class="junta"><input data-onda="cpz" data-chave="cp{ N @ 12 }" placeholder="Código postal (ex.: 4780-521)" aria-label="Código postal" inputmode="numeric" autocomplete="postal-code" value="{ Se && jc jc.cp esc jc.cp }">`
   `<button class="botao" data-onda="cpg:0">Gravar</button></div>`
-  Se && jc jc.zona `<p class="nota">✓ A tua zona: <b>{ esc jc.zona }</b>.</p>`
+  Se && jc jc.zona `<p class="nota">✓ Código postal { esc jc.cp }{ Se jc.local ` ({ esc jc.local })` }. As entregas do Continente online para esta morada saem da loja de <b>{ esc ? jc.lz jc.lz jc.zona }</b>; o stock que se vê é o dessa loja.</p>`
   # quantas pessoas há em casa: no talho e na peixaria, o mais barato escolhe-se entre as embalagens do tamanho certo
   = np ? && jc jc.pessoas int jc.pessoas 0
   `<h3>Quantas pessoas em casa?</h3><p class="nota">No talho e na peixaria, o mais barato escolhe-se entre as embalagens para a casa (duas refeições por pessoa), e não o pacote de 2 kg só por ser o mais barato ao quilo.</p><div class="chips">`
