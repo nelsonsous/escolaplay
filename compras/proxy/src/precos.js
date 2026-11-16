@@ -182,6 +182,9 @@ export async function juntarPrecos(db, lista0, casa = null) {
     const zona = casa ? new Set((await db.prepare("SELECT cadeia, id FROM zona_stock WHERE casa = ? AND disponivel = 0").bind(casa).all()).results.map((r) => r.cadeia + ' ' + r.id)) : new Set();
     if (!m.size && !est.size && !reais.size && !zona.size && !lista.itens.some((i) => i.nh)) return lista;
     // a melhor forma de comprar a quantidade (packs.js): 6 soltos ou o pack
+    // as descidas de preço (preco_historico): nos produtos escolhidos, a última mudança nos últimos 7 dias, se desceu 3 % ou
+    // mais (vd: a %, de: o preço de antes); e as maiores, para o aviso ao abrir a app
+    const desc = await descidas(db, produtosDe(lista.itens));
     const pk = await packsDaLista(db, lista.itens.map((i) => ({ ...i, p: Object.fromEntries(Object.entries(i.p ?? {}).filter(([c, p]) => p && m.get(c + ' ' + p.id))) }))).catch(() => ({}));
     return {
         ...lista,
@@ -208,13 +211,45 @@ export async function juntarPrecos(db, lista0, casa = null) {
                     if (r.uc != null && r.ub) { x.uc = Number(r.uc); x.ub = r.ub; }
                     if (r.propria) x.pr = 1;
                     if (r.emb) x.emb = r.emb;
+                    const d = desc.get(c + ' ' + p.id);
+                    if (d) { x.vd = d.vd; x.de = d.de; }
                     return [c, x];
                 })),
             };
             if (pk[i.id]) x.pk = pk[i.id];
             return comparavel(x);
         }),
+        ...maioresDescidas(lista.itens, desc),
     };
+}
+
+// as descidas dos produtos escolhidos: Map «cadeia id» → { vd (%), de (cêntimos antes), para, quando }
+export async function descidas(db, produtos, agora = new Date()) {
+    if (!produtos.length) return new Map();
+    const desde = new Date(agora.getTime() - 7 * 24 * 3600e3).toISOString();
+    const { results } = await db.prepare(`SELECT h.cadeia, h.id, h.cent, h.quando FROM preco_historico h
+        JOIN json_each(?1) j ON h.cadeia = json_extract(j.value, '$[0]') AND h.id = json_extract(j.value, '$[1]')
+        ORDER BY h.cadeia, h.id, h.quando`).bind(JSON.stringify(produtos.map((p) => [p.cadeia, p.id]))).all();
+    const por = new Map();
+    for (const h of results) { const k = `${h.cadeia} ${h.id}`; (por.get(k) ?? por.set(k, []).get(k)).push(h); }
+    const r = new Map();
+    for (const [k, hs] of por) {
+        if (hs.length < 2) continue;
+        const a = hs[hs.length - 2], b = hs[hs.length - 1];
+        const vd = a.cent > 0 ? Math.round(((a.cent - b.cent) / a.cent) * 100) : 0;
+        if (b.quando >= desde && vd >= 3) r.set(k, { vd, de: a.cent, para: b.cent, quando: b.quando.slice(0, 10) });
+    }
+    return r;
+}
+// as 3 maiores descidas da lista (das coisas por riscar), para o aviso ao abrir: { descidas: [{ id, t, c, vd, de, para, quando }] }
+function maioresDescidas(itens, desc) {
+    const ds = [];
+    for (const i of itens) {
+        if (i.f) continue;
+        for (const [c, p] of Object.entries(i.p ?? {})) { const d = desc.get(c + ' ' + p.id); if (d) ds.push({ id: i.id, t: i.t, c, ...d }); }
+    }
+    ds.sort((a, b) => b.vd - a.vd);
+    return ds.length ? { descidas: ds.slice(0, 3) } : {};
 }
 
 // embalagens diferentes (7 L num, 6 L noutro): para comparar, o preço de cada cadeia para o mesmo tamanho (cn: o

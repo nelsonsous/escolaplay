@@ -735,6 +735,30 @@ test('a análise do Claude: pedir com uma pergunta, esperar, ver o resultado e t
     } finally { await br.close(); await s.fechar(); }
 });
 
+test('as descidas de preço: na lista, «↓ 20% no Continente (era …)», e um aviso ao abrir a app (uma vez)', { skip: !pw && 'sem playwright' }, async () => {
+    const s = await abrir();
+    const br = await pw.chromium.launch();
+    try {
+        const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
+        const erros = [];
+        a.on('pageerror', (e) => erros.push(e.message));
+        await a.goto(s.url());
+        const chave = await (await a.waitForFunction(() => localStorage.getItem('compras:chave'))).jsonValue();
+        await s.api('/api/lista', chave, { ops: [{ o: 'j', id: 'paof', t: 'pão de forma' }] });
+        await s.api('/api/lista', chave, { ops: [{ o: 'p', id: 'paof', c: 'continente', p: { id: '11', nome: 'Pão de forma', url: 'https://www.continente.pt/produto/p-11.html' } }] });
+        // o preço desce (o histórico regista-o)
+        s.env.DB.sql.prepare("UPDATE preco SET cent = 119 WHERE cadeia = 'continente' AND id = '11'").run();
+        const l = await s.api('/api/lista', chave);
+        assert.deepEqual([l.itens[0].p.continente.vd, l.itens[0].p.continente.de], [20, 149]);
+        assert.equal(l.descidas[0].t, 'pão de forma');
+        await a.reload();
+        await a.waitForSelector('.item small.desce');
+        assert.equal(await a.textContent('.item small.desce'), '↓ 20% no Continente (era 1,49 €)');
+        await a.waitForSelector('#aviso .toast:has-text("pão de forma: desceu 20% no Continente")');
+        assert.deepEqual(erros, []);
+    } finally { await br.close(); await s.fechar(); }
+});
+
 test('o Afinar: com muitos vinhos, uma pergunta de cada vez (para quê → o preço, depois a região) até ficarem poucos', { skip: !pw && 'sem playwright' }, async () => {
     const s = await abrir();
     const { esquecerTipos } = await import('../proxy/src/sugerir.js');
