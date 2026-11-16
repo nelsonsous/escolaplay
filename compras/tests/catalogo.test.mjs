@@ -456,3 +456,17 @@ test('a melhor compra pelo rótulo: os pontos (Reserva, DOC, virgem extra, DOP) 
     const fr = cs.filter((x) => x.p > mx && (mx = x.p));
     assert.deepEqual(fr.map((x) => ps[x.i].nome), ['Monte Velho Reserva', 'Douro Grande Reserva']);
 });
+
+test('a sugestão pelo nome do produto ignora os acentos: «esporao reserva» acha o vinho tinto («Esporão», «ESPORÃO»)', async () => {
+    const { sugerir, esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const db = d1();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('vinho-tinto', 'Vinho tinto', 2, 1)`);
+    const agora = new Date().toISOString();
+    for (const [c, id, nome] of [['continente', 'e1', 'Esporão Reserva Alentejo Vinho Tinto'], ['auchan', 'e2', 'VINHO TINTO ESPORÃO RESERVA ALENTEJO 0.75L'], ['pingodoce', 'e3', 'Vinho Tinto Esporão Reserva']])
+        db.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, tipo, visto, falhas) VALUES (?, ?, ?, ?, 1599, 'vinho-tinto', ?, 0)`).run(c, id, 'https://x/' + id, nome, agora);
+    esquecerTipos();
+    const r = await sugerir(db, 'esporao reserva');
+    const t = (r.tipos ?? r).find((x) => x.k === 'vinho-tinto');
+    assert.ok(t, JSON.stringify(r));
+    assert.equal(t.w, 'esporao reserva'); // a variante: o filtro pelas palavras
+});
