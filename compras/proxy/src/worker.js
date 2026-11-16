@@ -41,8 +41,9 @@
 import { FONTES } from './fontes/index.js';
 import { CADEIAS, procurar } from './indice.js';
 import { cabazDeNatal } from './natal.js';
+import { dadosDaAnalise } from './analise.js';
 import { lerReceita } from './receita.js';
-import { Erro, novoAparelho, aparelhoDe, casaDe, gravarLojas, gravarPessoas, gravarCp, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
+import { Erro, codigoLimpo, novoAparelho, aparelhoDe, casaDe, gravarLojas, gravarPessoas, gravarCp, lerLista, mudarLista, entrarNaCasa, produto } from './casa.js';
 import { lojasDaCasa, lojasDe } from './lojas.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
@@ -56,7 +57,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.52.3';
+export const VERSION = '0.53.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -305,6 +306,8 @@ async function api(request, env, url) {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
     }
     if (caminho === '/api/saude' && metodo === 'GET') return json(await saudeCurta(db));
+    // os dados da análise (analise.js): a lista com o que se pesquisou, os filtros e as escolhas, os preços e as lojas
+    if (caminho === '/api/analise' && metodo === 'GET') return json(await dadosDaAnalise(db, ap));
     if (caminho === '/api/receita' && metodo === 'POST') {
         // a ligação de um vídeo de receita (TikTok, YouTube): os ingredientes para juntar à lista
         return json(await lerReceita(env, await corpoJSON(request)));
@@ -357,6 +360,13 @@ export default {
             const nao = await recusa(request, env);
             if (nao) return nao;
             try { return json(await lerReceita(env, { url: url.searchParams.get('url'), texto: url.searchParams.get('texto') })); } catch (e) { return json({ erro: e.message }, e.status ?? 500); }
+        }
+        // os dados da análise de uma casa, pelo código da casa (para o Ecónomo: economo/analise.mjs)
+        if (url.pathname === '/sonda/analise') {
+            const nao = await recusa(request, env);
+            if (nao) return nao;
+            const c = await env.DB.prepare('SELECT id FROM casa WHERE codigo = ?').bind(codigoLimpo(url.searchParams.get('codigo'))).first();
+            return c ? json(await dadosDaAnalise(env.DB, { casa: c.id })) : json({ erro: 'casa desconhecida' }, 404);
         }
         if (url.pathname === '/sonda/saude') { const nao = await recusa(request, env); return nao ?? json(await saude(env.DB)); }
         return json({ erro: 'não existe' }, 404);

@@ -19,6 +19,13 @@ function segredo() {
     throw new Error('Falta o segredo da sonda (SONDA_TOKEN ou SONDA_TOKEN_FILE).');
 }
 
+// os dados da análise de uma casa (proxy/src/analise.js), pelo código da casa
+export async function analise(codigo) {
+    const r = await fetch(`${WORKER}/sonda/analise?codigo=${encodeURIComponent(codigo)}`, { headers: { authorization: `Bearer ${segredo()}` } });
+    if (r.status !== 200) throw new Error(`conector: HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    return r.json();
+}
+
 // uma página de uma cadeia, pelo conector: { estado, corpo (Buffer) }
 export async function sonda(url, { accept } = {}) {
     const headers = { authorization: `Bearer ${segredo()}` };

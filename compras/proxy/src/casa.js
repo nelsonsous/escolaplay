@@ -109,6 +109,9 @@ function especie(e) {
     if (e.w) x.w = texto(e.w, 60).toLowerCase().trim();
     // o nome do tipo (para o caminho na lista: «Carne picada»)
     if (e.n) x.n = texto(e.n, 60);
+    // o que se escreveu na pesquisa («bife de frango») e se a app juntou sozinha (au: sem abrir a escolha), para a análise
+    if (e.q) x.q = texto(e.q, 60);
+    if (e.au) x.au = 1;
     // os filtros escolhidos, um a um (a espécie, a origem, o calibre, o corte, os tamanhos), para a escolha os repor
     if (e.f && typeof e.f === 'object') {
         const f = {};
