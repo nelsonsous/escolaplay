@@ -47,7 +47,7 @@
             .then((o) => (o && o.title ? JSON.stringify({ ...c, legenda: o.title, autor: o.author_name }) : corpo), () => corpo);
     }
 
-    fetch('app/compras.wasm?v=0.57.0')
+    fetch('app/compras.wasm?v=0.57.1')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })

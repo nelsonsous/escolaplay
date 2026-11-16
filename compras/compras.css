@@ -275,3 +275,4 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .gastos { margin: 16px 0; padding: 12px 14px; border: 1px solid var(--linha); border-radius: 14px; background: var(--cartao); }
 .gastos h3 { margin-top: 0; }
 .gastos .poupado { color: var(--verde); font-weight: 600; }
+.melhores .promo { grid-column: 1 / -1; justify-self: start; margin: 2px 0; padding: 2px 10px; border-radius: 999px; background: #3a1d0b; color: #ffb36b; font-size: 14px; font-weight: 600; }

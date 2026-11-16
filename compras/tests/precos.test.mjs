@@ -46,7 +46,7 @@ test('escolher um produto lê logo o preço no site da cadeia, e a lista vem com
     assert.equal(pedidos.length, 2);
     // o preço guardado não leva nada da casa (é de todos)
     assert.deepEqual(Object.keys(env.DB.linhas('SELECT * FROM preco')[0]).sort(),
-        ['antes', 'ate', 'cadeia', 'cent', 'emb', 'esgotado', 'falhas', 'id', 'marca', 'nome', 'propria', 'q', 'suspeito', 'tentado', 'tipo', 'ub', 'uc', 'unid', 'url', 'visto']);
+        ['antes', 'ate', 'cadeia', 'cent', 'emb', 'esgotado', 'falhas', 'id', 'marca', 'nome', 'promo', 'propria', 'q', 'suspeito', 'tentado', 'tipo', 'ub', 'uc', 'unid', 'url', 'visto']);
 });
 
 test('o Auchan lê-se pelo JSON do produto (pelo número); no máximo dois produtos novos por pedido', async () => {

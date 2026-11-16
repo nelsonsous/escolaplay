@@ -397,7 +397,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     if (!t) return null;
     const fam = familiaDe(t.k, seccaoDoTipo(t)); // vinho, azeite, queijo, presunto, fruta, padaria (atributos.js)
     const desde = new Date(agora.getTime() - 10 * 24 * HORA).toISOString();
-    const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, uc, ub, emb, q
+    const { results } = await db.prepare(`SELECT cadeia AS c, id, nome, marca, propria AS pr, url, cent, antes, promo, uc, ub, emb, q
         FROM preco WHERE tipo = ? AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?
           AND NOT (cadeia = 'lidl' AND id LIKE 'f%' AND ate < ?) ORDER BY uc IS NULL, uc, cent, cadeia, id LIMIT 400`).bind(k, desde, agora.toISOString().slice(0, 10)).all();
     // (as promoções do folheto do Lidl, economo/lidl-folheto.mjs: só até ao fim da promoção)
@@ -427,6 +427,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         if (p.aq) x.aq = 1; // a peça ao quilo: paga-se ≈
         if (p.uc != null && p.ub) { x.uc = Number(p.uc); x.ub = p.ub; }
         if (p.antes != null) x.antes = Number(p.antes);
+        if (p.promo) x.pm = 1; // em promoção (o Auchan diz-o às vezes sem o riscado)
         // o peso da embalagem em gramas (porcoes.js), no talho e na peixaria: para o tamanho certo para a casa
         if (TALHO.has(t.k)) { const g = gramasDe(p); if (g) x.g = g; }
         // o nome sem acentos nem maiúsculas, para filtrar pelas palavras; no talho e na peixaria, com as etiquetas

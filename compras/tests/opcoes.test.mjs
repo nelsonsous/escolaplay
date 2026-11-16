@@ -17,6 +17,7 @@ test('os mais bem cotados abrem as opções da loja; escolher fecha-as', { skip:
     ins('auchan', 'v3', 'VINHO TINTO DOURO RESERVA 0.75L', 899); ins('auchan', 'v5', 'VINHO TINTO PAPA FIGOS 0.75L', 799); ins('auchan', 'v6', 'VINHO TINTO BARATO 0.75L', 199);
     ins('pingodoce', 'v4', 'Vinho Tinto Alentejo Pingo Doce', 299);
     s.env.DB.sql.prepare(`INSERT INTO vinho_nota (palavras, fora, nome, nota, n, resumo, fontes, visto) VALUES ('papa figos tinto', '', 'Papa Figos', 91, 1, 'Revista de Vinhos 17/20', '[]', ?)`).run(agora);
+    s.env.DB.sql.exec("UPDATE preco SET antes = 999 WHERE id = 'v5'; UPDATE preco SET promo = 1 WHERE id = 'v6'");
     esquecerTipos();
     const br = await pw.chromium.launch();
     const a = await (await br.newContext({ viewport: { width: 390, height: 844 }, locale: 'pt-PT' })).newPage();
@@ -30,6 +31,8 @@ test('os mais bem cotados abrem as opções da loja; escolher fecha-as', { skip:
     await a.click('#folha ul.bc li:has-text("PAPA FIGOS 0.75L")');
     await a.waitForSelector('#cad2 .opcoes .op.on:has-text("PAPA FIGOS")');
     assert.match(await a.textContent('#cad2 .pnome'), /PAPA FIGOS/);
+    // a promoção à vista: o preço riscado e a percentagem
+    assert.equal(await a.textContent('#cad2 > .promo'), '🔥 Promoção · era 9,99 € (−20%)');
     // fechar no fim da lista
     await a.click('#cad2 .opcoes .op-f');
     await a.waitForSelector('#cad2 .opcoes', { state: 'detached' });
@@ -38,6 +41,7 @@ test('os mais bem cotados abrem as opções da loja; escolher fecha-as', { skip:
     await a.click('#cad2 .opcoes .op:has-text("BARATO")');
     await a.waitForSelector('#cad2 .opcoes', { state: 'detached' });
     assert.match(await a.textContent('#cad2 .pnome'), /BARATO/);
+    assert.equal(await a.textContent('#cad2 > .promo'), '🔥 Em promoção'); // só o rótulo, sem o riscado
     assert.equal(await a.locator('#cad2 .mao').count(), 1);
     assert.deepEqual(erros, []);
     await br.close(); await s.fechar?.();
