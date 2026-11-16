@@ -581,7 +581,7 @@
 : ntmodo >i { = m _an_ler $"ntm" ? m _tx_int m 1 }
 : ntteto >i { = t _an_ler $"ntt" ? t _tx_int t 0 }
 : ntteto_e i>i k ? == k 1 60 ? == k 2 100 ? == k 3 150 0
-: ntloja i>i c ? mesmo c $"lugrade" $"Lugrade (produtor)" nomec c
+: ntloja i>i c ? mesmo c $"lugrade" $"Lugrade (online)" ? mesmo c $"riberalves" $"Riberalves (online)" ? mesmo c $"vinha" $"Vinha (online)" ? mesmo c $"soares" $"Garrafeira Soares (online)" nomec c
 : pede_natal >i {
   = m ntmodo = k ntteto
   _an_buscar texto`/api/natal?modo={ ? == m 0 `qualidade` { ? == m 2 `preco` `equilibrio` } }{ Se k `&teto={ N ntteto_e k }` }` $"lido_natal" 0 }
