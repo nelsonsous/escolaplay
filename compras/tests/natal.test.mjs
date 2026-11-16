@@ -73,6 +73,9 @@ test('o vinho da ceia e o Porto pela nota dos críticos e pela Vivino; o bacalha
     ins('auchan', 'v2', 'Vinho Tinto Alentejo Reserva Marca X', 'vinho-tinto', 599, 799);
     ins('auchan', 'v3', 'Vinho Tinto Coutada Velha Premium', 'vinho-tinto', 899, 1199);
     ins('pingodoce', 'v4', 'Vinho Tinto Bag-in-Box 5 L', 'vinho-tinto', 999, 200);
+    ins('auchan', 'v5', 'Vinho Tinto Colheita Secular Tinto 1L', 'vinho-tinto', 99, 99); // o tinto de 0,99 € o litro
+    ins('continente', 'v6', 'Nordeste Vinho Tinto', 'vinho-tinto', 519, 104); // 5 L (o nome não diz)
+    ins('lidl', 'v7', 'Vinho Tinto Regional Lisboa', 'vinho-tinto', 249, 332); // garrafa, mas sem nota nem gama
     ins('auchan', 'b1', 'Paloco Seco Graúdo kg', 'bacalhau', 999, 999, 'kg');
     ins('continente', 'b2', 'Bacalhau Crescido Noruega kg', 'bacalhau', 1299, 1299, 'kg');
     db.sql.prepare(`INSERT INTO vinho_nota (palavras, fora, nome, nota, n, resumo, fontes, visto) VALUES ('papa figos tinto', '', 'Papa Figos', 92, 1, 'Revista de Vinhos 17/20', '[]', ?)`).run(AGORA.toISOString());
@@ -83,6 +86,10 @@ test('o vinho da ceia e o Porto pela nota dos críticos e pela Vivino; o bacalha
     const v = c.partes.find((p) => p.k === 'vinho');
     assert.deepEqual(v.opcoes.map((o) => o.id), ['w1', 'v1', 'v2']); // Vivino 4,3 e Grande Reserva; o Papa Figos ★ 92; nem Coutada Velha nem bag-in-box
     assert.match(v.opcoes[1].porque[0], /★ 92 \(Revista de Vinhos 17\/20\)/);
+    assert.equal(v.opcoes[0].uc, null); // compara-se a garrafa, não o litro
+    // pelo preço, continua a ser só entre garrafas com nota ou gama: nada de litros, garrafões nem tintos sem nota
+    const pv = (await cabazDeNatal(db, { modo: 'preco' }, AGORA)).partes.find((p) => p.k === 'vinho');
+    assert.deepEqual(pv.opcoes.map((o) => o.id), ['v2', 'v1', 'w1']);
     assert.match(v.opcoes[0].porque.join(' '), /Vivino 4,3/);
     const b = c.partes.find((p) => p.k === 'bacalhau');
     assert.equal(b.opcoes[0].id, 'l1'); // o «Especial» da Lugrade é bacalhau

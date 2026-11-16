@@ -94,6 +94,22 @@ export function notaVinho(notas, nome, vivino = null) {
     return { q, porque, nt: nt?.nota ?? null };
 }
 
+// os litros de uma linha: a quantidade da embalagem (preco.q), ou o preço sobre o preço por litro, ou o nome («75cl»)
+export function litrosDe(r) {
+    if (r.ql > 0 && r.ub === 'l') return r.ql;
+    if (r.uc > 0 && r.ub === 'l') return Math.round((r.cent / r.uc) * 100) / 100;
+    const m = sem(`${r.emb ?? ''} ${r.nome}`).match(/(\d+(?:[.,]\d+)?)\s*(cl|ml|lt?)\b/);
+    if (!m) return null;
+    const v = Number(m[1].replace(',', '.'));
+    return m[2] === 'cl' ? v / 100 : m[2] === 'ml' ? v / 1000 : v;
+}
+// no Natal só garrafas: 75 cl no vinho e no espumante; no Porto de 50 a 100 cl (nada de litros, garrafões, bag-in-box)
+export function garrafaBoa(p, r) {
+    const l = litrosDe(r);
+    if (l == null) return false;
+    return p.k === 'porto' ? l >= 0.45 && l <= 1.05 : Math.abs(l - 0.75) <= 0.02;
+}
+
 // o preço para comparar: o do quilo ou do litro, se faz sentido (um «por quilo» que daria mais de 25 kg na embalagem
 // é um calibre mal lido: «SAPATEIRA 600/800 KG» a 0,02 €/kg); senão, o que se paga
 export const ucBom = (o) => o.uc > 0 && (o.ub === 'kg' || o.ub === 'l') && o.uc * 25 >= o.cent;
@@ -148,7 +164,7 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
     const tipos = [...new Set(ps.flatMap((p) => p.tipos))];
     const likes = [...new Set(ps.flatMap((p) => p.like ?? []))];
     const desde = new Date(agora.getTime() - 10 * DIA).toISOString();
-    const chave = `natal:linhas:${ps.map((p) => p.k).sort().join(',')}`;
+    const chave = `natal:linhas2:${ps.map((p) => p.k).sort().join(',')}`;
     let guardado = null;
     try { guardado = kv ? await kv.get(chave, 'json') : null; } catch { guardado = null; }
     let cat, prod;
@@ -156,10 +172,10 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
     if (guardado) ({ cat, prod, notasL = [] } = guardado);
     else {
         // os do tipo pelo índice (preco_tipo); os de nome (LIKE) numa só passagem pela tabela, com as condições juntas
-        const porNome = likes.length ? `UNION SELECT cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, tipo, propria FROM preco
+        const porNome = likes.length ? `UNION SELECT cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, tipo, propria, q AS ql FROM preco
             WHERE cent IS NOT NULL AND suspeito IS NULL AND visto > ?1 AND (${likes.map((_, i) => `lower(nome) LIKE ?${i + 3}`).join(' OR ')})` : '';
         const [a, b] = await db.batch([
-            db.prepare(`SELECT cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, tipo, propria FROM preco
+            db.prepare(`SELECT cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, tipo, propria, q AS ql FROM preco
                 WHERE tipo IN (SELECT value FROM json_each(?2)) AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?1
                 ${porNome} LIMIT 3000`).bind(desde, JSON.stringify(tipos), ...likes),
             db.prepare(`SELECT loja AS cadeia, id, url, nome || CASE WHEN variante IS NOT NULL THEN ' ' || variante ELSE '' END AS nome,
@@ -181,18 +197,25 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
             const n = sem(r.nome);
             const doTipo = p.tipos.includes(r.tipo);
             return (doTipo || (p.inicio && p.inicio.test(n))) && p.quer.test(n) && (!p.peca || p.peca.test(n)) && !p.fora.test(n)
-                && !(p.vinho && NAO_SUGERIR.test(n));
+                && !(p.vinho && (NAO_SUGERIR.test(n) || !garrafaBoa(p, r)));
         }).map((r) => {
             let { q, porque } = pontosDe(p, r.nome);
-            if (p.vinho) { const v = notaVinho(notas, r.nome, r.vivino); q += v.q; porque = [...v.porque, ...porque].slice(0, 5); }
+            if (p.vinho) {
+                const v = notaVinho(notas, r.nome, r.vivino); q += v.q; porque = [...v.porque, ...porque].slice(0, 5);
+                // o tinto da ceia: só com nota dos críticos, Vivino de 3,8 ou mais, ou Reserva e acima (um tinto de
+                // 0,99 € o litro não é para o Natal)
+                if (p.k === 'vinho' && !v.nt && !(r.vivino >= 3.8) && !/\b(reserva|garrafeira)\b/.test(sem(r.nome))) return null;
+            }
             const o = { cadeia: r.cadeia, id: String(r.id), nome: r.nome, url: r.url, cent: r.cent, emb: r.emb ?? null, uc: r.uc ?? null, ub: r.ub ?? null, q, porque, tipo: r.tipo };
             if (o.uc && !ucBom(o) && o.ub !== 'un') { o.uc = null; o.ub = null; }
             if (r.marca) o.marca = r.marca;
             if (r.propria) o.propria = 1;
             if (r.produtor) o.produtor = 1;
             if (r.antes && r.antes > r.cent) o.antes = r.antes;
+            // no vinho compara-se a garrafa, não o litro
+            if (p.vinho) { o.uc = null; o.ub = null; }
             return o;
-        });
+        }).filter(Boolean);
         return { k: p.k, nome: p.nome, icone: p.icone, n: ops.length, opcoes: ordenar(ops, modo).slice(0, 3) };
     });
     const centTeto = teto > 0 ? Math.round(teto * 100) : null;
