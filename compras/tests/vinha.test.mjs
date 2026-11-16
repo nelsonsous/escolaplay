@@ -66,7 +66,7 @@ test('Garrafeira Soares: o preço, o EAN e o tamanho dos dados da página; o tip
     const { lerSoares, tipoDoSlug, slugDe } = await import('../proxy/src/vinha.js');
     const u = 'https://www.garrafeirasoares.pt/pt/portugal/vinhos/vinho-tinto-esporao-colheita-75-cl/item_10015.html';
     const v = lerSoares(readFileSync(new URL('./fontes/soares-esporao-colheita.html', import.meta.url), 'latin1'), u);
-    assert.deepEqual([v.id, v.nome, v.tipo, v.cent, v.cl, v.ean, v.disponivel], ['2013021', 'Vinho Tinto Esporao Colheita', 'vinho-tinto', 849, 75, '5601989976758', 1]);
+    assert.deepEqual([v.id, v.nome, v.tipo, v.cent, v.cl, v.ean, v.disponivel], ['2013021', 'Vinho Tinto Esporao Colheita Alentejo', 'vinho-tinto', 849, 75, '5601989976758', 1]);
     assert.equal(slugDe(u), 'vinho-tinto-esporao-colheita-75-cl');
     assert.equal(tipoDoSlug('https://www.garrafeirasoares.pt/pt/portugal/portos-e-fortificados/porto-ramos-pinto-lbv-75-cl/item_1.html'), 'vinho-do-porto');
     assert.equal(tipoDoSlug('https://www.garrafeirasoares.pt/pt/portugal/vinhos/vinho-verde-alvarinho-soalheiro-75-cl/item_2.html'), 'vinho-branco');
