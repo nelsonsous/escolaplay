@@ -776,7 +776,7 @@
 
 # depois de desenhar, rola até ao que se pediu (rolar: o seletor; ao escolher um vinho nos mais bem cotados, a linha
 # da loja onde ficou escolhido)
-: desenha >i { dabas dvista dfolha = r _an_ler $"rolar" Se r { _an_rolar r _an_gravar $"rolar" 0 } 0 }
+: desenha >i { dabas dvista dfolha _an_gravar $"flash" 0 = r _an_ler $"rolar" Se r { _an_rolar r _an_gravar $"rolar" 0 } 0 }
 
 # ---------- os eventos ----------
 # o separador do campo «juntar»: «,» «;» uma mudança de linha (1) ou « e » (3)
@@ -1207,9 +1207,11 @@
             # tocar na caixa escolhe este produto (os botões e as ligações lá dentro fazem o seu)
             = q _an_ler texto`esc{ N k }`
             = mao && q mesmo txt p.id q
-            = es ? mao 0 texto` data-onda="esco:{ N + * k 1000 idx_em tp p }"`
-            ? u `<li id="cad{ N k }"{ Se == int p.uc mu ` class="melhor"` }{ Se es crut es }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }<small class="un">{ crut puc int p.uc ub }</small></span>`
-              `<li id="cad{ N k }"{ Se es crut es }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
+            = es ? mao 0 texto` data-onda="escc:{ N + * k 1000 idx_em tp p }"`
+            # escolhido à mão: a caixa em destaque (e a acabada de escolher pisca, sem o ecrã saltar)
+            = cl texto`{ Se && u == int p.uc mu `melhor ` }{ Se mao `escolhido ` }{ Se && mao mesmo _an_ler $"flash" texto`{ N k }` `flash` }`
+            ? u `<li id="cad{ N k }" class="{ crut cl }"{ Se es crut es }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }{ Se mao ` <span class="tag-esc">✓ Escolhido</span>` }</b><span class="total">{ eur int p.cent }<small class="un">{ crut puc int p.uc ub }</small></span>`
+              `<li id="cad{ N k }" class="{ crut cl }"{ Se es crut es }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }{ Se mao ` <span class="tag-esc">✓ Escolhido</span>` }</b><span class="total">{ eur int p.cent }</span>`
             `<span class="pnome">{ esc p.nome }</span>`
             dpromo p
             # ao quilo (uma peça inteira): o que se paga é aproximado, pelo peso médio da peça
@@ -1485,7 +1487,7 @@
   Se eacao t $"ord" { ? v _an_gravar $"ord" $"1" _an_gravar $"ord" 0 }
   Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v { _an_gravar $"opc" 0 _an_gravar $"rolar" texto`#cad{ N v }` } _an_gravar $"opc" texto`{ N v }` }
   # escolher outra opção: a lista fica aberta (vê-se a barra azul mudar) e um aviso diz o que ficou
-  Se || eacao t $"esco" eacao t $"escb" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id aviso texto`✓ No { crut nomecad / v 1000 }: { crut txt x.nome }` _an_gravar $"rolar" texto`#cad{ N / v 1000 }` _an_gravar $"opc" ? eacao t $"escb" texto`{ N / v 1000 }` 0 } }
+  Se || || eacao t $"esco" eacao t $"escb" eacao t $"escc" { = tp _ar_json _an_ler $"tp" = x ? tp idx tp.produtos % v 1000 0 Se x { _an_gravar texto`esc{ N / v 1000 }` txt x.id aviso texto`✓ No { crut nomecad / v 1000 }: { crut txt x.nome }` _an_gravar $"flash" texto`{ N / v 1000 }` Se ~ eacao t $"escc" _an_gravar $"rolar" texto`#cad{ N / v 1000 }` _an_gravar $"opc" ? eacao t $"escb" texto`{ N / v 1000 }` 0 } }
   Se eacao t $"escx" { _an_gravar texto`esc{ N v }` 0 aviso texto`↺ No { crut nomecad v }: o mais barato outra vez` }
   Se eacao t $"fc" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fc" 0 _an_gravar $"fcr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fc" txt x.w _an_gravar $"fcr" txt ? x.r x.r x.w } 0 } }
   Se eacao t $"fp" { = tp _ar_json _an_ler $"tp" ? == v 99 { _an_gravar $"fp" 0 _an_gravar $"fpr" 0 0 } { = x ? tp idx tp.palavras v 0 Se x { _an_gravar $"fp" txt x.w _an_gravar $"fpr" txt ? x.r x.r x.w } 0 } }
