@@ -122,7 +122,7 @@ test('sonda/produto: a cadeia recusa — fica o estado, sem produto', async () =
     globalThis.fetch = async () => new Response('<html>Access denied</html>', { status: 403 });
     const d = await (await produtoDe({ cadeia: 'lidl', url: 'https://www.lidl.pt/p/milbona-iogurte-grego/p11041532' })).json();
     assert.equal(d.estado, 403);
-    assert.equal(d.produto, null);
+    assert.equal(d.produto, undefined); // (sem a chave: as respostas não levam null)
 });
 
 test('sonda/produto: as mesmas regras da sonda (segredo, cadeia conhecida, domínio da lista)', async () => {

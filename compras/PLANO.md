@@ -338,3 +338,24 @@ Store, o programa de programador da Apple.
 **A Garrafeira Soares com a região (0.55.1):** a região vem dos dados da página («Região: Alentejo») e junta-se ao nome, para os filtros da região. A Singular (Shopify) não responde ao `products.json`: fica de fora.
 
 **Leituras da D1, revistas a 16/11/2026 (0.55.2):** depois do Cabaz de Natal (agora 20 mil linhas por abertura, guardado 6 h), o que mais lia era a sugestão enquanto se escreve (a procura pelos nomes dos produtos, 16 mil linhas por pesquisa): fica 6 horas na memória do Worker, por palavras. O resto do dia (o catálogo pelo cron, cerca de 230 mil; os tipos) fica muito abaixo dos 5 milhões grátis.
+
+## Volta de 15–16/11/2026: dez iterações (lojas, análise do Claude, descidas de preço)
+
+| # | O quê | PR |
+|---|---|---|
+| 1 | O histórico de preços (`preco_historico`, só quando o preço muda) e a variação na app | #771 |
+| 2 | Lojas online por família: quais existem e quais deixam ler (a tabela acima) | #773 |
+| 3 | O Vinha no catálogo: os vinhos dos supermercados com a Vivino, os portes e a mesma garrafa no supermercado; as notas dos críticos da página | #774 |
+| — | O «Afinar» (uma pergunta de cada vez quando há muitas opções); as lojas online 3 de cada vez | #775, #776 |
+| 4 | A Garrafeira Soares; o Cabaz de Natal guardado 6 h (o limite de leituras da D1 acabou a 15/11) | #777 |
+| — | O Natal: o vinho em garrafa e com nota, o bacalhau das lojas de produtor; os filtros nas lojas online; +400 vinhos de gama alta do Vinha | #778–#781 |
+| 5 | Os dados da análise: a pesquisa (e.q), os filtros (e.f), a escolha (à mão, automática, pela app), os preços, o online, o folheto | #782 |
+| — | O vinho por garrafa; a Vivino; a fila «Nota» no vinho (críticos e Vivino) | #783, #784 |
+| 6 | A análise do Claude a pedido na app (tarefa «Compras — análise a pedido»; na hora com o gatilho «API») | #785 |
+| — | O Natal sem «0,00 €»; escolher um vinho salta para a loja | #786, #787 |
+| 7 | As descidas de preço na lista e um aviso ao abrir | #788 |
+| 8 | A região nos vinhos da Soares; a Onwine, a Delta e a Singular ficam de fora | #789 |
+| 9 | Menos leituras da D1: a sugestão pelos nomes guardada 6 h | #790 |
+| 10 | As respostas do conector sem null (a app lia-os como 0 ou verdadeiro); esta tabela | #791 |
+
+**Fica para ti:** ligar a análise na hora (o gatilho «API», em «À espera de ti»); e, do Android, a captura do campo de escrever que não deixava escrever.

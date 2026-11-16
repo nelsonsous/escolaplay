@@ -58,7 +58,7 @@ import { sugestoes } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.55.2';
+export const VERSION = '0.56.0';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -86,7 +86,10 @@ const CORS = {
     'access-control-max-age': '86400',
 };
 
-const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
+// as respostas sem as chaves a null (a app em Onda lê null como verdadeiro ou 0: «0,00 €», «[object Object]»; uma chave
+// que não está é que é «não há»). Os null dentro de listas ficam.
+const semNull = (k, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([, x]) => x !== null)) : v);
+const json = (obj, status = 200) => new Response(JSON.stringify(obj, semNull), {
     status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...CORS },
 });
 const ascii = (s) => String(s).replace(/[^\x20-\x7e]/g, '?');
