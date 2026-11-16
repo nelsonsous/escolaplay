@@ -954,6 +954,7 @@
 : dop1 iiii>i p k j e {
   `<button class="op{ Se mesmo txt p.id txt e.id ` on` }" data-onda="esco:{ N + * k 1000 j }"><b>{ esc p.nome }</b>`
   `<span class="uc">{ eur int p.cent }{ Se p.uc `<small class="un">{ crut puc int p.uc txt p.ub }</small>` }</span>`
+  dpromo p
   `<span class="pr">{ Se mesmo txt p.id txt e.id `✓ escolhido · ` }Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { esc p.emb }` }{ dvar p }</span>`
   dsinais p
   `</button>` 0 }
@@ -1018,6 +1019,8 @@
 : kgtxt i>i g { = k / g 1000 = r / % g 1000 100 ? r texto`{ N k },{ N r }` texto`{ N k }` }
 # quanto o preço desceu ou subiu desde o preço anterior (o histórico, nos últimos 30 dias)
 : dvar i>i p ? p.vd ` · <b class="desce">↓ { N int p.vd }%</b>` { ? p.vs ` · <b class="sobe">↑ { N int p.vs }%</b>` `` }
+# a promoção: o preço riscado (era X €, −Y%) ou, sem ele, só que está em promoção (o Auchan às vezes)
+: dpromo i>i p ? && p.antes > int p.antes int p.cent `<span class="promo">🔥 Promoção · era { eur int p.antes } (−{ N / * 100 - int p.antes int p.cent int p.antes }%)</span>` { ? p.pm `<span class="promo">🔥 Em promoção</span>` `` }
 # os filtros escolhidos, um a um, para a coisa os guardar (e a escolha os repor ao tocar nela)
 : fjs ii>i k v Se v `"{ crut k }":{ pjs v },`
 : dfiltros_json >i {
@@ -1204,6 +1207,7 @@
             ? u `<li id="cad{ N k }"{ Se == int p.uc mu ` class="melhor"` }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }<small class="un">{ crut puc int p.uc ub }</small></span>`
               `<li id="cad{ N k }"><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }</b><span class="total">{ eur int p.cent }</span>`
             `<span class="pnome">{ esc p.nome }</span>`
+            dpromo p
             # ao quilo (uma peça inteira): o que se paga é aproximado, pelo peso médio da peça
             `<small><b class="emb">Pagas { Se int p.aq `≈ ` }{ eur int p.cent }{ Se p.emb ` por { Se int p.aq `≈ ` }{ esc p.emb }` }</b>{ Se int p.aq ` · vende-se ao quilo` }{ dvar p }`
             Se u { ? == int p.uc mu ` · o mais barato por { crut unidade ub }` { Se > mu 0 ` · +{ N / - * 100 int p.uc * 100 mu mu }% por { crut unidade ub }` 0 } }

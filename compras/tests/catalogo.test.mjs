@@ -37,7 +37,7 @@ test('Auchan: os dados do cartão, a ligação e «0.16 €/Lt»', () => {
     assert.deepEqual(ps[0], {
         id: '255397', nome: 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L', marca: 'AUCHAN',
         url: 'https://www.auchan.pt/pt/bebidas-e-garrafeira/aguas/aguas-sem-gas/agua-auchan-da-nascente-garrafao-6l/255397.html',
-        preco: 0.96, antes: null, emb: null, precoUnidade: { valor: 0.16, unidade: 'l' },
+        preco: 0.96, antes: null, promo: 1, emb: null, precoUnidade: { valor: 0.16, unidade: 'l' },
         cat: 'bebidas-e-garrafeira/águas/águas-sem-gás',
     });
     assert.deepEqual(lerCategoria('auchan', '<html>nada</html>'), []);
@@ -162,7 +162,7 @@ test('escrever e encontrar: os tipos pelo que se escreve, e os produtos de um ti
     assert.equal(tp.nome, 'Água sem gás');
     assert.equal(tp.produtos.length, 12);
     // o mais barato por litro primeiro (empate: pela cadeia)
-    assert.deepEqual(tp.produtos[0], { c: 'auchan', id: '255397', nome: 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L', url: AU + 'agua-auchan-da-nascente-garrafao-6l/255397.html', cent: 96, mk: 'Auchan', pr: 1, emb: '6 L', uc: 16, ub: 'l', nk: 'agua auchan nascente garrafao 6l' });
+    assert.deepEqual(tp.produtos[0], { c: 'auchan', id: '255397', nome: 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L', url: AU + 'agua-auchan-da-nascente-garrafao-6l/255397.html', cent: 96, mk: 'Auchan', pr: 1, pm: 1, emb: '6 L', uc: 16, ub: 'l', nk: 'agua auchan nascente garrafao 6l' });
     assert.deepEqual(tp.produtos[1].c + ' ' + tp.produtos[1].id, 'pingodoce 868788');
     // as palavras que distinguem os produtos (em pelo menos dois, e não em todos)
     assert.ok(tp.palavras.some((x) => x.w === 'garrafao'));

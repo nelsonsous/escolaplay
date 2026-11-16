@@ -93,7 +93,9 @@ function auchan(t) {
     return {
         id: String(d.id), nome: d.name ?? null, marca: d.brand || null,
         url: u?.absoluteProductUrl ?? null,
-        preco: numero(d.price), antes: null,
+        // a promoção: o rótulo «Promoção» (às vezes sem o preço riscado) e o riscado, quando o há
+        preco: numero(d.price), antes: (() => { const i = t.indexOf('strike-through list'); if (i < 0) return null; const m = /content="([\d.]+)"/.exec(t.slice(i, i + 400)); return m ? Number(m[1]) : null; })(),
+        ...(t.includes('auc-price__promotion__label') ? { promo: 1 } : {}),
         emb: null, precoUnidade: precoUnidade((elemento(t, 'auc-measures--price-per-unit') ?? '').replace(/(\d)\.(\d)/, '$1,$2')),
         cat: d.category ?? null,
     };
@@ -147,17 +149,17 @@ export function guardarCatalogo(db, cadeia, k, produtos, agora = new Date()) {
         const { cent: c, uc, ub, emb: embKg } = normaliza({ cadeia, nome: p.nome, cent: cent(p.preco), uc: pu.uc, ub: pu.ub, m, aoPeso: p.aoPeso });
         let a = cent(p.antes);
         if (a != null && c != null && cent(p.preco) !== c) a = Math.round(a * c / cent(p.preco)); // o «antes» da porção
-        return db.prepare(`INSERT INTO preco (cadeia, id, url, nome, marca, cent, antes, emb, uc, ub, q, tipo, propria, visto, tentado, falhas)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        return db.prepare(`INSERT INTO preco (cadeia, id, url, nome, marca, cent, antes, promo, emb, uc, ub, q, tipo, propria, visto, tentado, falhas)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
             ON CONFLICT (cadeia, id) DO UPDATE SET url = excluded.url, nome = excluded.nome, marca = excluded.marca,
-                cent = excluded.cent, antes = excluded.antes, emb = excluded.emb, uc = excluded.uc, ub = excluded.ub,
+                cent = excluded.cent, antes = excluded.antes, promo = excluded.promo, emb = excluded.emb, uc = excluded.uc, ub = excluded.ub,
                 q = excluded.q, tipo = excluded.tipo, propria = excluded.propria, visto = excluded.visto,
                 tentado = excluded.tentado, falhas = 0
-            WHERE preco.cent IS NOT excluded.cent OR preco.antes IS NOT excluded.antes OR preco.nome IS NOT excluded.nome
+            WHERE preco.cent IS NOT excluded.cent OR preco.antes IS NOT excluded.antes OR preco.promo IS NOT excluded.promo OR preco.nome IS NOT excluded.nome
                 OR preco.uc IS NOT excluded.uc OR preco.emb IS NOT excluded.emb OR preco.tipo IS NOT excluded.tipo
                 OR preco.marca IS NOT excluded.marca OR preco.url IS NOT excluded.url OR preco.falhas > 0
                 OR preco.visto IS NULL OR preco.visto < ?`)
-            .bind(cadeia, p.id, p.url, String(p.nome ?? '').slice(0, 160), p.marca ?? null, c, a != null && c != null && a > c ? a : null,
+            .bind(cadeia, p.id, p.url, String(p.nome ?? '').slice(0, 160), p.marca ?? null, c, a != null && c != null && a > c ? a : null, (a != null && c != null && a > c) || p.promo ? 1 : null,
                 (embKg?.startsWith('≈') ? embKg : null) ?? rotulo(p.emb) ?? rotulo(p.nome) ?? embKg ?? null, uc, ub, embKg?.startsWith('≈') ? medida(embKg.slice(1))?.q ?? null : m?.q ?? (embKg ? 1 : null), k, propria(cadeia, p.marca), quando, quando, limiar);
     });
     return frases.length ? db.batch(frases) : Promise.resolve([]);
