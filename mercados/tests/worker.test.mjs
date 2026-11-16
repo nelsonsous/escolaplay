@@ -466,3 +466,64 @@ test('/advice/run: a análise na hora, só para o dono, com travões (1.10.0)', 
     env.CONSELHEIRO_FIRE_URL = 'https://exemplo.com/fire';
     assert.deepEqual((await run(OWNER)).body, { naHora: false, motivo: 'sem gatilho' });
 });
+
+// ---------- histórico (D1, 1.11.0) ----------
+test('histórico (D1): conselhos copiados na leitura, diário de cada app e a Carteira só do dono, com /history só para o dono', async () => {
+    const { fakeD1 } = await import('./fixtures/d1.mjs');
+    const { _resetCopied } = await import('../proxy/src/historico.js');
+    _resetCopied();
+    const HIST = fakeD1(new URL('../proxy/historico.sql', import.meta.url));
+    const OUTRA = 'outra123-xyz';
+    const advice1 = { v: 2, date: '2026-11-16', generatedAt: '2026-11-16T08:24:50.134Z', headline: 'Nvidia decide amanhã',
+        actions: [{ s: 'VWCE.DE', key: 'scale', action: 'Plano 900 €', why: 'núcleo' }, { s: 'MSFT', key: 'buy', action: '150 € a 519 $', why: 'abaixo da MM50' }],
+        prices: { 'VWCE.DE': 169.92, MSFT: 523.1 } };
+    const store = new Map([['cfg:owner', JSON.stringify(OWNER)], ['advice:latest', JSON.stringify(advice1)],
+        ['ua:' + OUTRA, JSON.stringify({ date: '2026-11-16', generatedAt: '2026-11-16T09:00:00.000Z', headline: 'Só tua', actions: [] })]]);
+    const env = { HIST, JOURNAL: { get: async (k) => (store.has(k) ? JSON.parse(store.get(k)) : null), put: async (k, v) => { store.set(k, v); } } };
+    const get = async (p) => { const r = await worker.fetch(new Request('https://w.test' + p), env); return { status: r.status, body: await r.json() }; };
+    const post = async (b) => (await worker.fetch(new Request('https://w.test/journal', { method: 'POST', body: JSON.stringify(b) }), env)).status;
+
+    // o conselho entra no histórico na primeira leitura, e só uma vez
+    assert.equal((await get('/advice?id=' + OWNER)).status, 200);
+    await get('/advice?id=' + OWNER);
+    assert.equal(HIST.calls, 1);
+    assert.deepEqual(HIST.rows('SELECT para, ativo, chave, preco FROM acoes ORDER BY ativo'),
+        [{ para: 'dono', ativo: 'MSFT', chave: 'buy', preco: 523.1 }, { para: 'dono', ativo: 'VWCE.DE', chave: 'scale', preco: 169.92 }]);
+    // um conselho novo junta-se (não substitui)
+    store.set('advice:latest', JSON.stringify({ ...advice1, generatedAt: '2026-11-16T15:10:00.000Z', headline: 'Depois da Nvidia' }));
+    await get('/advice?id=' + OWNER);
+    assert.equal(HIST.rows("SELECT count(*) AS n FROM conselhos WHERE para = 'dono'")[0].n, 2);
+    // o de outra app fica com o código dela
+    await get('/advice?id=' + OUTRA);
+    assert.deepEqual(HIST.rows("SELECT titulo FROM conselhos WHERE para = ?", OUTRA), [{ titulo: 'Só tua' }]);
+
+    // o diário: as sugestões de cada app; a Carteira (quantidades, investido, total) só a do dono
+    const items = [{ s: 'MSFT', p: 523.1, a: 'buy', l: 61, m: 40, sh: 12, o: 1 }, { s: 'c:BTC', p: 58635.7, a: 'neutral', l: 50, m: 10, sh: -5, o: 0 }];
+    const lots = { MSFT: { qty: 2, cost: 900, pm: 50, hz: 'long' }, 'c:BTC': { buys: [{ d: '2026-10-01', e: 500 }, { d: '2026-11-01', e: 250 }] } };
+    assert.equal(await post({ id: OWNER, date: '2026-11-16', items, lots, carteira: { v: 1834.27, cp: 0.41 } }), 200);
+    assert.equal(await post({ id: OUTRA, date: '2026-11-16', items, lots, carteira: { v: 99999 } }), 200);
+    assert.equal(HIST.rows('SELECT count(*) AS n FROM sugestoes')[0].n, 4);
+    assert.deepEqual(HIST.rows('SELECT ativo, quantidade, investido, preco, por_mes, prazo FROM carteira ORDER BY ativo'), [
+        { ativo: 'MSFT', quantidade: 2, investido: 900, preco: 523.1, por_mes: 50, prazo: 'long' },
+        { ativo: 'c:BTC', quantidade: null, investido: 750, preco: 58635.7, por_mes: null, prazo: null }]);
+    assert.deepEqual(HIST.rows('SELECT * FROM carteira_dia'), [{ data: '2026-11-16', valor: 1834.27, investido: 1650, cripto: 0.41 }]);
+    // o dono tira a cripto durante o dia (só as quantidades, sem o total): sai da fotografia; o total do dia fica
+    assert.equal(await post({ id: OWNER, date: '2026-11-16', lots: { MSFT: { qty: 3, cost: 1400 } } }), 200);
+    assert.deepEqual(HIST.rows('SELECT ativo, quantidade, preco FROM carteira'), [{ ativo: 'MSFT', quantidade: 3, preco: 523.1 }]);
+    assert.deepEqual(HIST.rows('SELECT valor, investido FROM carteira_dia'), [{ valor: 1834.27, investido: 1400 }]);
+
+    // /history: só o dono; com um ativo, o que se disse dele e quanto se tinha
+    assert.equal((await get('/history?id=' + OUTRA)).status, 403);
+    assert.equal((await get('/history?id=' + OWNER + '&ativo=<x>')).status, 400);
+    const h = await get('/history?id=' + OWNER + '&ativo=MSFT&days=3660');
+    assert.equal(h.status, 200);
+    assert.deepEqual(h.body.carteira.map((r) => r.valor), [1834.27]);
+    assert.deepEqual(h.body.conselhos.map((r) => r.titulo), ['Depois da Nvidia', 'Nvidia decide amanhã']);
+    assert.deepEqual(h.body.ativo.conselhos.map((r) => r.chave), ['buy', 'buy']);
+    assert.deepEqual(h.body.ativo.sugestoes.map((r) => [r.sugestao, r.oportunidade]), [['buy', 1]]);
+    assert.deepEqual(h.body.ativo.carteira.map((r) => r.quantidade), [3]);
+    // sem a base D1, o resto funciona e o /history diz que falta
+    delete env.HIST;
+    assert.equal(await post({ id: OWNER, date: '2026-11-17', items, lots }), 200);
+    assert.equal((await get('/history?id=' + OWNER)).status, 501);
+});

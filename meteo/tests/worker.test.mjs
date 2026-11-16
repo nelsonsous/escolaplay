@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import worker from '../proxy/src/worker.js';
 import { validateAnalysis, ANALYSIS_SCHEMA, SYSTEM_PROMPT, regionalPhrases } from '../lib/analysis.js';
 import { lisbon } from '../lib/places.js';
+import { fakeD1 } from './fixtures/d1.mjs';
+import { analysisRows, runD1 } from '../lib/historico.js';
 
 const ORIGIN = 'https://meteo.example.workers.dev';
 const CODE = 'código-do-dono-2026-ç'; // com acentos: vai no cabeçalho com encodeURIComponent
@@ -64,7 +66,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.9.1');
+    assert.equal(j.version, '1.10.0');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -874,4 +876,25 @@ test('análise na hora: abrir a app com a análise do seu local com mais de 6 h 
     b = await get();
     assert.deepEqual([b.refreshing, fired.length, kvj('fire:calls').length], [true, 4, 1]);
     delete env.METEO_FIRE_URL; delete env.METEO_TOKEN; delete env.OWNER_CODE;
+});
+
+test('histórico (D1): o telemóvel vê o do seu local, o dono vê todos; sem a base responde 501', async () => {
+    env.OWNER_CODE = CODE;
+    const d = device(), other = device();
+    env.KV.m.set('places', JSON.stringify([{ id: 'casa', name: 'Casa', lat: 41.34, lon: -8.47 }, { id: 'tia', name: 'Tia', lat: 41.2, lon: -8.3, owner: d.id }]));
+    assert.equal((await J('GET', '/api/history?place=tia', { d })).status, 501);
+    env.HIST = fakeD1(new URL('../proxy/historico.sql', import.meta.url));
+    const at = new Date(Date.now() - 3 * 36e5).toISOString(), dia = at.slice(0, 10);
+    await runD1(env.HIST, analysisRows({ ...ANALISE, numeros: [{ data: dia, tmax: 18, tmin: 9, chuva: 4, rajada: 35 }], generatedAt: at, by: 'claude-agendado', place: { id: 'tia', name: 'Tia', lat: 41.2, lon: -8.3 } }));
+    const mine = await J('GET', '/api/history?place=tia', { d });
+    assert.equal(mine.status, 200);
+    assert.equal(mine.body.place.name, 'Tia');
+    assert.deepEqual(mine.body.analises.map((a) => a.titulo), ['Chuva sábado']);
+    assert.equal(mine.body.dias[0].previsto[0].tmax, 18);
+    // o local de outra pessoa (e o do dono) não se vê de outro telemóvel
+    assert.equal((await J('GET', '/api/history?place=tia', { d: other })).status, 404);
+    assert.equal((await J('GET', '/api/history?place=casa', { d })).status, 404);
+    // o dono vê todos
+    assert.equal((await J('GET', '/api/history?place=tia&days=7', { owner: CODE })).body.analises.length, 1);
+    assert.equal((await J('GET', '/api/history?place=casa', { owner: CODE })).body.analises.length, 0);
 });

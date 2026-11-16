@@ -1,10 +1,11 @@
-// Utilitários da tarefa agendada: Worker, base de dados (KV) pela API da Cloudflare.
+// Utilitários da tarefa agendada: Worker, base de dados (KV) e histórico (D1) pela API da Cloudflare.
 import { readFileSync } from 'node:fs';
 
 const toml = readFileSync(new URL('../proxy/wrangler.toml', import.meta.url), 'utf8');
 export const WORKER = process.env.METEO_WORKER || 'https://meteo.mercados-proxy.workers.dev';
 export const ACCOUNT = process.env.CF_ACCOUNT_ID || 'e5f9f94050228b1fa9f74443667b20a6';
 export const KV_NS = (toml.match(/binding = "KV"\s*\nid = "([0-9a-f]+)"/) || [])[1];
+export const D1_ID = (toml.match(/binding = "HIST"[\s\S]*?database_id = "([0-9a-f-]+)"/) || [])[1];
 // O token é injetado pelo proxy do ambiente (ou vem de CLOUDFLARE_API_TOKEN)
 const CF_AUTH = { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN || 'proxy-injected'}` };
 const KV = () => `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${KV_NS}`;
@@ -46,6 +47,17 @@ export async function kvList(prefix) {
     const b = await r.json().catch(() => null);
     if (!r.ok || !b || !b.success) throw new Error(`Cloudflare: HTTP ${r.status} a listar ${prefix}`);
     return (b.result || []).map((k) => k.name);
+}
+
+/** Corre instruções no histórico (D1), todas num pedido: [{ sql, params }] (lib/historico.js). Devolve quantas. */
+export async function d1Run(stmts) {
+    if (!stmts.length) return 0;
+    if (!D1_ID) throw new Error('sem a base D1 (binding HIST) no wrangler.toml');
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/d1/database/${D1_ID}/query`, {
+        method: 'POST', headers: { ...CF_AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify({ batch: stmts }) });
+    const b = await r.json().catch(() => null);
+    if (!r.ok || !b || !b.success) throw new Error(`Cloudflare D1: HTTP ${r.status} ${JSON.stringify(b && b.errors)}`);
+    return stmts.length;
 }
 
 export const arg = (name, def = null) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : def; };

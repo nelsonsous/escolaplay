@@ -18,8 +18,8 @@
 //   GET /cryptoglobal                         → mercado cripto: capitalização, dominância BTC, volume, medo e ganância
 //   GET /fuel/municipios?distrito=13          → concelhos de um distrito (DGEG); /fuel?municipio=… filtra por concelho
 //   GET  /journal?id=…                        → diário de sugestões (KV)
-//   POST /journal  { id, date, items, lots, plano }  → guardar as sugestões do dia, o que se tem (com o valor por mês e o
-//                  prazo de cada ativo, desde a 1.9.0) e o valor do plano mensal
+//   POST /journal  { id, date, items, lots, plano, carteira }  → guardar as sugestões do dia, o que se tem (com o valor por
+//                  mês e o prazo de cada ativo, desde a 1.9.0), o valor do plano mensal e (1.11.0) o total da Carteira em €
 //   POST /advice/run?id=… { quando }        → pede a análise ao Claude na hora (só o dono; precisa do gatilho, 1.10.0)
 //   GET  /advice?id=…[&date=AAAA-MM-DD]       → análise do Claude (KV, só leitura; a tarefa agendada escreve-a
 //                                               pela API da Cloudflare): a completa só para o dono, as outras
@@ -28,11 +28,16 @@
 //   GET  /stats?id=<dono>                     → quantas apps se ligam e quantas pedem a análise do Claude
 //   POST /owner { id, others }                → o dono liga/desliga a análise do Claude para as outras apps
 //   GET  /universe?id=<dono>                  → classificação de toda a lista da Trade Republic (escrita pela tarefa)
+//   GET  /history?id=<dono>[&ativo=MSFT][&days=90] → o histórico (D1, 1.11.0): a Carteira dia a dia, os conselhos e,
+//                                               com um ativo, o que o Claude e a app disseram dele e quanto se tinha
 //
+// Histórico em SQL (D1 mercados-historico, binding HIST, 1.11.0): ver src/historico.js e historico.sql.
 // Sem segredos. Opcional em [vars]: ALLOWED_ORIGINS="https://x.github.io,..."
 // para só aceitar pedidos vindos da tua app.
 
-const VERSION = '1.10.0';
+import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
+
+const VERSION = '1.11.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -596,6 +601,16 @@ async function journal(request, url, env) {
     // (só compras ou dias de execução iguais aos que já lá estão), não se grava
     if (!hasItems && old && JSON.stringify(doc) === JSON.stringify(old)) return { body: { ok: true, days: Object.keys(doc.days).length, same: true } };
     await env.JOURNAL.put('j:' + b.id, JSON.stringify(doc), { metadata: { s: seen, c: doc.claude ? 1 : 0 } });
+    // o histórico (D1): as sugestões do dia e, na app do dono, a fotografia da Carteira (sem os preços do registo de
+    // hoje, os do diário desse dia). Se falhar, o diário já está gravado.
+    if (env.HIST) {
+        try {
+            const day = JDATE.test(b.date || '') ? b.date : lisbonDay();
+            const stmts = hasItems ? journalRows(b.id, b.date, items) : [];
+            if (lots && (await isOwner(env, b.id))) stmts.push(...walletRows(day, lots, { items: hasItems ? items : doc.days[day] || null, carteira: cleanCarteira(b.carteira) }));
+            await runD1(env.HIST, stmts);
+        } catch (e) { console.error('histórico', e); }
+    }
     return { body: { ok: true, days: Object.keys(doc.days).length } };
 }
 
@@ -615,10 +630,13 @@ async function advice(url, env) {
         if (!id || date) return { status: 404, body: { error: 'ainda sem análise' } };
         if (!(await othersOn(env))) return { status: 404, body: { error: 'análise do Claude desligada pelo autor da app', off: true } };
         const mine = await env.JOURNAL.get('ua:' + id, 'json');
+        if (mine) await copyAdvice(env.HIST, id, mine).catch((e) => console.error('histórico', e));
         return mine ? { body: mine } : { status: 404, body: { error: 'ainda sem análise' } };
     }
     const doc = await env.JOURNAL.get(date ? 'advice:' + date : 'advice:latest', 'json');
     if (!doc) return { status: 404, body: { error: 'ainda sem análise' } };
+    // a tarefa grava o conselho no KV; na primeira leitura fica também no histórico (D1)
+    if (!date) await copyAdvice(env.HIST, 'dono', doc).catch((e) => console.error('histórico', e));
     return { body: doc };
 }
 
@@ -701,6 +719,18 @@ async function ownerSet(request, env) {
     await env.JOURNAL.put('cfg:others', JSON.stringify({ claude: b.others }));
     return { body: { ok: true, others: b.others } };
 }
+// o dia de Lisboa (o diário conta os dias de cá)
+const lisbonDay = (t = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(t);
+async function history(url, env) {
+    if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
+    const id = url.searchParams.get('id') || '';
+    if (!(await isOwner(env, id))) return { status: 403, body: { error: 'só para a app do dono' } };
+    if (!env.HIST) return { status: 501, body: { error: 'histórico por configurar (D1 HIST)' } };
+    const ativo = url.searchParams.get('ativo') || '';
+    if (ativo && !SYM.test(ativo)) return { status: 400, body: { error: 'ativo inválido' } };
+    const days = Math.min(Math.max(parseInt(url.searchParams.get('days') || '90', 10) || 90, 1), 3660);
+    return { body: { days, ...(await readHistory(env.HIST, { owner: id, ativo, days })) } };
+}
 async function universe(url, env) {
     if (!env.JOURNAL) return { status: 501, body: { error: 'KV por configurar' } };
     if (!(await isOwner(env, url.searchParams.get('id') || ''))) return { status: 403, body: { error: 'só para a app do dono' } };
@@ -734,7 +764,7 @@ export default {
         }
         if (request.method !== 'GET') return json({ error: 'só GET' }, 405, 0, origin);
         // dados de cada app: sem cache partilhado (dependem do id)
-        const OWN = { '/advice': [advice, 60], '/me': [me, 0], '/stats': [stats, 0], '/universe': [universe, 300] };
+        const OWN = { '/advice': [advice, 60], '/me': [me, 0], '/stats': [stats, 0], '/universe': [universe, 300], '/history': [history, 0] };
         if (OWN[path]) {
             const [fn, ttl] = OWN[path];
             try { const { status = 200, body } = await fn(url, env); return json(body, status, status === 200 ? ttl : 0, origin); } catch (e) { return json({ error: String(e.message || e) }, 502, 0, origin); }

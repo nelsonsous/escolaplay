@@ -16,7 +16,8 @@ import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { selectPlaces, isOwnerPlace, placeOwner, placeMembers, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
 import { mergeMemory } from '../lib/learn.js';
 import { verifyNumbers, claudeWeights, numbersReport } from '../lib/nums.js';
-import { WORKER, getJSON, kvGet, kvPut as kvPutReal, kvList, kvDelete as kvDeleteReal, arg } from './comum.mjs';
+import { WORKER, getJSON, kvGet, kvPut as kvPutReal, kvList, kvDelete as kvDeleteReal, d1Run, arg } from './comum.mjs';
+import { observedRows } from '../lib/historico.js';
 
 const DRY = process.argv.includes('--sem-gravar');
 const kvPut = DRY ? async () => {} : kvPutReal;
@@ -122,6 +123,12 @@ for (const [i, place] of places.entries()) {
         // os números do Claude das análises anteriores, verificados; o peso de cada variável na app afina-se com isto
         try { out.push(`\n## Os teus números anteriores (contra o observado nas estações e contra o consenso dos modelos da mesma altura)\n${(await verifyClaude(place, fc)).join('\n')}`); }
         catch (e) { out.push(`\n(números do Claude não verificados: ${e.message})`); }
+        // o histórico (D1): o que as estações mediram em cada dia já acabado (para comparar com o que se previu)
+        if (!DRY) {
+            const today = new Date(Date.parse(fc.generatedAt) + (fc.location?.utcOffsetSeconds || 0) * 1000).toISOString().slice(0, 10);
+            try { await d1Run(observedRows(place.id, fc.observed?.days, { today })); }
+            catch (e) { console.error(`(histórico do observado não gravado em ${place.id}: ${e.message})`); }
+        }
         const imgs = [];
         for (const [layer, km, tag, what] of SAT) {
             try {

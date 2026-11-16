@@ -270,6 +270,15 @@ telemóvel** mais perto do ponto, até 3 km (o dono: os seus locais). `{ "place"
 (`mergeMemory`: dia a dia fica a mais completa; uma memória de outro ponto, a mais de 3 km, não entra) e passa as duas
 a `loadForecast({ memory })`.
 
+## GET /api/history?place=<id>[&days=30] (conector 1.10)
+
+O histórico do local (base D1 `meteo-historico`, esquema em `proxy/historico.sql`): o telemóvel do local e o dono; os
+outros recebem 404, e sem a base ligada 501. `days`: 1 a 366.
+`{ "place": { "id", "name" }, "days", "analises": [{ "gerada_em", "por", "titulo", "resumo" }] (mais recentes primeiro),
+"dias": [{ "dia", "previsto": [{ "gerada_em", "prazo", "tmax", "tmin", "chuva", "rajada", "c_tmax", "c_tmin", "c_chuva",
+"c_rajada" }], "observado": { "tmax", "tmin", "chuva", "chuva_min", "chuva_max", "n_temp", "n_chuva", "v_tmax", "v_tmin",
+"v_chuva" } | null }] }` — `c_*` é o consenso dos modelos da mesma corrida, `v_*` o que ele dava na véspera.
+
 ## Este telemóvel — `PATCH /api/me`
 
 `{ name }` → `{ id, name }`: o nome que a pessoa quer mostrar ao dono (opcional; sem caracteres de controlo, até 40;

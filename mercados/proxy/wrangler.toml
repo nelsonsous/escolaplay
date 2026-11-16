@@ -12,3 +12,9 @@ keep_vars = true
 [[kv_namespaces]]
 binding = "JOURNAL"
 id = "7e442625c6b6499ab20d553824304411"
+
+# Histórico em SQL (D1): o KV fica a cache do que a app lê; aqui guarda-se a evolução. Esquema em historico.sql.
+[[d1_databases]]
+binding = "HIST"
+database_name = "mercados-historico"
+database_id = "38e1d344-441c-4e1b-b98f-ac2c5d1b3e4d"

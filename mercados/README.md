@@ -97,6 +97,25 @@ Os pormenores de cada fonte (convicção por prazo, analistas, sinais automátic
 - **Análise → Como têm corrido as sugestões** compara cada sugestão guardada com o preço de hoje e com o VWCE no mesmo período.
 - **Teste no passado**: aplica as regras atuais aos últimos 2 anos (a cada 5 sessões, a partir dos 200 dias de histórico) e mede o resultado a 1 e 3 meses face ao VWCE. Em novembro de 2026, nenhum sinal técnico bateu o VWCE de forma consistente (ações −2,3 pp e cripto −4,6 pp a 3 meses, em média); por isso o plano dá prioridade ao núcleo em ETF.
 
+## Histórico em SQL (conector 1.11.0)
+
+O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da Cloudflare, `mercados-historico` (binding
+`HIST`; esquema em [`proxy/historico.sql`](proxy/historico.sql); grava o Worker, em [`proxy/src/historico.js`](proxy/src/historico.js)):
+
+| Tabela | O que guarda | Quando |
+|---|---|---|
+| `conselhos` | cada conselho do Claude (o do dono e os das outras apps, pelo código), com o documento inteiro | na primeira leitura em `/advice` (a tarefa, em Onda, só grava o KV) |
+| `acoes` | o que cada conselho dizia de cada ativo (chave, ação, porquê, preço) | idem |
+| `sugestoes` | as sugestões automáticas de cada app, um dia por linha e por ativo | no registo diário (`POST /journal`) |
+| `carteira` | **só a do dono**: quantidade, investido, preço, € por mês e prazo de cada ativo, uma fotografia por dia | no registo diário e quando o dono muda a Carteira |
+| `carteira_dia` | **só a do dono**: o total em € (como a app o calcula, a partir da 4.28.0), o investido e a parte em cripto | idem |
+
+- `GET /history?id=<dono>[&ativo=MSFT][&days=90]` (só o dono): a Carteira dia a dia, os conselhos e, com um ativo, o que
+  o Claude e a app disseram dele e quanto se tinha.
+- `node mercados/proxy/recuperar-historico.mjs` copia o que ainda está no KV (a 16/11: 13 conselhos desde 05/11 e 12 dias
+  de diário de 4 apps). Pode correr-se mais de uma vez.
+- Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
+
 ## Dados e limites
 
 - Ações, índices e futuros: dados gratuitos do Yahoo Finance, que podem ter **até 15 min de atraso** nalgumas bolsas. A app atualiza a cada 30 s.
