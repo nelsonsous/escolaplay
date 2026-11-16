@@ -207,13 +207,14 @@ export async function cabazDeNatal(db, { modo = 'equilibrio', cadeias = null, te
                 if (p.k === 'vinho' && !v.nt && !(r.vivino >= 3.8) && !/\b(reserva|garrafeira)\b/.test(sem(r.nome))) return null;
             }
             const o = { cadeia: r.cadeia, id: String(r.id), nome: r.nome, url: r.url, cent: r.cent, emb: r.emb ?? null, uc: r.uc ?? null, ub: r.ub ?? null, q, porque, tipo: r.tipo };
-            if (o.uc && !ucBom(o) && o.ub !== 'un') { o.uc = null; o.ub = null; }
+            if (o.uc && !ucBom(o) && o.ub !== 'un') { delete o.uc; delete o.ub; }
+            for (const c of ['emb', 'uc', 'ub']) if (o[c] == null) delete o[c]; // a app lê null como 0
             if (r.marca) o.marca = r.marca;
             if (r.propria) o.propria = 1;
             if (r.produtor) o.produtor = 1;
             if (r.antes && r.antes > r.cent) o.antes = r.antes;
             // no vinho compara-se a garrafa, não o litro
-            if (p.vinho) { o.uc = null; o.ub = null; }
+            if (p.vinho) { delete o.uc; delete o.ub; } // (sem o campo: a app lê null como 0)
             return o;
         }).filter(Boolean);
         return { k: p.k, nome: p.nome, icone: p.icone, n: ops.length, opcoes: ordenar(ops, modo).slice(0, 3) };
