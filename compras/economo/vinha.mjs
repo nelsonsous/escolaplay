@@ -70,7 +70,9 @@ export function juntarFontes(antes, novas) {
 async function main() {
     const so = args.find((a) => a.startsWith('--loja='))?.slice(7);
     const sup = await d1(`SELECT nome, tipo, q FROM preco WHERE tipo IN (${TIPOS.map(() => '?').join(', ')}) AND suspeito IS NULL AND cent IS NOT NULL`, TIPOS);
-    for (const g of GARRAFEIRAS.filter((x) => !so || x.loja === so)) await garrafeira(g, sup);
+    for (const g of GARRAFEIRAS.filter((x) => !so || x.loja === so)) {
+        try { await garrafeira(g, sup); } catch (e) { console.log(`${g.loja}: falhou (${e.message}); segue para a próxima`); }
+    }
 }
 
 async function garrafeira(g, sup) {
@@ -78,7 +80,15 @@ async function garrafeira(g, sup) {
     const idx = await sonda(g.indice);
     const mapas = [...idx.corpo.toString('utf8').matchAll(g.mapas)].map((m) => m[1]);
     const urls = [];
-    for (const m of mapas) { const r = await sonda(m); if (r.estado === 200) urls.push(...vinhosDoMapa(r.corpo.toString('utf8'), g.vinhos)); await espera(pausa); }
+    // cada mapa até 3 vezes (o mapa do Vinha às vezes demora mais do que os 15 s da sonda)
+    for (const m of mapas) {
+        for (let t = 0; t < 3; t++) {
+            const r = await sonda(m).catch(() => null);
+            if (r?.estado === 200) { urls.push(...vinhosDoMapa(r.corpo.toString('utf8'), g.vinhos)); break; }
+            await espera(5000);
+        }
+        await espera(pausa);
+    }
     const esc = [...escolher([...new Set(urls)], sup)].slice(0, max);
     if (g.extras) esc.push(...extras([...new Set(urls)], new Set(esc.map(([u]) => u)), extra).map((u) => [u, null]));
     console.log(`${g.loja}: ${urls.length} vinhos no mapa; ${esc.length} também nos supermercados`);
