@@ -357,3 +357,11 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .cadeias .falta { grid-column: 1 / -1; margin: 4px 0 0; font-size: 14px; color: var(--fraco); }
 .cadeias .falta button { display: inline-block; margin: 2px 6px 2px 0; padding: 2px 10px; border-radius: 12px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font-size: 14px; }
 .cadeias .falta i { font-style: normal; }
+
+/* volta 8: a lista vazia (os três passos) e a ajuda */
+.bemvindo .passos { margin: 4px 0 8px; padding-left: 22px; }
+.bemvindo .passos li { margin: 8px 0; color: var(--fraco); }
+.bemvindo .passos b { color: var(--texto); font-weight: 600; }
+.ajuda-l { display: inline-block; margin: 4px 0 8px; padding: 6px 0; border: 0; background: none; color: var(--azul); font-size: 15px; }
+.cartao.ajuda h3 { margin-top: 16px; color: var(--texto); text-transform: none; letter-spacing: 0; font-size: 17px; }
+.cartao.ajuda p { color: var(--fraco); }
