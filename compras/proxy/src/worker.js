@@ -14,6 +14,7 @@
 //   GET  /api/procurar?cadeia=…&q=…    { cadeia, produtos: [{ id, nome, url }] } do índice dessa cadeia (indice.js)
 //   POST /api/precos  {cadeia, produtos}  os preços dos produtos de uma procura (no máximo 8; os que faltam lê-se no
 //                                      máximo dois): { cadeia, produtos: [{ id, cent, antes, uc, ub, esgotado }] }
+//   GET  /api/taloes                   os talões da casa (os 12 últimos, com as linhas); POST /api/talao/apagar {id}
 //   POST /api/talao   {imagem}         a fotografia de um talão (data URL JPEG): a IA lê-o, guarda-se e risca-se na lista
 //                                      o que lá vem: { id, loja, dia, total, linhas, riscadas } (talao.js)
 //   GET  /api/costume                  o que costumas comprar (dos talões) e não está na lista: { coisas } (costume.js)
@@ -55,12 +56,12 @@ import { registarCompras, gastos } from './compras.js';
 import { saude, saudeCurta } from './saude.js';
 import { zonaContinente, produtoNaZona, stockZonas, cpValido } from './zona.js';
 import { atualizarEscolhas } from './escolhas.js';
-import { lerTalao, MAX_IMAGEM } from './talao.js';
+import { lerTalao, taloesDaCasa, apagarTalao, MAX_IMAGEM } from './talao.js';
 import { sugestoes, esquecer } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.58.2';
+export const VERSION = '0.58.3';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -305,6 +306,8 @@ async function api(request, env, url) {
         const lista = produtos.map((p) => produto(cadeia, p)).filter((p) => p && p.id);
         return json({ cadeia, produtos: await precosDe(db, cadeia, lista) });
     }
+    if (caminho === '/api/taloes' && metodo === 'GET') return json({ taloes: await taloesDaCasa(db, ap) });
+    if (caminho === '/api/talao/apagar' && metodo === 'POST') return json(await apagarTalao(db, ap, (await corpoJSON(request)).id));
     if (caminho === '/api/talao' && metodo === 'POST') {
         const { imagem } = await corpoJSON(request, MAX_TALAO);
         return json(await lerTalao(env, ap, imagem));

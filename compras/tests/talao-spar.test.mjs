@@ -77,4 +77,12 @@ test('o mesmo talão lido outra vez substitui a leitura (pelo número, ou pela l
     assert.equal(env.DB.linhas('SELECT count(*) n FROM talao')[0].n, 1);
     const g = await (await api('/api/gastos')).json();
     assert.deepEqual([g.semana, g.lojas], [86, [{ c: 'spar', nome: 'SPAR', cent: 86 }]]);
+    // os teus talões: a loja e o dia para ler; apagar só os da casa (outra casa não apaga)
+    const ts = (await (await api('/api/taloes')).json()).taloes;
+    assert.deepEqual([ts.length, ts[0].lojan, ts[0].diat, ts[0].linhas.length], [1, 'SPAR', '17/11', 3]);
+    const outra = (await (await worker.fetch(new Request('https://x/api/aparelho', { method: 'POST' }), env)).json()).chave;
+    const r404 = await worker.fetch(new Request('https://x/api/talao/apagar', { method: 'POST', headers: { authorization: 'Bearer ' + outra }, body: JSON.stringify({ id: ts[0].id }) }), env);
+    assert.equal(r404.status, 404);
+    assert.equal((await (await api('/api/talao/apagar', { id: ts[0].id })).json()).ok, 1);
+    assert.equal((await (await api('/api/taloes')).json()).taloes.length, 0);
 });
