@@ -282,7 +282,38 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .melhores .tag-esc { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--azul); color: #fff; font-size: 13px; font-weight: 700; vertical-align: middle; }
 .melhores > li.flash { animation: flash-esc 1.2s ease-out; }
 @keyframes flash-esc { 0% { box-shadow: 0 0 0 6px rgba(80, 150, 255, .7); } 100% { box-shadow: 0 0 0 0 rgba(80, 150, 255, 0); } }
-.costume .costx { min-width: 44px; min-height: 44px; margin: 0 10px 8px -6px; border-radius: 999px; border: 1px solid var(--linha); background: var(--cartao); color: var(--fraco); font-size: 18px; }
+
 .subsug { margin: 8px 0 14px; padding: 12px 14px; border: 1px solid var(--azul); border-radius: 14px; background: #0b1a2e; }
 .subsug h3 { margin-top: 0; }
 .subsug .chip.grande { font-size: 17px; padding: 10px 16px; }
+
+/* volta 2 (17/11/2026): o layout a 390 px, visto em capturas com dados reais */
+/* a lista não transborda para o lado (o botão da análise partia a largura), e o preço de cada coisa lê-se inteiro */
+.botao.analisar { white-space: normal; }
+.item { gap: 10px; }
+.item .texto small { white-space: normal; overflow: visible; text-overflow: clip; }
+.qtd-l { gap: 6px; margin-left: 0; }
+.qtd-l button { width: 40px; }
+.item .tira { width: 40px; }
+/* «Costumas comprar»: a sugestão e o ✕ na mesma pastilha (o ✕ com 44 px, à direita) */
+.costume .chips { gap: 8px; }
+.cost-par { display: inline-flex; align-items: stretch; max-width: 100%; border: 1px solid var(--linha); border-radius: 16px; background: var(--cartao); overflow: hidden; }
+.cost-par.falta { border-color: #6b5a1e; }
+.cost-par .chip { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 8px 6px 8px 14px; border: 0; border-radius: 0; background: transparent; text-align: left; }
+.cost-par .chip b { font-weight: 500; overflow-wrap: anywhere; }
+.cost-par .costx { flex: none; width: 44px; min-height: 44px; border-left: 1px solid var(--linha); color: var(--fraco); font-size: 16px; text-align: center; }
+.cost-par .costx:active { background: #2a2a2a; color: var(--vermelho); }
+/* a folha do tipo: cada fila de filtros (variante, tamanho, marca…) numa linha que rola para o lado, para os preços
+   ficarem logo à vista; a fila vai até às bordas da folha e esbate à direita enquanto há mais */
+.cartao.escolha .chips.n3, .cartao.escolha .chips.n4, .cartao.escolha .chips.n5 {
+    flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 2px 16px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+}
+.cartao.escolha .chips.n3::-webkit-scrollbar, .cartao.escolha .chips.n4::-webkit-scrollbar, .cartao.escolha .chips.n5::-webkit-scrollbar { display: none; }
+.cartao.escolha .chips.n3 .chip, .cartao.escolha .chips.n4 .chip, .cartao.escolha .chips.n5 .chip { flex: none; white-space: nowrap; }
+.cartao.escolha .chips.fim { -webkit-mask-image: none; mask-image: none; }
+.cartao.escolha h3 { margin: 14px 0 6px; }
+/* as ligações do vinho (Vivino, Wine-Searcher): lado a lado, discretas */
+.melhores .ligs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 2px 0; }
+.melhores .ligs .mais-op { margin: 0; padding: 4px 0; border: 0; background: none; font-size: 14px; }
+.afinar .mais-op { display: inline-block; margin-top: 8px; padding: 4px 0; border: 0; background: none; color: var(--azul); font-size: 15px; text-decoration: underline; text-underline-offset: 3px; }

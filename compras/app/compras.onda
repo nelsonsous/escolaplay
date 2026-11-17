@@ -339,7 +339,7 @@
     Se ~ na_lista txt x.t {
       Se ~ s { `<div class="costume"><h3>Costumas comprar</h3><div class="chips">` = s 1 }
       # o ✕ tira a sugestão (não volta); o tipo, quando se percebe (x.tk), vai com a coisa para comparar nos supermercados
-      `<button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }">+ { esc x.t }<small> { Se x.tn `{ esc x.tn } · ` }{ ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` { ? int x.ha `há { N int x.ha } dias` `comprado hoje` } }</small></button><button class="costx" data-onda="costx:{ N i }" aria-label="Tirar esta sugestão">✕</button>` }
+      `<span class="cost-par{ Se int x.falta ` falta` }"><button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }"><b>+ { esc x.t }</b><small>{ Se x.tn `{ esc x.tn } · ` }{ ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` { ? int x.ha `há { N int x.ha } dias` `comprado hoje` } }</small></button><button class="costx" data-onda="costx:{ N i }" aria-label="Tirar esta sugestão">✕</button></span>` }
     = x seg x = i + i 1 }
   Se s `</div></div>` }
 : pede_costume >i Se _an_ler $"chave" _an_buscar $"/api/costume" $"lido_costume"
@@ -565,6 +565,15 @@
         Se || ~ melhor < int x.uc mu { = melhor txt p.id = mu int x.uc } } }
     = p seg p }
   ? > quantos 1 melhor 0 }
+# a procura de uma coisa sem tipo acabou e não há nada em nenhum supermercado (nem produto já escolhido)?
+: sem_nada i>i c {
+  = n 1
+  L k 4 {
+    = r _ar_json _an_ler texto`p:{ crut cadeia k }`
+    = ok && r mesmo txt r.q txt c.t
+    = ps ? ok pri r.produtos 0
+    Se || || _ar_get c.p cadeia k ~ ok ps = n 0 }
+  n }
 # a folha de uma coisa: a quantidade e o produto de cada supermercado
 : dcadeia ii>i c k {
   = ep _ar_get c.p cadeia k
@@ -780,8 +789,10 @@
       Se x { `<div class="subsug"><h3>Que produto é?</h3><p class="nota">Escolhe o tipo para comparar nos supermercados (com as marcas, os tamanhos e o mais barato).</p><div class="chips">`
         W x { `<button class="chip grande" data-onda="tsub:{ N i }">{ esc x.nome }{ Se x.w ` <small>{ esc x.w }</small>` }</button>` = x seg x = i + i 1 }
         `</div></div>` } }
-    `<p class="nota">Ou escolhe o produto de cada supermercado. O preço é o do site; o preço por quilo ou por litro serve para comparar embalagens e marcas.</p>`
-    L k 4 dcadeia c k
+    # nada em nenhum supermercado (as «pilhas»): uma frase só, em vez de quatro «Nada parecido»
+    ? sem_nada c { `<p class="nota">Não encontrei «{ esc c.t }» em nenhum supermercado: fica na lista como lembrete. Se tiver outro nome, tira-a e escreve-o de outra forma.</p>` 0 }
+      { `<p class="nota">Escolhe o produto de cada supermercado. O preço é o do site; o preço por quilo ou por litro serve para comparar embalagens e marcas.</p>`
+        L k 4 dcadeia c k 0 }
     Se && c.e c.e.k `<button class="botao fraco ajustar" data-onda="ajusta:0">🔎 Ajustar: calibre, origem, marca e outras opções</button>`
     `<div class="acoes"><button class="botao fraco" data-onda="tirar:0">Tirar da lista</button><button class="botao" data-onda="fecha:0">Fechar</button></div></div>` }
   _ht_muda $"#folha" h }
@@ -814,7 +825,7 @@
 # ---------- onde moras e as tuas lojas (volta 6) ----------
 : dlojas >i {
   = j _ar_json _an_ler $"casa"
-  `<h3>Onde moras</h3><div class="junta"><input data-onda="local" data-chave="l{ N @ 12 }" value="{ Se && j j.local esc j.local }" placeholder="Localidade ou código postal" aria-label="Localidade" autocomplete="off" enterkeyhint="done">`
+  `<h3>Onde moras</h3><div class="junta"><input data-onda="local" data-chave="l{ N @ 12 }" value="{ Se && j j.local esc j.local }" placeholder="Terra ou código postal" aria-label="Localidade" autocomplete="off" enterkeyhint="done">`
   `<button class="botao" data-onda="glocal:0">Guardar</button></div>`
   `<h3>As tuas lojas</h3><p class="nota">Só estas entram nas comparações.</p><div class="chips">`
   L k 6 `<button class="chip{ Se minha cad6 k ` on` }" data-onda="cad:{ N k }">{ crut nome6 k }</button>`
@@ -1195,7 +1206,7 @@
       Se mesmo txt tp.fam $"vinho" {
         `<h3>Escolher por</h3><div class="chips"><button class="chip{ Se ~ ord ` on` }" data-onda="ord:0">💶 Mais barato</button>`
         `<button class="chip{ Se ord ` on` }" data-onda="ord:1">⭐ Melhor nota</button></div>` }
-      ? && ord mesmo txt tp.fam $"vinho" `<h3>O melhor cotado em cada supermercado</h3><p class="nota">Toca na caixa de um supermercado para escolher esse produto. Escolher não te prende a uma loja: a lista guarda o produto de cada supermercado, e em «Mais barato» vês o total de tudo em cada um (e se compensa ir a dois).</p><ul class="melhores">` `<h3>O mais barato em cada supermercado</h3><p class="nota">Toca na caixa de um supermercado para escolher esse produto. Escolher não te prende a uma loja: a lista guarda o produto de cada supermercado, e em «Mais barato» vês o total de tudo em cada um (e se compensa ir a dois).</p><ul class="melhores">`
+      ? && ord mesmo txt tp.fam $"vinho" `<h3>O melhor cotado em cada supermercado</h3><p class="nota">Toca num supermercado para escolher esse produto. A lista guarda o de cada loja; o total de cada uma vê-se em «Mais barato».</p><ul class="melhores">` `<h3>O mais barato em cada supermercado</h3><p class="nota">Toca num supermercado para escolher esse produto. A lista guarda o de cada loja; o total de cada uma vê-se em «Mais barato».</p><ul class="melhores">`
       Se tp.lim `<p class="nota">👥 Para { N int tp.pes } { ? == int tp.pes 1 `pessoa` `pessoas` }: o mais barato em embalagens até { ? >= int tp.lim 1000 `{ crut kgtxt int tp.lim } kg` `{ N int tp.lim } g` } (as pessoas mudam-se na Casa; escolher outra continua a dar).</p>`
       # só se comparam os preços na unidade do tipo (o quilo, o litro): o mais barato fica marcado; em grande o preço
       # por quilo, e por baixo o que se paga e por quanto
@@ -1233,8 +1244,10 @@
             dsinais p
             # no vinho, a nota dos que já o beberam (no Vivino: só a ligação para a pesquisa, não se lê o site)
             Se mesmo txt tp.fam $"vinho" {
+              `<span class="ligs">`
               `<a class="mais-op vivino" data-onda="lig:0" href="https://www.vivino.com/search/wines?q={ crut _tx_uri txt p.nome }" target="_blank" rel="noopener">⭐ Nota no Vivino ↗</a>`
-              `<a class="mais-op vivino" data-onda="lig:0" href="https://www.wine-searcher.com/find/{ crut _tx_uri txt p.nome }/1/portugal" target="_blank" rel="noopener">🍷 Outras lojas e crítica ↗</a>` }
+              `<a class="mais-op vivino" data-onda="lig:0" href="https://www.wine-searcher.com/find/{ crut _tx_uri txt p.nome }/1/portugal" target="_blank" rel="noopener">🍷 Outras lojas e crítica ↗</a>`
+              `</span>` }
             # outras opções neste supermercado: tocar abre a lista; escolher uma fica (à mão: a troca de hora a hora não a muda)
             = no conta_em tp k fe fm
             = ab ? _an_ler $"opc" _tx_int _an_ler $"opc" -1
@@ -1282,9 +1295,9 @@
   = x pri tp.pd
   W && x || todos < n 3 {
     Se && ~ int x.esg tem_w x {
-      Se ~ n `<li class="prod-t"><b>Lojas online <small>({ N t }{ Se || _an_ler $"fa" || _an_ler $"fp" || _an_ler $"fc" _an_ler $"fw" `, com os teus filtros` })</small></b><small>Compra-se no site deles, com portes de envio; não entra no «Mais barato».</small></li>`
+      Se ~ n `<li class="prod-t"><b>Lojas online <small>({ N t }{ Se || _an_ler $"fa" || _an_ler $"fp" || _an_ler $"fc" _an_ler $"fw" `, com os teus filtros` })</small></b><small>Compra-se no site deles, com portes de envio; não entra no «Mais barato».{ Se mesmo txt tp.fam $"vinho" ` Primeiro os mais bem cotados no Vivino até 25 €.` }</small></li>`
       `<li class="prod"><b>{ esc x.nome }</b><span class="total">{ eur int x.cent }{ Se x.uc `<small class="un">{ crut puc int x.uc txt x.ub }</small>` }</span>`
-      `<small><b class="emb">{ crut nomeprod txt x.loja } · Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }{ Se x.po { ? int x.po ` + { eur int x.po } de portes` ` · sem portes` } }</b>{ Se && x.uc > mu 0 { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por { crut unidade txt x.ub }` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por { crut unidade txt x.ub }` } }</small>`
+      `<small><b class="emb">{ crut nomeprod txt x.loja } · Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }{ Se x.po { ? int x.po ` + { eur int x.po } de portes` ` · sem portes` } }</b>{ Se && && x.uc > mu 0 <= int x.uc * 4 mu { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por { crut unidade txt x.ub }` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por { crut unidade txt x.ub }` } }</small>`
       dsinais x
       Se x.vv `<small class="mesmo">★ Vivino <b>{ esc x.vv }</b>/5{ Se x.vn ` ({ N int x.vn } votos)` }</small>`
       Se x.mv `<small class="mesmo">O mesmo no { crut nomec txt x.mv.c }: <b>{ eur int x.mv.cent }</b>{ ? < int x.mv.cent int x.cent ` (mais barato lá)` ? > int x.mv.cent int x.cent ` (mais caro lá)` ` (igual)` }</small>`

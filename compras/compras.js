@@ -47,7 +47,7 @@
             .then((o) => (o && o.title ? JSON.stringify({ ...c, legenda: o.title, autor: o.author_name }) : corpo), () => corpo);
     }
 
-    fetch('app/compras.wasm?v=0.58.0')
+    fetch('app/compras.wasm?v=0.58.1')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })
@@ -129,6 +129,23 @@
             setTimeout(() => evento(b.dataset.onda), 150);
         } else { li.style.transform = ''; li.style.background = ''; }
     });
+
+    // as filas de filtros da folha rolam para o lado (uma linha cada). Ao desenhar: a escolha de cada fila vem para a
+    // vista quando muda (ao reabrir uma coisa com filtros, a escolha pode estar fora do ecrã), e a fila que já chegou ao
+    // fim perde o esbatido da direita. O motor conserva os elementos ao redesenhar, por isso a fila fica onde estava.
+    const escolhida = new WeakMap();
+    const arrumaFila = (el) => {
+        const on = el.querySelector('.chip.on');
+        const t = on ? on.textContent : '';
+        if (escolhida.get(el) !== t) {
+            escolhida.set(el, t);
+            if (on && (on.offsetLeft < el.scrollLeft || on.offsetLeft + on.offsetWidth > el.scrollLeft + el.clientWidth - 36)) el.scrollLeft = Math.max(0, on.offsetLeft - 16);
+        }
+        el.classList.toggle('fim', el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
+    };
+    const FILAS = '.cartao.escolha .chips.n3, .cartao.escolha .chips.n4, .cartao.escolha .chips.n5';
+    document.addEventListener('onda-desenho', () => { requestAnimationFrame(() => document.querySelectorAll(FILAS).forEach(arrumaFila)); });
+    document.addEventListener('scroll', (e) => { if (e.target && e.target.matches && e.target.matches(FILAS)) e.target.classList.toggle('fim', e.target.scrollLeft + e.target.clientWidth >= e.target.scrollWidth - 4); }, true);
 
     // o talão: a fotografia reduz-se aqui (no máximo 1600 px, JPEG) e vai para o conector; a app só mostra o resultado
     function reduzir(ficheiro) {
