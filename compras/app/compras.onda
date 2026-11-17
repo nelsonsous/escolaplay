@@ -201,7 +201,25 @@
   ? && == estado 201 r { _an_gravar $"chave" txt r.chave _an_gravar $"codigo" txt r.casa.codigo ! 8 0 depois_da_chave } ! 8 1
   desenha
   _me_solta t }
-: depois_da_chave >i { = e _an_ler $"entrar" ? e entrar e { envia ver pede_costume } }
+: depois_da_chave >i { = e _an_ler $"entrar" ? e entrar e { envia ver pede_costume pede_promos } }
+# «🔥 Promoções da semana para ti» (promos.js): as promoções dos tipos que a casa compra; fecha-se e volta na semana seguinte
+: pede_promos >i Se _an_ler $"chave" _an_buscar $"/api/promos" $"lido_promos"
+: lido_promos ii>i t estado {
+  Se == estado 200 { _an_gravar $"promos" t desenha }
+  _me_solta t }
+: dpromos >i {
+  = j _ar_json _an_ler $"promos"
+  = x ? j pri j.promos 0
+  Se && x ~ mesmo txt j.semana _an_ler $"promofechada" {
+    `<div class="promos"><div class="promos-t"><h3>🔥 Promoções da semana para ti</h3><button class="promos-x" data-onda="prox:0" aria-label="Fechar as promoções desta semana">✕</button></div><ul>`
+    = i 0
+    W x {
+      `<li><div><b>{ esc x.nome }</b><small>{ esc x.cn }{ Se x.emb ` · { esc x.emb }` }{ Se x.ate ` · até { esc x.ate }` }</small></div>`
+      `<div class="pr"><span class="total">{ eur int x.cent }</span>{ ? x.antes `<small><s>{ eur int x.antes }</s> −{ N int x.pct }%</small>` `<small>em promoção</small>` }</div>`
+      `<button class="tlj" data-onda="proj:{ N i }">+ Juntar</button></li>`
+      = x seg x = i + i 1 }
+    `</ul><p class="nota">Dos produtos que costumas comprar, nas tuas lojas. Volta na próxima semana.</p></div>` }
+  0 }
 
 # entrar noutra casa pelo código (o campo, ou um link ?casa=…)
 : entrar i>i cod Se && ~ @ 10 _an_ler $"chave" {
@@ -397,6 +415,7 @@
   `<div class="junta"><input data-onda="junta" data-chave="j{ N @ 11 }" placeholder="{ ? sp `Ou escreve (o 🎤 do teclado deixa falar)` `O que falta? (ex.: 2 leites, pão, ovos)` }" aria-label="O que falta" autocomplete="off" enterkeyhint="done">`
   `<button class="botao" data-onda="juntar:0">Juntar</button></div>`
   Se ~ sp { `<div id="sug">` psug `</div>` }
+  dpromos
   Se > n 0 `<button class="botao analisar" data-onda="anl:0">🧠 Como fazer estas compras? <small>pergunta ao Claude: uma loja ou várias, e o que comprar online</small></button>`
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
   ? == n 0 { `<p class="vazio">A lista está vazia. { ? sp `Toca numa secção ou no que costumas comprar.` `Escreve o que falta em casa, separado por vírgulas.` }</p>` Se ~ sp pcostume 0 } {
@@ -1488,6 +1507,13 @@
     Se && == v 2 _an_ler $"chave" { _an_buscar $"/api/casa" $"lido_casa" _an_buscar $"/api/saude" $"lido_saude" _an_buscar $"/api/taloes" $"lido_taloes" } }
   # o talão lido: fechar, abrir um dos teus talões (na Casa), apagar o que está aberto
   Se eacao t $"talf" { _an_gravar $"talver" 0 _an_gravar $"talsel" 0 }
+  # as promoções: fechar (até à semana seguinte) e juntar à lista (o tipo, com este produto nesta loja)
+  Se eacao t $"prox" { = j _ar_json _an_ler $"promos" Se j _an_gravar $"promofechada" txt j.semana }
+  Se eacao t $"proj" { = j _ar_json _an_ler $"promos" = x ? j idx j.promos v 0 Se x {
+      = id texto`{ novoid }`
+      faz texto`\{"o":"j","id":"{ crut id }","t":{ pjs txt x.tn },"q":1,"e":\{"k":{ pjs txt x.k },"n":{ pjs txt x.tn },"au":1\}\}`
+      faz texto`\{"o":"p","id":"{ crut id }","c":{ pjs txt x.c },"p":\{"id":{ pjs txt x.id },"nome":{ pjs txt x.nome },"url":{ pjs txt x.url }\}\}`
+      aviso texto`+ { crut txt x.tn } na lista ({ crut txt x.cn }: { eur int x.cent }).` } }
   # juntar à lista uma linha do talão (ou todas, 999), já com o tipo (para comparar nos supermercados)
   Se eacao t $"tlj" { = r talvisto Se r {
       = l pri r.linhas = i 0 = n 0

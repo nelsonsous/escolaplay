@@ -333,3 +333,19 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .linhas-t .tlj { flex: none; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--linha); background: var(--cartao); color: var(--azul); font-size: 14px; }
 .linhas-t .na { flex: none; font-style: normal; color: var(--fraco); font-size: 13px; }
 .tlj-todos { display: block; width: 100%; margin: 4px 0 8px; }
+
+/* volta 6: as promoções da semana para ti */
+.promos { margin: 4px 0 12px; padding: 10px 14px 6px; border: 1px solid #6b3a12; border-radius: 14px; background: #1c1209; }
+.promos-t { display: flex; align-items: center; justify-content: space-between; }
+.promos-t h3 { margin: 4px 0; color: #ffb36b; }
+.promos-x { width: 40px; height: 40px; border-radius: 50%; color: var(--fraco); text-align: center; }
+.promos ul { list-style: none; padding: 0; margin: 4px 0; }
+.promos li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #3a2414; }
+.promos li > div:first-child { flex: 1; min-width: 0; }
+.promos li b { display: block; font-weight: 500; overflow-wrap: anywhere; }
+.promos li small { color: var(--fraco); font-size: 13px; }
+.promos .pr { text-align: right; white-space: nowrap; }
+.promos .pr .total { display: block; font-weight: 700; color: #ffb36b; }
+.promos .pr s { color: var(--fraco); }
+.promos .tlj { flex: none; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--linha); background: var(--cartao); color: var(--azul); font-size: 14px; }
+.promos .nota { margin: 4px 0; font-size: 13px; }
