@@ -46,6 +46,12 @@ test('os mais bem cotados abrem as opções da loja; escolher fecha-as', { skip:
     assert.match(await a.textContent('#cad2 .pnome'), /BARATO/);
     assert.equal(await a.textContent('#cad2 > .promo'), '🔥 Em promoção'); // só o rótulo, sem o riscado
     assert.equal(await a.locator('#cad2 .mao').count(), 1);
+    // tocar outra vez na caixa escolhida tira a escolha (volta ao mais barato desta loja)
+    assert.equal(await a.getAttribute('#cad2', 'aria-pressed'), 'true');
+    await a.click('#cad2 > b');
+    await a.waitForSelector('#cad2 .mao', { state: 'detached' });
+    assert.equal(await a.locator('#cad2 .tag-esc').count(), 0);
+    assert.equal(await a.getAttribute('#cad2', 'aria-pressed'), 'false');
     // escondida, o relógio não pergunta à casa (GET /api/lista); visível, pergunta
     const pedidos = [];
     a.on('request', (r) => { if (r.method() === 'GET' && r.url().endsWith('/api/lista')) pedidos.push(r.url()); });

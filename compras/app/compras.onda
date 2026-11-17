@@ -1301,7 +1301,7 @@
       Se mesmo txt tp.fam $"vinho" {
         `<h3>Escolher por</h3><div class="chips"><button class="chip{ Se ~ ord ` on` }" data-onda="ord:0">💶 Mais barato</button>`
         `<button class="chip{ Se ord ` on` }" data-onda="ord:1">⭐ Melhor nota</button></div>` }
-      ? && ord mesmo txt tp.fam $"vinho" `<h3>O melhor cotado em cada supermercado</h3><p class="nota">Toca num supermercado para escolher esse produto. A lista guarda o de cada loja; o total de cada uma vê-se em «Mais barato».</p><ul class="melhores">` `<h3>O mais barato em cada supermercado</h3><p class="nota">Toca num supermercado para escolher esse produto. A lista guarda o de cada loja; o total de cada uma vê-se em «Mais barato».</p><ul class="melhores">`
+      ? && ord mesmo txt tp.fam $"vinho" `<h3>O melhor cotado em cada supermercado</h3><p class="nota">Toca num supermercado para escolher esse produto (um por loja: o total de cada uma vê-se em «Mais barato»). Toca outra vez para tirar a escolha.</p><ul class="melhores">` `<h3>O mais barato em cada supermercado</h3><p class="nota">Toca num supermercado para escolher esse produto (um por loja: o total de cada uma vê-se em «Mais barato»). Toca outra vez para tirar a escolha.</p><ul class="melhores">`
       Se tp.lim `<p class="nota">👥 Para { N int tp.pes } { ? == int tp.pes 1 `pessoa` `pessoas` }: o mais barato em embalagens até { ? >= int tp.lim 1000 `{ crut kgtxt int tp.lim } kg` `{ N int tp.lim } g` } (as pessoas mudam-se na Casa; escolher outra continua a dar).</p>`
       # só se comparam os preços na unidade do tipo (o quilo, o litro): o mais barato fica marcado; em grande o preço
       # por quilo, e por baixo o que se paga e por quanto
@@ -1325,7 +1325,8 @@
             # tocar na caixa escolhe este produto (os botões e as ligações lá dentro fazem o seu)
             = q _an_ler texto`esc{ N k }`
             = mao && q mesmo txt p.id q
-            = es ? mao 0 texto` data-onda="escc:{ N + * k 1000 idx_em tp p }" tabindex="0" role="button"`
+            # tocar outra vez na escolhida tira a escolha (volta ao mais barato desta loja)
+            = es ? mao texto` data-onda="escx:{ N k }" tabindex="0" role="button" aria-pressed="true"` texto` data-onda="escc:{ N + * k 1000 idx_em tp p }" tabindex="0" role="button" aria-pressed="false"`
             # escolhido à mão: a caixa em destaque (e a acabada de escolher pisca, sem o ecrã saltar)
             = cl texto`{ Se && u == int p.uc mu `melhor ` }{ Se mao `escolhido ` }{ Se && mao mesmo _an_ler $"flash" texto`{ N k }` `flash` }`
             ? u `<li id="cad{ N k }" class="{ crut cl }"{ Se es crut es }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }{ Se mao ` <span class="tag-esc">✓ Escolhido</span>` }</b><span class="total">{ eur int p.cent }<small class="un">{ crut puc int p.uc ub }</small></span>`
@@ -1346,7 +1347,7 @@
             # outras opções neste supermercado: tocar abre a lista; escolher uma fica (à mão: a troca de hora a hora não a muda)
             = no conta_em tp k fe fm
             = ab ? _an_ler $"opc" _tx_int _an_ler $"opc" -1
-            Se mao `<span class="mao">✋ escolhido por ti</span>`
+            Se mao `<span class="mao">✋ escolhido por ti · toca para tirar</span>`
             Se > no 1 `<button class="mais-op" data-onda="opc:{ N k }" aria-expanded="{ ? == ab k `true` `false` }">{ ? == ab k `Fechar as opções ▴` `Outras opções no { crut nomecad k } ({ N - no 1 }) ▾` }</button>`
             Se && == ab k > no 1 dopcoes tp k fe fm p
             `</li>` 0 }
