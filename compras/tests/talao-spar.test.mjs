@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { arrumar, limpaLinha } from '../proxy/src/talao.js';
 import { costume } from '../proxy/src/costume.js';
+import { d1 } from './d1.mjs';
 
 const LIDO = { loja: 'SPAR Santo Tirso', dia: '2026-11-17', total: 3.84, linhas: [
     { t: 'Agua SPAR Nascente 61t', q: 1, preco: 0.86 }, { t: 'Mini Pizza York Cheddar un', q: 1, preco: 1.99 },
@@ -98,4 +99,15 @@ test('o preço do talão do SPAR conta no tipo mesmo sem as palavras do tipo na 
     esquecerTipos();
     const r = await reaisDaCasa(db, 'c1', ['agua-sem-gas']);
     assert.deepEqual(r.get('agua-sem-gas')?.spar, { cent: 86, dia: '2026-11-17', diat: '17/11', t: 'Água SPAR Nascente 6 lt' });
+});
+
+test('a linha do talão dá só o tipo, sem filtro: «Água SPAR Nascente» compara com todas as águas sem gás', async () => {
+    const { tipoDaLinha } = await import('../proxy/src/sugerir.js');
+    const db = d1();
+    const agora = new Date().toISOString();
+    db.sql.prepare("INSERT INTO tipo (k, nome, n, casa) VALUES ('agua-sem-gas', 'Água sem gás', 3, 1)").run();
+    for (const [c, id, nome] of [['continente', 'a1', 'Água sem Gás de Nascente Garrafão Caramulo'], ['continente', 'a2', 'Água sem Gás Garrafão Continente'], ['pingodoce', 'a3', 'Água sem Gás Garrafão']])
+        db.sql.prepare(`INSERT INTO preco (cadeia, id, url, nome, cent, tipo, visto, falhas) VALUES (?, ?, ?, ?, 99, 'agua-sem-gas', ?, 0)`).run(c, id, 'https://x/' + id, nome, agora);
+    (await import('../proxy/src/sugerir.js')).esquecerTipos();
+    assert.deepEqual(await tipoDaLinha(db, 'Agua SPAR Nascente 6 lt'), { k: 'agua-sem-gas', nome: 'Água sem gás' });
 });
