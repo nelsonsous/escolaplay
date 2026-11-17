@@ -3,7 +3,7 @@
 // (face à loja mais cara de cada coisa), o gasto por loja e o que se compra mais vezes.
 import { CADEIAS } from './indice.js';
 
-const NOMES = { continente: 'Continente', pingodoce: 'Pingo Doce', auchan: 'Auchan', lidl: 'Lidl' };
+const NOMES = { continente: 'Continente', pingodoce: 'Pingo Doce', auchan: 'Auchan', lidl: 'Lidl', spar: 'SPAR', mercadona: 'Mercadona', 'pingo doce': 'Pingo Doce' };
 
 // a linha de uma coisa riscada: na loja c (se a casa disse a que loja vai e há lá o produto), senão na mais barata
 export function linhaDaCompra(i, c, agora = new Date()) {

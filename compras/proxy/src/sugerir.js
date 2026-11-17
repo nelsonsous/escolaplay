@@ -167,10 +167,21 @@ export async function tiposDoTexto(db, t) {
     const ws = palavras(t).filter((w) => w.length > 2 && !SOLTAS.has(w) && !/\d/.test(w)).slice(0, 5);
     const out = [];
     for (const q of [ws.join(' '), ...ws]) {
-        if (!q || out.length >= 6) continue;
+        if (!q || out.length >= 8) continue;
         for (const x of await sugerir(db, q, 4)) if (x.k && !x.sec && !out.some((o) => o.k === x.k)) out.push(x);
     }
-    return out.slice(0, 6);
+    if (out.length < 2) return out;
+    // a ordem: quantas das palavras aparecem nos nomes dos produtos de cada tipo («nascente» é da água sem gás, não da com
+    // gás), e meio ponto se o próprio nome do tipo condiz («pizza» → Pizzas); no empate, a ordem em que vieram
+    const ks = out.map((x) => x.k);
+    const conta = new Map(ks.map((k) => [k, 0]));
+    for (const w of ws) {
+        const { results } = await db.prepare(`SELECT tipo, count(*) AS n FROM preco WHERE cent IS NOT NULL AND tipo IN (${ks.map(() => '?').join(', ')})
+            AND ${NOME_SEM_ACENTOS} LIKE ? GROUP BY tipo`).bind(...ks, `%${w}%`).all();
+        for (const r of results) conta.set(r.tipo, conta.get(r.tipo) + 1);
+    }
+    const nota = (x) => conta.get(x.k) + (x.w ? 0 : 0.5);
+    return out.map((x, i) => [x, i]).sort((a, b) => nota(b[0]) - nota(a[0]) || a[1] - b[1]).map(([x]) => x).slice(0, 6);
 }
 
 // os tipos de uma secção (os que têm produtos), os com mais produtos primeiro
