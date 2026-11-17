@@ -160,6 +160,19 @@ export async function sugerir(db, q, max = 8) {
     return [...[...secs].map((sx) => ({ sec: sx, nome: nomeSeccao(sx) })), ...out];
 }
 
+// os tipos de uma coisa escrita à solta (do talão: «Mini pizza cheddar un», «Água SPAR Nascente 6 lt»): primeiro com as
+// palavras todas, depois palavra a palavra; sem as palavras das lojas e das unidades. Até 6 tipos, sem secções.
+const SOLTAS = new Set(['spar', 'continente', 'auchan', 'pingo', 'doce', 'lidl', 'mercadona', 'und', 'uni', 'unid', 'kg', 'gr', 'lt', 'cl', 'ml']);
+export async function tiposDoTexto(db, t) {
+    const ws = palavras(t).filter((w) => w.length > 2 && !SOLTAS.has(w) && !/\d/.test(w)).slice(0, 5);
+    const out = [];
+    for (const q of [ws.join(' '), ...ws]) {
+        if (!q || out.length >= 6) continue;
+        for (const x of await sugerir(db, q, 4)) if (x.k && !x.sec && !out.some((o) => o.k === x.k)) out.push(x);
+    }
+    return out.slice(0, 6);
+}
+
 // os tipos de uma secção (os que têm produtos), os com mais produtos primeiro
 export async function tiposDaSeccao(db, sx) {
     if (sx === 2) return (await dosRamos(db, RAMOS.map(([r]) => r))).map((t) => ({ k: t.k, nome: t.nome, n: Number(t.n), s: 2, gr: t.gr }));

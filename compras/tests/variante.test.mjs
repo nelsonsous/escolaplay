@@ -14,3 +14,14 @@ test('as palavras genéricas não são variante: «papel cozinha» dá o rolo de
     const r = await sugerir(db, 'papel cozinha');
     assert.deepEqual(r.map((t) => [t.k, t.w]), [['rolos-de-cozinha', undefined]]);
 });
+
+test('uma coisa escrita à solta (do talão): os tipos palavra a palavra, sem as lojas e as unidades', async () => {
+    const { tiposDoTexto } = await import('../proxy/src/sugerir.js');
+    const db = d1(); const agora = new Date().toISOString();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('pizza', 'Pizza', 2, 1), ('agua-sem-gas', 'Água sem gás', 2, 1);
+        INSERT INTO preco (cadeia, id, url, nome, cent, tipo, visto, falhas) VALUES ('continente', 'p1', 'u1', 'Pizza Fiambre', 299, 'pizza', '${agora}', 0),
+        ('continente', 'a1', 'u2', 'Água Nascente Garrafão 6L', 99, 'agua-sem-gas', '${agora}', 0);`);
+    esquecerTipos();
+    assert.deepEqual((await tiposDoTexto(db, 'Mini pizza cheddar un')).map((t) => t.k), ['pizza']);
+    assert.equal((await tiposDoTexto(db, 'Agua SPAR Nascente 6 lt'))[0]?.k, 'agua-sem-gas');
+});

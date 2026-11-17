@@ -49,7 +49,7 @@ import { Erro, codigoLimpo, novoAparelho, aparelhoDe, casaDe, gravarLojas, grava
 import { lojasDaCasa, lojasDe } from './lojas.js';
 import { juntarPrecos, precosNovos, precosDe, refrescar } from './precos.js';
 import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
-import { sugerir, produtosDoTipo, tiposDaSeccao } from './sugerir.js';
+import { tiposDoTexto, sugerir, produtosDoTipo, tiposDaSeccao } from './sugerir.js';
 import { revisarTipo } from './revisao.js';
 import { registarCompras, gastos } from './compras.js';
 import { saude, saudeCurta } from './saude.js';
@@ -60,7 +60,7 @@ import { sugestoes, esquecer } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.57.6';
+export const VERSION = '0.57.7';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -313,7 +313,9 @@ async function api(request, env, url) {
     if (caminho === '/api/costume/esquecer' && metodo === 'POST') return json(await esquecer(db, ap, (await corpoJSON(request)).k));
     if (caminho === '/api/costume' && metodo === 'GET') return json({ coisas: await sugestoes(db, ap, await lerLista(db, ap.casa)) });
     if (caminho === '/api/sugerir' && metodo === 'GET') {
-        return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
+        const q = String(url.searchParams.get('q') ?? '').slice(0, 80);
+        // ?solto=1: uma coisa escrita à solta (a do talão), palavra a palavra (sugerir.js)
+        return json({ tipos: url.searchParams.get('solto') ? await tiposDoTexto(db, q) : await sugerir(db, q.slice(0, 60)) });
     }
     if (caminho === '/api/saude' && metodo === 'GET') return json(await saudeCurta(db));
     // os dados da análise (analise.js): a lista com o que se pesquisou, os filtros e as escolhas, os preços e as lojas
