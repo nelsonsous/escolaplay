@@ -365,3 +365,9 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .ajuda-l { display: inline-block; margin: 4px 0 8px; padding: 6px 0; border: 0; background: none; color: var(--azul); font-size: 15px; }
 .cartao.ajuda h3 { margin-top: 16px; color: var(--texto); text-transform: none; letter-spacing: 0; font-size: 17px; }
 .cartao.ajuda p { color: var(--fraco); }
+
+/* 0.58.8 — o foco do teclado à vista (só com teclado: no toque não aparece) */
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible, select:focus-visible, input:focus-visible {
+    outline: 2px solid var(--azul); outline-offset: 2px; border-radius: 10px;
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

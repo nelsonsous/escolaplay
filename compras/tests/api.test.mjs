@@ -132,3 +132,19 @@ test('o browser pode perguntar antes (CORS) e as respostas deixam a app ler', as
     assert.match(r.headers.get('access-control-allow-headers'), /authorization/);
     assert.equal((await call('/api/nada', { chave: (await novo()).chave })).headers.get('access-control-allow-origin'), '*');
 });
+
+test('a lista pedida outra vez logo a seguir não volta a ler os preços; um POST da casa esquece-a', async () => {
+    const { chave } = await novo();
+    await ops(chave, [{ o: 'j', id: 'a1b2', t: 'pão' }]);
+    let n = 0;
+    const prep = env.DB.prepare.bind(env.DB);
+    env.DB.prepare = (s) => { n++; return prep(s); };
+    const ler = async () => { n = 0; const j = await (await call('/api/lista', { chave })).json(); return { j, n }; };
+    const a = await ler(), b = await ler();
+    assert.deepEqual(b.j, a.j);
+    assert.ok(b.n < a.n, `a segunda leu ${b.n} vezes, a primeira ${a.n}`);
+    assert.ok(b.n <= 2, 'só o aparelho e a versão da lista');
+    await call('/api/casa/pessoas', { metodo: 'POST', chave, corpo: { n: 3 } });
+    const c = await ler();
+    assert.equal(c.n, a.n);
+});
