@@ -402,6 +402,26 @@
   `<div class="grelha" role="list">`
   L k 11 `<button data-onda="seca:{ N k }"><span aria-hidden="true">{ crut icone k }</span>{ crut nomesec k }</button>`
   `</div>` }
+# a lista vazia (e a primeira vez): o que a app faz, em três passos, e as secções para escolher sem escrever
+: dbemvindo >i {
+  `<div class="bemvindo"><p class="vazio">A lista está vazia.</p><ol class="passos">`
+  `<li><b>Escreve o que falta</b> lá em cima (ex.: «2 leites, pão, ovos»), ou escolhe por secção aqui em baixo.</li>`
+  `<li><b>A app compara</b> o Continente, o Pingo Doce, o Auchan e o Lidl (e estima a Mercadona e o SPAR). Em «Mais barato» vês o total em cada loja.</li>`
+  `<li><b>No fim, 📷 Talão</b>: tira uma fotografia ao talão e a app risca o que compraste e guarda o que pagaste.</li></ol>`
+  dgrelha
+  `<button class="mais-op ajuda-l" data-onda="ajd:1">❓ Como funciona</button></div>`
+  0 }
+# a ajuda: as funções principais numa folha
+: dajuda >i {
+  `<div class="veu" data-onda="ajd:0"></div><div class="cartao ajuda" role="dialog" aria-label="Como funciona"><button class="fechar" data-onda="ajd:0" aria-label="Fechar">✕</button><h2>Como funciona</h2>`
+  `<h3>🛒 A lista</h3><p>Escreve o que falta (vários de uma vez, com vírgulas) ou escolhe por secção. Tocar numa coisa abre a escolha: o tamanho, a variante, a marca e o produto de cada supermercado. Tocar na caixa de um supermercado escolhe esse produto.</p>`
+  `<h3>💶 Mais barato</h3><p>O total da lista em cada loja, o que falta em cada uma e se compensa ir a duas. «Vou a este» arruma a lista pela loja e conta o que compraste.</p>`
+  `<h3>🧾 O talão</h3><p>«📷 Talão» lê a fotografia: risca o que compraste, guarda os preços (no SPAR e na Mercadona, os teus preços no lugar das estimativas) e sugere o que costumas comprar. Em Casa › Os teus talões revês e apagas.</p>`
+  `<h3>🔥 Promoções</h3><p>Todas as semanas, as promoções do que costumas comprar, nas tuas lojas.</p>`
+  `<h3>🏠 A casa</h3><p>Partilha a lista com o código da casa (pelo WhatsApp). Escolhe as tuas lojas, o código postal (o stock do Continente na tua zona) e quantas pessoas são (as embalagens do talho e da peixaria).</p>`
+  `<h3>🧠 Perguntar ao Claude</h3><p>«Como fazer estas compras?» pede uma análise: uma loja ou várias, e o que compensa comprar online.</p>`
+  `<div class="acoes"><button class="botao" data-onda="ajd:0">Percebi</button></div></div>`
+  0 }
 : dlista >i {
   = its itens
   = n ? its quantos its 0
@@ -418,7 +438,7 @@
   dpromos
   Se > n 0 `<button class="botao analisar" data-onda="anl:0">🧠 Como fazer estas compras? <small>pergunta ao Claude: uma loja ou várias, e o que comprar online</small></button>`
   Se @ 8 `<p class="rede">Sem ligação: as mudanças ficam neste telemóvel e seguem quando houver rede.</p>`
-  ? == n 0 { `<p class="vazio">A lista está vazia. { ? sp `Toca numa secção ou no que costumas comprar.` `Escreve o que falta em casa, separado por vírgulas.` }</p>` Se ~ sp pcostume 0 } {
+  ? == n 0 { ? sp { `<p class="vazio">A lista está vazia. Toca numa secção ou no que costumas comprar.</p>` 0 } { dbemvindo pcostume 0 } 0 } {
     Se >= lj 0 {
       = nr porriscar = c cobre lj
       `<div class="loja"><p><b>Vais ao { crut nomecad lj }: { eur total lj }</b>`
@@ -516,7 +536,7 @@
   # embalagens diferentes: a ordem conta o preço pelo mesmo tamanho; o total é o que se paga
   = nc 0 = x pri itens W x { Se && ~ int x.f x.cmp = nc + nc 1 = x seg x }
   Se nc `<p class="nota">{ N nc } { ? == nc 1 `coisa tem` `coisas têm` } embalagens diferentes de loja para loja: a ordem compara o preço pelo mesmo tamanho (por litro ou quilo); o total é o que pagas.</p>`
-  ? == n 0 `<p class="vazio">Não há nada por comprar na lista.</p>` {
+  ? == n 0 `<p class="vazio">Não há nada por comprar na lista.</p><p class="nota">Junta o que falta na lista e aqui vês o total em cada loja, o que falta em cada uma e se compensa ir a duas.</p><button class="botao" data-onda="aba:0">Ir para a lista</button>` {
     # as coisas sem preço em nenhuma loja não contam contra nenhuma: «tudo» é tudo o que há (ne)
     = ns 0 = x pri itens W x { Se && ~ int x.f sem_lado x = ns + ns 1 = x seg x }
     = ne - n ns
@@ -555,7 +575,7 @@
 : dcasa >i {
   = cod _an_ler $"codigo"
   = h _ht_ini 9000
-  `<section class="casa"><h2>A tua casa</h2>`
+  `<section class="casa"><h2>A tua casa</h2><button class="mais-op ajuda-l" data-onda="ajd:1">❓ Como funciona a app</button>`
   ? cod {
       `<p>Quem tiver este código vê e muda a mesma lista:</p><p class="codigo">{ pcod cod }</p>`
       `<a class="botao whats" target="_blank" rel="noopener" href="https://wa.me/?text={ convite cod }">Convidar pelo WhatsApp</a>` 0 }
@@ -840,6 +860,7 @@
   Se && && && _an_ler $"analise" ~ _an_ler $"tk" ~ _an_ler $"natal" ~ _an_ler $"receita" danalise
   Se && && _an_ler $"receita" ~ _an_ler $"natal" ~ _an_ler $"tk" dreceita
   Se && && && && _an_ler $"talver" ~ _an_ler $"tk" ~ _an_ler $"natal" ~ _an_ler $"receita" ~ c dtalver
+  Se && && && _an_ler $"ajuda" ~ _an_ler $"tk" ~ _an_ler $"talver" ~ c dajuda
   Se && && && && ~ _an_ler $"tk" ~ _an_ler $"natal" ~ _an_ler $"receita" ~ _an_ler $"analise" c {
     `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }"><button class="fechar" data-onda="fecha:0" aria-label="Fechar">✕</button>`
     `<h2>{ esc c.t }</h2>`
@@ -1538,6 +1559,7 @@
     Se && == v 2 _an_ler $"chave" { _an_buscar $"/api/casa" $"lido_casa" _an_buscar $"/api/saude" $"lido_saude" _an_buscar $"/api/taloes" $"lido_taloes" } }
   # o talão lido: fechar, abrir um dos teus talões (na Casa), apagar o que está aberto
   Se eacao t $"talf" { _an_gravar $"talver" 0 _an_gravar $"talsel" 0 }
+  Se eacao t $"ajd" _an_gravar $"ajuda" ? v $"1" 0
   # as promoções: fechar (até à semana seguinte) e juntar à lista (o tipo, com este produto nesta loja)
   Se eacao t $"prox" { = j _ar_json _an_ler $"promos" Se j _an_gravar $"promofechada" txt j.semana }
   Se eacao t $"proj" { = j _ar_json _an_ler $"promos" = x ? j idx j.promos v 0 Se x {

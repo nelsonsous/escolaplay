@@ -543,7 +543,14 @@ test('o modo simples: liga-se na Casa, só neste telemóvel; as secções em bot
         a.on('pageerror', (e) => erros.push(e.message));
         await a.goto(s.url());
         await a.waitForFunction(() => localStorage.getItem('compras:chave'));
-        assert.equal(await a.locator('.grelha').count(), 0);
+        // sem o modo simples, as secções só aparecem com a lista vazia (os três passos), não no topo
+        assert.equal(await a.locator('.lista > .grelha').count(), 0);
+        assert.equal(await a.locator('.bemvindo .passos li').count(), 3);
+        // a ajuda abre-se e fecha-se
+        await a.click('.bemvindo [data-onda="ajd:1"]');
+        await a.waitForSelector('.cartao.ajuda h3:has-text("O talão")');
+        await a.click('.cartao.ajuda .acoes .botao');
+        await a.waitForSelector('.cartao.ajuda', { state: 'detached' });
         await a.click('#abas button >> nth=2');
         await a.click('[data-onda="simples:0"]');
         assert.match(await a.textContent('[data-onda="simples:0"]'), /Modo simples ligado/);
