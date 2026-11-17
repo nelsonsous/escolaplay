@@ -212,13 +212,16 @@
   = x ? j pri j.promos 0
   Se && x ~ mesmo txt j.semana _an_ler $"promofechada" {
     `<div class="promos"><div class="promos-t"><h3>🔥 Promoções da semana para ti</h3><button class="promos-x" data-onda="prox:0" aria-label="Fechar as promoções desta semana">✕</button></div><ul>`
-    = i 0
-    W x {
+    # só as três primeiras (o cartão não empurra a lista para baixo); «Ver mais» mostra as outras
+    = i 0 = todas _an_ler $"promotodas"
+    W x { Se || todas < i 3 {
       `<li><div><b>{ esc x.nome }</b><small>{ esc x.cn }{ Se x.emb ` · { esc x.emb }` }{ Se x.ate ` · até { esc x.ate }` }</small></div>`
       `<div class="pr"><span class="total">{ eur int x.cent }</span>{ ? x.antes `<small><s>{ eur int x.antes }</s> −{ N int x.pct }%</small>` `<small>em promoção</small>` }</div>`
-      `<button class="tlj" data-onda="proj:{ N i }">+ Juntar</button></li>`
+      `<button class="tlj" data-onda="proj:{ N i }">+ Juntar</button></li>` }
       = x seg x = i + i 1 }
-    `</ul><p class="nota">Dos produtos que costumas comprar, nas tuas lojas. Volta na próxima semana.</p></div>` }
+    `</ul>`
+    Se && ~ todas > i 3 `<button class="promos-mais" data-onda="prom:1">Ver mais { N - i 3 } { ? == - i 3 1 `promoção` `promoções` }</button>`
+    `<p class="nota">Dos produtos que costumas comprar, nas tuas lojas. Volta na próxima semana.</p></div>` }
   0 }
 
 # entrar noutra casa pelo código (o campo, ou um link ?casa=…)
@@ -1404,7 +1407,7 @@
   = nome ? q ? && j j.lojas.spar txt j.lojas.spar $"SPAR" $"Mercadona"
   = real _ar_get tp.reais ? q $"spar" $"mercadona"
   ? real {
-      `<li class="est real"><b>{ crut nome }</b><span class="total">{ eur int real.cent }</span><small><b class="emb">Pagaste { eur int real.cent }</b> · do teu talão de { crut txt real.dia }: «{ esc real.t }».</small></li>` 0 }
+      `<li class="est real"><b>{ crut nome }</b><span class="total">{ eur int real.cent }</span><small><b class="emb">Pagaste { eur int real.cent }</b> · do teu talão de { crut txt ? real.diat real.diat real.dia }: «{ esc real.t }».</small></li>` 0 }
     {
       = ub ? tp.ub txt tp.ub 0
       = e0 ? fe fe ? q ? tp.est.sp txt tp.est.sp 0 ? tp.est.mp txt tp.est.mp 0
@@ -1563,6 +1566,7 @@
   Se eacao t $"talf" { _an_gravar $"talver" 0 _an_gravar $"talsel" 0 }
   Se eacao t $"ajd" _an_gravar $"ajuda" ? v $"1" 0
   # as promoções: fechar (até à semana seguinte) e juntar à lista (o tipo, com este produto nesta loja)
+  Se eacao t $"prom" _an_gravar $"promotodas" ? v $"1" 0
   Se eacao t $"prox" { = j _ar_json _an_ler $"promos" Se j _an_gravar $"promofechada" txt j.semana }
   Se eacao t $"proj" { = j _ar_json _an_ler $"promos" = x ? j idx j.promos v 0 Se x {
       = id texto`{ novoid }`

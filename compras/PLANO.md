@@ -359,3 +359,26 @@ Store, o programa de programador da Apple.
 | 10 | As respostas do conector sem null (a app lia-os como 0 ou verdadeiro); esta tabela | #791 |
 
 **Fica para ti:** ligar a análise na hora (o gatilho «API», em «À espera de ti»); e, do Android, a captura do campo de escrever que não deixava escrever.
+
+## Volta de 17/11/2026: dez iterações para a app ficar pronta a usar
+
+Pedido: «10 vezes seguidas corrige, melhora o layout, pensa em melhorias e aplica; quero a app finalizada e pronta a
+usar». Cada volta: `npm test`, `wrangler deploy`, PR e squash merge; o ciclo sobrevive ao contentor parar (avisos
+agendados, um de cada vez).
+
+| # | O quê | Versão | PR |
+|---|---|---|---|
+| 1 | Os talões lidos pelo Mistral Small 3.1 (o Llama lia mal); o mesmo talão substitui a leitura; o tipo certo nas sugestões | 0.58.0 | #814 |
+| 2 | O layout a 390 px: a lista sem transbordo, os filtros numa linha que rola, as sugestões com o ✕ ao lado | 0.58.1 | #815 |
+| 3 | Os tamanhos numa só forma (75 cl é 750 ml) e as variantes legíveis (meio-gordo, sem lactose, proteína) | 0.58.2 | #816 |
+| 4 | A folha «Talão lido» e «Os teus talões» na Casa, com apagar | 0.58.3 | #817 |
+| 5 | Juntar à lista as linhas de um talão já lido; o preço do talão do SPAR no tipo certo (a água a 0,86 €) | 0.58.4 | #818 |
+| 6 | «🔥 Promoções da semana para ti»: as promoções dos tipos que a casa compra, com + Juntar | 0.58.5 | #819 |
+| 7 | No «Mais barato», o que falta em cada loja, e o que não há em lado nenhum dito uma vez | 0.58.6 | #820 |
+| 8 | A primeira utilização: a lista vazia em três passos, a ajuda («❓ Como funciona»), o «Mais barato» vazio | 0.58.7 | #821 |
+| 9 | Rapidez (escondida não pergunta à casa; a lista 1 min em memória no conector), teclado e foco, o service worker com os ficheiros da versão, erros sem rede claros | 0.58.8 | #822 |
+| 10 | Passagem final pelas capturas: as promoções três à vista («Ver mais»), os acentos nas variantes (sem gás, garrafão), a data do talão «17/11»; esta tabela | 0.58.9 | — |
+
+**Fica para ti:** experimentar no telemóvel a app sem rede (abrir uma vez com rede; depois em modo de avião) e um
+talão novo de cada loja onde compras, para ver se o Mistral os lê bem. O token da sonda (`SONDA_TOKEN`) foi recusado
+(401) durante estas voltas: os dados corrigiram-se direto na D1; se quiseres a sonda, gera um novo e guarda-o no Worker.

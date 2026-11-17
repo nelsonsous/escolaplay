@@ -393,7 +393,7 @@ async function reaisDoTipo(db, casa, k) {
         for (const l of JSON.parse(tl.linhas)) {
             if (!(l.cent > 0)) continue;
             const lw = new Set(palavrasTalao(porExtenso(l.t)).flatMap((w) => [w, w.replace(/s$/, '')]));
-            if ((ws.length && ws.every((w) => lw.has(w))) || (await tipoDaLinha(db, l.t))?.k === k) { r[tl.loja] = { cent: Math.round(l.cent / Math.max(1, l.q || 1)), dia: (tl.dia ?? tl.criado).slice(0, 10), t: l.t }; break; }
+            if ((ws.length && ws.every((w) => lw.has(w))) || (await tipoDaLinha(db, l.t))?.k === k) { const dia = (tl.dia ?? tl.criado).slice(0, 10); r[tl.loja] = { cent: Math.round(l.cent / Math.max(1, l.q || 1)), dia, diat: `${dia.slice(8, 10)}/${dia.slice(5, 7)}`, t: l.t }; break; }
         }
     }
     return r;
