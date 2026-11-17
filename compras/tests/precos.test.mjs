@@ -4,7 +4,7 @@ import { test, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { UA } from '../proxy/src/worker.js';
 import { pecaAoPeso } from '../proxy/src/precos.js';
-import { precisa, refrescar, medida, porUnidade, normaliza, rotulo, VALE_H } from '../proxy/src/precos.js';
+import { precisa, refrescar, medida, porUnidade, normaliza, rotulo, tamanho, VALE_H } from '../proxy/src/precos.js';
 import { kv } from './kv.mjs';
 import { d1 } from './d1.mjs';
 import { PRECOS, instalar, desinstalar } from './cadeias.mjs';
@@ -205,8 +205,10 @@ test('preços comparáveis: ao balcão e ao peso paga-se a porção; com peso ou
     assert.deepEqual(normaliza({ cadeia: 'continente', nome: 'Ovos', cent: 249, uc: 21, ub: 'un', m: medida('12 un') }), { cent: 249, uc: 21, ub: 'un' });
     // as embalagens escrevem-se igual: menos de um quilo em gramas
     assert.deepEqual([rotulo('0,15 kg'), rotulo('0,75 L'), rotulo('1,5 L'), rotulo('6 x 1,5 L')], ['150 g', '750 ml', '1,5 L', '6 × 1,5 L']);
+    // uma só forma de escrever cada tamanho (17/11/2026): «75 cl» é «750 ml», 1000 g é 1 kg; a peça ao quilo fica
+    assert.deepEqual(['75 cl', '150 cl', '1000 g', '6 x 33 cl', '≈ 1,2 kg'].map(tamanho), ['750 ml', '1,5 L', '1 kg', '6 × 330 ml', '≈ 1,2 kg']);
     // os packs de litros do Auchan sem vírgula, e o «&times;»
-    assert.deepEqual(['AGUA C/ GÁS VIMEIRO 4X150L', '6X050L', '4X15L', '6&times;1.5L', '2 x 10 L', '7UP LATA 6X33L', '6X033L'].map(rotulo), ['4 × 1,5 L', '6 × 0,5 L', '4 × 1,5 L', '6 × 1,5 L', '2 × 10 L', '6 × 0,33 L', '6 × 0,33 L']);
+    assert.deepEqual(['AGUA C/ GÁS VIMEIRO 4X150L', '6X050L', '4X15L', '6&times;1.5L', '2 x 10 L', '7UP LATA 6X33L', '6X033L'].map(rotulo), ['4 × 1,5 L', '6 × 500 ml', '4 × 1,5 L', '6 × 1,5 L', '2 × 10 L', '6 × 330 ml', '6 × 330 ml']);
 });
 
 test('embalagens diferentes: o preço de cada cadeia para o mesmo tamanho (cn), e o talão passa à frente da estimativa', async () => {

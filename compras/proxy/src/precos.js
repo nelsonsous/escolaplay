@@ -52,15 +52,26 @@ export function rotulo(s) {
     const t = limpaMedida(s);
     const u = (x) => ({ kg: 'kg', g: 'g', gr: 'g', l: 'L', lt: 'L', ml: 'ml', cl: 'cl', un: 'un', uni: 'un', unid: 'un', unidades: 'un' })[x.toLowerCase()];
     const v = (x) => String(n(x)).replace('.', ',');
+    // uma só forma de escrever cada tamanho (17/11/2026: «75 cl» e «750 ml» eram dois tamanhos na escolha do vinho):
+    // os centilitros em mililitros, 1000 ml em litros, 1000 g em quilos, menos de um litro ou um quilo em ml ou g
+    const um = (x, un) => {
+        if (un === 'cl') { x *= 10; un = 'ml'; }
+        if (un === 'ml' && x >= 1000) { x /= 1000; un = 'L'; }
+        if (un === 'g' && x >= 1000) { x /= 1000; un = 'kg'; }
+        if (un === 'kg' && x < 1) { x *= 1000; un = 'g'; }
+        if (un === 'L' && x < 1) { x *= 1000; un = 'ml'; }
+        x = Math.round(x * 1000) / 1000;
+        return `${String(x).replace('.', ',')} ${un}`;
+    };
     let m = t.match(VEZES);
-    if (m) return `${n(m[1])} × ${v(m[2])} ${u(m[3])}`;
+    if (m) return `${n(m[1])} × ${um(n(m[2]), u(m[3]))}`;
     m = t.match(UMA);
     if (!m || !u(m[2])) return null;
-    const x = n(m[1]), un = u(m[2]);
-    if (un === 'kg' && x < 1) return `${Math.round(x * 1000)} g`;
-    if (un === 'L' && x < 1) return `${Math.round(x * 1000)} ml`;
-    return `${v(m[1])} ${un}`;
+    return um(n(m[1]), u(m[2]));
 }
+// o tamanho canónico de uma embalagem já guardada (as guardadas antes de 17/11 podem estar como «75 cl»); o que não se
+// percebe fica como está (a peça ao quilo, «≈ 1,2 kg», não muda)
+export const tamanho = (s) => (s == null || String(s).startsWith('≈') ? s ?? null : rotulo(s) ?? s);
 // o preço por quilo, por litro ou por unidade, em cêntimos: { uc, ub } (ou nulos). Usa o que a cadeia mostra; se
 // não mostra, a embalagem ou o nome do produto.
 export function porUnidade(produto) {
@@ -173,7 +184,8 @@ async function linhas(db, produtos) {
 // a lista com o preço de cada produto escolhido: cent, antes (o riscado), unid, esgotado (1) e visto (o dia)
 export async function juntarPrecos(db, lista0, casa = null) {
     // cada coisa com a sua secção (seccoes.js), para a app agrupar a lista
-    const lista = { ...lista0, itens: lista0.itens.map((i) => ({ ...i, s: seccao(i) })) };
+    // (o tamanho escolhido na forma canónica: uma coisa guardada com «75 cl» abre com o «750 ml» da escolha)
+    const lista = { ...lista0, itens: lista0.itens.map((i) => ({ ...i, s: seccao(i), ...(i.e?.emb ? { e: { ...i.e, emb: tamanho(i.e.emb) } } : {}) })) };
     const m = await linhas(db, produtosDe(lista.itens));
     const est = await estimativas(db, lista.itens);
     // os talões da casa passam à frente das estimativas (o preço que se pagou na Mercadona e no SPAR)
@@ -189,7 +201,7 @@ export async function juntarPrecos(db, lista0, casa = null) {
     return {
         ...lista,
         itens: lista.itens.map((i) => {
-            const e = i.e?.emb ? est.get(i.e.k + '|' + i.e.emb) : null;
+            const e = i.e?.emb ? est.get(i.e.k + '|' + tamanho(i.e.emb)) : null;
             const r = i.e?.k ? reais.get(i.e.k) : null;
             const x = {
                 ...i,

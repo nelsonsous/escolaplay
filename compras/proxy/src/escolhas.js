@@ -10,6 +10,7 @@ import { emFalta } from './casa.js';
 import { familiaDe, atributos, palavrasAtributos } from './atributos.js';
 import { seccaoDoTipo } from './seccoes.js';
 import { limiteGramas, cabe } from './porcoes.js';
+import { tamanho } from './precos.js';
 
 const DIA = 24 * 3600e3;
 // o Lidl só com os produtos do site que o Ecónomo lê (economo/lidl.mjs)
@@ -27,15 +28,18 @@ export const temPalavras = (w, nome, k, cent = null) => {
 export async function melhores(db, e, agora = new Date(), excluir = new Set(), pessoas = null) {
     const lim = e.emb ? null : limiteGramas(e.k, pessoas);
     const { results } = await db.prepare(`SELECT cadeia, id, nome, url, cent, q, ub, emb FROM preco
-        WHERE tipo = ?1 AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?2 AND (?3 IS NULL OR emb = ?3)
+        WHERE tipo = ?1 AND cent IS NOT NULL AND suspeito IS NULL AND visto > ?2
           AND NOT (cadeia = 'lidl' AND id LIKE 'f%' AND ate < ?5)
           AND (?4 IS NULL OR (?4 = 'branca' AND propria = 1) OR (?4 <> 'branca' AND lower(marca) = lower(?4)))
-        ORDER BY uc IS NULL, uc, cent, id`).bind(e.k, recente(agora), e.emb ?? null, e.m ?? null, agora.toISOString().slice(0, 10)).all();
+        ORDER BY uc IS NULL, uc, cent, id`).bind(e.k, recente(agora), null, e.m ?? null, agora.toISOString().slice(0, 10)).all();
+    // o tamanho compara-se na forma canónica («75 cl» é «750 ml»: precos.js)
+    const te = e.emb ? tamanho(e.emb) : null;
     const r = {};
     const w = e.w ? String(e.w).split(' ').filter(Boolean).map((x) => ` ${x} `) : null; // a espécie e o corte: todas
     for (const so of lim ? [true, false] : [false]) {
         for (const p of results) {
             if (!CADEIAS_ESCOLHA.includes(p.cadeia) || r[p.cadeia] || excluir.has(p.cadeia + ' ' + p.id)) continue;
+            if (te && tamanho(p.emb) !== te) continue;
             if (so && !cabe(p, lim)) continue;
             // a palavra escolhida (o corte, a variante; no talho e na peixaria também as etiquetas do Ecónomo: «grelhar»)
             // (antes estava ao contrário: saltava os que tinham a palavra, e a «picanha» trocava-se por «para estufar»)
@@ -82,7 +86,7 @@ export async function estimativas(db, itens, agora = new Date()) {
         WHERE cent IS NOT NULL AND suspeito IS NULL AND visto > ?2`).bind(JSON.stringify(pares), recente(agora)).all();
     const g = new Map();
     for (const r of results) {
-        const k = r.tipo + '|' + r.emb;
+        const k = r.tipo + '|' + tamanho(r.emb);
         if (!g.has(k)) g.set(k, { b: [], f: [] });
         g.get(k)[r.propria ? 'b' : 'f'].push(Number(r.cent));
     }

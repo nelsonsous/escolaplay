@@ -4,7 +4,8 @@
 // para a app afinar (botões) e escolher o mais barato de cada cadeia.
 import { porExtenso, palavras as palavrasTalao } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
-import { medida, pecaAoPeso } from './precos.js';
+import { medida, pecaAoPeso, tamanho } from './precos.js';
+import { acentua } from './revisao.js';
 import { familiaDe, atributos, palavrasAtributos, filasDaFamilia, candidatosMelhores, maisCotados, formatoGrande } from './atributos.js';
 import { prepararNotas, notaDoProduto } from './notas.js';
 import { limiteGramas, gramasDe } from './porcoes.js';
@@ -231,17 +232,33 @@ async function ramosDosTipos(db) {
 // as palavras que distinguem os produtos de um tipo («picada», «bife», «estufar», «meio gordo»…): as mais comuns nos
 // nomes, sem as do tipo, as das marcas e as das medidas, que apareçam em pelo menos dois produtos
 const FORA = new Set(['producao', 'propria', 'com', 'sem', 'para', 'emb', 'embalagem', 'pack', 'kg', 'gr', 'lt', 'unid', 'cada', 'aprox', 'continente', 'pingo', 'doce', 'auchan', 'polegar', 'marca']);
+// as variantes que se escrevem com duas palavras («meio gordo», «sem lactose»): contam como uma só, e as palavras soltas
+// delas não aparecem («meio» e «lactose» não diziam nada; «gordo» apanhava também o meio-gordo)
+const PARES = ['meio gordo', 'sem lactose', 'sem gluten', 'sem acucar', 'sem sal', 'sem gas', 'com gas', 'sem pele', 'sem espinhas',
+    'sem osso', 'sem cafeina', 'sem alcool', 'virgem extra', 'extra virgem', 'zero acucar', 'alto teor', 'de pastagem', 'de campo'];
+// o nome para ler: os acentos e o hífen («meio gordo» → «meio-gordo», «proteina» → «proteína»)
+const ROTULOS = { 'meio gordo': 'meio-gordo', 'virgem extra': 'virgem extra', 'extra virgem': 'virgem extra', 'de pastagem': 'de pastagem', 'de campo': 'do campo' };
+export const rotuloVariante = (w) => ROTULOS[w] ?? acentua(w);
 export function palavrasDoTipo(k, produtos, max = 10) {
     const doTipo = new Set(palavras(k.replace(/-/g, ' ')));
     const marcas = new Set(produtos.flatMap((p) => palavras(p.mk ?? '')));
     const conta = new Map();
+    const dosPares = new Set();
     for (const p of produtos) {
-        for (const w of new Set(palavras(p.nome))) {
+        const n = ` ${palavras(p.nome).join(' ')} `;
+        const ws = new Set(palavras(p.nome));
+        for (const par of PARES) if (n.includes(` ${par} `)) { conta.set(par, (conta.get(par) ?? 0) + 1); for (const w of par.split(' ')) dosPares.add(w); }
+        for (const w of ws) {
             if (w.length < 4 || /\d/.test(w) || FORA.has(w) || doTipo.has(w) || marcas.has(w)) continue;
             conta.set(w, (conta.get(w) ?? 0) + 1);
         }
     }
-    return [...conta].filter(([, n]) => n >= 2 && n < produtos.length).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, max).map(([w, n]) => ({ w, n }));
+    // as palavras soltas dos pares que há (com 2 produtos ou mais) saem
+    const pares = new Set([...conta].filter(([w, n]) => w.includes(' ') && n >= 2).map(([w]) => w));
+    const soltas = new Set([...pares].flatMap((p) => p.split(' ')));
+    return [...conta].filter(([w, n]) => n >= 2 && n < produtos.length && (w.includes(' ') ? pares.has(w) : !soltas.has(w)))
+        .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, max)
+        .map(([w, n]) => { const r = rotuloVariante(w); return r !== w ? { w, r, n } : { w, n }; });
 }
 
 // no talho e na peixaria, as escolhas vêm das etiquetas do Ecónomo, por níveis (g): primeiro o animal ou a espécie (só
@@ -430,7 +447,7 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
     // (as promoções do folheto do Lidl, economo/lidl-folheto.mjs: só até ao fim da promoção)
     // as peças do Continente ao quilo guardadas antes de se perceber (o «por unidade» é a peça): corrigem-se ao ler
     for (const p of results) { const pc = pecaAoPeso({ ...p, cadeia: p.c }); if (pc) Object.assign(p, pc); }
-    for (const p of results) if (String(p.emb ?? '').startsWith('≈')) { p.emb = p.emb.replace(/^≈\s*/, ''); p.aq = 1; }
+    for (const p of results) if (String(p.emb ?? '').startsWith('≈')) { p.emb = p.emb.replace(/^≈\s*/, ''); p.aq = 1; } else if (p.emb) p.emb = tamanho(p.emb);
     results.sort((a, b) => (a.uc == null) - (b.uc == null) || (a.uc ?? 0) - (b.uc ?? 0) || a.cent - b.cent);
     // os valores (tamanhos, marcas) por ordem: primeiro os que há em mais cadeias (são os que dão para comparar),
     // depois os que têm mais produtos, depois pelo nome

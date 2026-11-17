@@ -25,3 +25,16 @@ test('uma coisa escrita à solta (do talão): os tipos palavra a palavra, sem as
     assert.deepEqual((await tiposDoTexto(db, 'Mini pizza cheddar un')).map((t) => t.k), ['pizza']);
     assert.equal((await tiposDoTexto(db, 'Agua SPAR Nascente 6 lt'))[0]?.k, 'agua-sem-gas');
 });
+
+test('as variantes de duas palavras contam como uma, com o nome para ler', async () => {
+    const { palavrasDoTipo } = await import('../proxy/src/sugerir.js');
+    const nomes = ['Leite UHT Meio Gordo Mimosa', 'Leite Meio-Gordo Continente', 'Leite UHT Magro Agros', 'Leite Magro Pingo Doce',
+        'Leite Sem Lactose Meio Gordo Mimosa', 'Leite Sem Lactose Magro', 'Leite Proteína Mimosa', 'Leite Proteina Agros', 'Leite Gordo Vigor'];
+    const v = palavrasDoTipo('leite', nomes.map((nome) => ({ nome })));
+    const r = Object.fromEntries(v.map((x) => [x.w, x.r ?? x.w]));
+    assert.equal(r['meio gordo'], 'meio-gordo');
+    assert.equal(r['sem lactose'], 'sem lactose');
+    assert.equal(r.proteina, 'proteína');
+    assert.equal(r.magro, 'magro');
+    assert.ok(!('meio' in r) && !('lactose' in r) && !('gordo' in r), JSON.stringify(v));
+});
