@@ -1152,6 +1152,7 @@
     = x seg x }
   Se n { ? cts `</ul><p class="nota">★ é a nota dos críticos e dos concursos (de 0 a 100: revistas, guias, medalhas), recolhida pelo Ecónomo; toca na ★ para ler a fonte e no vinho para o escolher. Sem nota, conta o que o rótulo diz (Reserva, DOC…). Só garrafas (o bag-in-box e o garrafão ficam de fora) e só entre os que escolheste: nenhum outro vale mais por menos.</p>` `</ul><p class="nota">Pelo que o rótulo diz (Reserva, DOC, virgem extra, DOP, cura…), só entre os que escolheste: nenhum outro promete mais por menos. Não é uma nota de crítico.</p>` }
   dcotados tp fe fm
+  dpromotipo tp fe fm
   0 }
 # gramas em quilos, com vírgula («1,2»)
 : kgtxt i>i g { = k / g 1000 = r / % g 1000 100 ? r texto`{ N k },{ N r }` texto`{ N k }` }
@@ -1404,14 +1405,20 @@
 : nomeprod i>i l ? mesmo l $"lugrade" $"Lugrade" ? mesmo l $"riberalves" $"Riberalves" ? mesmo l $"vinha" $"Vinha" ? mesmo l $"soares" $"Garrafeira Soares" l
 : dprodutores ii>i tp mu {
   # só os que passam nos filtros (a espécie, a origem, o calibre, o corte); 3 de cada vez, os mais baratos por quilo
-  # (ou, no vinho, os mais bem cotados), e o resto num botão («pdt»: todos)
+  # (ou, no vinho, os mais bem cotados), e o resto num botão («pdt»: todos). «€ Mais barato» (pdo): pelo preço, com os
+  # índices do conector (tp.pdp, do mais barato ao mais caro)
   = todos _an_ler $"pdt"
-  = x pri tp.pd = n 0 = t 0
-  W x { Se && ~ int x.esg tem_w x = t + t 1 = x seg x }
-  = x pri tp.pd
-  W && x || todos < n 3 {
+  = porp && _an_ler $"pdo" tp.pdp
+  = vinho mesmo txt tp.fam $"vinho"
+  = c ? porp pri tp.pdp pri tp.pd = n 0 = t 0
+  W c { = x ? porp idx tp.pd int c c Se && ~ int x.esg tem_w x = t + t 1 = c seg c }
+  = c ? porp pri tp.pdp pri tp.pd
+  W && c || todos < n 3 {
+    = x ? porp idx tp.pd int c c
     Se && ~ int x.esg tem_w x {
-      Se ~ n `<li class="prod-t"><b>Lojas online <small>({ N t }{ Se || _an_ler $"fa" || _an_ler $"fp" || _an_ler $"fc" _an_ler $"fw" `, com os teus filtros` })</small></b><small>Compra-se no site deles, com portes de envio; não entra no «Mais barato».{ Se mesmo txt tp.fam $"vinho" ` Primeiro os mais bem cotados no Vivino até 25 €.` }</small></li>`
+      Se ~ n {
+        `<li class="prod-t"><b>Lojas online <small>({ N t }{ Se || _an_ler $"fa" || _an_ler $"fp" || _an_ler $"fc" _an_ler $"fw" `, com os teus filtros` })</small></b><small>Compra-se no site deles, com portes de envio; não entra no «Mais barato».{ ? porp ` Do mais barato para o mais caro.` { Se vinho ` Primeiro os mais bem cotados no Vivino até 25 €.` } }</small></li>`
+        Se && tp.pdp > t 1 `<li class="pd-ord chips" role="group" aria-label="Ordenar"><button class="chip{ Se ~ porp ` on` }" data-onda="pdo:0" aria-pressed="{ ? porp `false` `true` }">{ ? vinho `⭐ Melhor nota` `Por { crut unidade txt tp.ub }` }</button><button class="chip{ Se porp ` on` }" data-onda="pdo:1" aria-pressed="{ ? porp `true` `false` }">€ Mais barato</button></li>` }
       `<li class="prod"><b>{ esc x.nome }</b><span class="total">{ eur int x.cent }{ Se x.uc `<small class="un">{ crut puc int x.uc txt x.ub }</small>` }</span>`
       `<small><b class="emb">{ crut nomeprod txt x.loja } · Pagas { eur int x.cent }{ Se x.emb ` por ≈ { esc x.emb }` }{ Se x.po { ? int x.po ` + { eur int x.po } de portes` ` · sem portes` } }</b>{ Se && && x.uc > mu 0 <= int x.uc * 4 mu { ? > int x.uc mu ` · +{ N / - * 100 int x.uc * 100 mu mu }% por { crut unidade txt x.ub }` ` · { N / - * 100 mu * 100 int x.uc mu }% mais barato por { crut unidade txt x.ub }` } }</small>`
       dsinais x
@@ -1420,8 +1427,29 @@
       Se x.mc `<small class="mesmo">A mesma marca no { crut nomec txt x.mc.c }{ Se x.mc.kg `, peça de ≈ { esc txt x.mc.kg } kg` }: <b>{ eur int x.mc.uc }/kg</b>{ ? < int x.mc.uc int x.uc ` (mais barato lá)` ` (mais caro lá)` }</small>`
       `<small class="mesmo">{ Se x.pn `Portes: { esc x.pn } · ` }<a href="{ esc x.url }" target="_blank" rel="noopener">Ver no site ↗</a></small></li>`
       = n + n 1 }
-    = x seg x }
+    = c seg c }
   Se > t 3 `<li><button class="mais-op" data-onda="pdt:{ N ? todos 0 1 }">{ ? todos `Mostrar só 3 ▴` `Ver as { N t } das lojas online ▾` }</button></li>`
+  0 }
+# «🔥 Em promoção»: as promoções deste tipo nos supermercados (tp.bpr, a maior descida primeiro) que passam nos filtros;
+# três e «Ver as N promoções» (bprt); tocar escolhe o produto nessa loja
+: dpromotipo iii>i tp fe fm {
+  = todas _an_ler $"bprt"
+  = x pri tp.bpr = n 0 = t 0
+  W x { = p idx tp.produtos int x Se && p passa p fe fm = t + t 1 = x seg x }
+  Se t {
+    `<h3>🔥 Em promoção <small>({ N t })</small></h3><ul class="bc promo-l">`
+    = x pri tp.bpr
+    W && x || todas < n 3 {
+      = p idx tp.produtos int x
+      Se && p passa p fe fm {
+        `<li data-onda="escb:{ N + * icad txt p.c 1000 int x }" tabindex="0" role="button"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }{ Se p.uc `<small class="un">{ crut puc int p.uc txt p.ub }</small>` }</span>`
+        `<small>{ crut nomec txt p.c }{ Se p.emb ` · { esc p.emb }` }</small>`
+        dpromo p
+        `</li>`
+        = n + n 1 }
+      = x seg x }
+    `</ul>`
+    Se > t 3 `<button class="mais-op" data-onda="bprt:{ N ? todas 0 1 }">{ ? todas `Mostrar só 3 ▴` `Ver as { N t } promoções ▾` }</button>` }
   0 }
 : dest iiii>i tp fe q mu {
   = j _ar_json _an_ler $"casa"
@@ -1466,7 +1494,7 @@
         Se || || || < v 3 == v 6 == v 7 == v 8 { _an_gravar $"fn" 0 _an_gravar $"fnr" 0 }
         Se < v 2 { _an_gravar $"fa" 0 _an_gravar $"far" 0 } 0 } } }
   0 }
-: fecha_tipo >i { _an_gravar $"famv" 0 _an_gravar $"pdt" 0 _an_gravar $"pq0" 0 _an_gravar $"pq1" 0 _an_gravar $"pq2" 0 _an_gravar $"pq3" 0 _an_gravar $"pq9" 0 _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fes" 0 _an_gravar $"fer" 0 _an_gravar $"fm" 0 _an_gravar $"fw" 0 _an_gravar $"fwr" 0 _an_gravar $"fa" 0 _an_gravar $"far" 0 _an_gravar $"fp" 0 _an_gravar $"fpr" 0 _an_gravar $"fc" 0 _an_gravar $"fcr" 0 _an_gravar $"fn" 0 _an_gravar $"fnr" 0 _an_gravar $"tq" 0 _an_gravar $"opc" 0 _an_gravar $"esc0" 0 _an_gravar $"esc1" 0 _an_gravar $"esc2" 0 _an_gravar $"esc3" 0 }
+: fecha_tipo >i { _an_gravar $"famv" 0 _an_gravar $"pdt" 0 _an_gravar $"pdo" 0 _an_gravar $"bprt" 0 _an_gravar $"pq0" 0 _an_gravar $"pq1" 0 _an_gravar $"pq2" 0 _an_gravar $"pq3" 0 _an_gravar $"pq9" 0 _an_gravar $"tk" 0 _an_gravar $"tp" 0 _an_gravar $"fe" 0 _an_gravar $"fes" 0 _an_gravar $"fer" 0 _an_gravar $"fm" 0 _an_gravar $"fw" 0 _an_gravar $"fwr" 0 _an_gravar $"fa" 0 _an_gravar $"far" 0 _an_gravar $"fp" 0 _an_gravar $"fpr" 0 _an_gravar $"fc" 0 _an_gravar $"fcr" 0 _an_gravar $"fn" 0 _an_gravar $"fnr" 0 _an_gravar $"tq" 0 _an_gravar $"opc" 0 _an_gravar $"esc0" 0 _an_gravar $"esc1" 0 _an_gravar $"esc2" 0 _an_gravar $"esc3" 0 }
 : abre_tipo i>i v {
   = s _ar_json _an_ler $"sug"
   = x ? s idx s.tipos v 0
@@ -1689,6 +1717,8 @@
   Se eacao t $"anpe" pede_analise
   Se eacao t $"anp" { = j _ar_json _an_ler $"anj" = p ? && j j.analise idx j.analise.resultado.perguntas v 0 Se p _an_gravar $"antxt" texto`«{ crut txt p }» ` }
   Se eacao t $"pdt" { ? v _an_gravar $"pdt" $"1" _an_gravar $"pdt" 0 }
+  Se eacao t $"pdo" { ? v _an_gravar $"pdo" $"p" _an_gravar $"pdo" 0 }
+  Se eacao t $"bprt" { ? v _an_gravar $"bprt" $"1" _an_gravar $"bprt" 0 }
   Se eacao t $"pq" _an_gravar texto`pq{ N v }` $"1"
   Se eacao t $"ord" { ? v _an_gravar $"ord" $"1" _an_gravar $"ord" 0 }
   Se eacao t $"opc" { = ab _an_ler $"opc" ? && ab == _tx_int ab v { _an_gravar $"opc" 0 _an_gravar $"rolar" texto`#cad{ N v }` } _an_gravar $"opc" texto`{ N v }` }

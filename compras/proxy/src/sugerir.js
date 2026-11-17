@@ -589,5 +589,12 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
             res.palavras = [...res.palavras, ...vs.map(([w, r]) => ({ w, r, n: conta.get(w), g: 'nota' }))];
         }
     }
+    // as promoções deste tipo (os índices em produtos: a maior descida primeiro, o «em promoção» sem riscado no fim) e as
+    // lojas online pelo preço (os índices em pd, do mais barato ao mais caro): a app filtra e ordena com eles
+    const desce = (p) => (p.antes > p.cent ? (p.antes - p.cent) / p.antes : 0);
+    const bpr = res.produtos.map((p, i) => [p, i]).filter(([p]) => p.antes > p.cent || p.pm)
+        .sort(([a], [b]) => desce(b) - desce(a) || a.cent - b.cent).slice(0, 60).map(([, i]) => i);
+    if (bpr.length) res.bpr = bpr;
+    if (res.pd?.length > 1) res.pdp = res.pd.map((x, i) => [x.cent, i]).sort((a, b) => a[0] - b[0]).map(([, i]) => i);
     return res;
 }

@@ -135,3 +135,15 @@ test('na app: três promoções à vista; «Ver mais» abre todas com os filtros
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('a folha do tipo: as promoções (bpr, a maior descida primeiro) e as lojas online pelo preço (pdp)', async () => {
+    const env = { KV: kv(), DB: d1(), ALLOWED_ORIGINS: '' };
+    const agora = new Date().toISOString();
+    env.DB.sql.exec(DADOS(agora) + `INSERT INTO produtor_artigo (loja, tipo, id, nome, url, cent, disponivel, visto) VALUES
+        ('vinha', 'azeite', 'a', 'Azeite caro', 'https://x/a', 2500, 1, '${agora}'), ('vinha', 'azeite', 'b', 'Azeite barato', 'https://x/b', 900, 1, '${agora}');`);
+    esquecerTipos();
+    const { chave } = await (await worker.fetch(new Request('https://x/api/aparelho', { method: 'POST' }), env)).json();
+    const r = await (await worker.fetch(new Request('https://x/api/tipo?k=azeite', { headers: { authorization: 'Bearer ' + chave } }), env)).json();
+    assert.deepEqual(r.bpr.map((i) => r.produtos[i].id), ['z1', 'z2']); // −30% primeiro; o «em promoção» sem riscado depois
+    assert.deepEqual(r.pdp.map((i) => r.pd[i].nome), ['Azeite barato', 'Azeite caro']);
+});
