@@ -63,7 +63,7 @@ import { sugestoes, esquecer } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.58.7';
+export const VERSION = '0.58.8';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -256,6 +256,20 @@ async function indice(env, cadeia) {
     return texto;
 }
 
+// o relógio da app pergunta pela lista de 15 em 15 s: com a mesma versão, a resposta de há menos de um minuto serve, sem
+// voltar a ler os preços na D1 (mudam no cron, de minutos em minutos). É a memória deste isolate (não custa nada; um
+// isolate novo começa vazio) e qualquer POST da casa (o talão, as lojas, a lista) a esquece.
+const LISTAS = new WeakMap();
+const listasDe = (db) => { let m = LISTAS.get(db); if (!m) LISTAS.set(db, (m = new Map())); return m; };
+async function listaComPrecos(db, casa) {
+    const lista = await lerLista(db, casa), m = listasDe(db), c = m.get(casa);
+    if (c && c.versao === lista.versao && Date.now() - c.t < 60_000) return c.j;
+    const j = await juntarPrecos(db, lista, casa);
+    if (m.size > 500) m.clear();
+    m.set(casa, { versao: lista.versao, t: Date.now(), j });
+    return j;
+}
+
 async function api(request, env, url) {
     const db = env.DB;
     const caminho = url.pathname, metodo = request.method;
@@ -264,6 +278,7 @@ async function api(request, env, url) {
         return json(await novoAparelho(db), 201);
     }
     const ap = await aparelhoDe(db, request);
+    if (metodo === 'POST') listasDe(db).delete(ap.casa);
     if (caminho === '/api/casa' && metodo === 'GET') {
         // com o horário da loja SPAR escolhida (da lista das lojas, na KV)
         const c = await casaDe(db, ap);
@@ -292,7 +307,7 @@ async function api(request, env, url) {
         const r = await entrarNaCasa(db, ap, codigo);
         return json({ codigo: r.codigo, lista: await juntarPrecos(db, await lerLista(db, r.casa), r.casa) });
     }
-    if (caminho === '/api/lista' && metodo === 'GET') return json(await juntarPrecos(db, await lerLista(db, ap.casa), ap.casa));
+    if (caminho === '/api/lista' && metodo === 'GET') return json(await listaComPrecos(db, ap.casa));
     if (caminho === '/api/lista' && metodo === 'POST') {
         const { ops } = await corpoJSON(request);
         const lista = await mudarLista(db, ap, ops ?? []);

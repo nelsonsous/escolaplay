@@ -28,7 +28,10 @@ test('os mais bem cotados abrem as opções da loja; escolher fecha-as', { skip:
     await a.fill('[data-onda="junta"]', 'vinho');
     await a.click('#sug .chip:has-text("Vinho tinto")');
     await a.waitForSelector('#folha h3:has-text("Nota")');
-    await a.click('#folha ul.bc li:has-text("PAPA FIGOS 0.75L")');
+    // pelo teclado: a caixa recebe o foco e o Enter escolhe-a (role=button)
+    await a.focus('#folha ul.bc li:has-text("PAPA FIGOS 0.75L")');
+    assert.equal(await a.getAttribute('#folha ul.bc li:has-text("PAPA FIGOS 0.75L")', 'role'), 'button');
+    await a.keyboard.press('Enter');
     await a.waitForSelector('#cad2 .opcoes .op.on:has-text("PAPA FIGOS")');
     assert.match(await a.textContent('#cad2 .pnome'), /PAPA FIGOS/);
     // a promoção à vista: o preço riscado e a percentagem
@@ -43,6 +46,15 @@ test('os mais bem cotados abrem as opções da loja; escolher fecha-as', { skip:
     assert.match(await a.textContent('#cad2 .pnome'), /BARATO/);
     assert.equal(await a.textContent('#cad2 > .promo'), '🔥 Em promoção'); // só o rótulo, sem o riscado
     assert.equal(await a.locator('#cad2 .mao').count(), 1);
+    // escondida, o relógio não pergunta à casa (GET /api/lista); visível, pergunta
+    const pedidos = [];
+    a.on('request', (r) => { if (r.method() === 'GET' && r.url().endsWith('/api/lista')) pedidos.push(r.url()); });
+    await a.evaluate(() => { localStorage.setItem('compras:oculto', '1'); window.app.chamar('tique', 0n); });
+    await a.waitForTimeout(300);
+    assert.equal(pedidos.length, 0);
+    await a.evaluate(() => { localStorage.setItem('compras:oculto', ''); window.app.chamar('tique', 0n); });
+    await a.waitForTimeout(300);
+    assert.equal(pedidos.length, 1);
     assert.deepEqual(erros, []);
     await br.close(); await s.fechar?.();
 });

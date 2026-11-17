@@ -264,7 +264,9 @@
 # o relógio: de 15 em 15 s, envia o que falta ou vê se a casa mudou alguma coisa
 : tique i>i z {
   = m _me_marca
-  ? _an_ler $"chave" { ? vazio _an_ler $"pend" ver envia } registar
+  # com a app escondida (ecrã apagado, outra app à frente) não se pergunta à casa: só segue o que está por enviar;
+  # ao voltar, a página chama o tique logo (compras.js)
+  ? _an_ler $"chave" { ? vazio _an_ler $"pend" { Se vazio _an_ler $"oculto" ver } envia } registar
   _me_solta m }
 
 # ---------- avisos ----------
@@ -1117,7 +1119,7 @@
     Se && && p > int x.p mx passa p fe fm {
       Se ~ n `<h3>🏅 Melhores compras</h3><ul class="bc">`
       = pr ? p.uc int p.uc int p.cent
-      `<li data-onda="esco:{ N + * icad txt p.c 1000 int x.i }"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }{ Se p.uc `<small class="un">{ crut puc int p.uc txt p.ub }</small>` }</span>`
+      `<li data-onda="esco:{ N + * icad txt p.c 1000 int x.i }" tabindex="0" role="button"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }{ Se p.uc `<small class="un">{ crut puc int p.uc txt p.ub }</small>` }</span>`
       ? int x.ct { = cts 1 `<small>{ crut nomec txt p.c } · { dnota int x.p x.nu } · ` } `<small>{ crut nomec txt p.c } · o rótulo diz: `
       = q pri x.porque = i 0
       W q { Se i `, ` `{ esc q }` = q seg q = i + i 1 }
@@ -1174,7 +1176,7 @@
     = p idx tp.produtos int x
     Se && p passa p fe fm {
       Se ~ n `<h3>⭐ Os mais bem cotados</h3><ul class="bc">`
-      `<li data-onda="escb:{ N + * icad txt p.c 1000 int x }"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }{ Se p.uc `<small class="un">{ crut puc int p.uc txt p.ub }</small>` }</span>`
+      `<li data-onda="escb:{ N + * icad txt p.c 1000 int x }" tabindex="0" role="button"><b>{ esc p.nome }</b><span class="total">{ eur int p.cent }{ Se p.uc `<small class="un">{ crut puc int p.uc txt p.ub }</small>` }</span>`
       `<small>{ crut nomec txt p.c } · { dnota int p.nt p.nu } · { esc p.nr }</small></li>`
       = n + n 1 }
     = x seg x }
@@ -1320,7 +1322,7 @@
             # tocar na caixa escolhe este produto (os botões e as ligações lá dentro fazem o seu)
             = q _an_ler texto`esc{ N k }`
             = mao && q mesmo txt p.id q
-            = es ? mao 0 texto` data-onda="escc:{ N + * k 1000 idx_em tp p }"`
+            = es ? mao 0 texto` data-onda="escc:{ N + * k 1000 idx_em tp p }" tabindex="0" role="button"`
             # escolhido à mão: a caixa em destaque (e a acabada de escolher pisca, sem o ecrã saltar)
             = cl texto`{ Se && u == int p.uc mu `melhor ` }{ Se mao `escolhido ` }{ Se && mao mesmo _an_ler $"flash" texto`{ N k }` `flash` }`
             ? u `<li id="cad{ N k }" class="{ crut cl }"{ Se es crut es }><b>{ crut nomecad k }{ Se int p.pr ` 🏷` }{ Se mao ` <span class="tag-esc">✓ Escolhido</span>` }</b><span class="total">{ eur int p.cent }<small class="un">{ crut puc int p.uc ub }</small></span>`

@@ -47,15 +47,31 @@
             .then((o) => (o && o.title ? JSON.stringify({ ...c, legenda: o.title, autor: o.author_name }) : corpo), () => corpo);
     }
 
-    fetch('app/compras.wasm?v=0.58.7')
+    fetch('app/compras.wasm?v=0.58.8')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })
         .catch((e) => {
-            document.getElementById('vista').innerHTML = '<p class="vazio">Não consegui abrir a app: ' + String((e && e.message) || e).replace(/[<&]/g, '') + '</p>';
+            // sem rede na primeira vez não há cópia guardada; de resto, um erro que se perceba e um botão para tentar outra vez
+            const porque = navigator.onLine === false ? 'Sem Internet. Abre a app uma vez com rede: depois passa a abrir também sem ela.'
+                : 'Não consegui abrir a app (' + String((e && e.message) || e).replace(/[<&]/g, '') + ').';
+            document.getElementById('vista').innerHTML = '<p class="vazio">' + porque + '</p><p class="vazio"><button class="botao" onclick="location.reload()">Tentar outra vez</button></p>';
         });
 
     const evento = (t) => { if (window.app) window.app.chamar('clique', window.app.escrever(t)); };
+    // as caixas que se tocam (li com data-onda, role=button) também respondem ao Enter e ao espaço
+    document.addEventListener('keydown', (e) => {
+        const t = e.target;
+        if ((e.key === 'Enter' || e.key === ' ') && t && t.getAttribute && t.getAttribute('role') === 'button' && t.tagName !== 'BUTTON' && t.getAttribute('data-onda')) {
+            e.preventDefault(); evento(t.getAttribute('data-onda')); return;
+        }
+    });
+    // escondida, a app não pergunta à casa de 15 em 15 s (poupa bateria e leituras); ao voltar ou ao voltar a rede, logo
+    const tique = () => { if (window.app) window.app.chamar('tique', 0n); };
+    const visivel = () => { ls.set('oculto', document.hidden ? '1' : ''); if (!document.hidden) tique(); };
+    document.addEventListener('visibilitychange', visivel);
+    window.addEventListener('online', tique);
+    ls.set('oculto', document.hidden ? '1' : '');
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') evento('fecha:0');
         if (e.key !== 'Enter') return;
@@ -172,7 +188,7 @@
         reduzir(ficheiro)
             .then((imagem) => buscar('POST /api/talao\n' + JSON.stringify({ imagem })))
             .then((r) => r.text())
-            .catch((err) => JSON.stringify({ erro: String((err && err.message) || err) }))
+            .catch((err) => JSON.stringify({ erro: navigator.onLine === false || err instanceof TypeError ? 'sem ligação à Internet; tenta outra vez quando houver rede' : String((err && err.message) || err) }))
             .then((t) => { ls.set('talao', t); evento('talao:1'); });
     });
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
