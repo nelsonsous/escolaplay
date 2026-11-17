@@ -470,3 +470,48 @@ test('a sugestão pelo nome do produto ignora os acentos: «esporao reserva» ac
     assert.ok(t, JSON.stringify(r));
     assert.equal(t.w, 'esporao reserva'); // a variante: o filtro pelas palavras
 });
+
+test('uma página que rebenta a meio não prende a fila: fica marcada e o cron passa à seguinte (o Continente parado de 15 a 17/11)', async (t) => {
+    const pedidos = instalar();
+    t.after(desinstalar);
+    const env = ambiente();
+    const CO2 = 'https://www.continente.pt/supermercado/bebidas-e-garrafeira/agua/agua-com-gas/';
+    env.DB.sql.exec(`INSERT INTO pagina (url, cadeia, tipo) VALUES ('${CO2}', 'continente', 'agua-com-gas')`);
+    PAGINAS.set(CO2, pagina('continente-categoria-agua.html'));
+    const correr = async (iso) => {
+        const espera = [];
+        await worker.scheduled({ scheduledTime: Date.parse(iso) }, env, { waitUntil: (p) => espera.push(p) });
+        await Promise.allSettled(espera);
+    };
+    // gravar os produtos rebenta (como o Worker a meio): a página fica tentada, com uma falha
+    const batch = env.DB.batch.bind(env.DB);
+    env.DB.batch = async () => { throw new Error('o Worker rebentou'); };
+    await correr('2026-11-15T10:06:00Z'); // Continente
+    const [a] = env.DB.linhas(`SELECT tentado, falhas, visto FROM pagina WHERE url = '${CO}'`);
+    assert.deepEqual([a.tentado, a.falhas, a.visto], ['2026-11-15T10:06:00.000Z', 1, null]);
+    // na volta seguinte do Continente lê-se a outra página, não a mesma
+    env.DB.batch = batch;
+    await correr('2026-11-15T10:12:00Z');
+    assert.deepEqual(pedidos.map((p) => p.url), [CO, CO2]);
+    const [b] = env.DB.linhas(`SELECT falhas, visto FROM pagina WHERE url = '${CO2}'`);
+    assert.deepEqual([b.falhas, b.visto], [0, '2026-11-15T10:12:00.000Z']);
+    // e a contagem do tipo a falhar já não impede a página de ficar lida
+    env.DB.sql.exec(`UPDATE pagina SET tentado = NULL WHERE url = '${CO}'`);
+    const prep = env.DB.prepare.bind(env.DB);
+    env.DB.prepare = (s) => { if (/^UPDATE tipo SET n/.test(s.trim())) throw new Error('falhou o tipo'); return prep(s); };
+    await correr('2026-11-15T10:18:00Z');
+    const [c] = env.DB.linhas(`SELECT falhas, visto FROM pagina WHERE url = '${CO}'`);
+    assert.deepEqual([c.falhas, c.visto], [0, '2026-11-15T10:18:00.000Z']);
+});
+
+test('a fila: as categorias primeiro, as marcas nunca lidas só numa volta em cada quatro', async () => {
+    const { proximaPagina } = await import('../proxy/src/catalogo.js');
+    const env = ambiente();
+    const MARCA = 'https://www.continente.pt/supermercado/bebidas-e-garrafeira/agua/agua-sem-gas/luso/';
+    env.DB.sql.exec(`INSERT INTO pagina (url, cadeia, tipo, marca) VALUES ('${MARCA}', 'continente', 'agua-sem-gas', 1);
+        UPDATE pagina SET visto = '2026-11-14T10:00:00.000Z' WHERE url = '${CO}'`);
+    // a categoria lida há um dia vem antes da marca que nunca se leu…
+    assert.equal((await proximaPagina(env.DB, 'continente', new Date('2026-11-15T10:06:00Z'))).url, CO);
+    // …menos nos minutos 0–5 e 24–29 (e 48–53) de cada hora, em que a marca passa à frente
+    assert.equal((await proximaPagina(env.DB, 'continente', new Date('2026-11-15T10:24:00Z'))).url, MARCA);
+});

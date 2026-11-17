@@ -171,18 +171,25 @@ export const CADEIAS_CATALOGO = ['continente', 'pingodoce', 'auchan'];
 const HORA = 3600e3;
 
 // a próxima página a ler numa cadeia: a que nunca se leu, ou a mais velha (as de categoria com mais de 20 h, as de
-// marca com mais de 6 dias); uma que falhou espera uma hora (e com 5 falhas seguidas fica de lado)
+// marca com mais de 6 dias); uma que falhou espera uma hora (e com 5 falhas seguidas fica de lado). As categorias vêm
+// primeiro e as marcas só numa volta em cada quatro (antes as nunca lidas vinham primeiro: as ~150 marcas novas do
+// Continente ocuparam todas as voltas de 15 a 17/11 e as categorias ficaram dois dias por ler)
 export async function proximaPagina(db, cadeia, agora = new Date()) {
     const t = agora.getTime(), iso = (h) => new Date(t - h * HORA).toISOString();
+    const marcaPrimeiro = Math.floor(agora.getUTCMinutes() / 6) % 4 === 0 ? 1 : 0;
     return db.prepare(`SELECT url, cadeia, tipo FROM pagina
         WHERE cadeia = ?1 AND falhas < 5 AND (tentado IS NULL OR tentado < ?2)
           AND (visto IS NULL OR visto < CASE WHEN marca = 1 THEN ?4 ELSE ?3 END)
-        ORDER BY visto IS NOT NULL, marca, visto LIMIT 1`).bind(cadeia, iso(1), iso(20), iso(144)).first();
+        ORDER BY marca = ?5 DESC, visto IS NOT NULL, visto LIMIT 1`).bind(cadeia, iso(1), iso(20), iso(144), marcaPrimeiro).first();
 }
 
 // lê uma página de categoria e guarda o que lá está: { url, estado, n }
 export async function lerPagina(db, pagina, agora = new Date()) {
     const quando = agora.toISOString();
+    // marca-se a tentativa (e conta como falha) antes de ler: se o Worker rebentar a meio (de 15/11 a 17/11 uma página
+    // de marca do Continente rebentava depois de gravar os preços e antes de se marcar, e era escolhida outra vez a cada
+    // volta, parando todo o catálogo do Continente), a fila passa à seguinte e, com 5 falhas, essa fica de lado
+    await db.prepare('UPDATE pagina SET tentado = ?, falhas = falhas + 1 WHERE url = ?').bind(quando, pagina.url).run();
     let estado = 0, produtos = [];
     try {
         const r = await pedir(new URL(pagina.url), 'text/html,application/xhtml+xml', 12000);
@@ -190,10 +197,7 @@ export async function lerPagina(db, pagina, agora = new Date()) {
         if (estado === 200) produtos = lerCategoria(pagina.cadeia, await r.text());
         else await r.body?.cancel();
     } catch { estado = 0; }
-    if (!produtos.length) {
-        await db.prepare('UPDATE pagina SET tentado = ?, falhas = falhas + 1 WHERE url = ?').bind(quando, pagina.url).run();
-        return { url: pagina.url, estado, n: 0 };
-    }
+    if (!produtos.length) return { url: pagina.url, estado, n: 0 };
     await guardarCatalogo(db, pagina.cadeia, pagina.tipo, produtos, agora);
     // o nome de um tipo cruzado: a categoria mais comum dos produtos da página, só se condiz com a chave (antes vinha
     // do primeiro produto, que podia ser de outra categoria: «Massas e gnocchis» no tipo «peixe»)
@@ -204,14 +208,17 @@ export async function lerPagina(db, pagina, agora = new Date()) {
         const [melhor] = [...conta].sort((a, b) => b[1] - a[1])[0] ?? [];
         if (melhor && nomeCondiz(pagina.tipo, melhor)) nome = acentua(melhor);
     }
+    // a página lida fica marcada já (o resto, o nome e a contagem do tipo e a revisão, pode falhar sem a prender)
+    await db.prepare('UPDATE pagina SET visto = ?1, tentado = ?1, falhas = 0, n = ?2 WHERE url = ?3').bind(quando, produtos.length, pagina.url).run();
+    try {
     await db.batch([
-        db.prepare('UPDATE pagina SET visto = ?1, tentado = ?1, falhas = 0, n = ?2 WHERE url = ?3').bind(quando, produtos.length, pagina.url),
         db.prepare(`UPDATE tipo SET n = (SELECT count(*) FROM preco WHERE tipo = ?1),
             nome = CASE WHEN casa = 0 AND ?2 IS NOT NULL THEN ?2 ELSE nome END
             WHERE k = ?1 AND (n IS NOT (SELECT count(*) FROM preco WHERE tipo = ?1) OR (casa = 0 AND ?2 IS NOT NULL AND nome IS NOT ?2))`).bind(pagina.tipo, nome),
     ]);
     // e revê o tipo: os suspeitos e o nome (revisao.js)
     await revisarTipo(db, pagina.tipo);
+    } catch (e) { console.log('catálogo: o tipo', pagina.tipo, 'não se atualizou:', String(e?.message ?? e)); }
     return { url: pagina.url, estado, n: produtos.length };
 }
 
