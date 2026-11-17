@@ -59,7 +59,7 @@ export async function sugestoes(db, ap, lista, agora = new Date()) {
         // (guardado 6 h por chave: cada procura lê os nomes dos produtos dos tipos candidatos)
         let r = TIPO_DA_CHAVE.get(q);
         if (!r || Date.now() - r.quando > 6 * 3600e3) { r = { quando: Date.now(), t: q ? (await tiposDoTexto(db, q).catch(() => []))[0] ?? null : null }; TIPO_DA_CHAVE.set(q, r); }
-        if (r.t) { x.tk = r.t.k; x.tn = r.t.nome; if (r.t.w) x.tw = r.t.w; }
+        if (r.t) { x.tk = r.t.k; x.tn = r.t.nome; } // só o tipo, sem filtro (ver tipoDaLinha)
     }
     return coisas;
 }

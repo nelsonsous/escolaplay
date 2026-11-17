@@ -376,7 +376,9 @@ export async function tipoDaLinha(db, t) {
     const c = TIPO_DA_LINHA.get(q);
     if (c && Date.now() - c.quando < 6 * HORA) return c.t;
     const r = (await tiposDoTexto(db, q).catch(() => []))[0] ?? null;
-    const x = r ? { k: r.k, nome: r.nome, ...(r.w ? { w: r.w } : {}) } : null;
+    // só o tipo: as outras palavras da linha («nascente», «SPAR») são o nome daquele produto, não um filtro — com elas a
+    // água do talão só comparava com as águas com «nascente» no nome (o Caramulo a 1,49 € em vez da marca branca a 0,96 €)
+    const x = r ? { k: r.k, nome: r.nome } : null;
     TIPO_DA_LINHA.set(q, { quando: Date.now(), t: x });
     return x;
 }
