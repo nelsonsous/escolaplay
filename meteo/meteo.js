@@ -1734,9 +1734,10 @@ async function submitReport(kind) {
     const mine = { ...rep, distanceKm: 0, ageMin: 0 };
     const why = base ? explainReport(base, rep, [mine, ...st.reports]) : null;
     // com explicação, a folha troca de conteúdo (fechar com animação e abrir logo a seguir fechava a nova ao fim da animação)
+    // (o «Obrigado!» só sem a folha: com ela taparia uma linha, e a folha já diz que o aviso manda no agora)
     if (why) openSheet('why', why); else closeSheet(true);
     reportTimer(); render();
-    toast(`Obrigado! «${REPORT_KINDS[kind]}» conta no agora durante ${REPORT_MIN} min.`);
+    if (!why) toast(`Obrigado! «${REPORT_KINDS[kind]}» conta no agora durante ${REPORT_MIN} min.`);
     try {
         await api.postReport(rep);
         st.reports = [mine, ...st.reports.filter((r) => r.time !== rep.time)];

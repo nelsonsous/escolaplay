@@ -462,8 +462,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await noOverflow('folha do aviso');
     await shot('02b-aviso.png');
     await page.click('.rpt-grid [data-report="nao-chove"]');
-    await toastIs(/Obrigado! «Não chove» conta no agora durante 45 min/);
-    // 1.26: a previsão dava chuva → «Porque dizia chuva» (radar, estações, o que a aprendizagem faz)
+    // 1.26: a previsão dava chuva → «Porque dizia chuva» (radar, estações, o que a aprendizagem faz), em vez do «Obrigado!»
     await page.waitForSelector('#mt-sheet:not([hidden]) .why');
     assert.equal(await page.locator('#mt-sheet-title').textContent(), 'Porque dizia chuva');
     const why = await page.locator('.why .note').allTextContents();
