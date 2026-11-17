@@ -54,17 +54,21 @@ export async function promosDaCasa(db, kv, casa, agora = new Date()) {
               AND p.cent > 0 AND p.suspeito IS NULL AND p.visto > ?3 AND (p.antes > p.cent OR p.promo = 1)
               AND (p.ate IS NULL OR p.ate >= ?4)`).bind(JSON.stringify(ks), JSON.stringify(cadeias), new Date(agora - 4 * DIA).toISOString(), hoje).all();
         const pct = (p) => (p.antes > p.cent ? Math.round(((p.antes - p.cent) / p.antes) * 100) : 0);
-        // as maiores descidas primeiro (o rótulo sem preço riscado no fim); duas por tipo, oito ao todo
+        // as maiores descidas primeiro (o rótulo sem preço riscado no fim); três por tipo, trinta ao todo (a app mostra
+        // três e, em «Ver mais», todas com os filtros por loja e por produto)
         const porTipo = new Map();
         for (const p of results.sort((a, b) => pct(b) - pct(a) || a.cent - b.cent)) {
             const n = porTipo.get(p.tipo) ?? 0;
-            if (n >= 2 || promos.length >= 8) continue;
+            if (n >= 3 || promos.length >= 30) continue;
             porTipo.set(p.tipo, n + 1);
             promos.push({ k: p.tipo, tn: p.tn, c: p.cadeia, cn: NOMES[p.cadeia], id: p.id, nome: p.nome, url: p.url, cent: p.cent,
                 ...(p.antes > p.cent ? { antes: p.antes, pct: pct(p) } : {}), ...(p.emb ? { emb: p.emb } : {}), ...(p.ate ? { ate: `${p.ate.slice(8, 10)}/${p.ate.slice(5, 7)}` } : {}) });
         }
     }
-    const r = { semana, promos };
+    // os filtros: as lojas e os produtos (tipos) que há nestas promoções, com quantas cada um, os de mais primeiro
+    const conta = (chave, nome) => [...promos.reduce((m, p) => m.set(p[chave], { [chave]: p[chave], [nome]: p[nome], n: (m.get(p[chave])?.n ?? 0) + 1 }), new Map()).values()]
+        .sort((a, b) => b.n - a.n || String(a[nome]).localeCompare(String(b[nome]), 'pt'));
+    const r = { semana, promos, lojas: conta('c', 'cn'), tipos: conta('k', 'tn') };
     if (kv) await kv.put(chave, JSON.stringify({ quando: agora.toISOString(), r }), { expirationTtl: 4 * 3600 }).catch(() => {});
     return r;
 }

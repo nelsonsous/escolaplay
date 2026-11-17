@@ -211,16 +211,36 @@
   = j _ar_json _an_ler $"promos"
   = x ? j pri j.promos 0
   Se && x ~ mesmo txt j.semana _an_ler $"promofechada" {
-    `<div class="promos"><div class="promos-t"><h3>🔥 Promoções da semana para ti</h3><button class="promos-x" data-onda="prox:0" aria-label="Fechar as promoções desta semana">✕</button></div><ul>`
-    # só as três primeiras (o cartão não empurra a lista para baixo); «Ver mais» mostra as outras
-    = i 0 = todas _an_ler $"promotodas"
-    W x { Se || todas < i 3 {
-      `<li><div><b>{ esc x.nome }</b><small>{ esc x.cn }{ Se x.emb ` · { esc x.emb }` }{ Se x.ate ` · até { esc x.ate }` }</small></div>`
-      `<div class="pr"><span class="total">{ eur int x.cent }</span>{ ? x.antes `<small><s>{ eur int x.antes }</s> −{ N int x.pct }%</small>` `<small>em promoção</small>` }</div>`
-      `<button class="tlj" data-onda="proj:{ N i }">+ Juntar</button></li>` }
+    `<div class="promos"><div class="promos-t"><h3>🔥 Promoções da semana para ti</h3><button class="promos-x" data-onda="prox:0" aria-label="Fechar as promoções desta semana">✕</button></div>`
+    # fechado: as três primeiras (o cartão não empurra a lista para baixo); aberto («Ver mais»): todas, com os filtros
+    # por loja e por produto, e «Ver menos» para fechar
+    = todas _an_ler $"promotodas" = fl _an_ler $"promol" = ft _an_ler $"promot"
+    Se todas {
+      Se > quantos j.lojas 1 {
+        `<div class="chips promos-f" role="group" aria-label="Loja"><button class="chip{ Se ~ fl ` on` }" data-onda="prl:99">Todas as lojas</button>`
+        = l pri j.lojas = n 0
+        W l { `<button class="chip{ Se && fl mesmo fl txt l.c ` on` }" data-onda="prl:{ N n }">{ esc l.cn } <small>{ N int l.n }</small></button>` = l seg l = n + n 1 }
+        `</div>` }
+      Se > quantos j.tipos 1 {
+        `<div class="chips promos-f" role="group" aria-label="Produto"><button class="chip{ Se ~ ft ` on` }" data-onda="prt:99">Todos os produtos</button>`
+        = l pri j.tipos = n 0
+        W l { `<button class="chip{ Se && ft mesmo ft txt l.k ` on` }" data-onda="prt:{ N n }">{ esc l.tn } <small>{ N int l.n }</small></button>` = l seg l = n + n 1 }
+        `</div>` } }
+    `<ul>`
+    = i 0 = m 0 = tot 0
+    W x {
+      Se && || ~ fl mesmo fl txt x.c || ~ ft mesmo ft txt x.k {
+        = tot + tot 1
+        Se || todas < m 3 {
+          `<li><div><b>{ esc x.nome }</b><small>{ esc x.cn }{ Se x.emb ` · { esc x.emb }` }{ Se x.ate ` · até { esc x.ate }` }</small></div>`
+          `<div class="pr"><span class="total">{ eur int x.cent }</span>{ ? x.antes `<small><s>{ eur int x.antes }</s> −{ N int x.pct }%</small>` `<small>em promoção</small>` }</div>`
+          `<button class="tlj" data-onda="proj:{ N i }">+ Juntar</button></li>`
+          = m + m 1 } }
       = x seg x = i + i 1 }
     `</ul>`
-    Se && ~ todas > i 3 `<button class="promos-mais" data-onda="prom:1">Ver mais { N - i 3 } { ? == - i 3 1 `promoção` `promoções` }</button>`
+    Se && todas == tot 0 `<p class="nota">Nenhuma promoção com estes filtros.</p>`
+    Se && ~ todas > tot 3 `<button class="promos-mais" data-onda="prom:1" aria-expanded="false">Ver mais { N - tot 3 } { ? == - tot 3 1 `promoção` `promoções` } ▾</button>`
+    Se todas `<button class="promos-mais" data-onda="prom:0" aria-expanded="true">Ver menos ▴</button>`
     `<p class="nota">Dos produtos que costumas comprar, nas tuas lojas. Volta na próxima semana.</p></div>` }
   0 }
 
@@ -1567,7 +1587,10 @@
   Se eacao t $"talf" { _an_gravar $"talver" 0 _an_gravar $"talsel" 0 }
   Se eacao t $"ajd" _an_gravar $"ajuda" ? v $"1" 0
   # as promoções: fechar (até à semana seguinte) e juntar à lista (o tipo, com este produto nesta loja)
-  Se eacao t $"prom" _an_gravar $"promotodas" ? v $"1" 0
+  # as promoções: «Ver mais» (com os filtros) e «Ver menos» (sem filtros); o filtro por loja e por produto (99: todos)
+  Se eacao t $"prom" { _an_gravar $"promotodas" ? v $"1" 0 Se ~ v { _an_gravar $"promol" 0 _an_gravar $"promot" 0 } }
+  Se eacao t $"prl" { = j _ar_json _an_ler $"promos" = l ? && j < v 99 idx j.lojas v 0 _an_gravar $"promol" ? l txt l.c 0 }
+  Se eacao t $"prt" { = j _ar_json _an_ler $"promos" = l ? && j < v 99 idx j.tipos v 0 _an_gravar $"promot" ? l txt l.k 0 }
   Se eacao t $"prox" { = j _ar_json _an_ler $"promos" Se j _an_gravar $"promofechada" txt j.semana }
   Se eacao t $"proj" { = j _ar_json _an_ler $"promos" = x ? j idx j.promos v 0 Se x {
       = id texto`{ novoid }`
