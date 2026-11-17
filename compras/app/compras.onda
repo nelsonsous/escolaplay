@@ -484,6 +484,31 @@
     `<div class="merc"><p><b>{ ? && j j.lojas.spar esc j.lojas.spar `SPAR` } { Se < r c `≈ ` }{ eur t }</b>{ Se < c n ` <small>(só { N c } de { N n } coisas)</small>` }</p>`
     `<p class="nota">{ Se r `{ N r } { ? == r 1 `coisa com o preço` `coisas com o preço` } do teu talão. ` }{ Se < r c `Estimativa: as marcas de fabricante do mesmo tipo e tamanho nas outras lojas (o SPAR não tem loja online). Os talões da tua loja vão corrigi-la.` }</p></div>` }
   0 }
+# uma coisa sem preço em nenhuma das lojas da casa (as «pilhas»): diz-se uma vez, por cima, e não em cada loja
+: sem_lado i>i c { = r 1 L k 4 Se && minha cadeia k >= pc c k 0 = r 0 r }
+# o que falta na loja k (as coisas por riscar sem preço lá, mas com preço noutra): cada uma abre a escolha, para
+# escolher o produto dessa loja
+: dfalta i>i k {
+  = c pri itens = i 0 = n 0
+  W c {
+    Se && && ~ int c.f < pc c k 0 ~ sem_lado c {
+      Se ~ n `<p class="falta">Falta: `
+      Se < n 6 `<button data-onda="abre:{ N i }">{ esc c.t }</button>`
+      = n + n 1 }
+    = c seg c = i + i 1 }
+  Se > n 6 ` <i>e mais { N - n 6 }</i>`
+  Se n `</p>`
+  0 }
+: dsem_lado >i {
+  = c pri itens = i 0 = n 0
+  W c {
+    Se && ~ int c.f sem_lado c {
+      Se ~ n `<p class="falta nenhuma">Sem preço em nenhuma das tuas lojas: `
+      `<button data-onda="abre:{ N i }">{ esc c.t }</button>`
+      = n + n 1 }
+    = c seg c = i + i 1 }
+  Se n `<br><small>Toca para escolher o produto, ou fica só como lembrete.</small></p>`
+  0 }
 : dmais >i {
   = h _ht_ini + 6000 * 300 quantos itens
   = n porriscar
@@ -492,28 +517,34 @@
   = nc 0 = x pri itens W x { Se && ~ int x.f x.cmp = nc + nc 1 = x seg x }
   Se nc `<p class="nota">{ N nc } { ? == nc 1 `coisa tem` `coisas têm` } embalagens diferentes de loja para loja: a ordem compara o preço pelo mesmo tamanho (por litro ou quilo); o total é o que pagas.</p>`
   ? == n 0 `<p class="vazio">Não há nada por comprar na lista.</p>` {
+    # as coisas sem preço em nenhuma loja não contam contra nenhuma: «tudo» é tudo o que há (ne)
+    = ns 0 = x pri itens W x { Se && ~ int x.f sem_lado x = ns + ns 1 = x seg x }
+    = ne - n ns
     # quantos supermercados têm preço para tudo; o primeiro deles (na ordem de proxima) é o mais barato
-    = completos 0 L k 4 Se && minha cadeia k == cobre k n = completos + completos 1
+    = completos 0 L k 4 Se && && > ne 0 minha cadeia k == cobre k ne = completos + completos 1
     # as cadeias onde a casa não compra ficam de fora (como já mostradas)
     = feitos 0 = pt -1 = nm 0
     L k 4 { ? minha cadeia k { = nm + nm 1 0 } { = feitos | feitos << 1 k 0 } }
-    `<h3>Tudo numa só loja</h3><ul class="cadeias">`
+    `<h3>Tudo numa só loja</h3>`
+    dsem_lado
+    `<ul class="cadeias">`
     L r nm {
       = k proxima feitos
       = feitos | feitos << 1 k
       = c cobre k = t total k
-      ? == c n {
+      ? && > ne 0 == c ne {
           `<li class="{ ? < pt 0 `melhor` `tudo` }"><b>{ crut nomecad k }</b><span class="total">{ eur t }</span>`
           ? < pt 0 { = pt t `<small>{ ? > completos 1 `Mais barato` `O único com preço para tudo` }</small>` 0 }
             `<small>mais { eur - t pt }, mas fazes tudo aqui</small>`
           `<button class="ir" data-onda="loja:{ N k }">Vou a este</button></li>` 0 }
         { `<li class="parcial"><b>{ crut nomecad k }</b><span class="total">{ ? c eur t `—` }</span>`
           `<small>{ ? c `só { N c } de { N n } coisas com preço` `sem produtos escolhidos` }</small>`
+          Se c dfalta k
           Se c `<button class="ir" data-onda="loja:{ N k }">Vou a este</button>`
           `</li>` 0 } }
     `</ul>`
     dmerc n
-    ddividir n pt
+    ddividir ne pt
     Se == completos 0 `<p class="nota">Para comparar, toca em cada coisa da lista e escolhe o produto de cada supermercado.</p>`
     0 }
   dgastos
@@ -915,7 +946,7 @@
 : dgastos >i {
   = g _ar_json _an_ler $"gastos"
   Se && g || int g.mes int g.semana {
-    `<div class="gastos"><h3>📒 O que compraste</h3><p><b>Esta semana { eur int g.semana }</b> · nos últimos 30 dias { eur int g.mes } ({ N int g.coisas_mes } coisas)</p>`
+    `<div class="gastos"><h3>📒 O que compraste</h3><p><b>Esta semana { eur int g.semana }</b> · nos últimos 30 dias { eur int g.mes } ({ N int g.coisas_mes } { ? == int g.coisas_mes 1 `coisa` `coisas` })</p>`
     Se > int g.poupado_mes 0 `<p class="poupado">💚 Poupaste { eur int g.poupado_mes } face à loja mais cara de cada coisa</p>`
     = x pri g.lojas Se x { `<p class="nota">` = pr 1 W x { Se ~ pr ` · ` `{ esc x.nome } { eur int x.cent }` = pr 0 = x seg x } `</p>` }
     = x pri g.mais Se x { `<p class="nota">Compras mais vezes: ` = pr 1 W x { Se ~ pr `, ` `{ esc x.t } ({ N int x.vezes }×)` = pr 0 = x seg x } `</p>` }

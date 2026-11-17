@@ -349,3 +349,11 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .promos .pr s { color: var(--fraco); }
 .promos .tlj { flex: none; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--linha); background: var(--cartao); color: var(--azul); font-size: 14px; }
 .promos .nota { margin: 4px 0; font-size: 13px; }
+
+/* volta 7: o que falta em cada loja (no «Mais barato») */
+.falta.nenhuma { margin: 0 0 8px; font-size: 14px; color: var(--fraco); }
+.falta.nenhuma button { display: inline-block; margin: 2px 6px 2px 0; padding: 2px 10px; border-radius: 12px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font-size: 14px; }
+.falta.nenhuma small { font-size: 13px; }
+.cadeias .falta { grid-column: 1 / -1; margin: 4px 0 0; font-size: 14px; color: var(--fraco); }
+.cadeias .falta button { display: inline-block; margin: 2px 6px 2px 0; padding: 2px 10px; border-radius: 12px; border: 1px solid var(--linha); background: var(--cartao); color: var(--texto); font-size: 14px; }
+.cadeias .falta i { font-style: normal; }

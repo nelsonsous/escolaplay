@@ -108,16 +108,21 @@ test('a lista da casa no browser', { skip: !pw && 'sem playwright' }, async () =
         assert.deepEqual(Object.keys(leite.p), ['continente', 'lidl']);
         assert.equal(leite.p.lidl.url, 'https://www.lidl.pt/p/mimosa-leite-meio-gordo/p701');
 
-        // mais barato: nenhum supermercado tem preço para tudo; primeiro os que têm mais, e o mais barato desses
+        // mais barato: o pão e os ovos não têm preço em loja nenhuma (dito uma vez, por cima) e não contam contra
+        // ninguém; o Lidl e o Continente têm tudo o que há, e o Lidl é o mais barato
         await a.click('#abas button >> nth=1');
+        assert.match(await a.textContent('.falta.nenhuma'), /Sem preço em nenhuma das tuas lojas: pão de formaovos/);
         assert.deepEqual(await a.locator('.cadeias li').evaluateAll((l) => l.map((x) => [x.className, x.querySelector('b').textContent, x.querySelector('.total').textContent, x.querySelector('small').textContent])), [
-            ['parcial', 'Lidl', '2,25 €', 'só 1 de 3 coisas com preço'],
-            ['parcial', 'Continente', '2,37 €', 'só 1 de 3 coisas com preço'],
+            ['melhor', 'Lidl', '2,25 €', 'Mais barato'],
+            ['tudo', 'Continente', '2,37 €', 'mais 0,12 €, mas fazes tudo aqui'],
             ['parcial', 'Pingo Doce', '—', 'sem produtos escolhidos'],
             ['parcial', 'Auchan', '—', 'sem produtos escolhidos'],
         ]);
         assert.equal(await a.locator('.dividir').count(), 0);
-        await a.waitForSelector('.mais .nota:has-text("Para comparar")');
+        // tocar numa coisa sem preço abre a escolha dela (para escolher o produto)
+        await a.click('.falta.nenhuma button:has-text("ovos")');
+        await a.waitForSelector('#folha .cartao');
+        await a.click('#folha .fechar');
         await a.click('#abas button >> nth=0');
 
         // partilhar no WhatsApp: o que falta comprar
@@ -189,18 +194,20 @@ function maisBarato(itens) {
     const soma = (f) => por.reduce((s, i) => s + Math.max(0, f(i)), 0);
     const conta = (f) => por.filter((i) => f(i) >= 0).length;
     const n = por.length;
+    // as coisas sem preço em loja nenhuma não contam contra nenhuma (ne: as que têm preço nalguma)
+    const ne = por.filter((i) => CAD.some((k) => pc(i, k) >= 0)).length;
     const lojas = CAD.map((k, ordem) => ({ k, ordem, c: conta((i) => pc(i, k)), t: soma((i) => pc(i, k)) }))
         .sort((x, y) => y.c - x.c || x.t - y.t || x.ordem - y.ordem);
-    const completos = lojas.filter((l) => l.c === n);
+    const completos = lojas.filter((l) => ne > 0 && l.c === ne);
     const pt = completos.length ? completos[0].t : -1;
     let par = null;
     for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++) {
-        if (conta((i) => m2(i, CAD[a], CAD[b])) !== n) continue;
+        if (conta((i) => m2(i, CAD[a], CAD[b])) !== ne) continue;
         const t = soma((i) => m2(i, CAD[a], CAD[b]));
         if (!par || t < par.t) par = { a: CAD[a], b: CAD[b], t };
     }
     return {
-        lojas: lojas.map((l) => l.c === n
+        lojas: lojas.map((l) => ne > 0 && l.c === ne
             ? [l === completos[0] ? 'melhor' : 'tudo', NOME[l.k], eur(l.t), l === completos[0] ? (completos.length > 1 ? 'Mais barato' : 'O único com preço para tudo') : `mais ${eur(l.t - pt)}, mas fazes tudo aqui`]
             : ['parcial', NOME[l.k], l.c ? eur(l.t) : '—', l.c ? `só ${l.c} de ${n} coisas com preço` : 'sem produtos escolhidos']),
         dividir: par && (pt < 0 || pt - par.t >= 200) ? `${NOME[par.a]} e ${NOME[par.b]}: ${eur(par.t)}${pt >= 0 ? ` — poupas ${eur(pt - par.t)}` : ''}` : null,
@@ -275,12 +282,14 @@ test('mais barato: o total em cada supermercado e quando compensa dividir por du
         assert.deepEqual(v.lojas.slice(0, 2), [['melhor', 'Continente', '6,23 €', 'Mais barato'], ['tudo', 'Pingo Doce', '6,73 €', 'mais 0,50 €, mas fazes tudo aqui']]);
         assert.equal(v.dividir, null);
 
-        // sem produto num supermercado nenhum: nada se compara
+        // uma coisa sem produto em supermercado nenhum (o sal): diz-se por cima e não estraga a comparação do resto
         await a.click('#abas button >> nth=0');
         await a.fill('[data-onda="junta"]', 'sal');
         await a.press('[data-onda="junta"]', 'Enter');
         v = await ver();
-        assert.equal(v.lojas.filter((l) => l[0] !== 'parcial').length, 0);
+        assert.deepEqual(v, maisBarato((await s.api('/api/lista', chave)).itens));
+        assert.deepEqual(v.lojas.slice(0, 2).map((l) => l[0]), ['melhor', 'tudo']);
+        assert.match(await a.textContent('.falta.nenhuma'), /sal/);
         assert.equal(v.dividir, null);
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
