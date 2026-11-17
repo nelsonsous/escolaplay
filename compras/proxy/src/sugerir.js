@@ -2,7 +2,7 @@
 // começam pelo que se escreveu («ág» → Água sem gás, Água com gás…). Tocar num tipo pede /api/tipo?k=… e recebe os
 // produtos desse tipo nas cadeias (os do catálogo, lidos há menos de 10 dias), com os tamanhos e as marcas que há,
 // para a app afinar (botões) e escolher o mais barato de cada cadeia.
-import { porExtenso, palavras as palavrasTalao } from './talao.js';
+import { porExtenso, palavras as palavrasTalao, limpaLinha } from './talao.js';
 import { seccaoDoTipo, nomeSeccao, seccoesPorNome } from './seccoes.js';
 import { medida, pecaAoPeso, tamanho } from './precos.js';
 import { acentua } from './revisao.js';
@@ -367,8 +367,22 @@ export async function reaisDaCasa(db, casa, ks) {
     for (const k of new Set(ks)) { const x = await reaisDoTipo(db, casa, k); if (x.mercadona || x.spar) r.set(k, x); }
     return r;
 }
+// o tipo de uma linha de talão («Água SPAR Nascente 6 lt» → Água sem gás): pelas palavras (tiposDoTexto), sem as das
+// lojas e das quantidades; guardado 6 h por texto (cada procura lê os nomes dos produtos dos tipos candidatos)
+const TIPO_DA_LINHA = new Map();
+export async function tipoDaLinha(db, t) {
+    const q = palavrasTalao(porExtenso(limpaLinha(t))).filter((w) => !SOLTAS.has(w) && !/\d/.test(w)).join(' ');
+    if (!q) return null;
+    const c = TIPO_DA_LINHA.get(q);
+    if (c && Date.now() - c.quando < 6 * HORA) return c.t;
+    const r = (await tiposDoTexto(db, q).catch(() => []))[0] ?? null;
+    const x = r ? { k: r.k, nome: r.nome, ...(r.w ? { w: r.w } : {}) } : null;
+    TIPO_DA_LINHA.set(q, { quando: Date.now(), t: x });
+    return x;
+}
 // o preço real na Mercadona e no SPAR, do talão mais recente da casa com uma linha deste tipo (as palavras do tipo
-// todas na linha): { mercadona: { cent, dia, t }, spar: {…} }
+// todas na linha, ou o tipo da linha pelas palavras dela: «Água SPAR Nascente 6 lt» não diz «sem gás»): { mercadona:
+// { cent, dia, t }, spar: {…} }
 async function reaisDoTipo(db, casa, k) {
     if (!casa) return {};
     const { results } = await db.prepare("SELECT loja, dia, criado, linhas FROM talao WHERE casa = ? AND loja IN ('mercadona', 'spar') ORDER BY criado DESC LIMIT 40").bind(casa).all();
@@ -379,7 +393,7 @@ async function reaisDoTipo(db, casa, k) {
         for (const l of JSON.parse(tl.linhas)) {
             if (!(l.cent > 0)) continue;
             const lw = new Set(palavrasTalao(porExtenso(l.t)).flatMap((w) => [w, w.replace(/s$/, '')]));
-            if (ws.length && ws.every((w) => lw.has(w))) { r[tl.loja] = { cent: Math.round(l.cent / Math.max(1, l.q || 1)), dia: (tl.dia ?? tl.criado).slice(0, 10), t: l.t }; break; }
+            if ((ws.length && ws.every((w) => lw.has(w))) || (await tipoDaLinha(db, l.t))?.k === k) { r[tl.loja] = { cent: Math.round(l.cent / Math.max(1, l.q || 1)), dia: (tl.dia ?? tl.criado).slice(0, 10), t: l.t }; break; }
         }
     }
     return r;

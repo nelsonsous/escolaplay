@@ -2,6 +2,7 @@
 // imagens) devolve a loja, o dia, o total e as linhas. O conector guarda o talão na casa e risca na lista as coisas que
 // aparecem no talão (as palavras da coisa estão numa linha). A fotografia não se guarda.
 import { Erro, lerLista, mudarLista } from './casa.js';
+import { tipoDaLinha } from './sugerir.js';
 
 // o Mistral Small 3.1 lê os talões letra a letra (17/11/2026: o mesmo talão do SPAR, três vezes igual e certo, em 4 s;
 // o Llama 4 Scout leu «Azeite» em vez de «Água», 0,66 € em vez de 0,86 € e juntava linhas)
@@ -89,9 +90,18 @@ export async function lerTalao(env, ap, imagem, agora = new Date()) {
     if (riscar.length) await mudarLista(env.DB, ap, riscar.map((id) => ({ o: 'r', id, f: 1 })));
     // o que se riscou fica no histórico com o preço do talão (o que se pagou mesmo, compras.js)
     await registarDoTalao(env.DB, ap.casa, itens.filter((i) => riscar.includes(i.id)), t, agora).catch(() => {});
-    return { id, ...t, ...paraLer(t), riscadas: riscar.length, riscados: itens.filter((i) => riscar.includes(i.id)).map((i) => i.t), ...(antes.length ? { repetido: 1 } : {}) };
+    return { id, ...t, linhas: await comTipos(env.DB, t.linhas), ...paraLer(t), riscadas: riscar.length, riscados: itens.filter((i) => riscar.includes(i.id)).map((i) => i.t), ...(antes.length ? { repetido: 1 } : {}) };
 }
 
+// as linhas com o tipo de cada uma (tk, tn: «Água sem gás»), para as juntar à lista já com o tipo (e comparar)
+export async function comTipos(db, linhas) {
+    const out = [];
+    for (const l of linhas) {
+        const x = l.cent > 0 ? await tipoDaLinha(db, l.t).catch(() => null) : null;
+        out.push(x ? { ...l, tk: x.k, tn: x.nome, ...(x.w ? { tw: x.w } : {}) } : l);
+    }
+    return out;
+}
 // para a app: a loja e o dia como se lêem («SPAR», «17/11»)
 const NOMES_LOJA = { continente: 'Continente', 'pingo doce': 'Pingo Doce', auchan: 'Auchan', lidl: 'Lidl', mercadona: 'Mercadona', spar: 'SPAR',
     'intermarché': 'Intermarché', 'minipreço': 'Minipreço', aldi: 'Aldi', 'el corte inglés': 'El Corte Inglés' };
@@ -100,8 +110,10 @@ export const paraLer = (t) => ({ ...(t.loja ? { lojan: NOMES_LOJA[t.loja] ?? t.l
 // os talões da casa (os 12 mais recentes), com as linhas, para os rever na Casa: GET /api/taloes
 export async function taloesDaCasa(db, ap) {
     const { results } = await db.prepare('SELECT id, loja, dia, total, linhas, criado FROM talao WHERE casa = ? ORDER BY criado DESC LIMIT 12').bind(ap.casa).all();
-    return results.map((t) => ({ id: t.id, ...(t.loja ? { loja: t.loja } : {}), ...(t.dia ? { dia: t.dia } : {}), ...(t.total != null ? { total: t.total } : {}),
-        ...paraLer(t), linhas: JSON.parse(t.linhas), criado: t.criado }));
+    const out = [];
+    for (const t of results) out.push({ id: t.id, ...(t.loja ? { loja: t.loja } : {}), ...(t.dia ? { dia: t.dia } : {}), ...(t.total != null ? { total: t.total } : {}),
+        ...paraLer(t), linhas: await comTipos(db, JSON.parse(t.linhas)), criado: t.criado });
+    return out;
 }
 // apagar um talão da casa (um mal lido, ou de outra pessoa): sai também do «Costumas comprar», que se tira dos talões
 export async function apagarTalao(db, ap, id) {

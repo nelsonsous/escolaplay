@@ -410,7 +410,8 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         // a folha «Talão lido»: as linhas com o preço e o que se riscou na lista
         await a.waitForSelector('.talao-lido h2:has-text("Talão do Pingo Doce")');
         assert.match(await a.textContent('.talao-lido .nota'), /15\/11 · 2 linhas · total 2,83 €/);
-        assert.deepEqual(await a.locator('.talao-lido .linhas-t li').allTextContents(), ['AGUA S/GAS GARRAFAO 6L0,96 €', 'OVOS CLASSE M1,87 €']);
+        // cada linha com o tipo (quando se percebe) e «+ Juntar» à lista
+        assert.deepEqual(await a.locator('.talao-lido .linhas-t li').allTextContents(), ['AGUA S/GAS GARRAFAO 6LÁgua sem gás0,96 €+ Juntar', 'OVOS CLASSE M1,87 €+ Juntar']);
         assert.match(await a.textContent('.talao-lido .riscou'), /^✓ Riscado na lista: /);
         await a.click('.talao-lido [data-onda="talf:0"] >> nth=-1');
         await a.waitForSelector('.talao-lido', { state: 'detached' });

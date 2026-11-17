@@ -1429,8 +1429,16 @@
     `<p class="nota">{ Se r.diat `{ esc r.diat } · ` }{ N quantos r.linhas } { ? == quantos r.linhas 1 `linha` `linhas` }{ Se r.total ` · total <b>{ eur int r.total }</b>` }</p>`
     `<ul class="linhas-t">`
     = l pri r.linhas
-    W l { `<li><span>{ Se > int l.q 1 `{ N int l.q } × ` }{ esc l.t }</span><b>{ eur int l.cent }</b></li>` = l seg l }
+    = i 0 = nf 0
+    W l {
+      # cada linha com o tipo (para comparar nos supermercados) e «+ Juntar» à lista, se ainda não está lá
+      = jl && > int l.cent 0 ~ na_lista txt l.t
+      Se jl = nf + nf 1
+      `<li><span>{ Se > int l.q 1 `{ N int l.q } × ` }{ esc l.t }{ Se l.tn `<small>{ esc l.tn }</small>` }</span><b>{ eur int l.cent }</b>`
+      ? jl `<button class="tlj" data-onda="tlj:{ N i }">+ Juntar</button>` { Se > int l.cent 0 `<i class="na">✓ na lista</i>` 0 }
+      `</li>` = l seg l = i + i 1 }
     `</ul>`
+    Se > nf 1 `<button class="botao fraco tlj-todos" data-onda="tlj:999">+ Juntar tudo à lista ({ N nf })</button>`
     = x pri r.riscados
     ? x { `<p class="riscou">✓ Riscado na lista: ` = s 0 W x { Se s `, ` `{ esc txt x }` = s 1 = x seg x } `</p>` 0 }
       { Se r.riscados `<p class="nota">Nada da lista estava neste talão.</p>` 0 }
@@ -1480,6 +1488,15 @@
     Se && == v 2 _an_ler $"chave" { _an_buscar $"/api/casa" $"lido_casa" _an_buscar $"/api/saude" $"lido_saude" _an_buscar $"/api/taloes" $"lido_taloes" } }
   # o talão lido: fechar, abrir um dos teus talões (na Casa), apagar o que está aberto
   Se eacao t $"talf" { _an_gravar $"talver" 0 _an_gravar $"talsel" 0 }
+  # juntar à lista uma linha do talão (ou todas, 999), já com o tipo (para comparar nos supermercados)
+  Se eacao t $"tlj" { = r talvisto Se r {
+      = l pri r.linhas = i 0 = n 0
+      W l {
+        Se && && || == v 999 == v i > int l.cent 0 ~ na_lista txt l.t {
+          faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt l.t },"q":{ N Mx 1 int l.q }{ Se l.tk `,"e":\{"k":{ pjs txt l.tk },"n":{ pjs txt l.tn }{ Se l.tw `,"w":{ pjs txt l.tw }` },"au":1\}` }\}`
+          = n + n 1 }
+        = l seg l = i + i 1 }
+      Se n aviso texto`+ { N n } { ? == n 1 `coisa juntada` `coisas juntadas` } à lista.` } }
   Se eacao t $"talv" { = j _ar_json _an_ler $"taloes" = x ? j idx j.taloes v 0 Se x { _an_gravar $"talsel" texto`{ N v }` _an_gravar $"talver" $"1" } }
   Se eacao t $"tala" { = r talvisto Se && r r.id {
       = h _tx_abre 200 `POST /api/talao/apagar{ P 10 }\{"id":{ pjs txt r.id }\}` _tx_fecha h

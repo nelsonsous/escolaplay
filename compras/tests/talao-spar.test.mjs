@@ -86,3 +86,16 @@ test('o mesmo talão lido outra vez substitui a leitura (pelo número, ou pela l
     assert.equal((await (await api('/api/talao/apagar', { id: ts[0].id })).json()).ok, 1);
     assert.equal((await (await api('/api/taloes')).json()).taloes.length, 0);
 });
+
+test('o preço do talão do SPAR conta no tipo mesmo sem as palavras do tipo na linha («Água SPAR Nascente» é água sem gás)', async () => {
+    const { d1 } = await import('./d1.mjs');
+    const { reaisDaCasa, esquecerTipos } = await import('../proxy/src/sugerir.js');
+    const db = d1(); const agora = new Date().toISOString();
+    db.sql.exec(`INSERT INTO tipo (k, nome, n, casa) VALUES ('agua-sem-gas', 'Água sem gás', 2, 1), ('agua-com-gas', 'Água com gás', 1, 1);
+        INSERT INTO preco (cadeia, id, url, nome, cent, tipo, visto, falhas) VALUES ('continente', 'a1', 'u1', 'Água Nascente Garrafão 6L', 99, 'agua-sem-gas', '${agora}', 0),
+        ('auchan', 'a2', 'u2', 'ÁGUA AUCHAN DA NASCENTE GARRAFÃO 6L', 96, 'agua-sem-gas', '${agora}', 0), ('continente', 'g1', 'u3', 'Água com Gás Pedras', 79, 'agua-com-gas', '${agora}', 0);
+        INSERT INTO talao (id, casa, loja, dia, total, linhas, criado) VALUES ('t1', 'c1', 'spar', '2026-11-17', 384, '[{"t":"Água SPAR Nascente 6 lt","q":1,"cent":86}]', '${agora}');`);
+    esquecerTipos();
+    const r = await reaisDaCasa(db, 'c1', ['agua-sem-gas']);
+    assert.deepEqual(r.get('agua-sem-gas')?.spar, { cent: 86, dia: '2026-11-17', t: 'Água SPAR Nascente 6 lt' });
+});
