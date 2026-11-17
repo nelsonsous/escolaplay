@@ -515,9 +515,10 @@ export async function produtosDoTipo(db, k, agora = new Date(), casa = null) {
         est: { ...estimativasDoTipo(results, ub, tamanhos), w: estimativasPorPalavra(produtos, escolhas, ub) },
         reais: await reaisDoTipo(db, casa, k),
         // as lojas online de produtores (economo/produtores.mjs): à parte, com as etiquetas e os sinais, para filtrar
-        // (no vinho, o Vinha: os mais bem cotados na Vivino primeiro, com o mesmo vinho num supermercado)
+        // (no vinho, o Vinha: os mais bem cotados na Vivino primeiro, e antes de todos os que custam até 25 €: abrir com um
+        // vinho de 500 € não ajuda ninguém; com o mesmo vinho num supermercado)
         pd: (await db.prepare(`SELECT loja, nome, url, variante, cent, emb, uc, ub, disponivel, vivino, votos, chave FROM produtor_artigo WHERE tipo = ?
-            ORDER BY disponivel DESC, ${fam === 'vinho' ? 'vivino IS NULL, vivino DESC,' : ''} uc IS NULL, uc LIMIT ${fam === 'vinho' ? 400 : 40}`).bind(k).all()).results.map((a) => {
+            ORDER BY disponivel DESC, ${fam === 'vinho' ? 'vivino IS NULL, cent > 2500, vivino DESC,' : ''} uc IS NULL, uc LIMIT ${fam === 'vinho' ? 400 : 40}`).bind(k).all()).results.map((a) => {
             const nome = a.variante ? `${a.nome} (${a.variante})` : a.nome;
             const et = TALHO.has(k) ? etiquetas(`${k === 'bacalhau' && !/bacalhau|paloco/i.test(a.nome) ? 'Bacalhau ' : ''}${nome}`, k) : null;
             const x = { loja: a.loja, nome, url: a.url, cent: a.cent, ...(a.emb ? { emb: a.emb } : {}), ...(a.uc ? { uc: a.uc, ub: a.ub } : {}),
