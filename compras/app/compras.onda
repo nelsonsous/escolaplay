@@ -339,7 +339,7 @@
     Se ~ na_lista txt x.t {
       Se ~ s { `<div class="costume"><h3>Costumas comprar</h3><div class="chips">` = s 1 }
       # o ✕ tira a sugestão (não volta); o tipo, quando se percebe (x.tk), vai com a coisa para comparar nos supermercados
-      `<button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }">+ { esc ? x.tn x.tn x.t }<small> { ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` { ? int x.ha `há { N int x.ha } dias` `comprado hoje` } }</small><i class="costx" data-onda="costx:{ N i }" aria-label="Tirar">✕</i></button>` }
+      `<button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }">+ { esc ? x.tn x.tn x.t }<small> { ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` { ? int x.ha `há { N int x.ha } dias` `comprado hoje` } }</small></button><button class="costx" data-onda="costx:{ N i }" aria-label="Tirar esta sugestão">✕</button>` }
     = x seg x = i + i 1 }
   Se s `</div></div>` }
 : pede_costume >i Se _an_ler $"chave" _an_buscar $"/api/costume" $"lido_costume"
@@ -357,6 +357,9 @@
     W c { `<li class="{ ? mesmo txt c.estado $"ok" `ok` `aviso` }"><b>{ crut nomec txt c.cadeia }</b> { ? c.ultimo_preco { ha_tempo int c.ha 0 } `sem preços` }{ Se ~ mesmo txt c.estado $"ok" ` · ⚠ a ler com falhas` }</li>` = c seg c }
     `</ul><p class="nota">O conector relê os preços de cada supermercado ao longo do dia; se um ficar com ⚠, o site mudou e é preciso corrigi-lo.</p>` }
   0 }
+: lido_subsug ii>i t estado {
+  Se == estado 200 { _an_gravar $"subsug" t desenha }
+  _me_solta t }
 : lido_esq ii>i t estado { _me_solta t pede_costume 0 }
 : lido_costume ii>i t estado {
   Se == estado 200 { _an_gravar $"costume" t desenha }
@@ -770,7 +773,14 @@
     `<div class="veu" data-onda="fecha:0"></div><div class="cartao" role="dialog" aria-label="{ esc c.t }"><button class="fechar" data-onda="fecha:0" aria-label="Fechar">✕</button>`
     `<h2>{ esc c.t }</h2>`
     `<div class="qtd"><button class="botao fraco" data-onda="menos:0" aria-label="Menos">−</button><b>{ N int c.q }</b><button class="botao fraco" data-onda="mais:0" aria-label="Mais">+</button></div>`
-    `<p class="nota">Escolhe o produto de cada supermercado. O preço é o do site; o preço por quilo ou por litro serve para comparar embalagens e marcas.</p>`
+    # sem tipo (escrita à solta, ou do talão): os tipos que lhe correspondem; tocar num abre a árvore desse tipo
+    Se ~ && c.e c.e.k {
+      = js _ar_json _an_ler $"subsug"
+      = x ? js pri js.tipos 0 = i 0
+      Se x { `<div class="subsug"><h3>Que produto é?</h3><p class="nota">Escolhe o tipo para comparar nos supermercados (com as marcas, os tamanhos e o mais barato).</p><div class="chips">`
+        W x { `<button class="chip grande" data-onda="tsub:{ N i }">{ esc x.nome }{ Se x.w ` <small>{ esc x.w }</small>` }</button>` = x seg x = i + i 1 }
+        `</div></div>` } }
+    `<p class="nota">Ou escolhe o produto de cada supermercado. O preço é o do site; o preço por quilo ou por litro serve para comparar embalagens e marcas.</p>`
     L k 4 dcadeia c k
     Se && c.e c.e.k `<button class="botao fraco ajustar" data-onda="ajusta:0">🔎 Ajustar: calibre, origem, marca e outras opções</button>`
     `<div class="acoes"><button class="botao fraco" data-onda="tirar:0">Tirar da lista</button><button class="botao" data-onda="fecha:0">Fechar</button></div></div>` }
@@ -1434,7 +1444,15 @@
         repoe_filtros c.e
         Se > int c.q 1 _an_gravar $"tq" texto`{ N int c.q }`
         _an_buscar texto`/api/tipo?k={ crut _tx_uri k }` $"lido_tipo" 0 }
-      { _an_gravar $"aberto" txt c.id procura txt c.t 0 } } }
+      { _an_gravar $"aberto" txt c.id _an_gravar $"subsug" 0 procura txt c.t
+        _an_buscar texto`/api/sugerir?solto=1&q={ crut _tx_uri txt c.t }` $"lido_subsug" 0 } } }
+  # a coisa sem tipo passa a ter o tipo escolhido: a árvore desse tipo, a guardar por cima dela
+  Se eacao t $"tsub" { = c item_aberto = js _ar_json _an_ler $"subsug" = x ? js idx js.tipos v 0 Se && c x {
+      = k txt x.k = sid txt c.id
+      _an_gravar $"aberto" 0 fecha_tipo
+      _an_gravar $"subst" sid _an_gravar $"tk" k
+      Se x.w { _an_gravar $"fw" txt x.w _an_gravar $"fwr" txt x.w }
+      _an_buscar texto`/api/tipo?k={ crut _tx_uri k }` $"lido_tipo" } }
   Se eacao t $"fecha" { _an_gravar $"aberto" 0 _an_gravar $"subst" 0 fecha_tipo }
   Se eacao t $"limpar" faz $`{"o":"l"}`
   Se eacao t $"tirar" { = c item_aberto Se c { faz texto`\{"o":"x","id":{ pjs txt c.id }\}` _an_gravar $"aberto" 0 } }

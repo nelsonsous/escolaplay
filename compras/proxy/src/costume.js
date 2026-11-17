@@ -2,7 +2,7 @@
 // quanto tempo, e sugere-se o que já devia estar a acabar e ainda não está na lista. Com um só talão de uma coisa não há
 // ritmo: entra como «costumas comprar» (depois das que estão a acabar).
 import { NAO_ARTIGO, limpaLinha } from './talao.js';
-import { sugerir } from './sugerir.js';
+import { tiposDoTexto } from './sugerir.js';
 
 const DIA = 86400e3;
 const sem = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -56,7 +56,7 @@ export async function sugestoes(db, ap, lista, agora = new Date()) {
     // o tipo de cada coisa (para comparar nos supermercados): pelas palavras, sem as das lojas e das quantidades
     for (const x of coisas) {
         const q = x.k.split(' ').filter((w) => !LOJAS_PALAVRAS.has(w) && w.length > 2).join(' ');
-        const r = q ? (await sugerir(db, q, 3).catch(() => [])).find((t) => t.k && !t.sec) : null;
+        const r = q ? (await tiposDoTexto(db, q).catch(() => []))[0] : null;
         if (r) { x.tk = r.k; x.tn = r.nome; if (r.w) x.tw = r.w; }
     }
     return coisas;

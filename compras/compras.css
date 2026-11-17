@@ -282,4 +282,7 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .melhores .tag-esc { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--azul); color: #fff; font-size: 13px; font-weight: 700; vertical-align: middle; }
 .melhores > li.flash { animation: flash-esc 1.2s ease-out; }
 @keyframes flash-esc { 0% { box-shadow: 0 0 0 6px rgba(80, 150, 255, .7); } 100% { box-shadow: 0 0 0 0 rgba(80, 150, 255, 0); } }
-.costume .chip .costx { font-style: normal; margin-left: 10px; padding: 0 4px; color: var(--fraco); }
+.costume .costx { min-width: 44px; min-height: 44px; margin: 0 10px 8px -6px; border-radius: 999px; border: 1px solid var(--linha); background: var(--cartao); color: var(--fraco); font-size: 18px; }
+.subsug { margin: 8px 0 14px; padding: 12px 14px; border: 1px solid var(--azul); border-radius: 14px; background: #0b1a2e; }
+.subsug h3 { margin-top: 0; }
+.subsug .chip.grande { font-size: 17px; padding: 10px 16px; }
