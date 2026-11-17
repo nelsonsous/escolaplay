@@ -282,3 +282,4 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .melhores .tag-esc { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--azul); color: #fff; font-size: 13px; font-weight: 700; vertical-align: middle; }
 .melhores > li.flash { animation: flash-esc 1.2s ease-out; }
 @keyframes flash-esc { 0% { box-shadow: 0 0 0 6px rgba(80, 150, 255, .7); } 100% { box-shadow: 0 0 0 0 rgba(80, 150, 255, 0); } }
+.costume .chip .costx { font-style: normal; margin-left: 10px; padding: 0 4px; color: var(--fraco); }

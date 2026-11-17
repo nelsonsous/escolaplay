@@ -5,11 +5,13 @@ import { Erro, lerLista, mudarLista } from './casa.js';
 
 export const MODELO = '@cf/meta/llama-4-scout-17b-16e-instruct';
 export const MAX_IMAGEM = 1_500_000; // o data URL, em caracteres
-const LOJAS = ['continente', 'pingo doce', 'auchan', 'lidl', 'mercadona', 'intermarché', 'minipreço', 'aldi', 'el corte inglés'];
+const LOJAS = ['continente', 'pingo doce', 'auchan', 'lidl', 'mercadona', 'spar', 'intermarché', 'minipreço', 'aldi', 'el corte inglés'];
 const PEDIDO = `És um leitor de talões de supermercado portugueses. Lê a fotografia e responde só com JSON, sem mais texto:
 {"loja": "nome da cadeia", "dia": "AAAA-MM-DD", "total": 12.34, "linhas": [{"t": "texto da linha como está no talão", "q": 1, "preco": 1.23}]}
 "preco" é o valor total da linha em euros (o que se pagou por ela, com a quantidade). Não inventes linhas; descontos e
-talões de desconto entram como linhas com preço negativo. Se não for um talão, responde {"linhas": []}.`;
+talões de desconto entram como linhas com preço negativo. Uma linha por artigo: não juntes dois artigos numa linha.
+Não são linhas os totais («Total», «Qtd Total», «Subtotal»), o IVA, o pagamento (cartão, multibanco, troco) nem o
+cabeçalho da loja. Se não for um talão, responde {"linhas": []}.`;
 
 const cent = (v) => (v == null || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 100));
 export const palavras = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
@@ -24,13 +26,17 @@ export function lerResposta(r) {
     try { return JSON.parse(s.slice(i, f + 1)); } catch { return null; }
 }
 
+// as linhas que não são artigos (os totais, o IVA, o pagamento), que o modelo às vezes devolve
+export const NAO_ARTIGO = /^(qtd|qt|quant\w*)\.?\s*total|^(sub)?total\b|^iva\b|^taxa\b|^troco|^multibanco|^cart[aã]o|^visa\b|^pagamento|^n\.?\s*art/i;
+// o texto do talão limpo: os «lt» lidos como «1t» («Água 61t» é «6 lt»)
+export const limpaLinha = (t) => String(t ?? '').replace(/\s+/g, ' ').trim().replace(/\b(\d+(?:[.,]\d+)?)1t\b/gi, '$1 lt').replace(/\b(\d+(?:[.,]\d+)?)lt\b/gi, '$1 lt');
 // o talão arrumado: { loja, dia, total, linhas: [{ t, q, cent }] }
 export function arrumar(d) {
     const linhas = (Array.isArray(d?.linhas) ? d.linhas : []).slice(0, 120).map((l) => ({
-        t: String(l?.t ?? '').replace(/\s+/g, ' ').trim().slice(0, 80),
+        t: limpaLinha(l?.t).slice(0, 80),
         q: Math.max(1, Math.min(99, Math.round(Number(l?.q)) || 1)),
         cent: cent(l?.preco),
-    })).filter((l) => l.t && l.cent != null);
+    })).filter((l) => l.t && l.cent != null && !NAO_ARTIGO.test(l.t));
     const lojaTxt = String(d?.loja ?? '').toLowerCase();
     const loja = LOJAS.find((l) => lojaTxt.includes(l)) ?? (lojaTxt.trim().slice(0, 40) || null);
     const dia = /^\d{4}-\d{2}-\d{2}$/.test(String(d?.dia ?? '')) ? d.dia : null;

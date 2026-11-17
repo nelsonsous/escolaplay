@@ -338,7 +338,8 @@
   W x {
     Se ~ na_lista txt x.t {
       Se ~ s { `<div class="costume"><h3>Costumas comprar</h3><div class="chips">` = s 1 }
-      `<button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }">+ { esc x.t }<small> { ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` `há { N int x.ha } dias` }</small></button>` }
+      # o ✕ tira a sugestão (não volta); o tipo, quando se percebe (x.tk), vai com a coisa para comparar nos supermercados
+      `<button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }">+ { esc ? x.tn x.tn x.t }<small> { ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` { ? int x.ha `há { N int x.ha } dias` `comprado hoje` } }</small><i class="costx" data-onda="costx:{ N i }" aria-label="Tirar">✕</i></button>` }
     = x seg x = i + i 1 }
   Se s `</div></div>` }
 : pede_costume >i Se _an_ler $"chave" _an_buscar $"/api/costume" $"lido_costume"
@@ -356,6 +357,7 @@
     W c { `<li class="{ ? mesmo txt c.estado $"ok" `ok` `aviso` }"><b>{ crut nomec txt c.cadeia }</b> { ? c.ultimo_preco { ha_tempo int c.ha 0 } `sem preços` }{ Se ~ mesmo txt c.estado $"ok" ` · ⚠ a ler com falhas` }</li>` = c seg c }
     `</ul><p class="nota">O conector relê os preços de cada supermercado ao longo do dia; se um ficar com ⚠, o site mudou e é preciso corrigi-lo.</p>` }
   0 }
+: lido_esq ii>i t estado { _me_solta t pede_costume 0 }
 : lido_costume ii>i t estado {
   Se == estado 200 { _an_gravar $"costume" t desenha }
   _me_solta t }
@@ -1475,7 +1477,8 @@
   Se eacao t $"qp" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }
   Se eacao t $"qm" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mx 1 - int c.q 1 }\}` }
   Se eacao t $"tirai" { = c idx itens v Se c faz texto`\{"o":"x","id":{ pjs txt c.id }\}` }
-  Se eacao t $"cost" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt x.t },"q":1\}` }
+  Se eacao t $"cost" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x faz texto`\{"o":"j","id":"{ novoid }","t":{ pjs txt ? x.tn x.tn x.t },"q":1{ Se x.tk `,"e":\{"k":{ pjs txt x.tk },"n":{ pjs txt x.tn }{ Se x.tw `,"w":{ pjs txt x.tw }` },"au":1\}` }\}` }
+  Se eacao t $"costx" { = j _ar_json _an_ler $"costume" = x ? j idx j.coisas v 0 Se x { = h _tx_abre 300 `POST /api/costume/esquecer{ P 10 }\{"k":{ pjs txt x.k }\}` _tx_fecha h _an_buscar h $"lido_esq" } }
   Se eacao t $"fe" filtro 0 v
   Se eacao t $"fm" filtro 1 v
   Se eacao t $"pes" { = h _tx_abre 100 `POST /api/casa/pessoas{ P 10 }\{"n":{ ? v N v `null` }\}` _tx_fecha h _an_buscar h $"lido_casa" }

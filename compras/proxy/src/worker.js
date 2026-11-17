@@ -56,11 +56,11 @@ import { saude, saudeCurta } from './saude.js';
 import { zonaContinente, produtoNaZona, stockZonas, cpValido } from './zona.js';
 import { atualizarEscolhas } from './escolhas.js';
 import { lerTalao, MAX_IMAGEM } from './talao.js';
-import { sugestoes } from './costume.js';
+import { sugestoes, esquecer } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.57.5';
+export const VERSION = '0.57.6';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -310,6 +310,7 @@ async function api(request, env, url) {
         return json(await lerTalao(env, ap, imagem));
     }
     if (caminho === '/api/gastos' && metodo === 'GET') return json(await gastos(db, ap.casa));
+    if (caminho === '/api/costume/esquecer' && metodo === 'POST') return json(await esquecer(db, ap, (await corpoJSON(request)).k));
     if (caminho === '/api/costume' && metodo === 'GET') return json({ coisas: await sugestoes(db, ap, await lerLista(db, ap.casa)) });
     if (caminho === '/api/sugerir' && metodo === 'GET') {
         return json({ tipos: await sugerir(db, String(url.searchParams.get('q') ?? '').slice(0, 60)) });
