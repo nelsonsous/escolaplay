@@ -503,7 +503,7 @@ test('a árvore do talho e da peixaria: «peixe» → ramos → Peixe fresco →
         await a.waitForSelector('#folha #cad0 .mao');
         assert.match(await a.getAttribute('#folha #cad0', 'class'), /escolhido/); // a caixa em destaque, com «✓ Escolhido»
         assert.equal(await a.textContent('#folha #cad0 .tag-esc'), '✓ Escolhido');
-        assert.equal(await a.getAttribute('#folha #cad0', 'data-onda'), null); // já escolhido: a caixa não volta a escolher
+        assert.equal(await a.getAttribute('#folha #cad0', 'data-onda'), 'escx:0'); // já escolhido: tocar outra vez tira a escolha
         // o que distingue cada produto: os sinais do nome (fresco) e a marca
         assert.match(await a.locator('#folha .melhores li >> nth=0 >> .sinais').textContent(), /✚ fresco/);
         assert.match(linhas[2], /CARAPAU MEDIO/);
