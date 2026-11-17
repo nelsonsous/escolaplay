@@ -327,3 +327,9 @@ button { background: none; border: 0; padding: 0; cursor: pointer; text-align: l
 .taloes { list-style: none; padding: 0; margin: 6px 0; }
 .taloes li button { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 12px 0; border-bottom: 1px solid var(--linha); }
 .taloes li span { color: var(--fraco); font-size: 14px; white-space: nowrap; }
+.linhas-t li span small { display: block; color: var(--n2); font-size: 13px; }
+.linhas-t li { align-items: center; }
+.linhas-t li b { margin-left: auto; }
+.linhas-t .tlj { flex: none; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--linha); background: var(--cartao); color: var(--azul); font-size: 14px; }
+.linhas-t .na { flex: none; font-style: normal; color: var(--fraco); font-size: 13px; }
+.tlj-todos { display: block; width: 100%; margin: 4px 0 8px; }
