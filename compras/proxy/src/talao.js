@@ -89,7 +89,26 @@ export async function lerTalao(env, ap, imagem, agora = new Date()) {
     if (riscar.length) await mudarLista(env.DB, ap, riscar.map((id) => ({ o: 'r', id, f: 1 })));
     // o que se riscou fica no histórico com o preço do talão (o que se pagou mesmo, compras.js)
     await registarDoTalao(env.DB, ap.casa, itens.filter((i) => riscar.includes(i.id)), t, agora).catch(() => {});
-    return { id, ...t, riscadas: riscar.length, ...(antes.length ? { repetido: 1 } : {}) };
+    return { id, ...t, ...paraLer(t), riscadas: riscar.length, riscados: itens.filter((i) => riscar.includes(i.id)).map((i) => i.t), ...(antes.length ? { repetido: 1 } : {}) };
+}
+
+// para a app: a loja e o dia como se lêem («SPAR», «17/11»)
+const NOMES_LOJA = { continente: 'Continente', 'pingo doce': 'Pingo Doce', auchan: 'Auchan', lidl: 'Lidl', mercadona: 'Mercadona', spar: 'SPAR',
+    'intermarché': 'Intermarché', 'minipreço': 'Minipreço', aldi: 'Aldi', 'el corte inglés': 'El Corte Inglés' };
+export const paraLer = (t) => ({ ...(t.loja ? { lojan: NOMES_LOJA[t.loja] ?? t.loja.replace(/(^|\s)\S/g, (l) => l.toUpperCase()) } : {}),
+    ...(t.dia ? { diat: `${t.dia.slice(8, 10)}/${t.dia.slice(5, 7)}` } : {}) });
+// os talões da casa (os 12 mais recentes), com as linhas, para os rever na Casa: GET /api/taloes
+export async function taloesDaCasa(db, ap) {
+    const { results } = await db.prepare('SELECT id, loja, dia, total, linhas, criado FROM talao WHERE casa = ? ORDER BY criado DESC LIMIT 12').bind(ap.casa).all();
+    return results.map((t) => ({ id: t.id, ...(t.loja ? { loja: t.loja } : {}), ...(t.dia ? { dia: t.dia } : {}), ...(t.total != null ? { total: t.total } : {}),
+        ...paraLer(t), linhas: JSON.parse(t.linhas), criado: t.criado }));
+}
+// apagar um talão da casa (um mal lido, ou de outra pessoa): sai também do «Costumas comprar», que se tira dos talões
+export async function apagarTalao(db, ap, id) {
+    if (!/^[0-9a-f]{16}$|^[a-z0-9]{1,32}$/.test(String(id ?? ''))) throw new Erro(400, 'talão desconhecido');
+    const r = await db.prepare('DELETE FROM talao WHERE id = ? AND casa = ?').bind(String(id), ap.casa).run();
+    if (!r.meta?.changes) throw new Erro(404, 'talão desconhecido');
+    return { ok: 1 };
 }
 
 // as coisas riscadas pelo talão, no histórico do que se compra: a loja do talão e o preço da linha (por unidade)

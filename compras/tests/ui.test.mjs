@@ -407,7 +407,13 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.click('#abas button >> nth=0');
         const jpeg = await a.evaluate(() => { const c = document.createElement('canvas'); c.width = 40; c.height = 60; c.getContext('2d').fillRect(0, 0, 10, 10); return c.toDataURL('image/jpeg').split(',')[1]; });
         await a.setInputFiles('[data-talao]', { name: 'talao.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg, 'base64') });
-        await a.waitForSelector('.toast:has-text("Talão do pingo doce: 2,83 € · 2 linhas")');
+        // a folha «Talão lido»: as linhas com o preço e o que se riscou na lista
+        await a.waitForSelector('.talao-lido h2:has-text("Talão do Pingo Doce")');
+        assert.match(await a.textContent('.talao-lido .nota'), /15\/11 · 2 linhas · total 2,83 €/);
+        assert.deepEqual(await a.locator('.talao-lido .linhas-t li').allTextContents(), ['AGUA S/GAS GARRAFAO 6L0,96 €', 'OVOS CLASSE M1,87 €']);
+        assert.match(await a.textContent('.talao-lido .riscou'), /^✓ Riscado na lista: /);
+        await a.click('.talao-lido [data-onda="talf:0"] >> nth=-1');
+        await a.waitForSelector('.talao-lido', { state: 'detached' });
         await a.click('[data-onda="carr:0"]'); // abre «No carrinho»
         await a.waitForFunction(() => document.querySelectorAll('.item.feito').length >= 1);
         // o que costumas comprar (do talão): os ovos; tocar junta-os à lista; o ✕ tira-os
@@ -419,8 +425,16 @@ test('escrever e encontrar: «água» → o tipo → o tamanho e a marca → o m
         await a.click('.item:has-text("Ovos classe m") .tira');
         await a.waitForFunction((n) => document.querySelectorAll('.item').length === n - 1, n);
 
-        // onde moras e as tuas lojas: Portimão, só Pingo Doce, Auchan e SPAR (a loja de Portimão)
+        // na Casa, os teus talões: abrir um mostra as linhas; apagá-lo tira-o (e ao «Costumas comprar»)
         await a.click('#abas button >> nth=2');
+        await a.waitForSelector('.taloes li button:has-text("Pingo Doce")');
+        assert.match(await a.textContent('.taloes li'), /15\/11 · 2 linhas · 2,83 €/);
+        await a.click('.taloes li button');
+        await a.waitForSelector('.talao-lido .linhas-t li >> nth=1');
+        await a.click('.talao-lido [data-onda="tala:0"]');
+        await a.waitForSelector('.toast:has-text("Talão apagado")');
+        await a.waitForSelector('.casa .nota:has-text("Ainda não leste nenhum talão")');
+        // onde moras e as tuas lojas: Portimão, só Pingo Doce, Auchan e SPAR (a loja de Portimão)
         await a.waitForSelector('[data-onda="local"]');
         await a.fill('[data-onda="local"]', 'Portimão');
         await a.click('[data-onda="glocal:0"]');
