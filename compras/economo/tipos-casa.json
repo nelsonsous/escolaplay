@@ -813,6 +813,20 @@
       "pingodoce": [
         "padaria-e-pastelaria/pastelaria/bolos-familiares"
       ]
+    },
+    {
+      "k": "pizza",
+      "nome": "Pizzas",
+      "continente": [
+        "congelados/pizzas",
+        "refeicoes-praticas/pizzas"
+      ],
+      "auchan": [
+        "congelados/refeicoes-rapidas/pizzas"
+      ],
+      "pingodoce": [
+        "congelados/refeicoes-e-salgados/pizzas-congeladas"
+      ]
     }
   ]
 }
