@@ -7,6 +7,7 @@
 //   POST /api/casa/lojas {local, cadeias, spar}  a localidade e as lojas da casa (lojas.js)
 //   GET  /api/lojas?q=…                as lojas SPAR de uma localidade ou código postal
 //   POST /api/casa/entrar  {codigo}    passar para outra casa (leva o que tinha na lista)
+//   GET  /api/promos                   as promoções da semana dos tipos que a casa compra (promos.js)
 //   GET  /api/gastos                   o que se comprou (riscado): a semana, o mês, o que se poupou, por loja (compras.js)
 //   GET  /api/lista                    { versao, itens } com o preço de cada produto escolhido (precos.js)
 //   POST /api/lista        {ops}       mudar a lista (ver casa.js) e recebê-la como ficou; um produto escolhido
@@ -53,6 +54,7 @@ import { CADEIAS_CATALOGO, cronCatalogo, lerPagina } from './catalogo.js';
 import { tiposDoTexto, sugerir, produtosDoTipo, tiposDaSeccao } from './sugerir.js';
 import { revisarTipo } from './revisao.js';
 import { registarCompras, gastos } from './compras.js';
+import { promosDaCasa } from './promos.js';
 import { saude, saudeCurta } from './saude.js';
 import { zonaContinente, produtoNaZona, stockZonas, cpValido } from './zona.js';
 import { atualizarEscolhas } from './escolhas.js';
@@ -61,7 +63,7 @@ import { sugestoes, esquecer } from './costume.js';
 import { UA, pedir } from './rede.js';
 
 export { UA };
-export const VERSION = '0.58.4';
+export const VERSION = '0.58.5';
 export const SONDA_HOSTS = [
     'continente.pt', 'pingodoce.pt', 'auchan.pt', 'intermarche.pt', 'minipreco.pt', 'lidl.pt', 'aldi.pt',
     'mercadona.pt', 'mercadona.es', 'elcorteingles.pt', 'openfoodfacts.org', 'spar.pt',
@@ -312,6 +314,7 @@ async function api(request, env, url) {
         const { imagem } = await corpoJSON(request, MAX_TALAO);
         return json(await lerTalao(env, ap, imagem));
     }
+    if (caminho === '/api/promos' && metodo === 'GET') return json(await promosDaCasa(db, env.KV, ap.casa));
     if (caminho === '/api/gastos' && metodo === 'GET') return json(await gastos(db, ap.casa));
     if (caminho === '/api/costume/esquecer' && metodo === 'POST') return json(await esquecer(db, ap, (await corpoJSON(request)).k));
     if (caminho === '/api/costume' && metodo === 'GET') return json({ coisas: await sugestoes(db, ap, await lerLista(db, ap.casa)) });
