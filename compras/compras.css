@@ -378,3 +378,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, select:foc
 .promos .promos-f { margin: 6px 0 2px; }
 .promos .promos-f .chip { border-color: #6b3a12; }
 .promos .promos-f .chip.on { background: #3a2414; border-color: #e8833a; color: #ffb37a; }
+/* 0.58.14 — as lojas online: ordenar pela nota ou pelo preço; «🔥 Em promoção» na folha do produto */
+.pd-ord { display: flex; gap: 8px; padding: 2px 0 6px; border: 0; background: none; }
+.promo-l li .promo { grid-column: 1 / -1; justify-self: start; margin-top: 4px; }
+.pd-ord .chip { flex: none; }
