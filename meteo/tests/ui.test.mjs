@@ -463,8 +463,19 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await shot('02b-aviso.png');
     await page.click('.rpt-grid [data-report="nao-chove"]');
     await toastIs(/Obrigado! «Não chove» conta no agora durante 45 min/);
+    // 1.26: a previsão dava chuva → «Porque dizia chuva» (radar, estações, o que a aprendizagem faz)
+    await page.waitForSelector('#mt-sheet:not([hidden]) .why');
+    assert.equal(await page.locator('#mt-sheet-title').textContent(), 'Porque dizia chuva');
+    const why = await page.locator('.why .note').allTextContents();
+    assert.match(why[0], /^A previsão dava \d+% de chuva agora/);
+    assert.ok(why.some((l) => /perdem peso na chuva deste local/.test(l)), why.join(' | '));
+    await noOverflow('porque dizia chuva');
+    await shot('02c-porque-chuva.png');
+    await page.click('#mt-sheet [data-act="close"]');
+    await page.waitForSelector('#mt-sheet[hidden]', { state: 'attached' });
     await page.waitForFunction(() => /O teu aviso: Não chove/.test(document.querySelector('.now').textContent));
-    assert.deepEqual(reportPosts, [{ kind: 'nao-chove', time: NOW.replace('Z', '.000Z'), lat: LAT, lon: LON }], 'POST /api/reports');
+    assert.deepEqual(reportPosts.map(({ prev, ...r }) => r), [{ kind: 'nao-chove', time: NOW.replace('Z', '.000Z'), lat: LAT, lon: LON }], 'POST /api/reports');
+    assert.ok(reportPosts[0].prev && typeof reportPosts[0].prev === 'object', `leva o que a previsão dizia: ${JSON.stringify(reportPosts[0].prev)}`);
     assert.match(await page.locator('.now').textContent(), /O teu aviso: Não chove · agora mesmo · conta até às 16:30/);
     assert.match(await ncSec.locator('.lead').textContent(), /^Não está a chover \(o teu aviso das 15:45\); /);
     assert.equal(await ncSec.locator('.sec-h .sub').textContent(), 'com o teu aviso');
@@ -735,8 +746,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     // estações que entram na observação combinada
     assert.ok(await page.locator('.sec:has(h2:text("Observações usadas")) .row').count() >= 5);
     // aprendizagem: o local tem a análise → na atualização seguinte a memória do conector (30 dias) junta-se
-    // aos 8 dias verificados agora
-    assert.match(await page.locator('#aprendizagem .sec-h .sub').textContent(), /^8 dias de memória · desde 30 out$/);
+    // aos 8 dias verificados agora (1.26: o aviso «Não chove» que contradiz a previsão já atualizou a previsão uma vez,
+    // por isso a memória do conector pode já cá estar)
+    assert.match(await page.locator('#aprendizagem .sec-h .sub').textContent(), /^(8 dias de memória · desde 30 out|3\d dias de memória · desde \d+ \w+)$/);
     const lc0 = learnCalls;
     await page.evaluate(() => window.__mt.refresh());
     assert.ok(learnCalls > lc0, 'pede a memória ao conector');

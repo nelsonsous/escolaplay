@@ -676,3 +676,6 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
 .ia { position: relative; top: -.85em; vertical-align: baseline; margin-left: .14em; font-size: .5em; font-weight: 700; letter-spacing: .03em; line-height: 0; color: #bf5af2; cursor: default; }
 .day .d-lo, .day .d-hi { position: relative; }
 .day .d-lo .ia, .day .d-hi .ia { position: absolute; top: .2em; line-height: 1; }
+
+/* 1.26: «Porque dizia chuva» (folha depois de um aviso que contradiz a previsão) */
+.why .note { margin: 0 2px 10px; }

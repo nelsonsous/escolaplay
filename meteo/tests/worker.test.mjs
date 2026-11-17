@@ -66,7 +66,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.11.0');
+    assert.equal(j.version, '1.12.0');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -926,4 +926,21 @@ test('caixa de correio (1.11): a última análise vem da D1; o KV é reserva e v
     assert.equal(env.HIST.rows('SELECT count(*) AS n FROM analises')[0].n, 1);
     assert.equal(env.KV.m.has('analysis:' + pl.id), false, 'com a D1 a funcionar, o KV não se escreve');
     assert.equal((await get()).titulo, ANALISE.titulo);
+});
+
+test('aviso «Está a chover?» (1.12): guarda o que a previsão dizia (limpo) e vai para o histórico, com a contradição', async () => {
+    const d = device();
+    env.HIST = fakeD1(new URL('../proxy/historico.sql', import.meta.url));
+    const pl = (await J('POST', '/api/places', { d, body: { name: 'Casa', lat: 41.34, lon: -8.47 } })).body;
+    const r = await J('POST', '/api/reports', { d, body: { kind: 'nao-chove', lat: 41.34, lon: -8.47, time: new Date().toISOString(), prev: { pop: 70, mm: 0.4, radar: 'seco', code: 61, extra: 'x' } } });
+    assert.equal(r.status, 201);
+    assert.deepEqual(r.body.report.prev, { pop: 70, mm: 0.4, radar: 'seco', code: 61 });
+    const list = (await J('GET', '/api/reports?lat=41.34&lon=-8.47', { d })).body.reports;
+    assert.deepEqual(list[0].prev, { pop: 70, mm: 0.4, radar: 'seco', code: 61 }, 'o telemóvel recebe-o (para a correção do local)');
+    assert.deepEqual(env.HIST.rows('SELECT local, tipo, prev_pop, prev_radar, contradiz FROM avisos'), [{ local: pl.id, tipo: 'nao-chove', prev_pop: 70, prev_radar: 'seco', contradiz: 'seco' }]);
+    // sem prev (versões antigas da app) e sem D1: o aviso entra na mesma
+    delete env.HIST;
+    const r2 = await J('POST', '/api/reports', { d, body: { kind: 'chuva', lat: 41.34, lon: -8.47 } });
+    assert.equal(r2.status, 201);
+    assert.equal(r2.body.report.prev, undefined);
 });

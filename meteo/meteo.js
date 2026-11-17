@@ -9,6 +9,7 @@ import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE
 import { mergeMemory, learnHistory, LVARS, LEADS } from './lib/learn.js';
 import { radarFrames, radarTileUrl, RADAR } from './lib/radar.js';
 import { REPORT_KINDS, REPORT_MIN } from './lib/sources.js';
+import { forecastAt, explainReport } from './lib/avisos.js';
 import * as api from './api.js';
 import * as F from './format.js';
 import { weatherIcon, ui } from './icons.js';
@@ -16,7 +17,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.25.1';
+const VERSION = '1.26.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -1008,7 +1009,8 @@ function learningHtml(fc) {
         <div class="score" role="img" aria-label="${esc(`Fator ${F.num(f, 2)}`)}"><div class="bar"><i class="${f >= 1.05 ? 'gain' : f <= 0.95 ? 'loss' : ''}" style="width:${((f / maxF) * 100).toFixed(1)}%"></i></div></div></div>
         <div class="r-px num">×${esc(F.num(f, 2))}</div></div>`).join('');
     const chart = learnChart(st.memory, Lr.models.map((m) => m.id), rows.slice(0, 3).map((r) => r.m), v, L);
-    const where = Lr.stations?.length ? ` Verificado contra ${Lr.stations.join(', ')}${Lr.source ? ` (${Lr.source})` : ''}${v === 'r' ? ', o tempo presente dos aeroportos e os teus avisos «Está a chover?»' : ''}.` : '';
+    const where = (Lr.stations?.length ? ` Verificado contra ${Lr.stations.join(', ')}${Lr.source ? ` (${Lr.source})` : ''}${v === 'r' ? ', o tempo presente dos aeroportos e os teus avisos «Está a chover?»' : ''}.` : '')
+        + (v === 'r' && st.fc?.rainCalib ? ` ${st.fc.rainCalib.text}` : '');
     return `<section class="sec" id="aprendizagem">${head}
         ${seg('lv', Object.entries(LVARS), v)}${seg('ll', LEADS.map((x, i) => [i, F.cap(x)]), L)}
         <div class="list">${list}</div>${chart}
@@ -1334,6 +1336,13 @@ function renderSheet() {
             <div class="d-sub">Diz o que vês aí agora. O teu aviso manda no «agora» durante ${REPORT_MIN} min e ajuda a análise.</div></div>${closeBtn}</div>
             <div class="rpt-grid" role="group" aria-label="O que vês agora">${Object.entries(REPORT_KINDS).map(([k, label]) => `<button type="button" data-report="${k}" class="${cur?.kind === k ? 'on' : ''}" aria-pressed="${cur?.kind === k}">${weatherIcon(REPORT_ICON[k], day, 36)}<span>${esc(label)}</span></button>`).join('')}</div>
             ${cur ? `<p class="note">O teu último aviso: ${esc(REPORT_KINDS[cur.kind])}, ${esc(F.ago((Date.now() - Date.parse(cur.time)) / 6e4))}. Um aviso novo substitui-o.</p>` : ''}`;
+        return;
+    }
+    if (s.kind === 'why') { // 1.26: porque a previsão dizia o contrário do aviso, e o que a aprendizagem faz com isso
+        const w = s.arg;
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">${esc(w.title)}</h2>
+            <div class="d-sub">O teu aviso manda no «agora» durante ${REPORT_MIN} min.</div></div>${closeBtn}</div>
+            <div class="why">${w.lines.map((l) => `<p class="note">${esc(l)}</p>`).join('')}</div>`;
         return;
     }
     if (s.kind === 'off') {
@@ -1714,14 +1723,25 @@ async function moveTo(id, lat, lon) {
     render();
     return p;
 }
-// "Está a chover?": vale já neste telemóvel (45 min) e segue para o conector, para a análise do Claude
+// "Está a chover?": vale já neste telemóvel (45 min) e segue para o conector, para a análise do Claude.
+// 1.26: leva o que a previsão dizia (prev); se a contradiz, abre «Porque dizia chuva» e a previsão volta a fazer-se já
+// com o aviso (a aprendizagem conta-o contra os modelos que erraram, e o local corrige a chuva fraca se se repete)
 async function submitReport(kind) {
     if (!cfg.loc || !Object.hasOwn(REPORT_KINDS, kind)) return;
-    const rep = { kind, time: new Date().toISOString(), lat: cfg.loc.lat, lon: cfg.loc.lon };
+    const base = numFc(), prev = base ? forecastAt(base) : null;
+    const rep = { kind, time: new Date().toISOString(), lat: cfg.loc.lat, lon: cfg.loc.lon, ...(prev ? { prev } : {}) };
     st.report = rep; api.saveReport(rep);
-    closeSheet(true); reportTimer(); render();
+    const mine = { ...rep, distanceKm: 0, ageMin: 0 };
+    const why = base ? explainReport(base, rep, [mine, ...st.reports]) : null;
+    // com explicação, a folha troca de conteúdo (fechar com animação e abrir logo a seguir fechava a nova ao fim da animação)
+    if (why) openSheet('why', why); else closeSheet(true);
+    reportTimer(); render();
     toast(`Obrigado! «${REPORT_KINDS[kind]}» conta no agora durante ${REPORT_MIN} min.`);
-    try { await api.postReport(rep); } catch (e) { toast(`Aviso guardado neste telemóvel; o conector não o recebeu (${e.message})`); }
+    try {
+        await api.postReport(rep);
+        st.reports = [mine, ...st.reports.filter((r) => r.time !== rep.time)];
+        if (why) refresh();
+    } catch (e) { toast(`Aviso guardado neste telemóvel; o conector não o recebeu (${e.message})`); }
 }
 async function analyzeNow() {
     if (!st.fc || st.analyzing) return;

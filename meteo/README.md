@@ -178,6 +178,22 @@ dura 30 dias). Para ver a evolução, tudo fica também numa base SQL **D1** da 
   grava já os dias observados (sem esperar pela próxima análise). A 16/11 recuperaram-se 36 análises (desde 06/11).
 - Consultas à mão: `cd meteo/proxy && npx wrangler d1 execute meteo-historico --remote --command "SELECT * FROM acertos WHERE local = 'santo-tirso'"`.
 
+## «Não chove» contra a previsão (1.26 / conector 1.12)
+
+Quando dizes «Não chove» (em «Está a chover?») e a previsão dava chuva — ou dizes que chove e ela não dava:
+- **Porque dizia chuva:** a app abre uma folha com o que a previsão dizia agora, se os modelos estavam de acordo, o
+  que o radar via (no ponto e à volta, 5/15/30/60 km), o que as estações mediram na última hora e o veredicto (falso
+  alarme, a chuva passou ao lado, ou chuva fraca que não chegou). `lib/avisos.js` → `explainReport`.
+- **Aprendizagem:** a previsão volta a fazer-se logo com o aviso; as horas contam contra os modelos que davam chuva
+  (pesam menos na chuva deste local; o aviso conta 2× uma estação, como antes).
+- **O próprio local:** cada aviso leva o que a previsão dizia na hora (`prev`: pop, mm/h, radar, código). Com 2 ou mais
+  «Não chove» em 30 dias quando se previa chuva, e em pelo menos metade dessas vezes, a chuva fraca (< 1 mm/h) das
+  próximas 48 h passa a contar menos aqui: −8% a −40%, conforme a proporção e o número de avisos (`rainCalib`,
+  `applyRainCalib`; a chuva a sério e o agora com chuva no radar ficam). Aparece em Aprendizagem → Chuva.
+- **Análise:** o resumo mostra o que a previsão dizia em cada aviso e marca os que a contradizem; o analista explica-os
+  em `verificacao` e escreve uma lição se se repetem.
+- **Histórico:** cada aviso fica na D1 (`avisos`: hora, tipo, o que a previsão dizia e `contradiz`).
+
 ## Os meus locais (1.15)
 
 Tocar no nome do local (no topo) abre **Os meus locais**: os locais guardados (até 12) e os que o Claude analisa todos os

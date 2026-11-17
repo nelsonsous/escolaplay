@@ -138,6 +138,14 @@ mais tempo. Analisa só os locais que o `dados.mjs` lista.
 - **Estações**: diz quanto valem para o ponto (distância, rumo, altitude; se estão no mesmo vale ou num alto).
 - **Incêndios** e **satélite** também com distância e rumo ao ponto.
 
+## Avisos que contradizem a previsão
+
+Os avisos «Está a chover?» trazem o que a previsão dizia na hora; os que a contradizem vêm marcados («← CONTRADIZ»).
+Para cada um, diz em `verificacao` porque a previsão falhou nessa hora (os modelos, o radar, as estações, o relevo do
+ponto). Se o mesmo erro se repete (chuva fraca que nunca chega ao vale, aguaceiros que passam ao lado com vento de
+um lado), escreve uma lição sobre o local. A app já corrige a chuva fraca do local quando os avisos se repetem
+("Correção do local já aplicada"): não a voltes a descontar nos teus números. Os avisos ficam também na D1 (`avisos`).
+
 ## O histórico (opcional, só leitura)
 
 Todas as análises, os números dia a dia e o que as estações mediram ficam na base D1 `meteo-historico`. Os dados de
