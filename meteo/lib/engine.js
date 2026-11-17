@@ -3,6 +3,7 @@
 import { DET_MODELS, ENS_MODELS, inPortugal, FIRMS, IPMA_MODEL, IPMA_MAX_KM, OBS_RADIUS_KM, REPORT_KINDS, REPORT_MIN } from './sources.js';
 import { analyzeRadar, RADAR, rainLabel, fmtMmh, fmtKm, dirName, radarAt, approachText } from './radar.js';
 import { learnWindow, mergeMemory, skillOf, factorsOf, factorAt, memoryInfo, metarWet, LEARN, LVARS, LEADS } from './learn.js';
+import { rainCalib, applyRainCalib, contradiction } from './avisos.js';
 import {
     isNum, clamp, r1, r0, wmean, wstd, wquantile, wmedian, robustMean, robustKeep, wfrac, wvote, rainVote, haversine, bearing, compass,
     WIND_FROM, vecDir, dewPoint, relHum,
@@ -1227,7 +1228,8 @@ export function buildForecast(raw, opts = {}) {
 
     for (const d of daily) delete d._thunder;
     const usedMetar = (obsOut?.sources || []).includes('METAR') || /METAR/.test(vset?.source || '');
-    return {
+    // 1.26: «Não chove» repetido quando se previa chuva → a chuva fraca deste local conta menos (lib/avisos.js)
+    return applyRainCalib({
         v: 1, generatedAt: new Date(nowMs).toISOString(),
         location: { lat, lon, elevation: r0(targetElev), timezone: P.timezone, utcOffsetSeconds: off,
             name: opts.name || raw.place?.name || null, region: raw.place?.region || null, country: raw.place?.country || null, terrain },
@@ -1241,7 +1243,7 @@ export function buildForecast(raw, opts = {}) {
         analysis: raw.analysisMeta || null,
         sources: ['Open-Meteo (CC BY 4.0)', 'ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA, CMA', ...(area || official ? ['IPMA'] : []),
             ...(usedMetar ? ['NOAA AWC (METAR)'] : []), ...(radar ? ['RainViewer (radar)'] : []), ...(fire.hotspots ? ['NASA FIRMS'] : []), ...(fire.incidents ? ['ANEPC via fogos.pt'] : []), 'EUMETSAT'],
-    };
+    }, rainCalib(raw.reports, { nowMs }));
 }
 
 // ---------- aprendizagem acumulada (lib/learn.js) ----------
@@ -1949,8 +1951,14 @@ export function buildSummary(fc, extra = {}) {
         L.push('\n## Avisos do utilizador ("Está a chover?": o que se via no ponto; o mais recente primeiro)');
         for (const x of extra.reports.slice(0, 12)) {
             const t = Date.parse(x.time);
-            if (Number.isFinite(t)) L.push(`${msToLocal(t, loc.utcOffsetSeconds || 0).replace('T', ' ')} — ${REPORT_KINDS[x.kind] || x.kind}${isNum(x.distanceKm) ? ` (a ${x.distanceKm} km do ponto)` : ''}`);
+            if (!Number.isFinite(t)) continue;
+            const p = x.prev, k = contradiction(x.kind, p);
+            const said = p ? `; a previsão dava ${isNum(p.pop) ? `${p.pop}%` : '?'}${p.mm >= 0.1 ? `, ${p.mm} mm/h` : ''}${p.radar ? `, radar ${p.radar}` : ''}` : '';
+            L.push(`${msToLocal(t, loc.utcOffsetSeconds || 0).replace('T', ' ')} — ${REPORT_KINDS[x.kind] || x.kind}${isNum(x.distanceKm) ? ` (a ${x.distanceKm} km do ponto)` : ''}${said}${k === 'seco' ? ' ← CONTRADIZ: previa-se chuva' : k === 'chuva' ? ' ← CONTRADIZ: não se previa chuva' : ''}`);
         }
+        const nc = extra.reports.filter((x) => contradiction(x.kind, x.prev)).length;
+        if (nc) L.push(`Avisos que contradizem a previsão: ${nc}. Explica em "verificacao" porque a previsão falhou nessas horas (modelos, radar, estações, relevo) e, se se repete, escreve uma lição sobre o local.`);
+        if (fc.rainCalib) L.push(`Correção do local já aplicada: ${fc.rainCalib.text}`);
     }
     L.push(`\n## Das 12 às 48 h no ponto (de 3 em 3 h; T = consenso [faixa entre modelos], chuva mm/h e prob.${ipH ? '; IPMA = previsão oficial T (prob. 3 h)' : ''})`);
     L.push(`hora | T [faixa] | sens | chuva (prob) | vento/rajada dir | nuvens (baixas) | CAPE | HR | código | local${ipH ? ' | IPMA' : ''}`);

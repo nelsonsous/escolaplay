@@ -10,11 +10,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarHistoryUrl, REPORT_KINDS } from '../../lib/sources.js';
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
 import { analysisRows, runD1, readHistory, latestAnalysis, newest } from '../../lib/historico.js';
+import { cleanPrev, contradiction } from '../../lib/avisos.js';
 import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner, placeMembers, lastSeenOfPlace, isOwnerPlace, placeKind, othersMode, approx, lisbon,
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.11.0';
+const VERSION = '1.12.0';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -494,10 +495,16 @@ async function addReport(req, env, url) {
     const time = new Date(Number.isFinite(t) && t <= now + 5 * 6e4 && t >= now - 3 * 36e5 ? t : now).toISOString();
     const { key, place } = await reportKey(env, me, lat, lon);
     const old = (await env.KV.get(key, 'json')) || [];
-    const report = { kind, time, lat: r3(lat), lon: r3(lon), receivedAt: new Date(now).toISOString() };
+    // 1.12: o que a previsão dizia na hora (prev), para a correção do local e para a análise (lib/avisos.js)
+    const prev = cleanPrev(b?.prev);
+    const report = { kind, time, lat: r3(lat), lon: r3(lon), receivedAt: new Date(now).toISOString(), ...(prev ? { prev } : {}) };
     const keep = [report, ...(Array.isArray(old) ? old : []).filter((x) => now - Date.parse(x.time) <= REPORTS_TTL * 1000)]
         .sort((a, c) => Date.parse(c.time) - Date.parse(a.time)).slice(0, REPORTS_MAX);
     await env.KV.put(key, JSON.stringify(keep), { expirationTtl: REPORTS_TTL });
+    // e no histórico (D1), para sempre: o aviso, o que a previsão dizia e se a contradiz
+    await runD1(env.HIST, [{ sql: 'INSERT OR REPLACE INTO avisos (hora, lat, lon, local, tipo, prev_pop, prev_mm, prev_radar, contradiz) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        params: [time, report.lat, report.lon, place?.id ?? null, kind, prev?.pop ?? null, prev?.mm ?? null, prev?.radar ?? null, contradiction(kind, prev)] }])
+        .catch((e) => console.error('histórico', e));
     return json({ report, place, count: keep.length }, 201);
 }
 

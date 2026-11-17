@@ -53,7 +53,8 @@ export async function geocode(text) {
 }
 export const satUrl = (layer, lat, lon, km = 600, w = 720, h = 540) => `${getProxy()}/api/sat?${q({ layer, lat: r4(lat), lon: r4(lon), km, w, h })}`;
 /** Aviso do utilizador ("Está a chover?"): { kind, time, lat, lon } → o conector guarda-o para a análise do Claude. */
-export const postReport = (r) => call('/api/reports', { method: 'POST', body: { kind: r.kind, time: r.time, lat: r4(r.lat), lon: r4(r.lon) }, timeout: 10000 });
+// 1.26: com o que a previsão dizia na hora (prev: { pop, mm, radar, code }), para a correção do local e a análise
+export const postReport = (r) => call('/api/reports', { method: 'POST', body: { kind: r.kind, time: r.time, lat: r4(r.lat), lon: r4(r.lon), ...(r.prev ? { prev: r.prev } : {}) }, timeout: 10000 });
 /** Avisos recentes perto do ponto (o mais recente primeiro). */
 export async function getReports(lat, lon, hours = 24) {
   const r = await call(`/api/reports?${q({ lat: r4(lat), lon: r4(lon), hours })}`, { timeout: 8000 });

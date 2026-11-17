@@ -3,10 +3,10 @@
 // O domínio é partilhado com a EscolaPlay e a Mercados (/escolaplay/): este SW só mexe nas
 // caches "meteo-*" e só trata pedidos dentro da sua pasta (/escolaplay/meteo/).
 // A previsão, o radar (RainViewer) e o conector (outros domínios) nunca passam por aqui.
-const CACHE = 'meteo-v50'; // 1.25.1 — «✦ com análise» em vez de «análise diária» (já não há horas marcadas)
+const CACHE = 'meteo-v51'; // 1.26 — «Não chove» explica a previsão e ajusta a chuva fraca do local
 const ASSETS = [
     './', './index.html', './meteo.css', './meteo.js', './api.js', './format.js', './icons.js', './charts.js', './sky.js', './chuva.js', './onda/chuva-wasm.js', './onda/ceu-glsl.js', '../onda/rt/gestos-onda.js', './manifest.webmanifest',
-    './lib/data.js', './lib/engine.js', './lib/learn.js', './lib/marine.js', './lib/sources.js', './lib/stats.js', './lib/analysis.js', './lib/radar.js', './lib/png.js',
+    './lib/data.js', './lib/engine.js', './lib/learn.js', './lib/marine.js', './lib/sources.js', './lib/stats.js', './lib/analysis.js', './lib/radar.js', './lib/png.js', './lib/avisos.js',
     './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png',
 ];
 
