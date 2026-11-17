@@ -11,10 +11,10 @@ export const RESPOSTA = { response: 'Aqui está:\n{"loja": "CONTINENTE MODELO", 
 
 test('arrumar o que a IA leu: a cadeia, o dia, o total e as linhas em cêntimos', () => {
     const t = arrumar(lerResposta(RESPOSTA));
-    assert.deepEqual(t, { loja: 'continente', dia: '2026-11-15', total: 743, linhas: [
+    assert.deepEqual(t, { loja: 'continente', dia: '2026-11-15', total: 743, doc: null, linhas: [
         { t: 'LEITE UHT M/GORDO MIMOSA', q: 6, cent: 570 }, { t: 'OVOS CLASSE M 12UN', q: 1, cent: 219 }, { t: 'DESC. CARTAO', q: 1, cent: -46 }] });
     assert.equal(lerResposta({ response: 'nada' }), null);
-    assert.deepEqual(arrumar(null), { loja: null, dia: null, total: null, linhas: [] });
+    assert.deepEqual(arrumar(null), { loja: null, dia: null, total: null, doc: null, linhas: [] });
 });
 
 test('o que se risca: as palavras da coisa estão numa linha do talão', () => {

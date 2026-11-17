@@ -3,15 +3,17 @@
 // aparecem no talão (as palavras da coisa estão numa linha). A fotografia não se guarda.
 import { Erro, lerLista, mudarLista } from './casa.js';
 
-export const MODELO = '@cf/meta/llama-4-scout-17b-16e-instruct';
+// o Mistral Small 3.1 lê os talões letra a letra (17/11/2026: o mesmo talão do SPAR, três vezes igual e certo, em 4 s;
+// o Llama 4 Scout leu «Azeite» em vez de «Água», 0,66 € em vez de 0,86 € e juntava linhas)
+export const MODELO = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const MAX_IMAGEM = 1_500_000; // o data URL, em caracteres
 const LOJAS = ['continente', 'pingo doce', 'auchan', 'lidl', 'mercadona', 'spar', 'intermarché', 'minipreço', 'aldi', 'el corte inglés'];
 const PEDIDO = `És um leitor de talões de supermercado portugueses. Lê a fotografia e responde só com JSON, sem mais texto:
-{"loja": "nome da cadeia", "dia": "AAAA-MM-DD", "total": 12.34, "linhas": [{"t": "texto da linha como está no talão", "q": 1, "preco": 1.23}]}
+{"loja": "nome da cadeia", "dia": "AAAA-MM-DD", "total": 12.34, "doc": "número do documento (fatura)", "linhas": [{"t": "texto da linha como está no talão", "q": 1, "preco": 1.23}]}
 "preco" é o valor total da linha em euros (o que se pagou por ela, com a quantidade). Não inventes linhas; descontos e
 talões de desconto entram como linhas com preço negativo. Uma linha por artigo: não juntes dois artigos numa linha.
 Não são linhas os totais («Total», «Qtd Total», «Subtotal»), o IVA, o pagamento (cartão, multibanco, troco) nem o
-cabeçalho da loja. Se não for um talão, responde {"linhas": []}.`;
+cabeçalho da loja. Copia o texto de cada artigo letra a letra, sem corrigir nem traduzir. Se não for um talão, responde {"linhas": []}.`;
 
 const cent = (v) => (v == null || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 100));
 export const palavras = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2);
@@ -40,7 +42,8 @@ export function arrumar(d) {
     const lojaTxt = String(d?.loja ?? '').toLowerCase();
     const loja = LOJAS.find((l) => lojaTxt.includes(l)) ?? (lojaTxt.trim().slice(0, 40) || null);
     const dia = /^\d{4}-\d{2}-\d{2}$/.test(String(d?.dia ?? '')) ? d.dia : null;
-    return { loja, dia, total: cent(d?.total), linhas };
+    const doc = String(d?.doc ?? '').replace(/\s+/g, '').slice(0, 40) || null;
+    return { loja, dia, total: cent(d?.total), doc, linhas };
 }
 
 // as abreviaturas dos talões: «S/GAS» é sem gás, «C/GAS» com gás
@@ -48,11 +51,16 @@ export const porExtenso = (t) => String(t).replace(/\b([sc])\//gi, (m, l) => (l.
 // as coisas por riscar da lista que aparecem no talão: todas as palavras da coisa (com mais de 2 letras) numa linha; nas
 // coisas da escolha, as palavras do tipo («agua-sem-gas»), que o texto pode ter mais coisas («marca branca», a marca)
 export function noTalao(itens, linhas) {
-    const ls = linhas.map((l) => new Set(palavras(porExtenso(l.t)).flatMap((w) => [w, w.replace(/s$/, '')])));
-    return itens.filter((i) => !i.f).filter((i) => {
-        const ws = palavras(i.e?.k ? i.e.k.replace(/-/g, ' ') : i.t).map((w) => w.replace(/s$/, ''));
-        return ws.length && ls.some((l) => ws.every((w) => l.has(w) || [...l].some((x) => x.startsWith(w.slice(0, 5)) && w.length >= 5)));
-    }).map((i) => i.id);
+    return itens.filter((i) => !i.f && linhaDaCoisa(i, linhas) >= 0).map((i) => i.id);
+}
+// a linha do talão de uma coisa da lista (o índice, ou -1)
+export function linhaDaCoisa(i, linhas) {
+    const ws = palavras(i.e?.k ? i.e.k.replace(/-/g, ' ') : i.t).map((w) => w.replace(/s$/, ''));
+    if (!ws.length) return -1;
+    return linhas.findIndex((l0) => {
+        const l = new Set(palavras(porExtenso(l0.t)).flatMap((w) => [w, w.replace(/s$/, '')]));
+        return ws.every((w) => l.has(w) || [...l].some((x) => x.startsWith(w.slice(0, 5)) && w.length >= 5));
+    });
 }
 
 export async function lerTalao(env, ap, imagem, agora = new Date()) {
@@ -69,9 +77,29 @@ export async function lerTalao(env, ap, imagem, agora = new Date()) {
     const t = arrumar(lerResposta(r));
     if (!t.linhas.length) throw new Erro(422, 'não consegui ler nenhuma linha: tenta outra fotografia, com mais luz e o talão direito');
     const id = [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('');
-    await env.DB.prepare('INSERT INTO talao (id, casa, loja, dia, total, linhas, criado) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .bind(id, ap.casa, t.loja, t.dia, t.total, JSON.stringify(t.linhas), agora.toISOString()).run();
-    const riscar = noTalao((await lerLista(env.DB, ap.casa)).itens, t.linhas);
+    // o mesmo talão outra vez (o mesmo número, ou a mesma loja, dia e total): a leitura nova fica no lugar da antiga
+    const { results: antes } = await env.DB.prepare(`SELECT id FROM talao WHERE casa = ? AND ((doc IS NOT NULL AND doc = ?)
+        OR (loja IS ? AND dia IS ? AND total IS ?))`).bind(ap.casa, t.doc, t.loja, t.dia, t.total).all();
+    const fs = antes.map((x) => env.DB.prepare('DELETE FROM talao WHERE id = ?').bind(x.id));
+    fs.push(env.DB.prepare('INSERT INTO talao (id, casa, loja, dia, total, doc, linhas, criado) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(id, ap.casa, t.loja, t.dia, t.total, t.doc, JSON.stringify(t.linhas), agora.toISOString()));
+    await env.DB.batch(fs);
+    const itens = (await lerLista(env.DB, ap.casa)).itens;
+    const riscar = noTalao(itens, t.linhas);
     if (riscar.length) await mudarLista(env.DB, ap, riscar.map((id) => ({ o: 'r', id, f: 1 })));
-    return { id, ...t, riscadas: riscar.length };
+    // o que se riscou fica no histórico com o preço do talão (o que se pagou mesmo, compras.js)
+    await registarDoTalao(env.DB, ap.casa, itens.filter((i) => riscar.includes(i.id)), t, agora).catch(() => {});
+    return { id, ...t, riscadas: riscar.length, ...(antes.length ? { repetido: 1 } : {}) };
+}
+
+// as coisas riscadas pelo talão, no histórico do que se compra: a loja do talão e o preço da linha (por unidade)
+async function registarDoTalao(db, casa, itens, t, agora) {
+    const dia = agora.toISOString().slice(0, 10);
+    const fs = itens.map((i) => {
+        const l = t.linhas[linhaDaCoisa(i, t.linhas)];
+        return db.prepare(`INSERT OR REPLACE INTO compra (casa, item, dia, quando, texto, tipo, q, cadeia, nome, cent, mx, estimada)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0)`).bind(casa, i.id, dia, agora.toISOString(), i.t, i.e?.k ?? null, l?.q ?? i.q ?? 1,
+            t.loja ?? null, l?.t ?? null, l ? Math.round(l.cent / (l.q || 1)) : null);
+    });
+    if (fs.length) await db.batch(fs);
 }

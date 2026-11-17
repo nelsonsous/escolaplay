@@ -59,3 +59,22 @@ test('na app: uma coisa sem tipo mostra «Que produto é?»; escolher o tipo abr
         assert.deepEqual(erros, []);
     } finally { await br.close(); await s.fechar(); }
 });
+
+test('o mesmo talão lido outra vez substitui a leitura (pelo número, ou pela loja, dia e total); o riscado vai para o histórico', async () => {
+    const worker = (await import('../proxy/src/worker.js')).default;
+    const { kv } = await import('./kv.mjs');
+    const { d1 } = await import('./d1.mjs');
+    const SPAR = '```json\n{"loja": "SPAR", "dia": "2026-11-17", "total": 3.84, "doc": "FS5261251/1110", "linhas": [{"t": "Água SPAR Nascente 6lt", "q": 1, "preco": 0.86}, {"t": "Mini Pizza York Cheddar un", "q": 1, "preco": 1.99}, {"t": "Pão C/ Chouriço un", "q": 1, "preco": 0.99}]}\n```';
+    const env = { KV: kv(), DB: d1(), AI: { run: async () => ({ response: SPAR }) } };
+    const { chave } = await (await worker.fetch(new Request('https://x/api/aparelho', { method: 'POST' }), env)).json();
+    const api = (c, corpo) => worker.fetch(new Request('https://x' + c, { method: corpo ? 'POST' : 'GET', headers: { authorization: 'Bearer ' + chave }, body: corpo ? JSON.stringify(corpo) : undefined }), env);
+    await api('/api/lista', { ops: [{ o: 'j', id: 'agua', t: 'água nascente' }] });
+    const IMG = 'data:image/jpeg;base64,/9j/AAAA';
+    const r1 = await (await api('/api/talao', { imagem: IMG })).json();
+    assert.deepEqual([r1.loja, r1.doc, r1.riscadas, r1.repetido], ['spar', 'FS5261251/1110', 1, undefined]);
+    const r2 = await (await api('/api/talao', { imagem: IMG })).json();
+    assert.equal(r2.repetido, 1);
+    assert.equal(env.DB.linhas('SELECT count(*) n FROM talao')[0].n, 1);
+    const g = await (await api('/api/gastos')).json();
+    assert.deepEqual([g.semana, g.lojas], [86, [{ c: 'spar', nome: 'SPAR', cent: 86 }]]);
+});

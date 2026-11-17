@@ -339,7 +339,7 @@
     Se ~ na_lista txt x.t {
       Se ~ s { `<div class="costume"><h3>Costumas comprar</h3><div class="chips">` = s 1 }
       # o ✕ tira a sugestão (não volta); o tipo, quando se percebe (x.tk), vai com a coisa para comparar nos supermercados
-      `<button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }">+ { esc ? x.tn x.tn x.t }<small> { ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` { ? int x.ha `há { N int x.ha } dias` `comprado hoje` } }</small></button><button class="costx" data-onda="costx:{ N i }" aria-label="Tirar esta sugestão">✕</button>` }
+      `<button class="chip{ Se int x.falta ` falta` }" data-onda="cost:{ N i }">+ { esc x.t }<small> { Se x.tn `{ esc x.tn } · ` }{ ? x.cada `a cada { N int x.cada } dias, há { N int x.ha }` { ? int x.ha `há { N int x.ha } dias` `comprado hoje` } }</small></button><button class="costx" data-onda="costx:{ N i }" aria-label="Tirar esta sugestão">✕</button>` }
     = x seg x = i + i 1 }
   Se s `</div></div>` }
 : pede_costume >i Se _an_ler $"chave" _an_buscar $"/api/costume" $"lido_costume"
@@ -1391,7 +1391,7 @@
   ? == v 0 aviso $"A ler o talão…" {
     = r _ar_json _an_ler $"talao"
     ? && r r.erro aviso texto`Não consegui ler o talão: { crut txt r.erro }` {
-      Se r aviso texto`Talão{ Se r.loja ` do { crut txt r.loja }` }: { eur int r.total } · { N quantos r.linhas } linhas{ Se int r.riscadas ` · { N int r.riscadas } riscadas na lista` }.`
+      Se r aviso texto`Talão{ Se r.loja ` do { crut txt r.loja }` }: { eur int r.total } · { N quantos r.linhas } linhas{ Se int r.riscadas ` · { N int r.riscadas } riscadas na lista` }{ Se int r.repetido ` · já o tinhas lido: fica só esta leitura` }.`
       ver pede_costume 0 } 0 }
   0 }
 # juntar o que se escreveu. Uma coisa só, que a app reconhece (as sugestões já vieram para este texto): se é concreta
