@@ -97,5 +97,5 @@ test('o preço do talão do SPAR conta no tipo mesmo sem as palavras do tipo na 
         INSERT INTO talao (id, casa, loja, dia, total, linhas, criado) VALUES ('t1', 'c1', 'spar', '2026-11-17', 384, '[{"t":"Água SPAR Nascente 6 lt","q":1,"cent":86}]', '${agora}');`);
     esquecerTipos();
     const r = await reaisDaCasa(db, 'c1', ['agua-sem-gas']);
-    assert.deepEqual(r.get('agua-sem-gas')?.spar, { cent: 86, dia: '2026-11-17', t: 'Água SPAR Nascente 6 lt' });
+    assert.deepEqual(r.get('agua-sem-gas')?.spar, { cent: 86, dia: '2026-11-17', diat: '17/11', t: 'Água SPAR Nascente 6 lt' });
 });

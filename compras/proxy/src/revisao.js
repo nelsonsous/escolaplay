@@ -32,7 +32,8 @@ const ACENTOS = new Map(Object.entries({ agua: 'água', aguas: 'águas', tonica:
     frigorifico: 'frigorífico', especifica: 'específica', pessego: 'pêssego', pessegos: 'pêssegos', maca: 'maçã', macas: 'maçãs',
     proteina: 'proteína', proteinas: 'proteínas', gluten: 'glúten', biologico: 'biológico', biologica: 'biológica', organico: 'orgânico',
     magro: 'magro', natural: 'natural', integral: 'integral', classico: 'clássico', classica: 'clássica', tradicional: 'tradicional',
-    cafeina: 'cafeína', alcool: 'álcool', soluvel: 'solúvel', acucarado: 'açucarado', fermentado: 'fermentado', cha: 'chá' }));
+    cafeina: 'cafeína', alcool: 'álcool', soluvel: 'solúvel', acucarado: 'açucarado', fermentado: 'fermentado', cha: 'chá',
+    gas: 'gás', garrafao: 'garrafão', garrafoes: 'garrafões', frances: 'francês', portugues: 'português' }));
 export const acentua = (nome) => String(nome ?? '').replace(/[A-Za-zÀ-ÿ]+/g, (w) => {
     const a = ACENTOS.get(w.toLowerCase());
     if (!a || w !== w.toLowerCase() && w !== w[0] + w.slice(1).toLowerCase()) return w;

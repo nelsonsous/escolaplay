@@ -184,7 +184,7 @@ test('escrever e encontrar: os tipos pelo que se escreve, e os produtos de um ti
     const casa = env.DB.linhas('SELECT casa FROM aparelho')[0].casa;
     env.DB.sql.prepare('INSERT INTO talao (id, casa, loja, dia, total, linhas, criado) VALUES (?, ?, ?, ?, ?, ?, ?)')
         .run('t1', casa, 'mercadona', '2026-11-12', 198, JSON.stringify([{ t: 'AGUA S/GAS 6L', q: 2, cent: 198 }]), new Date().toISOString());
-    assert.deepEqual((await api('/api/tipo?k=agua-sem-gas')).reais, { mercadona: { cent: 99, dia: '2026-11-12', t: 'AGUA S/GAS 6L' } });
+    assert.deepEqual((await api('/api/tipo?k=agua-sem-gas')).reais, { mercadona: { cent: 99, dia: '2026-11-12', diat: '12/11', t: 'AGUA S/GAS 6L' } });
     assert.equal((await worker.fetch(new Request('https://x/api/tipo?k=nada', { headers: { authorization: 'Bearer ' + chave } }), env)).status, 404);
 });
 
