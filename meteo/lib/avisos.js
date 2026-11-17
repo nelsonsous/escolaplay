@@ -115,7 +115,7 @@ export function explainReport(fc, report, reports = []) {
     if (R?.atPoint) {
         const ring = (R.rings || []).findIndex((r) => (r.wet ?? 0) >= 0.05);
         const from = ring > 0 ? R.rings[ring - 1].km : 0, to = ring >= 0 ? R.rings[ring].km : null;
-        if (R.atPoint.raining) lines.push(`O radar via chuva no ponto (${dec(R.atPoint.mmh)} mm/h, há ${R.ageMin ?? '?'} min).`);
+        if (R.atPoint.raining) lines.push(`O radar via chuva por cima do ponto (${dec(R.atPoint.mmh)} mm/h, há ${R.ageMin ?? '?'} min)${kind === 'seco' ? ': é daí que vinha a chuva do agora' : ''}.`);
         else if (to != null) { near = to; lines.push(`O radar não via chuva no ponto; a mais perto estava entre ${from} e ${to} km${R.approach ? (R.approach.passed ? ', e já devia ter chegado' : `, a chegar daqui a ~${R.approach.etaMin} min`) : ''}.`); }
         else lines.push('O radar não via chuva a menos de 60 km.');
     } else lines.push('Sem radar para este ponto agora.');
@@ -124,7 +124,8 @@ export function explainReport(fc, report, reports = []) {
     // o veredicto
     if (kind === 'seco') {
         const dryRadar = R?.atPoint && !R.atPoint.raining, dryObs = !(O?.precip1h > 0);
-        lines.push(dryRadar && near != null && near <= 15 ? 'Havia chuva perto: passou ao lado do ponto.'
+        lines.push(R?.atPoint?.raining ? 'O radar via chuva no alto que não chegava ao chão (evapora no caminho quando o ar está seco) ou um eco falso: o teu aviso manda.'
+            : dryRadar && near != null && near <= 15 ? 'Havia chuva perto: passou ao lado do ponto.'
             : dryRadar && dryObs ? 'Os modelos deram chuva que não estava a cair: um falso alarme.'
                 : 'Os modelos davam chuva fraca que aqui não chegou.');
         lines.push('Fica na aprendizagem: as horas de hoje contam contra os modelos que davam chuva, e esses perdem peso na chuva deste local.');

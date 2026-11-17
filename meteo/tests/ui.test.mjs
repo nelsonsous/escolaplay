@@ -471,7 +471,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.ok(why.some((l) => /perdem peso na chuva deste local/.test(l)), why.join(' | '));
     await noOverflow('porque dizia chuva');
     await shot('02c-porque-chuva.png');
-    await page.click('#mt-sheet [data-act="close"]');
+    await page.click('#mt-sheet-card .mt-ibtn[data-act="close"]');
     await page.waitForSelector('#mt-sheet[hidden]', { state: 'attached' });
     await page.waitForFunction(() => /O teu aviso: Não chove/.test(document.querySelector('.now').textContent));
     assert.deepEqual(reportPosts.map(({ prev, ...r }) => r), [{ kind: 'nao-chove', time: NOW.replace('Z', '.000Z'), lat: LAT, lon: LON }], 'POST /api/reports');
@@ -990,7 +990,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.evaluate(() => document.querySelector('#mt-sheet').hidden), false, 'a folha continua aberta');
     console.log('✓ gestos: arrastar para a esquerda apaga um local, com «Desfazer»');
     if (SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(SHOTS, '08-os-meus-locais.png') }); }
-    await page.click('#mt-sheet [data-act="close"]');
+    await page.click('#mt-sheet-card .mt-ibtn[data-act="close"]');
     await page.waitForSelector('#mt-sheet', { state: 'hidden' });
     // cada telemóvel tem 1 local: ligar aqui muda-o para aqui (PATCH, o mesmo id), com "Desfazer"
     await page.waitForFunction(() => /a tua análise passa de Lisboa para aqui/.test(document.querySelector('#cl-teaser')?.textContent || ''));

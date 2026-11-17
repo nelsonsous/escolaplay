@@ -81,6 +81,11 @@ test('porque dizia chuva: modelos, radar, estações, veredicto e o que a aprend
     // sem chuva perto no radar: falso alarme
     const fcSeco = { ...fc, radar: { ...fc.radar, rings: fc.radar.rings.map((x) => ({ ...x, wet: 0 })) } };
     assert.ok(explainReport(fcSeco, r, [r]).lines.includes('Os modelos deram chuva que não estava a cair: um falso alarme.'));
+    // o radar via chuva no ponto e não chove: chuva no alto que não chega ao chão
+    const fcVirga = { ...fc, radar: { ...fc.radar, atPoint: { raining: true, mmh: 0.6 } } };
+    const wv = explainReport(fcVirga, r, [r]);
+    assert.ok(wv.lines.includes('O radar via chuva por cima do ponto (0,6 mm/h, há 6 min): é daí que vinha a chuva do agora.'), wv.lines.join(' | '));
+    assert.ok(wv.lines.some((l) => /não chegava ao chão/.test(l)));
     // o contrário: chuva sem estar prevista
     const fcDry = { now: { precip: 0, code: 3, obs: { precip1h: 0.2, n: 2 } }, hourly: [{ pop: 10 }], radar: { fresh: true, atPoint: { raining: false }, rings: [] } };
     const w3 = explainReport(fcDry, rep('chuva', 0, forecastAt(fcDry)), []);
