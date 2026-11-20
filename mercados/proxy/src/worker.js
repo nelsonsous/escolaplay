@@ -37,7 +37,7 @@
 
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
 
-const VERSION = '1.11.1';
+const VERSION = '1.12.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -480,13 +480,15 @@ export function parseCryptoGlobal(g, f) {
         vol: d && d.total_volume ? d.total_volume.eur ?? null : null,
         btcDom: d && d.market_cap_percentage ? d.market_cap_percentage.btc ?? null : null,
         ethDom: d && d.market_cap_percentage ? d.market_cap_percentage.eth ?? null : null,
-        fng: fg[0] ? { v: Number(fg[0].value), label: fg[0].value_classification || '', prev: fg[1] ? Number(fg[1].value) : null } : null,
+        fng: fg[0] ? { v: Number(fg[0].value), label: fg[0].value_classification || '', prev: fg[1] ? Number(fg[1].value) : null,
+            // 1.12.0: os últimos 90 dias, do mais antigo para hoje (para o gráfico)
+            h: fg.slice(0, 90).map((x) => Number(x.value)).filter((x) => Number.isFinite(x) && x >= 0 && x <= 100).reverse() } : null,
     };
 }
 async function cryptoGlobal() {
     const [g, f] = await Promise.all([
         getJSON('https://api.coingecko.com/api/v3/global').catch(() => null),
-        getJSON('https://api.alternative.me/fng/?limit=2').catch(() => null),
+        getJSON('https://api.alternative.me/fng/?limit=90').catch(() => null),
     ]);
     const out = parseCryptoGlobal(g, f);
     // a CoinGecko às vezes recusa pedidos do Cloudflare: a CoinPaprika (em USD) serve de alternativa

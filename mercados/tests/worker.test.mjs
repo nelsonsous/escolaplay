@@ -415,7 +415,7 @@ test('/fuel?list=1 devolve os postos, mais baratos primeiro', async () => {
 test('/cryptoglobal junta CoinGecko e o índice de medo e ganância', async () => {
     const g = { data: { total_market_cap: { eur: 2.1e12 }, total_volume: { eur: 9e10 }, market_cap_percentage: { btc: 58.4, eth: 11.2 }, market_cap_change_percentage_24h_usd: -3.2 } };
     const f = { data: [{ value: '24', value_classification: 'Extreme Fear' }, { value: '30', value_classification: 'Fear' }] };
-    assert.deepEqual(parseCryptoGlobal(g, f), { mcap: 2.1e12, mcapChg: -3.2, vol: 9e10, btcDom: 58.4, ethDom: 11.2, fng: { v: 24, label: 'Extreme Fear', prev: 30 } });
+    assert.deepEqual(parseCryptoGlobal(g, f), { mcap: 2.1e12, mcapChg: -3.2, vol: 9e10, btcDom: 58.4, ethDom: 11.2, fng: { v: 24, label: 'Extreme Fear', prev: 30, h: [30, 24] } });
     mockFetch((u) => u.includes('coingecko') ? res(g) : u.includes('alternative.me') ? res(f) : res({}, 404));
     const r = await worker.fetch(new Request('https://w.test/cryptoglobal'), {});
     assert.equal((await r.json()).fng.v, 24);
