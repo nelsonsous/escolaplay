@@ -38,7 +38,8 @@
   `<div class="r-main"><div class="r-name">{ esc a.name }</div>`
   ? == md 2 pn_meu a Se == md 1 pn_card a
   `</div><canvas class="spark" data-key="{ esc k }"></canvas><div class="r-px num">`
-  Se ha t `<span class="r-t">{ esc t }</span>`
+  # a hora do último preço, ou fora de horas (pré/pós, a abertura estimada) com a cor da variação (a.tt)
+  Se ha t `<span class="r-t{ Se eh a.tt $"up" " up" }{ Se eh a.tt $"down" " down" }">{ esc t }</span>`
   ? || == tipo px 0 == tipo px 1 `<span class="px skel">0000,00</span>` `<span class="px">{ pn_preco px a a.cur }</span>`
   `{ ln_chg a.pc }</div></button></div>` }
 # o card(): a unidade ("por barril") e, na energia por litro, o €/L sem impostos

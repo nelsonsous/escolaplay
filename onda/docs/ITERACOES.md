@@ -3062,3 +3062,24 @@ iguais em JS e Onda (seis novos: o plano e os prazos certos, estranhos e em falt
 o valor por mês, o prazo e o plano guardados e limpos. Interface: o prazo escolhido na Carteira chega à decisão e ao
 conector, com o valor do plano.
 
+
+## Iteração (Mercados 4.29.0, conector 1.13.0): fora de horas e a estimativa para a abertura
+
+**Pedido.** «Não há futuros? Hoje antes de abrir já se sabia que ia baixar 20%. Quando não há futuros colocar
+projeções fidedignas e melhorar essas projeções.» E antes: «o gráfico podia ver os futuros com linha mais leve?»
+
+**Feito.**
+- **Conector 1.13.0**: `/ext` (o `parseExt`) dá o negócio antes da abertura e depois do fecho das ações dos EUA, à
+  parte do `/quotes` (que fica só com a sessão normal: as séries e a análise não mudam).
+- **App**: os futuros do S&P 500 e do Nasdaq nos índices; na linha, `pré −20,0%`, `pós +1,3%` ou `abre ≈ −0,8%` com a
+  cor da variação (a vista `pn_linha` lê `a.tt`); na ficha, o preço fora de horas ou a estimativa com a margem; no
+  gráfico de hoje, o fora de horas a seguir à sessão numa linha mais clara. A estimativa: os futuros desde o último
+  preço vezes a sensibilidade ao S&P 500 (120 dias; fora dos EUA com o dia anterior); aprende com cada abertura (a
+  correção com 8, o erro médio com 5 do ativo), guardado no aparelho.
+- **Conselheiro** (Onda e JS): as fases 27 e 28 pedem o `/ext`; `· pré-abertura -20.1%` na linha e nos movimentos
+  fortes (5% ou mais fora de horas).
+
+**Verificado.** Conector: o `parseExt` antes, depois e com a bolsa aberta, e o `/ext`. Conselheiro: 83 cenários
+iguais em JS e Onda (oito novos: respostas estranhas, repetidas, nos limites, o conector antigo, o tempo esgotado e
+mais de 40 ações). Interface: a Palantir a −20% antes da abertura (linha, ficha, gráfico e o toque), a estimativa da
+SAP (a sensibilidade 1,2 achada nos dados) e a aprendizagem (uma abertura registada; com 9, a correção e o erro).

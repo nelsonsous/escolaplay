@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.28.1';
+    const VERSION = '4.29.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -59,6 +59,9 @@
         { sym: '^IXIC', name: 'Nasdaq', points: true },
         { sym: '^STOXX50E', name: 'Euro Stoxx 50', points: true },
         { sym: 'PSI20.LS', name: 'PSI (Lisboa)', points: true },
+        // os futuros negoceiam quase 24 h: antes de as bolsas abrirem já dizem para onde vão (e a estimativa da abertura usa-os)
+        { sym: 'ES=F', name: 'Futuros S&P 500', points: true },
+        { sym: 'NQ=F', name: 'Futuros Nasdaq', points: true },
         { sym: '^VIX', name: 'VIX (medo)', points: true },
         { sym: 'EURUSD=X', name: 'EUR/USD', points: true, decimals: 4 },
         { sym: 'GC=F', name: 'Ouro', unit: 'onça' },
@@ -160,6 +163,8 @@
     let FUEL = null, MOVERS = null, DISTRITOS = null;
     const MUNIC = {};
     const CAL = {};     // símbolo → { earnings, exDividend, dividend } (segundos)
+    const EXT = {};     // chave → o preço antes da abertura ou depois do fecho (ações dos EUA, pelo /ext do conector 1.13.0)
+    let FUT5 = null;    // os futuros do S&P 500 dos últimos 5 dias (de 30 em 30 min): a base da estimativa para a abertura
     // Decisões de juros (dia do anúncio). Atualizar uma vez por ano: federalreserve.gov e ecb.europa.eu
     const MACRO = [
         ...['2026-01-28', '2026-03-18', '2026-04-29', '2026-06-17', '2026-07-29', '2026-09-16', '2026-10-28', '2026-12-09'].map((d) => ({ d, t: 'Fed decide os juros (EUA)' })),
@@ -289,6 +294,147 @@
         return `Último preço ${when}${q.open === false ? ' · mercado fechado' : now() / 1000 - q.time < 15 * 60 ? ' · atualiza a cada 30 s' : ''}`;
     }
     const hhmm = (sec) => sec ? new Date(sec * 1000).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '';
+
+    // ---------- fora de horas: antes da abertura, depois do fecho e a estimativa para a abertura ----------
+    // As ações dos EUA negoceiam antes da abertura (9:00–14:30 em Lisboa) e depois do fecho (21:00–1:00): o conector dá esses
+    // preços à parte (/ext). Sem eles (bolsas europeias, ETF, a noite), a estimativa: o que os futuros do S&P 500 fizeram
+    // desde o último preço, vezes a sensibilidade do ativo ao S&P 500 (o beta dos últimos 120 dias), corrigida pelo que
+    // falhou nas aberturas anteriores (guardado neste aparelho). A margem é o erro médio dessas aberturas; até haver 5 do
+    // ativo, a que a história dele dá.
+    const usKey = (k) => isHolding(k) && /^[A-Z][A-Z0-9-]{0,6}$/.test(k);
+    function extOf(k) {
+        const e = EXT[k], q = Q[k];
+        if (!e || !q || q.open === true || now() / 1000 - e.time > 4 * 86400) return null;
+        const s = q.series, tr = s && s.length ? s[s.length - 1][0] : q.time || 0; // o último negócio da sessão normal
+        return e.time > tr ? e : null;
+    }
+    let extAt = 0;
+    async function loadExt(force) {
+        if (!cfg.proxy || document.hidden || (!force && now() - extAt < 110000)) return;
+        extAt = now();
+        const keys = Object.keys(REG).filter((k) => listed(k) && usKey(k));
+        const jobs = [px('/quotes?symbols=ES%3DF&range=5d', 20000).then((r) => {
+            const q = r.quotes && r.quotes[0];
+            if (q && !q.error && q.series && q.series.length) FUT5 = q.series;
+        }).catch(() => {})];
+        for (let i = 0; i < keys.length; i += 40) jobs.push(px(`/ext?symbols=${encodeURIComponent(keys.slice(i, i + 40).join(','))}`, 30000).then((r) => {
+            for (const it of r.items || []) {
+                const k = keys.find((x) => x.toUpperCase() === String(it.symbol).toUpperCase());
+                if (k && it.kind && fin(it.price) && fin(it.changePct)) EXT[k] = it; else if (k) delete EXT[k];
+            }
+        }).catch(() => {})); // o conector antes da 1.13.0 não tem o /ext: fica a estimativa
+        await Promise.all(jobs);
+        scheduleRender();
+        if (sheetKey && !$('#mk-sheet').hidden) { renderSheetExt(); drawSheetChart(); }
+    }
+    // os futuros do S&P 500 no momento T (o último preço antes, até 3 h) e agora
+    function futAt(T) {
+        let best = null;
+        for (const p of [].concat(FUT5 || [], (Q['ES=F'] && Q['ES=F'].series) || [])) if (p[0] <= T && (!best || p[0] > best[0])) best = p;
+        return best && T - best[0] < 3 * 3600 ? best : null;
+    }
+    function futNow() {
+        const q = Q['ES=F'], l = FUT5 && FUT5.length ? FUT5[FUT5.length - 1] : null;
+        return q && fin(q.price) && q.time && (!l || q.time >= l[0]) ? [q.time, q.price] : l;
+    }
+    // a sensibilidade ao S&P 500: a regressão dos retornos diários dos últimos 120 dias (e o desvio do que ela não explica)
+    const BETA = {};
+    function betaOf(k) {
+        const d = D[k], e = D['^GSPC'];
+        if (!d || !e || d.length < 60 || e.length < 60) return null;
+        const key = d.length + '|' + d[d.length - 1][0] + '|' + e[e.length - 1][0];
+        if (BETA[k] && BETA[k].key === key) return BETA[k].b == null ? null : BETA[k];
+        const day = (t) => new Date(t * 1000).toISOString().slice(0, 10), ei = new Map(e.map((p, i) => [day(p[0]), i]));
+        const ra = [], r0 = [], r1 = [];
+        for (let i = 1; i < d.length; i++) {
+            const j = ei.get(day(d[i][0])), jp = ei.get(day(d[i - 1][0]));
+            if (j == null || jp == null || jp < 1 || j <= jp || !(d[i - 1][1] > 0)) continue;
+            ra.push(d[i][1] / d[i - 1][1] - 1); r0.push(e[j][1] / e[jp][1] - 1); r1.push(e[jp][1] / e[jp - 1][1] - 1);
+        }
+        const n = Math.min(120, ra.length);
+        if (n < 40) { BETA[k] = { key, b: null }; return null; }
+        const A1 = ra.slice(-n), X0 = r0.slice(-n), X1 = r1.slice(-n), md = (v) => v.reduce((s, x) => s + x, 0) / n;
+        const ma = md(A1), m0 = md(X0), m1 = md(X1);
+        let s00 = 0, s11 = 0, sa0 = 0, sa1 = 0;
+        for (let i = 0; i < n; i++) { const a = A1[i] - ma, x0 = X0[i] - m0, x1 = X1[i] - m1; s00 += x0 * x0; s11 += x1 * x1; sa0 += a * x0; sa1 += a * x1; }
+        // fora dos EUA a bolsa fecha antes de Nova Iorque: o que lá se passa depois só se vê no dia seguinte (conta também o
+        // dia anterior do S&P 500, o beta de Dimson)
+        const b0 = s00 ? sa0 / s00 : 0, b1 = !usKey(k) && s11 ? sa1 / s11 : 0;
+        let ss = 0;
+        for (let i = 0; i < n; i++) { const r = A1[i] - ma - b0 * (X0[i] - m0) - b1 * (X1[i] - m1); ss += r * r; }
+        return (BETA[k] = { key, b: Math.max(0, Math.min(3, b0 + b1)), sd: Math.sqrt(ss / (n - 2)) * 100, n });
+    }
+    // o que aprende: cada estimativa feita antes de uma abertura fica à espera (pend) do primeiro preço da sessão seguinte;
+    // as últimas 80 (done: estimado p, aconteceu a) dão a correção (a regressão sem constante, de 0,3 a 1,6 vezes) e o erro
+    const PJ_LS = 'mercados:aberturas';
+    let PJ = null;
+    function pjLoad() {
+        if (!PJ) { try { PJ = JSON.parse(localStorage.getItem(PJ_LS)) || {}; } catch { PJ = {}; } }
+        if (!PJ.pend || typeof PJ.pend !== 'object') PJ.pend = {};
+        if (!Array.isArray(PJ.done)) PJ.done = [];
+        return PJ;
+    }
+    const pjSave = () => { try { localStorage.setItem(PJ_LS, JSON.stringify(PJ)); } catch { /* sem armazenamento */ } };
+    function pjFactor() {
+        const d = pjLoad().done;
+        if (d.length < 8) return 1;
+        let sap = 0, spp = 0;
+        for (const x of d) { sap += x.a * x.p; spp += x.p * x.p; }
+        return spp > 0 ? Math.max(0.3, Math.min(1.6, sap / spp)) : 1;
+    }
+    function projOf(k) {
+        if (!isHolding(k) || extOf(k)) return null;
+        const q = qv(k);
+        if (!fin(q.price) || !q.time || q.open === true || now() / 1000 - q.time < 15 * 60) return null;
+        const b = betaOf(k), f0 = futAt(q.time), f1 = futNow();
+        if (!b || !f0 || !f1 || f1[0] - q.time < 30 * 60) return null;
+        const fut = (f1[1] / f0[1] - 1) * 100, fac = pjFactor(), raw = b.b * fut;
+        const mine = pjLoad().done.filter((x) => x.k === k);
+        const err = mine.length >= 5 ? mine.reduce((s, x) => s + Math.abs(x.a - fac * x.p), 0) / mine.length : null;
+        return { p: raw * fac, raw, fut, beta: b.b, fac, err, band: err ?? 0.5 * b.sd, n: mine.length, T: q.time, base: q.price };
+    }
+    function pjNote(k, pr) {
+        const P = pjLoad(), o = P.pend[k], t = Math.floor(now() / 1000);
+        if (o && o.T === pr.T && t - o.at < 600) return;
+        P.pend[k] = { T: pr.T, base: pr.base, p: +pr.raw.toFixed(3), at: t };
+        pjSave();
+    }
+    // a abertura chegou: o primeiro preço da sessão nova face ao último antes da estimativa (só conta a estimativa vista
+    // nas 20 h antes de abrir)
+    function pjResolve() {
+        const P = pjLoad(), t = now() / 1000;
+        let mud = false;
+        for (const k of Object.keys(P.pend)) {
+            const o = P.pend[k], s = REG[k] ? qv(k).series : null, p0 = s && s.find((x) => x[0] > o.T + 1800);
+            if (!p0 && t - o.at < 5 * 86400) continue;
+            if (p0 && fin(p0[1]) && o.base > 0 && p0[0] - o.at < 20 * 3600 && p0[0] - o.T < 4 * 86400) P.done.push({ k, p: o.p, a: +((p0[1] / o.base - 1) * 100).toFixed(3), d: p0[0] });
+            delete P.pend[k]; mud = true;
+        }
+        if (mud) { P.done = P.done.slice(-80); pjSave(); }
+    }
+    // a etiqueta da linha (no lugar da hora do último preço): antes da abertura / depois do fecho, a estimativa, ou a hora
+    function pxTag(k, q) {
+        const tt = (v) => (Math.abs(v) < 0.05 ? '' : v > 0 ? 'up' : 'down');
+        const e = extOf(k);
+        if (e) return { t: `${e.kind === 'pre' ? 'pré' : 'pós'} ${fmtPct1(e.changePct)}`, tt: tt(e.changePct) };
+        const pr = projOf(k);
+        if (pr) { pjNote(k, pr); return { t: `abre ≈ ${fmtPct1(pr.p)}`, tt: tt(pr.p) }; }
+        return { t: pxWhen(k, q) };
+    }
+    const pct1 = (v) => NF({ minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v) + '%';
+    function renderSheetExt() {
+        const el = $('#d-ext'); if (!el) return;
+        const k = sheetKey, e = k && extOf(k), pr = k && !e ? projOf(k) : null, q = k ? qv(k) : {};
+        const tn = (v) => `<span class="${toneOf(v)}-t">${fmtPct1(v)}</span>`;
+        if (e) el.innerHTML = `${e.kind === 'pre' ? 'Antes da abertura' : 'Depois do fecho'}, às ${esc(hhmm(e.time))}: <b class="num">${fmtPx(e.price * (q.fx || 1), REG[k], q.currency)}</b> ${tn(e.changePct)}`
+            + `<small>face ao último fecho, ${fmtPx(e.ref * (q.fx || 1), REG[k], q.currency)} (no gráfico de hoje, a linha mais clara)</small>`;
+        else if (pr) {
+            el.innerHTML = `Abertura estimada: ${tn(pr.p)} <span class="alt">(±${pct1(pr.band)})</span>`
+                + `<small>Futuros do S&P 500 ${fmtPct1(pr.fut)} desde o último preço, × ${NF({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(pr.beta * pr.fac)} (a sensibilidade deste ativo`
+                + `${pr.fac !== 1 ? `, corrigida com ${pjLoad().done.length} aberturas` : ''}) · ${pr.err != null ? `erro médio nas últimas ${pr.n} aberturas: ±${pct1(pr.err)}` : 'margem pela história do ativo; aprende com cada abertura'}</small>`;
+        }
+        el.hidden = !e && !pr;
+    }
     const dateLbl = (sec, withTime) => new Date(sec * 1000).toLocaleString('pt-PT', withTime ? { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: 'short', year: 'numeric' });
 
     // ---------- rede ----------
@@ -482,6 +628,7 @@
             }
             if (!ok) throw new Error('O conector não devolveu cotações');
             st.yahooAt = now(); st.yahooErr = '';
+            pjResolve();
             const nfx = fxNeeded.size;
             for (const k of Object.keys(REG)) { const c = isHolding(k) && Q[k] && Q[k].currency; if (c && c !== 'EUR') fxNeeded.add(c === 'GBp' || c === 'GBX' ? 'GBP' : c); }
             if (fxNeeded.size > nfx) { buildReg(); setTimeout(() => { pollBusy = false; pollYahoo(); }, 50); }
@@ -955,7 +1102,7 @@
     const COL = {};
     function colors() {
         const cs = getComputedStyle(document.documentElement);
-        for (const n of ['up', 'down', 'flat', 'line', 'muted', 'text', 'accent']) COL[n] = cs.getPropertyValue('--' + n).trim();
+        for (const n of ['up', 'down', 'flat', 'line', 'muted', 'text', 'accent', 'bg2']) COL[n] = cs.getPropertyValue('--' + n).trim();
     }
     function setupCanvas(cv) {
         const dpr = Math.min(window.devicePixelRatio || 1, 3);
@@ -1361,9 +1508,9 @@
             assets: Object.keys(REG).map((k) => {
                 const a = REG[k], q = qv(k), r = AN[k], h = r && r.horizons, d = r && r.discount, ad = r && r.advice;
                 // sem o Claude, a etiqueta dos meus ativos é a da decisão consolidada (a mesma da ficha)
-                const my = mine.includes(k), cl = my ? claudeFor(k) : null, dec = my && !cl && ad ? decOf(k) : null;
+                const my = mine.includes(k), cl = my ? claudeFor(k) : null, dec = my && !cl && ad ? decOf(k) : null, tg = pxTag(k, q);
                 return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), unit: a.unit, dec: a.decimals, pts: a.points,
-                    px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k).pct, t: pxWhen(k, q),
+                    px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k).pct, t: tg.t, tt: tg.tt,
                     pl: a.perLitre && Q[k] ? A.usdGalToEurL(Q[k].price, eu) : undefined, mkt: mktOf(k), nr: rank ? rank.get(nameOf(k)) : undefined,
                     an: r ? { d: d ? { dd: d.dd, score: d.score } : d, adv: ad ? { key: ad.key, action: ad.action } : ad, L: h ? (h.long || h.mid || {}).score : undefined } : r,
                     cl: cl ? { key: cl.key, action: cl.action } : cl, dk: dec ? dec.key : undefined, tax: my && a.kind === 'crypto' ? taxLine(k) : undefined };
@@ -2020,13 +2167,14 @@
         const sig = sheetKey + '|' + sheetRange;
         viva.serie(amostra(pts, o.byIdx), { novo: sig !== vivaSig, base: fin(o.base) ? o.base : 0, tom: o.tone === 'up' ? 1 : o.tone === 'down' ? -1 : 0, vivo: true });
         vivaSig = sig;
-        const n = pts.length, t0 = pts[0][0], t1 = pts[n - 1][0], porT = !o.byIdx && t1 > t0;
+        const n = pts.length, t0 = pts[0][0], t1 = pts[n - 1][0], porT = !o.byIdx && t1 > t0, ef = o.extFrom;
         const geo = viva.geo();
         const X = (i) => (porT ? (pts[i][0] - t0) / (t1 - t0) : i / (n - 1)) * geo.xr;
         const Y = (v, gg = viva.geo()) => gg.topo + (gg.hi - v) / Math.max(1e-12, gg.hi - gg.lo) * gg.alt;
         sheetDraw = { X, Y, w: geo.w, h: geo.h };
         const vals = pts.map((p) => p[1]), mx = Math.max(...vals), mn = Math.min(...vals), a = REG[sheetKey], cur = o.q.currency, hv = o.hover, tone = o.tone;
         viva.sobre = (g, gg) => {
+            if (ef) extVeil(g, (X(ef - 1) + X(ef)) / 2, gg.w, gg.h, o.extKind);
             g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'right';
             g.fillText(fmtPx(mx, a, cur), gg.w - 2, Math.max(10, Y(mx, gg) - 4));
             g.textBaseline = 'top'; g.fillText(fmtPx(mn, a, cur), gg.w - 2, Math.min(gg.h - 12, Y(mn, gg) + 4));
@@ -2039,6 +2187,16 @@
         };
         if (!viva.animando) viva.pinta();
     }
+    // a parte fora de horas do gráfico: mais clara (o fundo da ficha por cima, a 55%), a tracejado o fim da sessão e o nome
+    function extVeil(g, x, w, h, kind) {
+        g.save();
+        g.globalAlpha = 0.55; g.fillStyle = COL.bg2 || '#111823'; g.fillRect(x, 0, w - x, h);
+        g.globalAlpha = 1; g.strokeStyle = COL.muted; g.lineWidth = 1; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+        const lbl = kind === 'pre' ? 'pré-abertura' : 'pós-fecho';
+        g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'left'; g.textBaseline = 'top';
+        g.fillText(lbl, Math.min(x + 4, w - g.measureText(lbl).width - 2), 2);
+        g.restore();
+    }
     function drawSheetChart(hover) {
         const cv = $('#d-cv');
         if (!cv || !sheetKey || !REG[sheetKey]) return;
@@ -2050,13 +2208,22 @@
         const f = q.fx || 1;
         const pts = f === 1 ? sheetPts.slice() : sheetPts.map(([t, v]) => [t, v * f]);
         if (sheetRange !== '1d' && fin(q.price) && q.time && q.time > pts[pts.length - 1][0] + 60) pts.push([q.time, q.price]);
+        // hoje, com a bolsa fechada: o que se negociou antes da abertura ou depois do fecho vem a seguir (os pontos lado a lado,
+        // sem o buraco da noite)
+        const ext = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? extOf(sheetKey) : null, n0 = pts.length;
+        if (ext) for (const [t, v] of ext.series) if (t > pts[pts.length - 1][0]) pts.push([t, v * f]);
+        const extFrom = ext && pts.length > n0 ? n0 : 0;
         const first = pts[0][1], lastv = pts[pts.length - 1][1];
         const base = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first;
         const tone = toneOf(sheetRange === '1d' ? q.changePct ?? (lastv / first - 1) * 100 : (lastv / first - 1) * 100);
-        const byIdx = sheetRange !== '1d' && !SHORT_R[sheetRange];
+        const byIdx = (sheetRange !== '1d' && !SHORT_R[sheetRange]) || !!extFrom;
         const viva = window.GraficoOnda && GraficoOnda.ok ? GraficoOnda.ligar(cv) : null;
-        if (viva) desenhaViva(viva, cv, pts, { base, tone, byIdx, hover, q });
-        else sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 14, byIndex: byIdx });
+        if (viva) desenhaViva(viva, cv, pts, { base, tone, byIdx, hover, q, extFrom, extKind: ext && ext.kind });
+        else {
+            sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 14, byIndex: byIdx });
+            if (sheetDraw && extFrom) extVeil(sheetDraw.g, (sheetDraw.X(extFrom - 1) + sheetDraw.X(extFrom)) / 2, sheetDraw.w, sheetDraw.h, ext.kind);
+        }
+        if (sheetDraw) sheetDraw.n = pts.length;
         // preço máximo e mínimo do período, à direita
         if (sheetDraw && !viva) {
             const { g, w, Y, lo, hi } = sheetDraw, vals = pts.map((p) => p[1]), mx = Math.max(...vals), mn = Math.min(...vals);
@@ -2083,7 +2250,8 @@
             const p = pts[hover];
             if (!viva) { g.strokeStyle = COL.muted; g.lineWidth = 1; g.beginPath(); g.moveTo(X(hover), 0); g.lineTo(X(hover), h); g.stroke();
             g.fillStyle = COL[tone]; g.beginPath(); g.arc(X(hover), Y(p[1]), 4, 0, 7); g.fill(); }
-            if (tip) tip.innerHTML = `<b class="num">${fmtPx(p[1], REG[sheetKey], q.currency)}</b> · ${esc(dateLbl(p[0], ['15m', '1h', '4h', '1d', '5d', '1mo'].includes(sheetRange)))} · <span class="${toneOf((p[1] / base - 1) * 100)}-t">${fmtPct((p[1] / base - 1) * 100)}</span>`;
+            const b = extFrom && hover >= extFrom ? ext.ref * f : base; // fora de horas: face ao último fecho
+            if (tip) tip.innerHTML = `<b class="num">${fmtPx(p[1], REG[sheetKey], q.currency)}</b> · ${esc(dateLbl(p[0], ['15m', '1h', '4h', '1d', '5d', '1mo'].includes(sheetRange)))}${extFrom && hover >= extFrom ? (ext.kind === 'pre' ? ' · pré-abertura' : ' · pós-fecho') : ''} · <span class="${toneOf((p[1] / b - 1) * 100)}-t">${fmtPct((p[1] / b - 1) * 100)}</span>`;
         } else if (tip) {
             const ch = (lastv / first - 1) * 100;
             const lw = pxWhenLong(sheetKey, q);
@@ -2130,6 +2298,7 @@
             <div class="d-head"><div><h2 id="mk-sheet-title">${esc(nameOf(k))}</h2><div class="d-sub">${esc([a.kind === 'crypto' ? a.sym + '/' + cfg.fiat : a.sym, q.venue || q.exchange, q.open === false ? 'mercado fechado' : q.open ? 'mercado aberto' : ''].filter(Boolean).join(' · '))}</div></div>
                 <button type="button" class="mk-ibtn" data-act="close" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
             <div class="d-px" id="d-px"></div>
+            <div class="d-ext" id="d-ext" hidden></div>
             <div class="d-tip" id="d-tip"></div>
             <div class="d-chart"><canvas id="d-cv"></canvas><div class="d-axis num" id="d-axis"></div><div class="loading" id="d-load">A carregar…</div></div>
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
@@ -2160,6 +2329,7 @@
             </div>`;
         box.scrollTop = scroll;
         renderSheetPrice();
+        renderSheetExt();
         requestAnimationFrame(() => drawSheetChart());
         bindChartHover();
     }
@@ -2170,7 +2340,7 @@
             if (st.puxaFolha || !sheetPts || sheetPts.length < 2 || !sheetDraw) return;
             const x = ev.clientX - cv.getBoundingClientRect().left;
             let best = 0, bd = Infinity;
-            for (let i = 0; i < sheetPts.length; i++) { const d = Math.abs(sheetDraw.X(i) - x); if (d < bd) { bd = d; best = i; } }
+            for (let i = 0; i < (sheetDraw.n || sheetPts.length); i++) { const d = Math.abs(sheetDraw.X(i) - x); if (d < bd) { bd = d; best = i; } }
             st.chartHover = now();
             drawSheetChart(best);
         };
@@ -2363,7 +2533,7 @@
     function refreshAll() {
         st.lastRefresh = now();
         if (holdingKeys().some((k) => REG[k] && REG[k].kind === 'crypto')) loadCryptoGlobal(); // o Fear & Greed, para a decisão da cripto que tenho
-        return Promise.all([pollYahoo(), loadCryptoSeries(), ws ? null : cryptoREST(), cfg.tab === 'destaques' ? loadMovers() : null, loadClaude().then(() => pedirAnalise('pedido'))])
+        return Promise.all([pollYahoo(), loadExt(true), loadCryptoSeries(), ws ? null : cryptoREST(), cfg.tab === 'destaques' ? loadMovers() : null, loadClaude().then(() => pedirAnalise('pedido'))])
             .finally(() => scheduleRender());
     }
     // puxar para baixo no topo da página → atualizar (como nas apps do iPhone)
@@ -2685,6 +2855,7 @@
     setInterval(() => { if (!document.hidden) { analyseAll(); if (cfg.tab === 'analise') scheduleRender(); } }, 60000);
     setInterval(() => { if (!document.hidden) loadCryptoSeries(); }, 5 * 60000);
     setInterval(() => { if (!document.hidden) loadDaily(); }, 15 * 60000);
+    setInterval(() => { if (!document.hidden) loadExt(); }, 2 * 60000);
     setInterval(() => { if (!document.hidden && cfg.tab === 'destaques') loadMovers(); }, 3 * 60000);
     setInterval(() => { if (!document.hidden) loadFuel(); }, 60 * 60000);
     setInterval(() => { if (!document.hidden) loadCalendar(); }, 6 * 60 * 60000);
@@ -2759,7 +2930,7 @@
         // se o WebSocket demorar, mostra logo um preço por REST
         sleep(2500).then(() => { if (st.ws !== 'on' && !st.cryptoAt) cryptoREST(); });
         loadCryptoSeries();
-        if (cfg.proxy) { loadClaude(); await pollYahoo(); loadFuel(); loadCalendar(); if (cfg.tab === 'destaques') loadMovers(); }
+        if (cfg.proxy) { loadClaude(); await pollYahoo(); loadExt(true); loadFuel(); loadCalendar(); if (cfg.tab === 'destaques') loadMovers(); }
         schedule();
         loadDaily();
     }
@@ -2780,6 +2951,8 @@
         highlightsSnap, highlightsHtml, fmtBig, get movers() { return MOVERS; }, set movers(v) { MOVERS = v; }, get cg() { return CG; }, set cg(v) { CG = v; },
         // o Painel (só em Onda): o instantâneo, o desenho e o que ele lê já feito (a variação no período, o conselho do Claude
         // de cada ativo, o imposto da cripto), e o estado dos combustíveis
-        panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, pedirAnalise, clWhen, decSnapOf: (k) => { const d = decOf(k); return d ? decSnap(k, qv(k), d) : null; }, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; } };
+        panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, pedirAnalise, clWhen, decSnapOf: (k) => { const d = decOf(k); return d ? decSnap(k, qv(k), d) : null; }, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; },
+        // fora de horas (antes da abertura, depois do fecho) e a estimativa para a abertura, com o que aprende
+        EXT, extOf, betaOf, projOf, pxTag, pjResolve, get pj() { return pjLoad(); }, get fut5() { return FUT5; }, set fut5(v) { FUT5 = v; } };
     boot();
 })();

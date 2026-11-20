@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, cleanPlano, parseCryptoGlobal, cleanSyms } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, cleanPlano, parseCryptoGlobal, cleanSyms, parseExt } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -526,4 +526,36 @@ test('histórico (D1): conselhos copiados na leitura, diário de cada app e a Ca
     delete env.HIST;
     assert.equal(await post({ id: OWNER, date: '2026-11-17', items, lots }), 200);
     assert.equal((await get('/history?id=' + OWNER)).status, 501);
+});
+
+// 1.13.0: antes da abertura e depois do fecho (Nova Iorque: 4:00–9:30 e 16:00–20:00)
+const R0 = 1763562600, R1 = R0 + 23400; // 9:30 e 16:00 de um dia
+const extChart = (pts, agora, prev = 100) => ({ chart: { result: [{
+    meta: { symbol: 'ANTH', chartPreviousClose: prev, currentTradingPeriod: { pre: { start: R0 - 19800, end: R0 }, regular: { start: R0, end: R1 }, post: { start: R1, end: R1 + 14400 } },
+        tradingPeriods: { pre: [[{ start: R0 - 19800, end: R0 }]], regular: [[{ start: R0, end: R1 }]], post: [[{ start: R1, end: R1 + 14400 }]] } },
+    timestamp: pts.map((p) => p[0]), indicators: { quote: [{ close: pts.map((p) => p[1]) }] },
+}], error: null }, agora });
+
+test('parseExt: antes da abertura compara com o último fecho; depois do fecho com o fecho de hoje; aberto não traz nada', () => {
+    const pre = extChart([[R0 - 3600, 95], [R0 - 1800, null], [R0 - 600, 80]]);
+    const a = parseExt(pre, R0 - 300);
+    assert.deepEqual([a.kind, a.price, a.ref, a.changePct, a.time, a.series.length], ['pre', 80, 100, -20, R0 - 600, 2]);
+    const post = extChart([[R0, 100], [R1 - 300, 110], [R1 + 600, 111], [R1 + 1200, 112]]);
+    const b = parseExt(post, R1 + 1500);
+    assert.deepEqual([b.kind, b.price, b.ref, b.series.length], ['post', 112, 110, 2]);
+    assert.equal(b.changePct, 1.818182);
+    assert.equal(parseExt(post, R0 + 60).kind, null, 'com o mercado aberto não há preço fora de horas');
+    assert.equal(parseExt(extChart([[R0, 100], [R1 - 300, 110]]), R1 + 60).kind, null, 'sem negócio depois do fecho');
+    assert.throws(() => parseExt({ chart: { result: null, error: { description: 'No data found' } } }), /No data/);
+});
+
+test('/ext pede ao Yahoo com includePrePost=true e devolve um item por símbolo', async () => {
+    const calls = mockFetch((u) => (u.includes('/chart/BAD') ? res({ chart: { result: null, error: { description: 'Not Found' } } }, 404) : res(extChart([[R0 - 600, 80]]))));
+    const r = await call('/ext?symbols=ANTH,BAD');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.items.length, 2);
+    assert.ok(r.body.items[1].error);
+    assert.ok(calls.every((c) => c.includes('includePrePost=true')));
+    assert.match(r.headers.get('cache-control'), /s-maxage=120/);
+    assert.equal((await call('/ext')).status, 400);
 });
