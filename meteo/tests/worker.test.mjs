@@ -66,7 +66,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.13.0');
+    assert.equal(j.version, '1.13.1');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 2, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -1004,4 +1004,18 @@ test('notificações com vários locais (1.13): escolhe-se quais (só os que aco
     });
     assert.equal(sent.length, 0);
     assert.equal(kvj('push:index').some((e) => e.id === a.id), false);
+});
+
+test('análise (1.27): «verificacao» até 600 caracteres; com aviso laranja ou vermelho em «alertas», o título di-lo', () => {
+    const base = { ...ANALISE, numeros: ANALISE.numeros };
+    assert.equal(validateAnalysis({ ...base, verificacao: 'v'.repeat(600) }, { strict: true }).ok, true);
+    assert.equal(validateAnalysis({ ...base, verificacao: 'v'.repeat(661) }, { strict: true }).ok, false, 'acima de 600 + 10%');
+    const laranja = { ...base, titulo: 'Chuva forte no sábado, ~45 mm', alertas: [...base.alertas, { tipo: 'chuva', nivel: 'laranja', quando: 'sáb 06h–18h', texto: 'Aviso laranja de chuva do IPMA.' }] };
+    const r = validateAnalysis(laranja, { strict: true });
+    assert.equal(r.ok, false);
+    assert.ok(r.errors.some((e) => /"titulo" deve começar pelo aviso laranja/.test(e)), r.errors.join(' | '));
+    assert.equal(validateAnalysis({ ...laranja, titulo: 'Aviso laranja: chuva forte no sábado, ~45 mm' }, { strict: true }).ok, true);
+    assert.equal(validateAnalysis({ ...laranja, alertas: [{ ...laranja.alertas[1], nivel: 'vermelho' }], titulo: 'Aviso vermelho: chuva muito forte' }, { strict: true }).ok, true);
+    assert.equal(validateAnalysis(laranja).ok, true, 'na análise imediata (não estrita) não se recusa');
+    assert.match(SYSTEM_PROMPT, /Com aviso laranja ou vermelho do IPMA para o ponto/);
 });

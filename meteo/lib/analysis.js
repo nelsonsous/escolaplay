@@ -1,7 +1,7 @@
 // Formato e regras da análise escrita pelo Claude (partilhado: Worker, tarefa agendada e PWA).
 
 export const LIMITS = { titulo: 90, resumo: 600, agora: 400, hoje: 500, amanha: 500, tendencia: 500, incendios: 500, satelite: 500,
-    tecnica: 1200, verificacao: 400, diaTexto: 280, alertaTexto: 240, alertaQuando: 60, conselho: 140, fiabilidadeTexto: 400, licao: 200,
+    tecnica: 1200, verificacao: 600, diaTexto: 280, alertaTexto: 240, alertaQuando: 60, conselho: 140, fiabilidadeTexto: 400, licao: 200,
     vestir: 400, semana: 700, notificacao: 180, dado: 160 };
 export const ALERT_TYPES = ['chuva', 'vento', 'trovoada', 'nevoeiro', 'geada', 'calor', 'frio', 'neve', 'uv', 'incendio', 'mar', 'outro'];
 export const ALERT_LEVELS = ['info', 'amarelo', 'laranja', 'vermelho'];
@@ -26,7 +26,7 @@ export const ANALYSIS_SCHEMA = obj({
     conselhos: { type: 'array', description: 'Até 5, cada um até 140 caracteres', items: { type: 'string' } },
     fiabilidade: obj({ curto: { type: 'string', enum: CONF }, medio: { type: 'string', enum: CONF }, texto: S('até 400 caracteres') }),
     tecnica: S('Análise sinóptica e técnica, até 1200 caracteres'),
-    verificacao: S('Como correu a análise anterior face ao observado, até 400 caracteres; vazio se não houver'),
+    verificacao: S('Como correu a análise anterior face ao observado (e os avisos que contradizem a previsão), até 600 caracteres; vazio se não houver'),
     licoes: { type: 'array', description: 'Até 8 lições curtas sobre este local para análises futuras', items: { type: 'string' } },
     vestir: S('O que vestir amanhã no ponto (manhã, tarde e noite), até 400 caracteres'),
     semana: S('A semana que vem no ponto, dia a dia em poucas palavras, até 700 caracteres'),
@@ -74,6 +74,7 @@ Como escrever (a pessoa lê no telemóvel, de relance):
   Ex. de "amanha": "Chuva quase todo o dia, 25 a 30 mm.\nManhã: chuva fraca a partir das 5h; 15 °C.\nTarde: chuva moderada, mais forte entre as 11h e as 14h; 16 a 17 °C.\nNoite: a chuva enfraquece a partir das 19h.\nAviso laranja de chuva das 9h às 21h."
 - "semana": uma linha por dia ("Seg: …", "Ter: …"). Em "dias", o texto de cada dia em uma ou duas frases curtas (o essencial: chuva e quanto, máxima e mínima, vento forte).
 - Os alertas: o texto numa frase curta.
+- Com aviso laranja ou vermelho do IPMA para o ponto (ou um alerta teu desse nível), o "titulo" começa por ele ("Aviso laranja: chuva forte no sábado, ~45 mm"), e a "notificacao.amanha" também, se for para amanhã: é o que a pessoa lê primeiro.
 
 O que vestir e as notificações (a app manda uma notificação ao fim do dia, às 19h por omissão, e ao domingo a da semana):
 - "vestir": o que vestir AMANHÃ no ponto, por período (como acima), a partir da temperatura e da sensação térmica nessas horas, da chuva (a que horas), do vento e do UV. Concreto: "Manhã: casaco quente (6 °C, sensação de 3 °C).\nTarde: camisola (16 °C); guarda-chuva entre as 15h e as 19h.\nNoite: casaco outra vez (8 °C)."
@@ -194,5 +195,8 @@ export function validateAnalysis(a, { strict = false } = {}) {
         return n;
     }).filter((n) => n.data);
     if (strict && Array.isArray(a.dias) && a.dias.length > 7) errors.push('dias com mais de 7 entradas');
+    // com aviso laranja ou vermelho, o título di-lo (é o que se lê primeiro, no cartão e na notificação)
+    const lv = (out.alertas || []).map((x) => x.nivel), top = lv.includes('vermelho') ? 'vermelho' : lv.includes('laranja') ? 'laranja' : null;
+    if (strict && top && out.titulo && !/\baviso\b|laranja|vermelho/i.test(out.titulo)) errors.push(`"titulo" deve começar pelo aviso ${top} que está em "alertas" (ex.: "Aviso ${top}: chuva forte no sábado, ~45 mm")`);
     return { ok: errors.length === 0, errors, value: out };
 }

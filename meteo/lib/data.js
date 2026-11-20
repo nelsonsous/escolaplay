@@ -282,7 +282,8 @@ export async function loadForecast(o = {}) {
             districts: settle(cached('ipma:districts', 7 * 864e5, () => request(IPMA.districts))),
             // a ANEPC recusa o conector e bloqueia pedidos de outros sites: depois de uma falha, pausa de 12 h
             // a tarefa da análise traz a sua cópia (vai diretamente ao fogos.pt, que recusa o conector)
-            fogos: o.fogos ? { ok: true, v: o.fogos } : fogosPaused() ? { ok: false, e: new Error('em pausa: a ANEPC não aceita o conector (nova tentativa daqui a umas horas)') }
+            fogos: o.fogos ? { ok: true, v: o.fogos } : o.fogos === false ? { ok: false, e: new Error('não pedido: risco de incêndio reduzido nos locais (IPMA)') }
+                : fogosPaused() ? { ok: false, e: new Error('em pausa: a ANEPC não aceita o conector (nova tentativa daqui a umas horas)') }
                 : settle(request(`${B}/api/raw/fogos`, { timeout: 10000 }).catch((e) => { pauseFogos(); throw e; })),
             ipmaFc: settle(ipmaOfficial(lat, lon)),
         } : {}),

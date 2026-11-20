@@ -1635,6 +1635,22 @@ function buildIndicators(next, H, nowIdx, daily, todayDate) {
         agreement: agreement == null ? null : Math.round(agreement * 100) / 100 };
 }
 
+/**
+ * O maior risco de incêndio do IPMA (RCM 1 a 5, hoje e amanhã) nos concelhos dos pontos: o concelho mais perto de cada
+ * um (até 40 km). null se algum ponto não tiver concelho perto (fora de Portugal) ou sem dados: não se sabe.
+ */
+export function rcmMax(rcm0, rcm1, points, maxKm = 40) {
+    const L = Object.values(rcm0?.local || {});
+    if (!L.length || !Array.isArray(points) || !points.length) return null;
+    let max = 0;
+    for (const p of points) {
+        const near = L.map((m) => ({ m, d: haversine(p.lat, p.lon, m.latitude, m.longitude) })).sort((a, b) => a.d - b.d)[0];
+        if (!near || near.d > maxKm) return null;
+        max = Math.max(max, near.m.data?.rcm ?? 0, rcm1?.local?.[near.m.dico]?.data?.rcm ?? 0);
+    }
+    return max;
+}
+
 // Área de aviso IPMA e concelho (via risco de incêndio, que tem coordenadas por concelho)
 function ipmaArea(ipma, lat, lon) {
     if (!ipma || !inPortugal(lat, lon)) return null;
