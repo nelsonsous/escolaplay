@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.29.0';
+    const VERSION = '4.30.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -62,6 +62,7 @@
         // os futuros negoceiam quase 24 h: antes de as bolsas abrirem já dizem para onde vão (e a estimativa da abertura usa-os)
         { sym: 'ES=F', name: 'Futuros S&P 500', points: true },
         { sym: 'NQ=F', name: 'Futuros Nasdaq', points: true },
+        { sym: 'NIY=F', name: 'Futuros Nikkei', points: true },
         { sym: '^VIX', name: 'VIX (medo)', points: true },
         { sym: 'EURUSD=X', name: 'EUR/USD', points: true, decimals: 4 },
         { sym: 'GC=F', name: 'Ouro', unit: 'onça' },
@@ -129,6 +130,8 @@
         if (p && /^https:\/\//.test(p)) { cfg.proxy = p.replace(/\/+$/, ''); saveCfg(); history.replaceState(null, '', location.pathname); }
     }
 
+    // os gémeos dos fundos da Xetra: o mesmo índice em Nova Iorque (ou, no ouro, os futuros), que negoceia quando cá está fechado
+    const TWIN = { 'VWCE.DE': 'VT', 'EUNL.DE': 'URTH', 'SXR8.DE': 'IVV', 'SXRV.DE': 'QQQ', 'IS3N.DE': 'IEMG', 'EXSA.DE': 'VGK', '4GLD.DE': 'GC=F' };
     // registo de ativos: chave → definição
     const REG = {};
     function buildReg() {
@@ -141,6 +144,8 @@
         // auxiliares (não aparecem nas listas): preço da noite e câmbios para euros
         for (const a of Object.values(REG)) for (const s of [].concat(a.live || [])) if (!REG[s]) REG[s] = { key: s, kind: 'aux', sym: s, name: s };
         for (const c of fxNeeded) { const k = 'EUR' + c + '=X'; if (!REG[k]) REG[k] = { key: k, kind: 'aux', sym: k, name: k }; }
+        // a estimativa da abertura: o Nikkei (a sensibilidade) e os gémeos dos fundos que sigo (VT, …)
+        for (const k of ['^N225', ...cfg.funds.map((f) => TWIN[f]).filter(Boolean)]) if (!REG[k]) REG[k] = { key: k, kind: 'aux', sym: k, name: k };
     }
     const fxNeeded = new Set();
     const isHolding = (k) => !!REG[k] && (REG[k].kind === 'stock' || REG[k].kind === 'fund');
@@ -164,7 +169,6 @@
     const MUNIC = {};
     const CAL = {};     // símbolo → { earnings, exDividend, dividend } (segundos)
     const EXT = {};     // chave → o preço antes da abertura ou depois do fecho (ações dos EUA, pelo /ext do conector 1.13.0)
-    let FUT5 = null;    // os futuros do S&P 500 dos últimos 5 dias (de 30 em 30 min): a base da estimativa para a abertura
     // Decisões de juros (dia do anúncio). Atualizar uma vez por ano: federalreserve.gov e ecb.europa.eu
     const MACRO = [
         ...['2026-01-28', '2026-03-18', '2026-04-29', '2026-06-17', '2026-07-29', '2026-09-16', '2026-10-28', '2026-12-09'].map((d) => ({ d, t: 'Fed decide os juros (EUA)' })),
@@ -297,11 +301,15 @@
 
     // ---------- fora de horas: antes da abertura, depois do fecho e a estimativa para a abertura ----------
     // As ações dos EUA negoceiam antes da abertura (9:00–14:30 em Lisboa) e depois do fecho (21:00–1:00): o conector dá esses
-    // preços à parte (/ext). Sem eles (bolsas europeias, ETF, a noite), a estimativa: o que os futuros do S&P 500 fizeram
-    // desde o último preço, vezes a sensibilidade do ativo ao S&P 500 (o beta dos últimos 120 dias), corrigida pelo que
-    // falhou nas aberturas anteriores (guardado neste aparelho). A margem é o erro médio dessas aberturas; até haver 5 do
-    // ativo, a que a história dele dá.
+    // preços à parte (/ext). Com a bolsa fechada e sem eles, a estimativa para a abertura:
+    //  1. o gémeo, se o ativo tem um (o FTSE All-World: o VT, o mesmo índice em Nova Iorque): o que ele fez desde o último
+    //     preço de cá até ao último negócio dele (até à 1:00 de Lisboa), em euros (com o EUR/USD);
+    //  2. depois, os futuros do S&P 500 e do Nikkei (quase 24 h), vezes a sensibilidade do ativo a cada um;
+    //  3. corrigida pelo que falhou nas aberturas anteriores (guardado neste aparelho). A margem é o erro médio dessas
+    //     aberturas; até haver 5 do ativo, a que a história dele dá.
     const usKey = (k) => isHolding(k) && /^[A-Z][A-Z0-9-]{0,6}$/.test(k);
+    const twinOf = (k) => (TWIN[k] && REG[TWIN[k]] ? TWIN[k] : null);
+    const twinTxt = (s) => (s === 'GC=F' ? 'Futuros do ouro' : `${s} (o mesmo índice, em Nova Iorque)`);
     function extOf(k) {
         const e = EXT[k], q = Q[k];
         if (!e || !q || q.open === true || now() / 1000 - e.time > 4 * 86400) return null;
@@ -309,13 +317,15 @@
         return e.time > tr ? e : null;
     }
     let extAt = 0;
+    const S5 = {};      // símbolo → os últimos 5 dias de 30 em 30 min (os futuros, o EUR/USD e os gémeos): o preço a uma hora T
     async function loadExt(force) {
+        loadDerivs();
         if (!cfg.proxy || document.hidden || (!force && now() - extAt < 110000)) return;
         extAt = now();
-        const keys = Object.keys(REG).filter((k) => listed(k) && usKey(k));
-        const jobs = [px('/quotes?symbols=ES%3DF&range=5d', 20000).then((r) => {
-            const q = r.quotes && r.quotes[0];
-            if (q && !q.error && q.series && q.series.length) FUT5 = q.series;
+        const tw = [...new Set(cfg.funds.map(twinOf).filter(Boolean))], US = /^[A-Z][A-Z0-9-]{0,6}$/;
+        const keys = [...new Set(Object.keys(REG).filter((k) => listed(k) && usKey(k)).concat(tw.filter((s) => US.test(s))))];
+        const jobs = [px(`/quotes?symbols=${encodeURIComponent(['ES=F', 'NIY=F', 'EURUSD=X', ...tw].join(','))}&range=5d`, 20000).then((r) => {
+            for (const q of r.quotes || []) if (!q.error && q.series && q.series.length) S5[q.symbol] = q.series;
         }).catch(() => {})];
         for (let i = 0; i < keys.length; i += 40) jobs.push(px(`/ext?symbols=${encodeURIComponent(keys.slice(i, i + 40).join(','))}`, 30000).then((r) => {
             for (const it of r.items || []) {
@@ -327,42 +337,60 @@
         scheduleRender();
         if (sheetKey && !$('#mk-sheet').hidden) { renderSheetExt(); drawSheetChart(); }
     }
-    // os futuros do S&P 500 no momento T (o último preço antes, até 3 h) e agora
-    function futAt(T) {
+    // o preço de um símbolo à hora T (o último negócio antes, até 4 dias: os fins de semana) e o último que há, dos 5 dias,
+    // do dia e do fora de horas
+    const ptsOf = (s) => [].concat(S5[s] || [], (Q[s] && Q[s].series) || [], (EXT[s] && EXT[s].series) || []);
+    function pxAt(s, T) {
         let best = null;
-        for (const p of [].concat(FUT5 || [], (Q['ES=F'] && Q['ES=F'].series) || [])) if (p[0] <= T && (!best || p[0] > best[0])) best = p;
-        return best && T - best[0] < 3 * 3600 ? best : null;
+        for (const p of ptsOf(s)) if (p[0] <= T && (!best || p[0] > best[0])) best = p;
+        return best && T - best[0] < 4 * 86400 ? best : null;
     }
-    function futNow() {
-        const q = Q['ES=F'], l = FUT5 && FUT5.length ? FUT5[FUT5.length - 1] : null;
-        return q && fin(q.price) && q.time && (!l || q.time >= l[0]) ? [q.time, q.price] : l;
+    function pxNow(s) {
+        let best = Q[s] && fin(Q[s].price) && Q[s].time ? [Q[s].time, Q[s].price] : null;
+        for (const p of ptsOf(s)) if (!best || p[0] > best[0]) best = p;
+        return best;
     }
-    // a sensibilidade ao S&P 500: a regressão dos retornos diários dos últimos 120 dias (e o desvio do que ela não explica)
+    // mínimos quadrados com constante (as colunas centradas, Gauss com pivô): os coeficientes e o desvio dos resíduos
+    function ols(y, X) {
+        const n = y.length, k = X.length, mean = (v) => v.reduce((s, x) => s + x, 0) / n, my = mean(y), mx = X.map(mean);
+        const A = X.map((xi, i) => X.map((xj, j) => { let s = 0; for (let t = 0; t < n; t++) s += (xi[t] - mx[i]) * (xj[t] - mx[j]); return s; }));
+        const c = X.map((xi, i) => { let s = 0; for (let t = 0; t < n; t++) s += (xi[t] - mx[i]) * (y[t] - my); return s; });
+        for (let col = 0; col < k; col++) {
+            let pv = col;
+            for (let r = col + 1; r < k; r++) if (Math.abs(A[r][col]) > Math.abs(A[pv][col])) pv = r;
+            if (Math.abs(A[pv][col]) < 1e-14) return null;
+            [A[col], A[pv]] = [A[pv], A[col]]; [c[col], c[pv]] = [c[pv], c[col]];
+            for (let r = 0; r < k; r++) if (r !== col) { const f = A[r][col] / A[col][col]; for (let j = col; j < k; j++) A[r][j] -= f * A[col][j]; c[r] -= f * c[col]; }
+        }
+        const b = c.map((v, i) => v / A[i][i]);
+        let ss = 0;
+        for (let t = 0; t < n; t++) { let r = y[t] - my; for (let i = 0; i < k; i++) r -= b[i] * (X[i][t] - mx[i]); ss += r * r; }
+        return { b, sd: Math.sqrt(ss / Math.max(1, n - k - 1)) };
+    }
+    // a sensibilidade ao S&P 500 e ao Nikkei: a regressão dos retornos diários dos últimos 120 dias (e o desvio do que ela
+    // não explica). Fora dos EUA a bolsa fecha antes de Nova Iorque e o que lá se passa depois só se vê no dia seguinte:
+    // conta também o dia anterior do S&P 500 (o beta de Dimson). O Nikkei é o do mesmo dia (Tóquio fecha antes de cá abrir).
     const BETA = {};
     function betaOf(k) {
-        const d = D[k], e = D['^GSPC'];
+        const d = D[k], e = D['^GSPC'], nk = D['^N225'] && D['^N225'].length >= 60 ? D['^N225'] : null;
         if (!d || !e || d.length < 60 || e.length < 60) return null;
-        const key = d.length + '|' + d[d.length - 1][0] + '|' + e[e.length - 1][0];
-        if (BETA[k] && BETA[k].key === key) return BETA[k].b == null ? null : BETA[k];
-        const day = (t) => new Date(t * 1000).toISOString().slice(0, 10), ei = new Map(e.map((p, i) => [day(p[0]), i]));
-        const ra = [], r0 = [], r1 = [];
+        const key = d.length + '|' + d[d.length - 1][0] + '|' + e[e.length - 1][0] + '|' + (nk ? nk[nk.length - 1][0] : 0);
+        if (BETA[k] && BETA[k].key === key) return BETA[k].us == null ? null : BETA[k];
+        const day = (t) => new Date(t * 1000).toISOString().slice(0, 10), ix = (s) => new Map(s.map((p, i) => [day(p[0]), i]));
+        const ei = ix(e), ni = nk ? ix(nk) : null, lag = !usKey(k);
+        const y = [], x0 = [], x1 = [], x2 = [];
         for (let i = 1; i < d.length; i++) {
             const j = ei.get(day(d[i][0])), jp = ei.get(day(d[i - 1][0]));
             if (j == null || jp == null || jp < 1 || j <= jp || !(d[i - 1][1] > 0)) continue;
-            ra.push(d[i][1] / d[i - 1][1] - 1); r0.push(e[j][1] / e[jp][1] - 1); r1.push(e[jp][1] / e[jp - 1][1] - 1);
+            if (ni) { const m = ni.get(day(d[i][0])), mp = ni.get(day(d[i - 1][0])); if (m == null || mp == null || m <= mp) continue; x2.push(nk[m][1] / nk[mp][1] - 1); }
+            y.push(d[i][1] / d[i - 1][1] - 1); x0.push(e[j][1] / e[jp][1] - 1); x1.push(e[jp][1] / e[jp - 1][1] - 1);
         }
-        const n = Math.min(120, ra.length);
-        if (n < 40) { BETA[k] = { key, b: null }; return null; }
-        const A1 = ra.slice(-n), X0 = r0.slice(-n), X1 = r1.slice(-n), md = (v) => v.reduce((s, x) => s + x, 0) / n;
-        const ma = md(A1), m0 = md(X0), m1 = md(X1);
-        let s00 = 0, s11 = 0, sa0 = 0, sa1 = 0;
-        for (let i = 0; i < n; i++) { const a = A1[i] - ma, x0 = X0[i] - m0, x1 = X1[i] - m1; s00 += x0 * x0; s11 += x1 * x1; sa0 += a * x0; sa1 += a * x1; }
-        // fora dos EUA a bolsa fecha antes de Nova Iorque: o que lá se passa depois só se vê no dia seguinte (conta também o
-        // dia anterior do S&P 500, o beta de Dimson)
-        const b0 = s00 ? sa0 / s00 : 0, b1 = !usKey(k) && s11 ? sa1 / s11 : 0;
-        let ss = 0;
-        for (let i = 0; i < n; i++) { const r = A1[i] - ma - b0 * (X0[i] - m0) - b1 * (X1[i] - m1); ss += r * r; }
-        return (BETA[k] = { key, b: Math.max(0, Math.min(3, b0 + b1)), sd: Math.sqrt(ss / (n - 2)) * 100, n });
+        const n = Math.min(120, y.length), sl = (v) => v.slice(-n);
+        const X = [sl(x0)].concat(lag ? [sl(x1)] : [], ni ? [sl(x2)] : []);
+        const r = n >= 40 ? ols(sl(y), X) : null;
+        if (!r) { BETA[k] = { key, us: null }; return null; }
+        const lim = (v, a, b) => Math.max(a, Math.min(b, v));
+        return (BETA[k] = { key, us: lim(r.b[0] + (lag ? r.b[1] : 0), 0, 3), jp: ni ? lim(r.b[X.length - 1], -0.5, 1.5) : 0, sd: r.sd * 100, n });
     }
     // o que aprende: cada estimativa feita antes de uma abertura fica à espera (pend) do primeiro preço da sessão seguinte;
     // as últimas 80 (done: estimado p, aconteceu a) dão a correção (a regressão sem constante, de 0,3 a 1,6 vezes) e o erro
@@ -384,14 +412,33 @@
     }
     function projOf(k) {
         if (!isHolding(k) || extOf(k)) return null;
-        const q = qv(k);
-        if (!fin(q.price) || !q.time || q.open === true || now() / 1000 - q.time < 15 * 60) return null;
-        const b = betaOf(k), f0 = futAt(q.time), f1 = futNow();
-        if (!b || !f0 || !f1 || f1[0] - q.time < 30 * 60) return null;
-        const fut = (f1[1] / f0[1] - 1) * 100, fac = pjFactor(), raw = b.b * fut;
+        const q = qv(k), T = q.time;
+        if (!fin(q.price) || !T || q.open === true || now() / 1000 - T < 15 * 60) return null;
+        const b = betaOf(k);
+        if (!b) return null;
+        // 1. o gémeo, do último preço de cá até ao último negócio dele (em euros: com o EUR/USD de cada hora)
+        let tw = null;
+        const s = twinOf(k);
+        if (s) {
+            const a0 = pxAt(s, T), a1 = pxNow(s);
+            if (a0 && a1 && a1[0] - T >= 10 * 60) {
+                let m = a1[1] / a0[1];
+                if (((Q[k] && Q[k].currency) || 'EUR') === 'EUR' && Q[s] && Q[s].currency === 'USD') {
+                    const f0 = pxAt('EURUSD=X', T), f1 = pxAt('EURUSD=X', a1[0]);
+                    if (f0 && f1) m *= f0[1] / f1[1];
+                }
+                tw = { s, pct: (m - 1) * 100, t1: a1[0] };
+            }
+        }
+        // 2. depois, os futuros do S&P 500 e do Nikkei
+        const from = tw ? tw.t1 : T;
+        const mv = (sym) => { const a = pxAt(sym, from), z = pxNow(sym); return a && z && z[0] - from >= 30 * 60 ? (z[1] / a[1] - 1) * 100 : null; };
+        const fes = mv('ES=F'), fnk = mv('NIY=F');
+        if (!tw && fes == null) return null;
+        const raw = (tw ? tw.pct : 0) + b.us * (fes || 0) + b.jp * (fnk || 0), fac = pjFactor();
         const mine = pjLoad().done.filter((x) => x.k === k);
-        const err = mine.length >= 5 ? mine.reduce((s, x) => s + Math.abs(x.a - fac * x.p), 0) / mine.length : null;
-        return { p: raw * fac, raw, fut, beta: b.b, fac, err, band: err ?? 0.5 * b.sd, n: mine.length, T: q.time, base: q.price };
+        const err = mine.length >= 5 ? mine.reduce((sm, x) => sm + Math.abs(x.a - fac * x.p), 0) / mine.length : null;
+        return { p: raw * fac, raw, tw, fes, fnk, us: b.us, jp: b.jp, fac, err, band: err ?? (tw ? 0.35 : 0.5) * b.sd, n: mine.length, T, base: q.price };
     }
     function pjNote(k, pr) {
         const P = pjLoad(), o = P.pend[k], t = Math.floor(now() / 1000);
@@ -421,19 +468,81 @@
         if (pr) { pjNote(k, pr); return { t: `abre ≈ ${fmtPct1(pr.p)}`, tt: tt(pr.p) }; }
         return { t: pxWhen(k, q) };
     }
-    const pct1 = (v) => NF({ minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v) + '%';
-    function renderSheetExt() {
-        const el = $('#d-ext'); if (!el) return;
-        const k = sheetKey, e = k && extOf(k), pr = k && !e ? projOf(k) : null, q = k ? qv(k) : {};
-        const tn = (v) => `<span class="${toneOf(v)}-t">${fmtPct1(v)}</span>`;
-        if (e) el.innerHTML = `${e.kind === 'pre' ? 'Antes da abertura' : 'Depois do fecho'}, às ${esc(hhmm(e.time))}: <b class="num">${fmtPx(e.price * (q.fx || 1), REG[k], q.currency)}</b> ${tn(e.changePct)}`
-            + `<small>face ao último fecho, ${fmtPx(e.ref * (q.fx || 1), REG[k], q.currency)} (no gráfico de hoje, a linha mais clara)</small>`;
-        else if (pr) {
-            el.innerHTML = `Abertura estimada: ${tn(pr.p)} <span class="alt">(±${pct1(pr.band)})</span>`
-                + `<small>Futuros do S&P 500 ${fmtPct1(pr.fut)} desde o último preço, × ${NF({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(pr.beta * pr.fac)} (a sensibilidade deste ativo`
-                + `${pr.fac !== 1 ? `, corrigida com ${pjLoad().done.length} aberturas` : ''}) · ${pr.err != null ? `erro médio nas últimas ${pr.n} aberturas: ±${pct1(pr.err)}` : 'margem pela história do ativo; aprende com cada abertura'}</small>`;
+
+    // ---------- o intervalo provável e os derivados da cripto ----------
+    let DERIV = null, derivAt = 0; // o /derivs do conector (1.14.0): moeda → { dvol, funding8h, basis: { days, pct, ann } }
+    async function loadDerivs() {
+        if (!cfg.proxy || document.hidden || now() - derivAt < 5 * 60000) return;
+        derivAt = now();
+        try {
+            const r = await px('/derivs', 20000), o = {};
+            for (const x of (r && r.items) || []) if (x && !x.error && x.c) o[x.c] = x;
+            DERIV = o;
+            if (sheetKey && !$('#mk-sheet').hidden) renderSheetExt();
+        } catch { /* o conector antes da 1.14.0: sem os derivados */ }
+    }
+    // o desvio dos retornos diários (em log) dos últimos 120 dias
+    function sdDaily(k) {
+        const d = D[k];
+        if (!d || d.length < 40) return null;
+        const r = [];
+        for (let i = Math.max(1, d.length - 120); i < d.length; i++) if (d[i - 1][1] > 0 && d[i][1] > 0) r.push(Math.log(d[i][1] / d[i - 1][1]));
+        if (r.length < 30) return null;
+        const m = r.reduce((s, v) => s + v, 0) / r.length;
+        return Math.sqrt(r.reduce((s, v) => s + (v - m) ** 2, 0) / (r.length - 1));
+    }
+    const f2 = (v) => NF({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+    // a volatilidade ao ano que o mercado dá: a das opções (o DVOL da Deribit no Bitcoin e no Ether; nas ações e nos fundos,
+    // o VIX — as opções do S&P 500 — vezes o quanto o ativo mexe face ao S&P 500) ou, sem elas, a dos últimos 120 dias
+    function volOf(k) {
+        const a = REG[k];
+        if (!a || k === '^VIX') return null;
+        const s = sdDaily(k);
+        if (a.kind === 'crypto') {
+            const dv = DERIV && DERIV[a.sym] && DERIV[a.sym].dvol;
+            if (fin(dv) && dv > 0) return { v: dv, src: `das opções (Deribit): ${pct1(dv)} ao ano` };
+            return s ? { v: s * Math.sqrt(365) * 100, src: `dos últimos 120 dias: ${pct1(s * Math.sqrt(365) * 100)} ao ano` } : null;
         }
-        el.hidden = !e && !pr;
+        const sx = sdDaily('^GSPC'), vix = Q['^VIX'] && Q['^VIX'].price;
+        if (s && sx && fin(vix) && vix > 0) return { v: vix * (s / sx), src: `das opções: o VIX ${NF({ maximumFractionDigits: 1 }).format(vix)} × ${f2(s / sx)} (o quanto mexe face ao S&P 500)` };
+        return s ? { v: s * Math.sqrt(252) * 100, src: `dos últimos 120 dias: ${pct1(s * Math.sqrt(252) * 100)} ao ano` } : null;
+    }
+    // o intervalo provável (2 em cada 3 vezes: ±1 desvio, em log) para amanhã, 1 semana e 1 mês
+    function rangeOf(k) {
+        const q = qv(k), v = volOf(k);
+        if (!v || !fin(q.price) || q.price <= 0) return null;
+        const cr = REG[k].kind === 'crypto', B = cr ? 365 : 252;
+        const H = cr ? [[1, 'amanhã'], [7, '1 semana'], [30, '1 mês']] : [[1, 'amanhã'], [5, '1 semana'], [21, '1 mês']];
+        return { src: v.src, v: v.v, h: H.map(([d, l]) => { const sg = (v.v / 100) * Math.sqrt(d / B); return { l, lo: q.price * Math.exp(-sg), hi: q.price * Math.exp(sg) }; }) };
+    }
+    const pctF = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + NF({ minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(Math.abs(v)) + '%';
+    const pct1 = (v) => NF({ minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v) + '%';
+    // na ficha, por baixo do preço: fora de horas, a abertura estimada ou os derivados da cripto; e o intervalo provável
+    function renderSheetExt() {
+        const el = $('#d-ext'), rg = $('#d-rng'), k = sheetKey;
+        if (!el || !k || !REG[k]) return;
+        const a = REG[k], e = extOf(k), pr = !e ? projOf(k) : null, q = qv(k), dv = a.kind === 'crypto' && DERIV ? DERIV[a.sym] : null;
+        const tn = (v) => `<span class="${toneOf(v)}-t">${fmtPct1(v)}</span>`;
+        if (e) el.innerHTML = `${e.kind === 'pre' ? 'Antes da abertura' : 'Depois do fecho'}, às ${esc(hhmm(e.time))}: <b class="num">${fmtPx(e.price * (q.fx || 1), a, q.currency)}</b> ${tn(e.changePct)}`
+            + `<small>face ao último fecho, ${fmtPx(e.ref * (q.fx || 1), a, q.currency)} (no gráfico de hoje, a linha mais clara)</small>`;
+        else if (pr) {
+            const ps = [];
+            if (pr.tw) ps.push(`${twinTxt(pr.tw.s)}: ${fmtPct1(pr.tw.pct)} desde o último preço daqui, até às ${hhmm(pr.tw.t1)}${pr.tw.s === 'GC=F' ? '' : ' (em euros)'}`);
+            if (pr.fes != null) ps.push(`${pr.tw ? 'depois, ' : ''}futuros do S&P 500 ${fmtPct1(pr.fes)} × ${f2(pr.us * pr.fac)}${pr.fnk != null && Math.abs(pr.jp) >= 0.005 ? ` e do Nikkei ${fmtPct1(pr.fnk)} × ${f2(pr.jp * pr.fac)}` : ''}`);
+            ps.push(`${pr.fac !== 1 ? `corrigida com ${pjLoad().done.length} aberturas; ` : ''}${pr.err != null ? `erro médio nas últimas ${pr.n} aberturas: ±${pct1(pr.err)}` : 'margem pela história do ativo; aprende com cada abertura'}`);
+            el.innerHTML = `Abertura estimada: ${tn(pr.p)} <span class="alt">(±${pct1(pr.band)})</span><small>${esc(ps.join(' · '))}</small>`;
+        } else if (dv && (fin(dv.funding8h) || dv.basis)) {
+            const ps = [];
+            if (dv.basis) ps.push(`futuros a ${dv.basis.days} dias ${fmtPct1(dv.basis.pct)} sobre o preço à vista (${fmtPct1(dv.basis.ann)} ao ano)`);
+            if (fin(dv.funding8h)) ps.push(`funding ${pctF(dv.funding8h)} por 8 h (${dv.funding8h > 0.002 ? 'mais alavancados a apostar na subida' : dv.funding8h < -0.002 ? 'mais alavancados a apostar na descida' : 'equilibrado'})`);
+            el.innerHTML = `Derivados (Deribit)<small>${esc(ps.join(' · '))}</small>`;
+        }
+        el.hidden = !e && !pr && !(dv && (fin(dv.funding8h) || dv.basis));
+        const x = rg ? rangeOf(k) : null;
+        if (rg) {
+            rg.hidden = !x;
+            if (x) rg.innerHTML = `Intervalo provável (2 em cada 3 vezes): ${x.h.map((h) => `${h.l} <b class="num">${fmtPx(h.lo, a, q.currency)}–${fmtPx(h.hi, a, q.currency)}</b>`).join(' · ')}<small>pela volatilidade ${esc(x.src)}</small>`;
+        }
     }
     const dateLbl = (sec, withTime) => new Date(sec * 1000).toLocaleString('pt-PT', withTime ? { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -2299,6 +2408,7 @@
                 <button type="button" class="mk-ibtn" data-act="close" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
             <div class="d-px" id="d-px"></div>
             <div class="d-ext" id="d-ext" hidden></div>
+            <div class="d-ext d-rng" id="d-rng" hidden></div>
             <div class="d-tip" id="d-tip"></div>
             <div class="d-chart"><canvas id="d-cv"></canvas><div class="d-axis num" id="d-axis"></div><div class="loading" id="d-load">A carregar…</div></div>
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
@@ -2953,6 +3063,6 @@
         // de cada ativo, o imposto da cripto), e o estado dos combustíveis
         panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, pedirAnalise, clWhen, decSnapOf: (k) => { const d = decOf(k); return d ? decSnap(k, qv(k), d) : null; }, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; },
         // fora de horas (antes da abertura, depois do fecho) e a estimativa para a abertura, com o que aprende
-        EXT, extOf, betaOf, projOf, pxTag, pjResolve, get pj() { return pjLoad(); }, get fut5() { return FUT5; }, set fut5(v) { FUT5 = v; } };
+        EXT, S5, extOf, betaOf, projOf, pxTag, pjResolve, rangeOf, volOf, pollYahoo, get pj() { return pjLoad(); }, get deriv() { return DERIV; } };
     boot();
 })();

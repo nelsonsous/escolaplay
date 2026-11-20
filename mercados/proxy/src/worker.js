@@ -37,7 +37,7 @@
 
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
 
-const VERSION = '1.13.0';
+const VERSION = '1.14.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -511,6 +511,57 @@ async function fuel(url) {
     return { body: { distrito: distrito || null, municipio: municipio || null, source: 'DGEG — Preços dos Combustíveis Online', at: Math.floor(Date.now() / 1000), fuels: out }, ttl: 3600 };
 }
 
+// ---------- /derivs: o que os derivados dizem da cripto (1.14.0) ----------
+// Da Deribit (pública, sem chave), por moeda: o DVOL — a volatilidade que as opções dão para os próximos 30 dias, em % ao
+// ano (BTC e ETH) —, o funding dos perpétuos por 8 h (o que pagam os alavancados a comprar aos que vendem: positivo é
+// mais gente a apostar na subida) e a base do futuro com prazo mais perto de 3 meses (o prémio sobre o índice, ao ano).
+const DERIV_PERP = { BTC: 'BTC-PERPETUAL', ETH: 'ETH-PERPETUAL', SOL: 'SOL_USDC-PERPETUAL', XRP: 'XRP_USDC-PERPETUAL' };
+const MESES = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
+// o vencimento no nome do futuro: BTC-25DEC26 → 25/12/2026 às 08:00 UTC (a hora a que a Deribit liquida)
+export function deribitExpiry(name) {
+    const m = /-(\d{1,2})([A-Z]{3})(\d{2})$/.exec(String(name || ''));
+    return m && m[2] in MESES ? Date.UTC(2000 + +m[3], MESES[m[2]], +m[1], 8) : null;
+}
+// c a moeda; book o resumo dos futuros da Deribit (get_book_summary_by_currency: o BTC e o ETH no seu, o SOL e o XRP no
+// de USDC), com o perpétuo (o funding por 8 h e o índice) e os com prazo; dvol as velas do DVOL (a última fecha)
+export function parseDerivs(c, { book, dvol } = {}, now = Date.now()) {
+    const o = { c }, perp = DERIV_PERP[c], pre = perp ? perp.replace('PERPETUAL', '') : '';
+    const fut = book && Array.isArray(book.result) ? book.result.filter((f) => f && typeof f.instrument_name === 'string' && f.instrument_name.startsWith(pre)) : [];
+    const p = fut.find((f) => f.instrument_name === perp);
+    if (p && Number.isFinite(p.funding_8h)) o.funding8h = round(p.funding_8h * 100); // em %
+    if (p && Number.isFinite(p.estimated_delivery_price)) o.index = round(p.estimated_delivery_price);
+    const d = dvol && dvol.result && Array.isArray(dvol.result.data) ? dvol.result.data : [];
+    const last = d.length ? d[d.length - 1] : null;
+    if (Array.isArray(last) && Number.isFinite(last[4])) o.dvol = round(last[4]);
+    // a base: o futuro com prazo entre 20 e 200 dias mais perto de 90 (o trimestral), face ao índice
+    let best = null;
+    for (const f of fut) {
+        const exp = deribitExpiry(f.instrument_name), px = f.mark_price, ix = f.estimated_delivery_price;
+        if (!exp || !Number.isFinite(px) || !Number.isFinite(ix) || ix <= 0) continue;
+        const days = (exp - now) / 86400000;
+        if (days >= 20 && days <= 200 && (!best || Math.abs(days - 90) < Math.abs(best.days - 90))) best = { inst: f.instrument_name, days, pct: (px / ix - 1) * 100 };
+    }
+    if (best) o.basis = { inst: best.inst, days: Math.round(best.days), pct: round(best.pct), ann: round((best.pct * 365) / best.days) };
+    return o;
+}
+async function derivs(url) {
+    const cs = [...new Set((url.searchParams.get('c') || 'BTC,ETH,SOL,XRP').split(',').map((s) => s.trim().toUpperCase()))].filter((s) => DERIV_PERP[s]);
+    if (!cs.length) return { status: 400, body: { error: 'moedas: BTC, ETH, SOL ou XRP' } };
+    const B = 'https://www.deribit.com/api/v2/public/', now = Date.now();
+    const livro = {}; // um pedido por livro: BTC, ETH e USDC (o SOL e o XRP)
+    const livroDe = (c) => (c === 'BTC' || c === 'ETH' ? c : 'USDC');
+    for (const l of new Set(cs.map(livroDe))) livro[l] = getJSON(`${B}get_book_summary_by_currency?currency=${l}&kind=future`).catch(() => null);
+    const items = await Promise.all(cs.map(async (c) => {
+        const big = c === 'BTC' || c === 'ETH';
+        const [book, dvol] = await Promise.all([livro[livroDe(c)],
+            big ? getJSON(`${B}get_volatility_index_data?currency=${c}&start_timestamp=${now - 3 * 3600000}&end_timestamp=${now}&resolution=3600`).catch(() => null) : null]);
+        const o = parseDerivs(c, { book, dvol }, now);
+        return Object.keys(o).length > 1 ? o : { c, error: 'sem dados da Deribit' };
+    }));
+    if (items.every((x) => x.error)) return { status: 502, body: { error: 'sem dados da Deribit', items } };
+    return { body: { at: Math.floor(now / 1000), items }, ttl: 300 };
+}
+
 // ---------- /cryptoglobal: o que as apps de cripto mostram (CoinGecko + alternative.me) ----------
 export function parseCryptoGlobal(g, f) {
     const d = g && g.data;
@@ -783,7 +834,7 @@ async function universe(url, env) {
 }
 
 // ---------- router ----------
-const ROUTES = { '/ext': ext, '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal };
+const ROUTES = { '/derivs': derivs, '/ext': ext, '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal };
 
 export default {
     async fetch(request, env = {}, ctx) {

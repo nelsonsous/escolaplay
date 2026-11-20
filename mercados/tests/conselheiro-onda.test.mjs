@@ -79,6 +79,15 @@ export function cenarios() {
         { symbol: 'MSFT', kind: 'post', changePct: null }, { symbol: 'AMZN', kind: 'pre', changePct: -20.123456789 }, { symbol: 'AMZN', kind: 'post', changePct: 1.25 },
         { symbol: '__proto__', kind: 'pre', changePct: 2 }, { symbol: 'TSLA', kind: 'post', changePct: 5 }, { symbol: 'META', kind: 'pre', changePct: -4.99 },
         { symbol: 'GOOGL', kind: 'pre', changePct: 0 }, { symbol: 'JPM', kind: 'pre', changePct: -0.04 }, { symbol: 'VWCE.DE', kind: 'pre', changePct: 9 }, { symbol: 'ZZZ', kind: 'post', changePct: 50 }];
+    // os derivados da cripto (conector 1.14.0): estranhos, repetidos, zeros com sinal, a falhar e o conector antigo
+    d('derivados: entradas estranhas, repetidas e números com sinal', { semente: 51, derivCorpo: { items: [null, 7, 'BTC', { c: 7, dvol: 50 }, { c: 'BTC', error: 'x', dvol: 1 },
+        { c: 'BTC', dvol: '55', funding8h: -0.0001, basis: { ann: -0.04 } }, { c: 'ETH', dvol: 61.234567, funding8h: 0.00049999, basis: 'x' }, { c: 'ETH', funding8h: 0.1 },
+        { c: 'SOL', basis: { ann: 12.345 } }, { c: 'XRP', dvol: null, funding8h: null, basis: { ann: null } }, { c: '__proto__', dvol: 5 }, { c: 'ADA', dvol: 80 }] },
+        kv: { ...dono('dv-0001'), ...diario('dv-0001', { days: {}, my: ['c:ADA', 'c:XRP'] }) } });
+    d('derivados: o corpo é um texto, items não é lista', { semente: 52, derivCorpo: { items: 'nada' } });
+    d('derivados: null', { semente: 53, derivCorpo: null });
+    d('derivados: o conector antigo (404)', { semente: 54, falhas: [{ url: '/derivs', estado: 404, corpo: { error: 'rota desconhecida' } }] });
+    d('derivados: o tempo esgota', { semente: 55, falhas: [{ url: '/derivs', tipo: 'tempo' }] });
     d('fora de horas: entradas estranhas, repetidas e nos limites (5%)', { semente: 41, extCorpo: { at: 1, items: EXT_ITENS } });
     d('fora de horas: o corpo é um texto', { semente: 42, extCorpo: 'texto' });
     d('fora de horas: o corpo é uma lista', { semente: 43, extCorpo: [1, 2] });
@@ -286,7 +295,15 @@ test('conselheiro em Onda: o mesmo que o JS em todos os cenários (ficheiros, pe
     }
     const fg = res.find((r) => /Fear & Greed nos extremos/.test(r.cena.nome)), mdF = String(fg.b.ficheiros['dados.md']);
     assert.match(mdF, /\n(Juros EUA 10 anos [\d.]+% \([+-]?[\d.]+\) · )?(Dólar \(índice\) [\d.]+ \([+-]?[\d.]+%\) · )?Fear & Greed da cripto 4, antes 96 · domínio do Bitcoin 61\.3%\n/);
-    assert.match(linha(mdF, 'c:BTC'), /\| FONTES F&G 4 · média \d+ (entrar|ficar|sair) \[técnica \d+, sentimento 78\]$/, linha(mdF, 'c:BTC'));
+    assert.match(linha(mdF, 'c:BTC'), /\| FONTES F&G 4 · média \d+ (entrar|ficar|sair) \[técnica \d+, sentimento 78\] \| derivados opções \d+\.\d% · funding [+-]?\d\.\d{3}%\/8h · base [+-]?\d+\.\d%\/ano$/, linha(mdF, 'c:BTC'));
+    // os derivados da cripto (1.14.0): o último de cada moeda, só os números, e o texto com sinal (o -0.000 do toFixed)
+    const dv = res.find((r) => /derivados: entradas estranhas/.test(r.cena.nome)), mdD = String(dv.b.ficheiros['dados.md']);
+    assert.deepEqual(['c:BTC', 'c:ETH', 'c:SOL', 'c:XRP', 'c:ADA'].map((s) => (linha(mdD, s).match(/ \| derivados .*$/) || [''])[0]),
+        [' | derivados funding -0.000%/8h · base -0.0%/ano', ' | derivados funding +0.100%/8h', ' | derivados base +12.3%/ano', '', ' | derivados opções 80.0%']);
+    for (const n of [/derivados: o conector antigo/, /derivados: o tempo esgota/]) {
+        const r = res.find((x) => n.test(x.cena.nome)), md = String(r.b.ficheiros['dados.md']);
+        assert.ok(!/\| derivados /.test(md) && /\n- derivados da cripto: /.test(md), 'sem derivados, com aviso: ' + n);
+    }
     const velho = res.find((r) => /o conector antigo/.test(r.cena.nome)), mdV = String(velho.b.ficheiros['dados.md']);
     assert.doesNotMatch(mdV, /analistas [a-z_]+ \d|F&G \d|Fear & Greed|Juros EUA/, 'sem as rotas novas não há fontes novas');
     assert.match(mdV, /\n- analistas e fundamentos: [^\n]+\n- sentimento da cripto: /, 'e fica nos avisos');

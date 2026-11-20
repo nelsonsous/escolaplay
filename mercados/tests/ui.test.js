@@ -42,14 +42,19 @@ function series(sym, n, stepSec, drift) {
     return out;
 }
 const T_FECHO = 1762300000; // a hora do último preço de todos (a SAP fechou aí; os futuros andaram depois)
+const MOCK = { fechado: false }; // o teste fecha a bolsa do FTSE All-World (a Xetra e Munique) para ver a estimativa
 function quote(sym, range) {
     const daily = range !== '1d';
     const drift = ((hash(sym) % 9) - 4) / 1500;
     let s = daily ? series(sym, range === '5y' ? 1260 : range === '2y' ? 505 : range === '1y' ? 252 : 126, 86400, drift) : series(sym, 78, 300, 0);
-    if (sym === 'SAP.DE' && daily) { // os retornos do S&P 500 vezes 1,2 (a sensibilidade que a estimativa tem de achar)
-        const g = series('^GSPC', s.length, 86400, ((hash('^GSPC') % 9) - 4) / 1500);
-        s = g.map((p, i) => [p[0], i ? 0 : 200]); for (let i = 1; i < g.length; i++) s[i][1] = +(s[i - 1][1] * (1 + 1.2 * (g[i][1] / g[i - 1][1] - 1))).toFixed(4);
+    // os retornos do S&P 500 vezes 1,2 na SAP e 0,7 no FTSE All-World (mais um ruído): a sensibilidade que a estimativa tem de achar
+    if ((sym === 'SAP.DE' || sym === 'VWCE.DE') && daily) {
+        const g = series('^GSPC', s.length, 86400, ((hash('^GSPC') % 9) - 4) / 1500), b = sym === 'SAP.DE' ? 1.2 : 0.7, rr = rnd(hash(sym + 'b'));
+        s = g.map((p, i) => [p[0], i ? 0 : sym === 'SAP.DE' ? 200 : 150]);
+        for (let i = 1; i < g.length; i++) s[i][1] = +(s[i - 1][1] * (1 + b * (g[i][1] / g[i - 1][1] - 1) + (sym === 'SAP.DE' ? 0 : (rr() - 0.5) * 0.002))).toFixed(4);
     }
+    // o VT (o mesmo índice do FTSE All-World, em Nova Iorque): 140 até ao preço da noite do FTSE (Munique), depois −1,5% até 5 h depois do fecho
+    if (sym === 'VT' && range === '5d') s = Array.from({ length: 17 }, (_, i) => { const t = T_FECHO - 3 * 3600 + i * 1800; return [t, t <= 1762309999 ? 140 : +(140 * (1 - 0.015 * Math.min(1, (t - 1762309999) / (T_FECHO + 5 * 3600 - 1762309999)))).toFixed(4)]; });
     // os futuros do S&P 500 nos últimos 5 dias: 6000 até ao fecho da SAP, depois a descer 1% em 10 h
     if (sym === 'ES=F' && range === '5d') s = Array.from({ length: 27 }, (_, i) => [T_FECHO - 3 * 3600 + i * 1800, i <= 6 ? 6000 : +(6000 * (1 - 0.01 * (i - 6) / 20)).toFixed(2)]);
     const chgPct = DAYCHG[sym] ?? (((hash(sym) % 600) - 300) / 100);
@@ -57,7 +62,7 @@ function quote(sym, range) {
     if (!daily) { const k = price / s[s.length - 1][1]; s.forEach((p) => { p[1] = +(p[1] * k).toFixed(4); }); }
     const prev = +(price / (1 + chgPct / 100)).toFixed(4);
     return { symbol: sym, name: sym + ' Name', currency: /\.LS$|\.DE$|\.PA$|\.AS$|\.MU$|\.DU$/.test(sym) ? 'EUR' : /\.CO$/.test(sym) ? 'DKK' : 'USD', exchange: 'Test', price, prevClose: prev,
-        change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : T_FECHO, open: !['PLTR', 'SAP.DE'].includes(sym), series: s };
+        change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : T_FECHO, open: !['PLTR', 'SAP.DE'].includes(sym) && !(MOCK.fechado && /^VWCE/.test(sym)), series: s };
 }
 // análise do Claude do dono: o formato antigo (até à 3.x: o veredicto de alguns ativos) e o da 4.0, feito no arranque
 // pelo publicar.mjs a partir de uma análise de teste (um veredicto por ativo, com convicção por prazo, níveis e porquê)
@@ -98,6 +103,10 @@ function proxyBody(u) {
     if (p === '/health') return { ok: true };
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
+    if (p === '/derivs') return { at: 1, items: [
+        { c: 'BTC', funding8h: -0.0043, index: 58882, dvol: 52.6, basis: { inst: 'BTC-29JAN27', days: 69, pct: 0.96, ann: 5.07 } },
+        { c: 'ETH', funding8h: 0.0147, dvol: 65.6, basis: { inst: 'ETH-29JAN27', days: 69, pct: 0.7, ann: 3.7 } },
+        { c: 'SOL', funding8h: -0.0005 }, { c: 'XRP', error: 'sem dados da Deribit' }] };
     if (p === '/ext') return { at: Math.floor(Date.now() / 1000), items: u.searchParams.get('symbols').split(',').map((s) => {
         if (s !== 'PLTR') return { symbol: s, kind: null };
         const q = quote(s, '1d'), t1 = Math.floor(Date.now() / 1000) - 600;
@@ -520,7 +529,7 @@ function proxyBody(u) {
     // fora de horas: a Palantir negoceia antes da abertura (−20%): na linha, na ficha e no gráfico de hoje, mais claro; a SAP
     // (bolsa fechada, sem negócio fora de horas) leva a estimativa para a abertura — os futuros do S&P 500 caíram 1% desde o
     // fecho e ela mexe 1,2 vezes o S&P 500 — e aprende com cada abertura
-    await page.waitForFunction(() => window.__mk.EXT.PLTR && window.__mk.fut5);
+    await page.waitForFunction(() => window.__mk.EXT.PLTR && window.__mk.S5['ES=F'] && window.__mk.deriv);
     await page.evaluate(() => window.__mk.render());
     const tagP = page.locator('.row[data-key="PLTR"] .r-t').first(), tagS = page.locator('.row[data-key="SAP.DE"] .r-t').first();
     if (SHOTS) { await tagP.scrollIntoViewIfNeeded(); await page.locator('.row[data-key="PLTR"]').first().screenshot({ path: path.join(SHOTS, '9a-linha-pre.png') }); }
@@ -531,7 +540,7 @@ function proxyBody(u) {
     assert.equal(await tagP.textContent(), 'pré −20,0%');
     assert.equal(await tagP.getAttribute('class'), 'r-t down', 'na cor da descida');
     const beta = await page.evaluate(() => window.__mk.betaOf('SAP.DE'));
-    assert.ok(beta && beta.b > 1 && beta.b < 1.4 && beta.n === 120, 'a sensibilidade ao S&P 500 (1,2): ' + JSON.stringify(beta));
+    assert.ok(beta && beta.us > 1 && beta.us < 1.4 && Math.abs(beta.jp) < 0.5 && beta.n === 120, 'a sensibilidade ao S&P 500 (1,2) e ao Nikkei (nenhuma): ' + JSON.stringify(beta));
     const tS = await tagS.textContent();
     assert.match(tS, /^abre ≈ −1,[0-4]%$/, 'a estimativa da SAP: ' + tS);
     assert.ok(await page.evaluate(() => window.__mk.pj.pend['SAP.DE'] && window.__mk.pj.pend['SAP.DE'].T === 1762300000), 'fica à espera da abertura');
@@ -563,11 +572,65 @@ function proxyBody(u) {
     await page.locator('.row[data-open="SAP.DE"]:visible').first().click();
     await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && !document.querySelector('#d-ext').hidden);
     if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9c-ficha-estimativa.png') });
-    assert.match(await page.locator('#d-ext').textContent(), /^Abertura estimada: −0,\d% \(±0,\d%\)Futuros do S&P 500 −1,0% desde o último preço, × 0,\d\d \(a sensibilidade deste ativo, corrigida com 9 aberturas\) · erro médio nas últimas 9 aberturas: ±0,\d%$/);
+    assert.match(await page.locator('#d-ext').textContent(), /^Abertura estimada: −0,\d% \(±0,\d%\)futuros do S&P 500 −1,0% × 0,\d\d · corrigida com 9 aberturas; erro médio nas últimas 9 aberturas: ±0,\d%$/);
+    assert.match(await page.locator('#d-rng').textContent(), /^Intervalo provável \(2 em cada 3 vezes\): amanhã .+–.+ · 1 semana .+–.+ · 1 mês .+–.+pela volatilidade das opções: o VIX 17,2 × \d,\d\d \(o quanto mexe face ao S&P 500\)$/);
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     await page.evaluate(() => { const mk = window.__mk; mk.pj.done.length = 0; delete mk.pj.pend['SAP.DE']; });
-    console.log('✓ fora de horas: Palantir', await tagP.textContent(), '| SAP', tS, '→', pj.tag, '(β', beta.b.toFixed(2) + ')');
+    // o gémeo: o iShares MSCI World (EUNL) com o URTH (o mesmo índice em Nova Iorque) a subir 1% depois do fecho daqui, com o
+    // euro parado; depois do último negócio dele, os futuros do S&P 500
+    const gem = await page.evaluate((T) => {
+        const mk = window.__mk, q = mk.Q['EUNL.DE'], o = { open: q.open, time: q.time }, s5 = [mk.S5.URTH, mk.S5['EURUSD=X']];
+        q.open = false; q.time = T;
+        // (às mesmas horas que as séries do dia simuladas, para serem estas as que contam)
+        mk.S5.URTH = [[T, 100], [T + 3600, 101]]; mk.S5['EURUSD=X'] = [[T, 1.15], [T + 3600, 1.15]];
+        const pr = mk.projOf('EUNL.DE');
+        mk.S5['EURUSD=X'] = [[T, 1.15], [T + 3600, 1.1615]]; // o euro sobe 1%: em euros o URTH fica igual
+        const pe = mk.projOf('EUNL.DE');
+        Object.assign(q, o); [mk.S5.URTH, mk.S5['EURUSD=X']] = s5;
+        return { s: pr.tw.s, tw: pr.tw.pct, t1: pr.tw.t1, fes: pr.fes, p: pr.p, us: pr.us, twe: pe.tw.pct };
+    }, 1762300000);
+    assert.deepEqual([gem.s, +gem.tw.toFixed(4), gem.t1, +gem.fes.toFixed(3), Math.abs(gem.twe) < 0.001], ['URTH', 1, 1762303600, -0.901, true], 'o gémeo e os futuros a seguir: ' + JSON.stringify(gem));
+    assert.ok(Math.abs(gem.p - (1 + gem.us * gem.fes)) < 1e-9, 'a estimativa: o gémeo mais os futuros pela sensibilidade');
+    // o intervalo provável: o VIX nas ações e nos fundos, as opções da Deribit no Bitcoin e no Ether, a história no XRP
+    const rgs = await page.evaluate(() => ['VWCE.DE', 'c:BTC', 'c:XRP'].map((k) => { const r = window.__mk.rangeOf(k), p = window.__mk.Q[k] && window.__mk.Q[k].price; return { k, src: r.src, h: r.h.map((x) => [x.l, x.lo < p || k === 'VWCE.DE', x.hi > x.lo]) }; }));
+    assert.match(rgs[0].src, /^das opções: o VIX 17,2 × \d,\d\d/);
+    assert.equal(rgs[1].src, 'das opções (Deribit): 52,6% ao ano');
+    assert.match(rgs[2].src, /^dos últimos 120 dias: \d+,\d% ao ano$/);
+    assert.deepEqual(rgs[1].h.map((x) => x[0]), ['amanhã', '1 semana', '1 mês']);
+    const bw = await page.evaluate(() => window.__mk.rangeOf('c:BTC').h.map((x) => x.hi / x.lo));
+    assert.ok(bw[0] < bw[1] && bw[1] < bw[2] && Math.abs(Math.log(bw[2]) / 2 - 0.526 * Math.sqrt(30 / 365)) < 1e-9, 'a largura cresce com a raiz do tempo: ' + bw);
+    // a ficha do Bitcoin: os derivados (a base dos futuros e o funding) e o intervalo
+    await page.locator('.row[data-open="c:BTC"]:visible').first().click();
+    await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && !document.querySelector('#d-ext').hidden && !document.querySelector('#d-rng').hidden);
+    await page.waitForTimeout(300);
+    if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9f-ficha-bitcoin.png') });
+    assert.equal(await page.locator('#d-ext').textContent(), 'Derivados (Deribit)futuros a 69 dias +1,0% sobre o preço à vista (+5,1% ao ano) · funding −0,004% por 8 h (mais alavancados a apostar na descida)');
+    assert.match(await page.locator('#d-rng').textContent(), /pela volatilidade das opções \(Deribit\): 52,6% ao ano$/);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    // o FTSE All-World com a bolsa fechada: o VT caiu 1,5% em Nova Iorque depois do preço da noite e, depois dele, os futuros
+    MOCK.fechado = true;
+    await page.evaluate(() => window.__mk.pollYahoo());
+    await page.waitForFunction(() => window.__mk.Q['VWCE.DE'].open === false && window.__mk.projOf('VWCE.DE'));
+    const ft = await page.evaluate(() => { const pr = window.__mk.projOf('VWCE.DE'); return { tw: pr.tw && [pr.tw.s, +pr.tw.pct.toFixed(3)], fes: pr.fes, us: pr.us, p: pr.p }; });
+    assert.deepEqual(ft.tw, ['VT', -1.5], 'o VT desde o preço da noite: ' + JSON.stringify(ft));
+    assert.ok(ft.us > 0.55 && ft.us < 0.85 && ft.fes < -0.4 && ft.fes > -0.6, 'os futuros depois do VT, pela sensibilidade (0,7): ' + JSON.stringify(ft));
+    await page.evaluate(() => window.__mk.render());
+    const tagF = await page.locator('.row[data-key="VWCE.DE"] .r-t').first().textContent();
+    assert.equal(tagF, `abre ≈ −${String(Math.abs(ft.p).toFixed(1)).replace('.', ',')}%`);
+    await page.locator('.row[data-open="VWCE.DE"]:visible').first().click();
+    await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && !document.querySelector('#d-ext').hidden);
+    await page.waitForTimeout(300);
+    if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9g-ficha-ftse.png') });
+    assert.match(await page.locator('#d-ext').textContent(), /^Abertura estimada: −\d,\d% \(±\d,\d%\)VT \(o mesmo índice, em Nova Iorque\): −1,5% desde o último preço daqui, até às \d\d:\d\d \(em euros\) · depois, futuros do S&P 500 −0,5% × 0,\d\d · margem pela história do ativo; aprende com cada abertura$/);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    MOCK.fechado = false;
+    await page.evaluate(() => window.__mk.pollYahoo());
+    await page.waitForFunction(() => window.__mk.Q['VWCE.DE'].open === true);
+    await page.evaluate(() => { const mk = window.__mk; delete mk.pj.pend['VWCE.DE']; mk.render(); });
+    console.log('✓ fora de horas: Palantir', await tagP.textContent(), '| SAP', tS, '→', pj.tag, '(β', beta.us.toFixed(2) + ') | FTSE All-World', tagF, '(VT −1,5% e futuros) | intervalos e derivados');
 
     // destaques: simples como a Análise — o sentimento numa linha (com os índices do dia), uma lista por secção com as
     // linhas do Painel (o porquê numa linha pequena: o motivo do Claude ou a notícia) e o resto em linhas fechadas no fim
@@ -952,8 +1015,14 @@ function proxyBody(u) {
     await page.click('#mk-nav [data-tab="painel"]');
     const idxSel = 'details[data-fold="pn-idx"][open] .sw-wrap';
     const nIdx = await page.locator(idxSel).count();
+    // a caixa da linha: se a lista acabou de ser redesenhada (os preços chegam a cada 30 s), a de antes já não está na
+    // página e a nova aparece logo a seguir
+    const caixa = async (sel) => {
+        for (let i = 0; i < 40; i++) { const b = await page.locator(sel).first().boundingBox(); if (b) return b; await page.waitForTimeout(50); }
+        throw new Error('a linha não aparece: ' + sel);
+    };
     const swipeLeft = async (sel) => {
-        const b = await page.locator(sel).first().boundingBox();
+        const b = await caixa(sel);
         const y = b.y + b.height / 2, p = (x) => [{ x, y }];
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: p(b.x + b.width - 30) });
         for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: p(b.x + b.width - 30 - i * 25) });
@@ -978,7 +1047,7 @@ function proxyBody(u) {
     // … e arrastar até ao fim retira logo, com Desfazer (como no Mail do iPhone), sem mudar de separador
     const tabAgora = () => page.evaluate(() => window.__mk.cfg.tab);
     const aoLado = async (y, x1, x2) => { await gesto(0, Array(9).fill(y), tempos(9), Array.from({ length: 9 }, (_, i) => x1 + (x2 - x1) * i / 8)); await page.waitForTimeout(500); };
-    const ateAoFim = async (sel) => { const b = await page.locator(sel).first().boundingBox(); await aoLado(b.y + b.height / 2, b.x + b.width - 20, b.x + b.width - 300); };
+    const ateAoFim = async (sel) => { const b = await caixa(sel); await aoLado(b.y + b.height / 2, b.x + b.width - 20, b.x + b.width - 300); };
     await page.locator(idxSel).first().scrollIntoViewIfNeeded(); // o Repor (no fim da lista) deixou a página mais abaixo
     await ateAoFim(idxSel);
     assert.equal(await page.locator(idxSel).count(), nIdx - 1, 'arrastar até ao fim retira');

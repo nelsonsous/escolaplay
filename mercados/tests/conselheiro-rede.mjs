@@ -76,6 +76,13 @@ function agenda(s) {
     return { symbol: s, earnings: aj(s).resultados ?? d(), earningsEnd: null, exDividend: d(), dividend: null };
 }
 
+// o /derivs do conector (1.14.0): o BTC e o ETH com tudo, o SOL só com o funding e a base, o XRP sem dados
+function derivados() {
+    const r = rng(hash('d|' + (cena.semente || 1))), f = () => Math.round((r() - 0.5) * 400) / 10000;
+    return [{ c: 'BTC', dvol: Math.round(400 + r() * 300) / 10, funding8h: f(), index: 59000, basis: { inst: 'BTC-29JAN27', days: 69, pct: 0.96, ann: Math.round((r() - 0.3) * 1500) / 100 } },
+        { c: 'ETH', dvol: Math.round(500 + r() * 300) / 10, funding8h: f(), basis: { days: 69, ann: Math.round((r() - 0.3) * 1500) / 100 } },
+        { c: 'SOL', funding8h: f(), basis: { ann: 0.62 } }, { c: 'XRP', error: 'sem dados da Deribit' }];
+}
 // o /ext do conector (1.13.0): metade sem negócio fora de horas; os outros antes da abertura ou depois do fecho, de −12% a +12%
 function foraHoras(s) {
     const r = rng(hash('x|' + s + '|' + (cena.semente || 1))), u = r();
@@ -160,6 +167,8 @@ globalThis.fetch = async (url, init = {}) => {
     // cena.consCorpo e cena.cg: o corpo inteiro, quando o cenário quer uma resposta estranha
     if (p.pathname === '/consensus') return resp('consCorpo' in cena ? JSON.stringify(cena.consCorpo) : { at: Math.floor(T / 1000), items: (p.searchParams.get('symbols') || '').split(',').map(consenso) });
     if (p.pathname === '/cryptoglobal') return resp('cg' in cena ? JSON.stringify(cena.cg) : criptoGlobal());
+    // o /derivs (1.14.0): os derivados da cripto; cena.derivCorpo, o corpo inteiro
+    if (p.pathname === '/derivs') return resp('derivCorpo' in cena ? JSON.stringify(cena.derivCorpo) : { at: Math.floor(T / 1000), items: derivados() });
     // o /ext (1.13.0): antes da abertura e depois do fecho; cena.extCorpo, o corpo inteiro (respostas estranhas)
     if (p.pathname === '/ext') return resp('extCorpo' in cena ? JSON.stringify(cena.extCorpo) : { at: Math.floor(T / 1000), items: (p.searchParams.get('symbols') || '').split(',').map(foraHoras) });
     return resp({ error: 'rota desconhecida' }, 404);

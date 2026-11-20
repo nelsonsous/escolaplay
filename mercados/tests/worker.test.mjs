@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, cleanPlano, parseCryptoGlobal, cleanSyms, parseExt } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, cleanPlano, parseCryptoGlobal, cleanSyms, parseExt, parseDerivs, deribitExpiry } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -558,4 +558,44 @@ test('/ext pede ao Yahoo com includePrePost=true e devolve um item por símbolo'
     assert.ok(calls.every((c) => c.includes('includePrePost=true')));
     assert.match(r.headers.get('cache-control'), /s-maxage=120/);
     assert.equal((await call('/ext')).status, 400);
+});
+
+// 1.14.0: os derivados da cripto (Deribit): o DVOL, o funding e a base do futuro trimestral
+const AGORA = Date.UTC(2026, 10, 20, 12);
+const LIVRO = { result: [
+    { instrument_name: 'BTC-PERPETUAL', mark_price: 59100, estimated_delivery_price: 59000.5, funding_8h: 0.000123 },
+    { instrument_name: 'BTC-27NOV26', mark_price: 59050, estimated_delivery_price: 59000 },
+    { instrument_name: 'BTC-26FEB27', mark_price: 60180, estimated_delivery_price: 59000 },
+    { instrument_name: 'BTC-25JUN27', mark_price: 61500, estimated_delivery_price: 59000 },
+    { instrument_name: 'BTC-26XYZ27', mark_price: 1, estimated_delivery_price: 59000 }, { instrument_name: 7 }, null] };
+test('parseDerivs: o DVOL, o funding em %, a base do trimestral ao ano; vencimentos da Deribit', () => {
+    assert.equal(deribitExpiry('BTC-26FEB27'), Date.UTC(2027, 1, 26, 8));
+    assert.equal(deribitExpiry('BTC-PERPETUAL'), null);
+    const o = parseDerivs('BTC', { dvol: { result: { data: [[1, 50, 52, 49, 51], [2, 51, 55, 50, 53.4]] } }, book: LIVRO }, AGORA);
+    assert.deepEqual([o.funding8h, o.index, o.dvol, o.basis.inst, o.basis.days], [0.0123, 59000.5, 53.4, 'BTC-26FEB27', 98]);
+    assert.equal(o.basis.pct, 2);
+    assert.ok(Math.abs(o.basis.ann - 7.46) < 0.01, 'ao ano (2% em 97,8 dias): ' + o.basis.ann);
+    const USDC = { result: [{ instrument_name: 'SOL_USDC-PERPETUAL', funding_8h: -0.0002, estimated_delivery_price: 68.5 }, { instrument_name: 'XRP_USDC-PERPETUAL', funding_8h: 0.00005 }, { instrument_name: 'BTC_USDC-PERPETUAL', funding_8h: 1 }] };
+    assert.deepEqual(parseDerivs('SOL', { book: USDC }, AGORA), { c: 'SOL', funding8h: -0.02, index: 68.5 });
+    assert.deepEqual(parseDerivs('XRP', { book: USDC }, AGORA), { c: 'XRP', funding8h: 0.005 });
+    assert.deepEqual(parseDerivs('XRP', { dvol: { result: { data: 'x' } }, book: { result: 'y' } }, AGORA), { c: 'XRP' });
+    assert.deepEqual(parseDerivs('ETH', { book: LIVRO }, AGORA), { c: 'ETH' }, 'só os futuros da própria moeda');
+});
+
+test('/derivs junta a Deribit por moeda; sem nada, 502', async () => {
+    const calls = mockFetch((u) => {
+        if (u.includes('volatility')) return res({ result: { data: [[1, 1, 1, 1, 48.2]] } });
+        if (u.includes('currency=BTC&kind=future')) return res(LIVRO);
+        if (u.includes('currency=USDC&kind=future')) return res({ result: [{ instrument_name: 'SOL_USDC-PERPETUAL', funding_8h: 0.0001 }, { instrument_name: 'XRP_USDC-PERPETUAL', funding_8h: -0.0001 }] });
+        return res({}, 404);
+    });
+    const r = await call('/derivs?c=btc,SOL,xrp,nada');
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.items.map((x) => [x.c, x.dvol ?? null, x.funding8h]), [['BTC', 48.2, 0.0123], ['SOL', null, 0.01], ['XRP', null, -0.01]]);
+    assert.equal(calls.filter((c) => c.includes('book_summary')).length, 2, 'um livro para o BTC e um para o SOL e o XRP');
+    assert.equal(calls.filter((c) => c.includes('volatility')).length, 1, 'o DVOL só no BTC e no ETH');
+    assert.match(r.headers.get('cache-control'), /s-maxage=300/);
+    mockFetch(() => res({}, 500));
+    assert.equal((await call('/derivs?c=ETH')).status, 502);
+    assert.equal((await call('/derivs?c=DOGE')).status, 400);
 });

@@ -3083,3 +3083,23 @@ projeções fidedignas e melhorar essas projeções.» E antes: «o gráfico pod
 iguais em JS e Onda (oito novos: respostas estranhas, repetidas, nos limites, o conector antigo, o tempo esgotado e
 mais de 40 ações). Interface: a Palantir a −20% antes da abertura (linha, ficha, gráfico e o toque), a estimativa da
 SAP (a sensibilidade 1,2 achada nos dados) e a aprendizagem (uma abertura registada; com 9, a correção e o erro).
+
+## Iteração (Mercados 4.30.0, conector 1.14.0): o gémeo do FTSE All-World, o Nikkei, o intervalo provável e os derivados
+
+**Pedido.** «O FTSE não tem futuros? Junta e publica, mas procura melhor como podemos ter projeções e futuro para o
+meu FTSE e os meus ativos.» Os futuros do FTSE All-World existem (FTAW, Eurex), mas sem dados grátis.
+
+**Feito.**
+- **App**: a estimativa da abertura passa a ter duas partes: o gémeo de Nova Iorque (o VT para o FTSE All-World, e um
+  para cada fundo da Xetra), em euros, até ao último negócio dele; depois, os futuros do S&P 500 e do Nikkei pela
+  sensibilidade a cada um (mínimos quadrados com 2 ou 3 regressores). Os futuros do Nikkei nos índices. Na ficha, o
+  intervalo provável (amanhã, 1 semana, 1 mês) pela volatilidade das opções (VIX × o quanto mexe face ao S&P 500; o
+  DVOL da Deribit no Bitcoin e no Ether) e, na cripto, a base dos futuros e o funding.
+- **Conector 1.14.0**: `/derivs` (Deribit, pública): o DVOL, o funding dos perpétuos (do resumo dos futuros, um pedido
+  por livro: BTC, ETH e USDC) e a base do futuro a ~3 meses, ao ano.
+- **Conselheiro** (Onda e JS): a fase 29 pede o `/derivs`; `| derivados opções … · funding … · base …` na linha da cripto.
+
+**Verificado.** Conector: 27 testes (os vencimentos da Deribit, a base, o funding de cada livro). Conselheiro: 88
+cenários iguais (cinco novos: entradas estranhas e repetidas, o `-0.000` do toFixed, o conector antigo, o tempo
+esgotado). Interface: o gémeo com o euro parado e a subir, os futuros a seguir, o FTSE All-World com a Xetra fechada
+(o VT −1,5% e os futuros), os intervalos (o VIX, a Deribit, a história) e os derivados na ficha do Bitcoin.

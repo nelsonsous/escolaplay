@@ -38,6 +38,16 @@ export const lvTxt = (l) => `${r2(l.price)} ${LV[l.label] || l.label}${l.strong 
 const KIND_PT = { fund: 'ETF', stock: 'ação', crypto: 'cripto', ref: 'ref' };
 // antes da abertura / depois do fecho: ` · pré-abertura −20.1%` (r.ext: { k: 'pre' | 'post', pc }, a variação face ao fecho)
 export const foraTxt = (r) => (r.ext ? ` · ${r.ext.k === 'pre' ? 'pré-abertura' : 'pós-fecho'} ${r.ext.pc > 0 ? '+' : ''}${r.ext.pc.toFixed(1)}%` : '');
+// os derivados da cripto: ` | derivados opções 52.6% · funding -0.004%/8h · base +5.1%/ano`
+export function derivTxt(r) {
+    const d = r.der;
+    if (!d) return '';
+    const p = [];
+    if (d.iv != null) p.push(`opções ${d.iv.toFixed(1)}%`);
+    if (d.f8 != null) p.push(`funding ${d.f8 > 0 ? '+' : ''}${d.f8.toFixed(3)}%/8h`);
+    if (d.ann != null) p.push(`base ${d.ann > 0 ? '+' : ''}${d.ann.toFixed(1)}%/ano`);
+    return p.length ? ` | derivados ${p.join(' · ')}` : '';
+}
 export function lineOf(r) {
     const eur = r.cur && r.cur !== 'EUR' && r.priceEur != null ? ` (≈${r.priceEur}€)` : '';
     const day = r.day == null ? '—' : (r.day > 0 ? '+' : '') + r.day.toFixed(1) + '%';
@@ -49,7 +59,7 @@ export function lineOf(r) {
         + ` | alg C${n0(r.short)} M${n0(r.mid)} L${n0(r.long)} · RSI ${n0(r.rsi)} · vol ${r.vol == null ? '—' : Math.round(r.vol * 100) + '%'}`
         + ` | máx ${pc(r.dd)}${r.ma200 != null ? ` · MM200 ${pc(r.ma200)}${r.longUp === true ? '↑' : r.longUp === false ? '↓' : ''}` : ''}`
         + ` | S ${r.sup.length ? r.sup.join(' · ') : '—'} | R ${r.res.length ? r.res.join(' · ') : '—'}`
-        + `${r.ruleAction ? ' | regra ' + r.ruleAction : ''}${hz}${prev}${r.events && r.events.length ? ' | AGENDA ' + r.events.join(', ') : ''}${fontesTxt(r)}`;
+        + `${r.ruleAction ? ' | regra ' + r.ruleAction : ''}${hz}${prev}${r.events && r.events.length ? ' | AGENDA ' + r.events.join(', ') : ''}${fontesTxt(r)}${derivTxt(r)}`;
 }
 
 // ---------- 2b) as outras fontes da decisão (o /consensus e o /cryptoglobal do conector) ----------
@@ -285,6 +295,15 @@ async function main() {
     const cg = obj(await tryOr(() => px('/cryptoglobal'), null, 'sentimento da cripto'));
     const fng = cg ? obj(cg.fng) : null, fg = fng && fin(fng.v) ? fng.v : null;
     const vixQ = obj(q1d['^VIX']), vix = vixQ && fin(vixQ.price) ? vixQ.price : null;
+    // os derivados da cripto (o /derivs do conector 1.14.0): a volatilidade das opções (iv), o funding por 8 h (f8) e a base
+    // do futuro a ~3 meses ao ano (ann), por moeda
+    const dz = await tryOr(() => px('/derivs'), null, 'derivados da cripto');
+    const der = new Map();
+    for (const it of obj(dz) && Array.isArray(dz.items) ? dz.items : []) {
+        if (!obj(it) || typeof it.c !== 'string' || it.error) continue;
+        const b = obj(it.basis), d = { iv: fin(it.dvol) ? r2(it.dvol) : null, f8: fin(it.funding8h) ? r2(it.funding8h) : null, ann: b && fin(b.ann) ? r2(b.ann) : null };
+        if (d.iv != null || d.f8 != null || d.ann != null) der.set(it.c, d);
+    }
     // antes da abertura e depois do fecho (o /ext do conector 1.13.0): o que se negociou fora da sessão normal, face ao fecho
     const extKeys = consKeys.filter((k) => US.test(k));
     const ext = new Map();
@@ -332,6 +351,7 @@ async function main() {
             fontes: voto ? { p: voto.p, fam: voto.fam, f: voto.f.map((x) => [FONTE_PT[x.f] || x.f, x.p]) } : null,
             hz,
             ...(ext.has(k) ? { ext: ext.get(k) } : {}),
+            ...(kind === 'crypto' && der.has(k.slice(2)) ? { der: der.get(k.slice(2)) } : {}),
         });
     }
 
