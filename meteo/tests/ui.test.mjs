@@ -151,7 +151,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/obs-history') return fulfill(r, []);
         if (p === '/api/me' && m === 'PATCH') { const b = JSON.parse(req.postData()); namePatches.push(b); myName = b.name.trim() || null; return fulfill(r, { id: 'a1b2c3', name: myName, device: true }); }
         if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: onOpen ? [] : SCHEDULE, onOpen,
-            device: !!h['x-meteo-device'], ...(h['x-meteo-device'] ? { id: 'a1b2c3', name: myName } : {}), owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 1 });
+            device: !!h['x-meteo-device'], ...(h['x-meteo-device'] ? { id: 'a1b2c3', name: myName } : {}), owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 2 });
         if (p === '/api/analysis') { // como o conector: o local (deste telemóvel, ou o dono: todos) mais próximo até 10 km
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
             const near = visible().filter((x) => !x.off).map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
@@ -166,8 +166,10 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/places' && m === 'GET') return fulfill(r, visible());
         if (p === '/api/places' && m === 'POST') {
             postBody = JSON.parse(req.postData());
-            if (!owner && places.length) return r.fulfill({ status: 409, json: { error: 'limite', message: 'Cada telemóvel tem 1 local.', place: places[0] }, headers: CORS });
-            const pl = { id: 'casa', name: postBody.name, lat: postBody.lat, lon: postBody.lon, mine: true, kind: owner ? 'owner' : 'guest', status: 'active', createdAt: NOW };
+            // como o conector (1.13): até 2 análises por pessoa; com as 2 em uso, 409 com elas (a app pergunta qual troca)
+            const active = places.filter((x) => !x.off);
+            if (!owner && active.length >= 2) return r.fulfill({ status: 409, json: { error: 'limite', message: 'Cada pessoa acompanha até 2 análises.', places: active, place: active[0], join: false }, headers: CORS });
+            const pl = { id: places.length ? postBody.name.toLowerCase() : 'casa', name: postBody.name, lat: postBody.lat, lon: postBody.lon, mine: true, kind: owner ? 'owner' : 'guest', status: 'active', createdAt: NOW };
             places.push(pl);
             return r.fulfill({ status: 201, json: pl, headers: CORS });
         }
@@ -197,7 +199,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/push' && m === 'GET') return fulfill(r, pushState);
         if (p === '/api/push' && m === 'POST') {
             const b = JSON.parse(req.postData()); pushPosts.push(b);
-            pushState = { on: true, time: b.time, sunday: b.sunday, place: b.place, tz: b.tz, last: null };
+            pushState = { on: true, time: b.time, sunday: b.sunday, places: b.places, place: b.places?.[0] ?? null, tz: b.tz, last: null };
             return r.fulfill({ status: 201, json: pushState, headers: CORS });
         }
         if (p === '/api/push' && m === 'DELETE') { pushState = { ...pushState, on: false }; return r.fulfill({ status: 204, headers: CORS, body: '' }); }
@@ -823,7 +825,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(prec, /Relevo: Vale · 70 m abaixo do relevo à volta/);
     assert.match(await page.locator('.sec:has(h2:text("Estado das fontes"))').textContent(), /Relevo à volta do ponto/);
     // ✕ na lista também pede confirmação; Desfazer volta a ligar
-    assert.match(await page.locator('#locais .sec-h').textContent(), /1 local por pessoa/);
+    assert.match(await page.locator('#locais .sec-h').textContent(), /1 de 2/);
     assert.match(await page.locator('#locais').textContent(), /Uma análise por cidade \(partilhada com quem a ligar na mesma cidade\); se ninguém abrir a app durante 14 dias, fica em pausa até voltarem\./);
     assert.equal(await page.locator('#uso').count(), 0, 'o painel "Utilização" é só do dono');
     const dels0 = calls.filter((c) => c === 'DELETE /api/places/casa').length;
@@ -865,7 +867,11 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await noOverflow('Ajustes (letra grande)');
     await shot('07-ajustes.png');
     await page.click('[data-fs="n"]');
-    // notificações do fim do dia: ligar (autorização + assinatura), mudar a hora, o domingo, teste e desligar
+    // 1.27: uma 2.ª análise (Braga): as notificações escolhem os locais, que chegam juntos numa só
+    places.push({ id: 'braga', name: 'Braga', lat: 41.5454, lon: -8.4265, mine: true, kind: 'guest', status: 'active', createdAt: NOW });
+    await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
+    await page.waitForFunction(() => window.__mt.st.places.some((p) => p.id === 'braga'));
+    // notificações do fim do dia: ligar (autorização + assinatura), mudar a hora, o domingo, teste, os locais e desligar
     const nt = page.locator('#notificacoes');
     assert.match(await nt.textContent(), /Resumo ao fim do diaComo vai estar amanhã e o que vestir/);
     // desligadas: só o interruptor (simples); a hora, o domingo e o teste aparecem quando se ligam
@@ -877,7 +883,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await nt.locator('#f-push-time option').count(), 32, 'das 16:00 às 23:45, de 15 em 15 min');
     assert.equal(pushPosts.length, 1);
     assert.deepEqual({ ...pushPosts[0], subscription: pushPosts[0].subscription.endpoint },
-        { subscription: 'https://fcm.googleapis.com/fcm/send/teste-ui', time: '19:00', sunday: true, place: 'casa', tz: 'Europe/Lisbon' });
+        { subscription: 'https://fcm.googleapis.com/fcm/send/teste-ui', time: '19:00', sunday: true, places: ['casa', 'braga'], tz: 'Europe/Lisbon' }, 'com 2, os dois por omissão');
+    assert.match(await nt.textContent(), /Às 19:00 · Lisboa e Braga/);
+    assert.match(await nt.textContent(), /Chegam juntos numa só notificação, um local por linha/);
     assert.equal(await page.evaluate(() => window.__pushOpts.userVisibleOnly), true);
     assert.equal(await page.evaluate(() => window.__pushOpts.applicationServerKey.length), 65, 'a chave pública do conector (VAPID)');
     await page.waitForSelector('#notificacoes [data-act="push-on"].on');
@@ -891,7 +899,17 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await nt.locator('[data-act="push-test"]').click();
     await toastIs(/Enviada/);
     assert.equal(pushTests.length, 1);
-    await nt.locator('[data-act="push-off"]').click();
+    // só Lisboa; depois nenhum: sem locais, as notificações desligam-se
+    await nt.locator('[data-pushpl="braga"][data-on="0"]').click();
+    await toastIs(/Na notificação: Lisboa\./);
+    assert.deepEqual(pushPosts.at(-1).places, ['casa']);
+    assert.match(await nt.textContent(), /Às 20:30 · Lisboa/);
+    await nt.locator('[data-pushpl="braga"][data-on="1"]').click();
+    await toastIs(/Na notificação: Lisboa e Braga/);
+    assert.deepEqual(pushPosts.at(-1).places, ['casa', 'braga']);
+    await nt.locator('[data-pushpl="casa"][data-on="0"]').click();
+    await toastIs(/Na notificação: Braga/);
+    await nt.locator('[data-pushpl="braga"][data-on="0"]').click();
     await toastIs(/Notificações desligadas/);
     assert.ok(calls.includes('DELETE /api/push'));
     assert.equal(await page.evaluate(() => window.__pushSub), null, 'a assinatura do browser também sai');
@@ -991,16 +1009,23 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     if (SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(SHOTS, '08-os-meus-locais.png') }); }
     await page.click('#mt-sheet-card .mt-ibtn[data-act="close"]');
     await page.waitForSelector('#mt-sheet', { state: 'hidden' });
-    // cada telemóvel tem 1 local: ligar aqui muda-o para aqui (PATCH, o mesmo id), com "Desfazer"
-    await page.waitForFunction(() => /a tua análise passa de Lisboa para aqui/.test(document.querySelector('#cl-teaser')?.textContent || ''));
+    // 1.27: até 2 análises por pessoa; com Lisboa e Braga, ligar aqui (Porto) pergunta qual trocar; trocar Braga
+    // muda-a para aqui (PATCH, o mesmo id), com «Desfazer»
+    await page.waitForFunction(() => /Já acompanhas 2 análises \(Lisboa e Braga\)/.test(document.querySelector('#cl-teaser')?.textContent || ''));
     await page.click('#cl-teaser [data-act="place-on"]');
-    await toastIs(/A tua análise passa de Lisboa para este local/);
+    await page.waitForSelector('#mt-sheet:not([hidden]) [data-swap="braga"]');
+    assert.equal(await page.locator('#mt-sheet-title').textContent(), 'Trocar uma análise');
+    assert.deepEqual(await page.locator('#mt-sheet [data-swap]').allTextContents(), ['Trocar Lisboa', 'Trocar Braga']);
+    await noOverflow('trocar uma análise');
+    await shot('08b-trocar.png');
+    await page.click('#mt-sheet [data-swap="braga"]');
+    await toastIs(/A tua análise passa de Braga para este local/);
     assert.deepEqual(patchBody, { lat: 41.1496, lon: -8.611, name: 'Porto', on: true });
-    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 2, 'o conector responde «limite» e a app muda o local (continua a haver 1)');
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 2, 'o conector responde «limite» e a app troca uma (continua a haver 2)');
     await page.click('#mt-toast .t-undo');
-    await toastIs(/voltou para Lisboa/);
-    assert.deepEqual(patchBody, { lat: 38.7536, lon: -9.2302, name: 'Lisboa' });
-    console.log('✓ mudar de local: Porto; 1 local por telemóvel (ligar aqui muda-o, e desfazer)');
+    await toastIs(/voltou para Braga/);
+    assert.deepEqual(patchBody, { lat: 41.5454, lon: -8.4265, name: 'Braga' });
+    console.log('✓ mudar de local: Porto; até 2 análises por pessoa (ligar uma 3.ª pergunta qual trocar, e desfazer)');
 
     // 8) sem rede para os modelos: puxar para atualizar → fica a última previsão, com aviso
     await page.evaluate(() => window.scrollTo(0, 0));

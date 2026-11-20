@@ -66,9 +66,9 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.12.0');
+    assert.equal(j.version, '1.13.0');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
-    assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 1, 0]);
+    assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 2, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const root = await call('/');
     assert.equal(root.status, 302);
@@ -161,7 +161,7 @@ test('dono: sem o segredo OWNER_CODE não há dono; com ele, o código certo vê
     const nelson = device(), me = { d: nelson, owner: CODE };
     // sem OWNER_CODE ninguém é dono, nem com um código
     let s = (await J('GET', '/api/status', me)).body;
-    assert.deepEqual([s.owner, s.ownerCode, s.limit, s.places], [false, 'sem_codigo', 1, 0]);
+    assert.deepEqual([s.owner, s.ownerCode, s.limit, s.places], [false, 'sem_codigo', 2, 0]);
     assert.deepEqual((await J('GET', '/api/places', me)).body, [], 'o local de antes é do dono');
     assert.equal((await J('GET', '/api/analysis?lat=41.3354&lon=-8.4745', me)).body.analysis, null);
     assert.equal((await J('GET', '/api/usage', me)).status, 403);
@@ -195,7 +195,7 @@ test('dono: sem o segredo OWNER_CODE não há dono; com ele, o código certo vê
     assert.equal((await J('GET', '/api/places', { d: tablet, owner: CODE })).body.find((p) => p.id === t.id).lat, 38.7);
 });
 
-test('convidado: 1 local por telemóvel; ligar noutro sítio muda-o (PATCH, o mesmo id: a análise e as lições ficam); desligar não apaga', async () => {
+test('convidado: até 2 análises por pessoa (1.13); com as 2, ligar outra responde 409 com elas e muda-se uma (PATCH, o mesmo id: a análise e as lições ficam); desligar não apaga', async () => {
     const g = device();
     const post = (b, d = g, origin = ORIGIN) => J('POST', '/api/places', { d, body: b, origin });
     assert.equal((await post({ name: 'Casa', lat: 41.5, lon: -8.4 }, g, 'https://evil.example')).status, 403);
@@ -212,27 +212,37 @@ test('convidado: 1 local por telemóvel; ligar noutro sítio muda-o (PATCH, o me
     assert.deepEqual([casa.mine, casa.kind, casa.lat, casa.lon], [true, 'guest', 41.5454, -8.4265]);
     assert.equal(kvj('places')[0].owner, g.id);
     assert.equal((await J('GET', '/api/analysis?lat=41.5454&lon=-8.4265', { d: g })).body.analysis, null);
-    // no mesmo sítio devolve o que já existe; noutro sítio: 409 com o local a mudar
+    // no mesmo sítio devolve o que já existe; noutro sítio: a 2.ª análise (1.13: 2 por pessoa)
     assert.deepEqual([(await post({ name: 'Outra', lat: 41.5455, lon: -8.4266 })).status, kvj('places').length], [200, 1]);
-    const far = await post({ name: 'Praia', lat: 41.36, lon: -8.76 });
-    assert.deepEqual([far.status, far.body.error, far.body.place.id], [409, 'limite', casa.id]);
-    // a app muda-o (PATCH, o mesmo id): a última análise e as lições ficam
+    const praia = await post({ name: 'Praia', lat: 41.36, lon: -8.76 });
+    assert.deepEqual([praia.status, kvj('places').length], [201, 2]);
+    // a 3.ª: 409 com as duas em uso (a app pergunta qual troca); place = a 1.ª, para as versões de antes
+    const far = await post({ name: 'Serra', lat: 41.0, lon: -7.9 });
+    assert.deepEqual([far.status, far.body.error, far.body.places.map((p) => p.id), far.body.place.id, far.body.join], [409, 'limite', [casa.id, praia.body.id], casa.id, false]);
+    // a app muda uma delas (PATCH, o mesmo id): a última análise e as lições ficam
     env.KV.m.set('analysis:' + casa.id, JSON.stringify({ titulo: 'Sol em Braga', generatedAt: new Date().toISOString(), place: { id: casa.id, name: 'Casa', lat: 41.5454, lon: -8.4265 } }));
     env.KV.m.set('lessons:' + casa.id, JSON.stringify(['O vale arrefece nas noites calmas']));
-    const mv = await J('PATCH', `/api/places/${casa.id}`, { d: g, body: { lat: 41.36, lon: -8.76, name: 'Praia', on: true } });
+    const mv = await J('PATCH', `/api/places/${casa.id}`, { d: g, body: { lat: 41.0, lon: -7.9, name: 'Serra', on: true } });
     assert.equal(mv.status, 200);
-    assert.deepEqual([mv.body.id, mv.body.name, mv.body.lat, mv.body.lon], [casa.id, 'Praia', 41.36, -8.76]);
+    assert.deepEqual([mv.body.id, mv.body.name, mv.body.lat, mv.body.lon], [casa.id, 'Serra', 41.0, -7.9]);
     assert.ok(env.KV.m.has('analysis:' + casa.id) && env.KV.m.has('lessons:' + casa.id));
-    assert.equal(kvj('places').length, 1, 'continua 1 local');
-    assert.equal((await J('GET', '/api/analysis?lat=41.36&lon=-8.76', { d: g })).body.analysis.titulo, 'Sol em Braga', 'a última, até à próxima');
+    assert.equal(kvj('places').length, 2, 'continua com 2');
+    assert.equal((await J('GET', '/api/analysis?lat=41.0&lon=-7.9', { d: g })).body.analysis.titulo, 'Sol em Braga', 'a última, até à próxima');
     // desligar: fica guardado (off), sem análise; ligar de novo no mesmo sítio volta ao mesmo id
+    const pc = () => kvj('places').find((p) => p.id === casa.id);
     assert.equal((await api('DELETE', `/api/places/${casa.id}`, { d: g })).status, 204);
-    assert.deepEqual([kvj('places')[0].off, kvj('places')[0].offBy], [true, 'device']);
-    assert.equal((await J('GET', '/api/places', { d: g })).body[0].off, true);
-    assert.equal((await J('GET', '/api/analysis?lat=41.36&lon=-8.76', { d: g })).body.analysis, null, 'desligado: sem análise');
-    const back = await post({ name: 'Praia', lat: 41.36, lon: -8.76 });
+    assert.deepEqual([pc().off, pc().offBy], [true, 'device']);
+    assert.equal((await J('GET', '/api/places', { d: g })).body.find((p) => p.id === casa.id).off, true);
+    assert.equal((await J('GET', '/api/analysis?lat=41.0&lon=-7.9', { d: g })).body.analysis, null, 'desligado: sem análise');
+    const back = await post({ name: 'Serra', lat: 41.0, lon: -7.9 });
     assert.deepEqual([back.status, back.body.id, back.body.off], [200, casa.id, undefined]);
-    assert.equal((await J('GET', '/api/analysis?lat=41.36&lon=-8.76', { d: g })).body.analysis.titulo, 'Sol em Braga');
+    assert.equal((await J('GET', '/api/analysis?lat=41.0&lon=-7.9', { d: g })).body.analysis.titulo, 'Sol em Braga');
+    // com as 2 ligadas, voltar a ligar uma 3.ª desligada (PATCH on) também pede para trocar
+    const old = { id: 'velha-abc234', name: 'Velha', lat: 40.2, lon: -8.4, owner: g.id, off: true, offBy: 'device', createdAt: '2026-11-01T00:00:00Z' };
+    env.KV.m.set('places', JSON.stringify([...kvj('places'), old]));
+    const re = await J('PATCH', '/api/places/velha-abc234', { d: g, body: { on: true } });
+    assert.deepEqual([re.status, re.body.error, re.body.places.length], [409, 'limite', 2]);
+    env.KV.m.set('places', JSON.stringify(kvj('places').filter((p) => p.id !== old.id)));
     // "Desfazer" na app: PATCH { on: true }
     await api('DELETE', `/api/places/${casa.id}`, { d: g });
     assert.equal((await J('PATCH', `/api/places/${casa.id}`, { d: g, body: { on: true } })).body.off, undefined);
@@ -319,13 +329,23 @@ test('mesma cidade (≤ 5 km): o telemóvel novo junta-se à análise que já ex
     assert.equal((await api('DELETE', '/api/places/santo-tirso', { d: v })).status, 204);
     assert.deepEqual([kvj('places')[0].members, kvj('places')[0].off], [[], undefined]);
     assert.equal((await J('GET', '/api/analysis?lat=41.35&lon=-8.46', { d: v })).body.analysis, null);
-    // quem já tinha o seu local noutra cidade: junta-se e o seu fica desligado (1 análise por telemóvel)
+    // quem já tinha o seu local noutra cidade: junta-se e o seu continua (1.13: 2 análises por pessoa)
     const braga = (await J('POST', '/api/places', { d: w, body: { name: 'Braga', lat: 41.5454, lon: -8.4265 } })).body;
     assert.equal(braga.shared, undefined);
     const j2 = await J('POST', '/api/places', { d: w, body: { name: 'Santo Tirso', lat: 41.3354, lon: -8.4745 } });
-    assert.deepEqual([j2.status, j2.body.id], [200, 'santo-tirso']);
-    assert.deepEqual(kvj('places').map((p) => [p.id, !!p.off]), [['santo-tirso', false], [braga.id, true]]);
-    // e ao criar o seu noutra cidade, sai da partilhada
+    assert.deepEqual([j2.status, j2.body.id, j2.body.shared], [200, 'santo-tirso', true]);
+    assert.deepEqual(kvj('places').map((p) => [p.id, !!p.off]), [['santo-tirso', false], [braga.id, false]]);
+    assert.deepEqual((await J('GET', '/api/places', { d: w })).body.map((p) => p.id).sort(), [braga.id, 'santo-tirso'].sort());
+    // com as 2 em uso: uma 3.ª (própria ou partilhada) responde 409 com as duas; join diz se ali se juntava a uma
+    const third = await J('POST', '/api/places', { d: w, body: { name: 'Lisboa', lat: 38.72, lon: -9.14 } });
+    assert.deepEqual([third.status, third.body.error, third.body.places.map((p) => p.id).sort(), third.body.join], [409, 'limite', [braga.id, 'santo-tirso'].sort(), false]);
+    const x = device();
+    await J('POST', '/api/places', { d: x, body: { name: 'Faro', lat: 37.02, lon: -7.93 } });
+    await J('POST', '/api/places', { d: x, body: { name: 'Évora', lat: 38.57, lon: -7.91 } });
+    const jx = await J('POST', '/api/places', { d: x, body: { name: 'Areias', lat: 41.35, lon: -8.46 } });
+    assert.deepEqual([jx.status, jx.body.error, jx.body.join], [409, 'limite', true]);
+    assert.equal(kvj('places').find((p) => p.id === 'santo-tirso').members.includes(x.id), false, 'não se juntou');
+    // noutra cidade: local próprio
     const porto = await J('POST', '/api/places', { d: longe, body: { name: 'Porto', lat: 41.1621, lon: -8.6219 } });
     assert.equal(porto.status, 201, 'a 27 km: local próprio');
     // notificações com a análise partilhada
@@ -477,9 +497,9 @@ test('notificações: chave pública, ligar só com um local do próprio (análi
     assert.equal((await J('POST', '/api/push', { d: b, body: { subscription: sub, time: '19:00', place: pa.id } })).status, 409, 'o local de outro telemóvel não');
     r = await J('POST', '/api/push', { d: a, body: { subscription: sub, time: '19:00', place: pa.id, tz: 'Europe/Lisbon' } });
     assert.equal(r.status, 201);
-    assert.deepEqual(r.body, { on: true, time: '19:00', sunday: true, place: pa.id, tz: 'Europe/Lisbon', last: null });
+    assert.deepEqual(r.body, { on: true, time: '19:00', sunday: true, places: [pa.id], place: pa.id, tz: 'Europe/Lisbon', last: null });
     assert.deepEqual((await J('GET', '/api/push', { d: a })).body.time, '19:00');
-    assert.deepEqual((await J('GET', '/api/push', { d: b })).body, { on: false, time: '19:00', sunday: true, place: null });
+    assert.deepEqual((await J('GET', '/api/push', { d: b })).body, { on: false, time: '19:00', sunday: true, places: [], place: null });
     // mudar a hora e o domingo: a mesma entrada
     await J('POST', '/api/push', { d: a, body: { subscription: sub, time: '20:30', sunday: false, place: pa.id } });
     assert.equal(kvj('push:index').length, 1);
@@ -733,7 +753,7 @@ test('avisos do utilizador: ficam com o telemóvel que os deu — no seu local (
     assert.equal((await api('GET', '/api/reports?lat=x&lon=1', { d: a })).status, 400);
 });
 
-test('1 análise por pessoa: um registo novo com o mesmo nome (histórico limpo, outro browser) é a mesma pessoa', async () => {
+test('análises por pessoa: um registo novo com o mesmo nome (histórico limpo, outro browser) é a mesma pessoa (as 2 contam juntas)', async () => {
     const before = env.KV.m.get('places');
     env.KV.m.set('places', JSON.stringify([]));
     env.OWNER_CODE = CODE;
@@ -743,24 +763,27 @@ test('1 análise por pessoa: um registo novo com o mesmo nome (histórico limpo,
     const r1 = await post(a, { name: 'Vila Meã', lat: 41.2577, lon: -8.2115 });
     assert.equal(r1.status, 201);
     assert.equal(kvj('places')[0].ownerName, 'Vanessa');
-    // o registo novo da mesma pessoa vê o local como seu; noutro sítio, 409 com esse local (a app muda-o)
+    // o registo novo da mesma pessoa vê o local como seu, e ele conta para as 2 da pessoa
     assert.deepEqual((await J('GET', '/api/places', { d: b })).body.map((p) => [p.id, p.mine, !!p.approx]), [[r1.body.id, true, false]]);
-    const far = await post(b, { name: 'Campanhã', lat: 41.1571, lon: -8.5747 });
-    assert.deepEqual([far.status, far.body.place.id], [409, r1.body.id]);
-    // mudá-lo de sítio a partir do registo novo: passa a ser deste registo (o antigo deixa de abrir a app)
-    const mv = await J('PATCH', `/api/places/${r1.body.id}`, { d: b, body: { lat: 41.1571, lon: -8.5747, name: 'Campanhã' } });
+    const r2 = await post(b, { name: 'Campanhã', lat: 41.1571, lon: -8.5747 });
+    assert.equal(r2.status, 201, 'a 2.ª da mesma pessoa');
+    const far = await post(b, { name: 'Aveiro', lat: 40.64, lon: -8.65 });
+    assert.deepEqual([far.status, far.body.places.map((p) => p.id).sort()], [409, [r1.body.id, r2.body.id].sort()]);
+    // mudar a 1.ª de sítio a partir do registo novo: passa a ser deste registo (o antigo deixa de abrir a app)
+    const mv = await J('PATCH', `/api/places/${r1.body.id}`, { d: b, body: { lat: 40.64, lon: -8.65, name: 'Aveiro' } });
     assert.equal(mv.status, 200);
-    assert.deepEqual([kvj('places').length, kvj('places')[0].owner, kvj('places')[0].name], [1, b.id, 'Campanhã']);
+    const p1 = kvj('places').find((p) => p.id === r1.body.id);
+    assert.deepEqual([kvj('places').length, p1.owner, p1.name], [2, b.id, 'Aveiro']);
     // outra pessoa continua com o seu próprio local
     assert.equal((await post(c, { name: 'Braga', lat: 41.55, lon: -8.42 })).status, 201);
-    assert.equal(kvj('places').filter((p) => !p.off).length, 2);
+    assert.equal(kvj('places').filter((p) => !p.off).length, 3);
     // desligado pelo próprio: o dono deixa de o ver na lista; desligado pelo dono: continua a vê-lo (para o voltar a ligar)
     const del1 = await J('DELETE', `/api/places/${r1.body.id}`, { d: b });
     assert.equal(del1.status, 204, 'apagar pelo próprio ' + JSON.stringify(del1.body));
     const braga = kvj('places').find((p) => p.name === 'Braga');
     assert.equal((await J('DELETE', `/api/places/${braga.id}`, { owner: CODE, d: dono })).status, 204);
     const seen = (await J('GET', '/api/places', { owner: CODE, d: dono })).body.map((p) => p.name);
-    assert.ok(!seen.includes('Campanhã') && seen.includes('Braga'), JSON.stringify(seen));
+    assert.ok(!seen.includes('Aveiro') && seen.includes('Campanhã') && seen.includes('Braga'), JSON.stringify(seen));
     env.KV.m.set('places', before ?? '[]');
 });
 
@@ -943,4 +966,42 @@ test('aviso «Está a chover?» (1.12): guarda o que a previsão dizia (limpo) e
     const r2 = await J('POST', '/api/reports', { d, body: { kind: 'chuva', lat: 41.34, lon: -8.47 } });
     assert.equal(r2.status, 201);
     assert.equal(r2.body.report.prev, undefined);
+});
+
+test('notificações com vários locais (1.13): escolhe-se quais (só os que acompanha, pela ordem), uma só notificação; desligar um local tira-o', async () => {
+    env.OWNER_CODE = CODE;
+    const a = device(), b = device();
+    const porto = (await J('POST', '/api/places', { d: a, body: { name: 'Porto', lat: 41.1621, lon: -8.6219 } })).body;
+    const st = (await J('POST', '/api/places', { d: a, body: { name: 'Santo Tirso', lat: 41.3354, lon: -8.4745 } })).body;
+    const outro = (await J('POST', '/api/places', { d: b, body: { name: 'Faro', lat: 37.02, lon: -7.93 } })).body;
+    const sub = await browserSub();
+    const save = (d, places) => J('POST', '/api/push', { d, body: { subscription: sub, time: '19:00', places, tz: 'Europe/Lisbon' } });
+    // os dois, pela ordem escolhida; um que não é seu fica de fora; repetidos contam uma vez
+    let r = await save(a, [st.id, porto.id, outro.id, st.id]);
+    assert.deepEqual([r.status, r.body.places, r.body.place], [201, [st.id, porto.id], st.id]);
+    assert.deepEqual(kvj('push:index').find((e) => e.id === a.id).places, [st.id, porto.id]);
+    assert.equal(kvj('push:index').find((e) => e.id === a.id).place, undefined, 'já não se guarda place');
+    // só um, ou nenhum dos seus (→ 409: desligar é DELETE)
+    assert.deepEqual((await save(a, [porto.id])).body.places, [porto.id]);
+    assert.deepEqual([(await save(a, [outro.id])).status, (await save(a, [])).status], [409, 409]);
+    await save(a, [porto.id, st.id]);
+    // a entrada de antes (place) continua a valer
+    env.KV.m.set('push:index', JSON.stringify([...kvj('push:index'), { id: b.id, ep: sub.endpoint, k: sub.keys, time: '20:00', tz: 'Europe/Lisbon', sunday: true, place: outro.id, last: null }]));
+    assert.deepEqual((await J('GET', '/api/push', { d: b })).body.places, [outro.id]);
+    // desligar um local tira-o das notificações; desligar o último deixa-as sem local → saem
+    assert.equal((await api('DELETE', `/api/places/${st.id}`, { d: a })).status, 204);
+    assert.deepEqual(kvj('push:index').find((e) => e.id === a.id).places, [porto.id]);
+    assert.equal((await api('DELETE', `/api/places/${outro.id}`, { d: b })).status, 204);
+    assert.equal(kvj('push:index').some((e) => e.id === b.id), false);
+    // a volta do relógio: uma entrada cujos locais já não estão ligados não envia e sai
+    const places = kvj('places').map((p) => (p.id === porto.id ? { ...p, off: true } : p));
+    env.KV.m.set('places', JSON.stringify(places));
+    const sent = [];
+    await withFetch(async (u) => { sent.push(u); return new Response(null, { status: 201 }); }, async () => {
+        const waits = [];
+        await worker.scheduled({ scheduledTime: Date.parse('2026-11-09T19:00:00Z') }, env, { waitUntil: (p) => waits.push(p) });
+        await Promise.all(waits);
+    });
+    assert.equal(sent.length, 0);
+    assert.equal(kvj('push:index').some((e) => e.id === a.id), false);
 });

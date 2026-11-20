@@ -68,6 +68,26 @@ export function pushMessage(analysis, { name, weekly = false, url, nowMs = Date.
     return { title: `Amanhã em ${where}`, body: clip(analysis.notificacao?.amanha || [analysis.amanha, analysis.vestir].filter(Boolean).join(' '), 180), url, tag: 'meteo-dia' };
 }
 
+const joinNames = (n) => (n.length <= 2 ? n.join(' e ') : `${n.slice(0, -1).join(', ')} e ${n[n.length - 1]}`);
+/**
+ * Uma notificação para os locais escolhidos (1.13): com um, como antes; com mais, uma só, com os nomes no título e uma
+ * linha por local («Porto: …»), pela ordem escolhida. items = [{ analysis, name }].
+ */
+export function pushGroupMessage(items, { weekly = false, url, nowMs = Date.now() } = {}) {
+    const list = (Array.isArray(items) ? items : []).filter(Boolean);
+    if (list.length <= 1) return pushMessage(list[0]?.analysis, { name: list[0]?.name, weekly, url, nowMs });
+    const fresh = (a) => !!a?.generatedAt && nowMs - Date.parse(a.generatedAt) <= 30 * 36e5;
+    const names = list.map((x) => x.name || x.analysis?.place?.name || 'local'), per = list.length === 2 ? 120 : 80;
+    const tag = weekly ? 'meteo-semana' : 'meteo-dia';
+    if (!list.some((x) => fresh(x.analysis))) return { title: `Meteo · ${joinNames(names)}`, body: 'As análises de hoje ainda não chegaram. Abre a app para ver a previsão de amanhã.', url, tag: 'meteo-dia' };
+    const lines = list.map(({ analysis: a }, i) => {
+        if (!fresh(a)) return `${names[i]}: a análise de hoje ainda não chegou.`;
+        const t = weekly ? a.notificacao?.semana || a.semana || a.tendencia : a.notificacao?.amanha || [a.amanha, a.vestir].filter(Boolean).join(' ');
+        return `${names[i]}: ${clip(t, per)}`;
+    });
+    return { title: `${weekly ? 'A semana' : 'Amanhã'}: ${joinNames(names)}`, body: lines.join('\n'), url, tag };
+}
+
 // ---------- chaves VAPID (criadas uma vez, no KV) ----------
 export async function newVapidKeys() {
     const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);

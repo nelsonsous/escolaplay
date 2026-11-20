@@ -1,7 +1,7 @@
 // Notificações (proxy/src/push.js): assinaturas, horas, mensagem, VAPID (RFC 8292) e cifra (RFC 8291) — sem rede.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { b64u, b64uDecode, validSubscription, validTime, validTz, localParts, duePush, pushMessage, newVapidKeys, vapidAuth,
+import { b64u, b64uDecode, validSubscription, validTime, validTz, localParts, duePush, pushMessage, pushGroupMessage, newVapidKeys, vapidAuth,
     encryptPayload, sendPush } from '../proxy/src/push.js';
 
 const te = new TextEncoder(), td = new TextDecoder();
@@ -115,4 +115,32 @@ test('cifra (aes128gcm): o telemóvel decifra a mensagem; envio com os cabeçalh
     assert.match(req.headers.authorization, /^vapid t=.+, k=/);
     assert.deepEqual(JSON.parse(await decrypt(req.body, b)), msg);
     assert.equal(await sendPush(b.sub, msg, keys, { fetchFn: async () => { throw new Error('rede'); } }), 0, 'sem rede: 0');
+});
+
+test('notificação de vários locais (1.13): uma só, com os nomes no título e uma linha por local, pela ordem escolhida', () => {
+    const now = Date.parse('2026-11-09T19:00:00Z'), url = 'https://x/?tab=analise';
+    const an = (amanha, semana, at = '2026-11-09T14:00:00Z') => ({ generatedAt: at, notificacao: { amanha, semana } });
+    const porto = { name: 'Porto', analysis: an('Chuva fraca até às 11h; 10 a 16 °C. Casaco impermeável de manhã.', 'Chuva até terça, depois sol.') };
+    const st = { name: 'Santo Tirso', analysis: an('Aguaceiros de manhã, abertas à tarde; 8 a 15 °C. Camisola e corta-vento.', 'Semana fresca, com aguaceiros.') };
+    // um local: como antes
+    assert.deepEqual(pushGroupMessage([porto], { url, nowMs: now }), pushMessage(porto.analysis, { name: 'Porto', url, nowMs: now }));
+    // dois: um título e uma linha por local
+    const m = pushGroupMessage([porto, st], { url, nowMs: now });
+    assert.equal(m.title, 'Amanhã: Porto e Santo Tirso');
+    assert.deepEqual(m.body.split('\n'), [`Porto: ${porto.analysis.notificacao.amanha}`, `Santo Tirso: ${st.analysis.notificacao.amanha}`]);
+    assert.deepEqual([m.url, m.tag], [url, 'meteo-dia']);
+    // ao domingo, a semana
+    const w = pushGroupMessage([st, porto], { url, nowMs: now, weekly: true });
+    assert.deepEqual([w.title, w.tag, w.body.split('\n')[0]], ['A semana: Santo Tirso e Porto', 'meteo-semana', 'Santo Tirso: Semana fresca, com aguaceiros.']);
+    // uma análise antiga (> 30 h): essa linha diz que ainda não chegou; as duas antigas: a mensagem geral
+    const velho = { ...st, analysis: an('x', 'y', '2026-11-08T07:00:00Z') };
+    assert.equal(pushGroupMessage([porto, velho], { url, nowMs: now }).body.split('\n')[1], 'Santo Tirso: a análise de hoje ainda não chegou.');
+    const nada = pushGroupMessage([{ ...porto, analysis: null }, velho], { url, nowMs: now });
+    assert.deepEqual([nada.title, nada.body], ['Meteo · Porto e Santo Tirso', 'As análises de hoje ainda não chegaram. Abre a app para ver a previsão de amanhã.']);
+    // três ou mais: textos mais curtos (até 80) e «A, B e C»
+    const longo = { name: 'Braga', analysis: an('Sol e frio de manhã, com geada nos campos; à tarde nuvens a chegar de oeste e vento a rodar para sudoeste.', '') };
+    const t = pushGroupMessage([porto, st, longo], { url, nowMs: now });
+    assert.equal(t.title, 'Amanhã: Porto, Santo Tirso e Braga');
+    for (const l of t.body.split('\n')) assert.ok(l.replace(/^[^:]+: /, '').length <= 80, l);
+    assert.match(t.body.split('\n')[2], /…$/);
 });
