@@ -16,8 +16,8 @@ Só os dados mudam (base de dados KV do Worker `meteo`). Não alteres código ne
 **A análise é para o PONTO EXATO de cada local registado** (coordenadas, altitude e relevo no bloco `## O ponto` do
 resumo), não para a região à volta.
 
-**Quem tem análise.** Na app a análise diária está desligada por omissão: liga-a quem quer, para 1 local por telemóvel (o
-dono da app, sem limite). Cada análise só aparece no telemóvel dono do local (e ao dono da app). O `dados.mjs` já escolhe os
+**Quem tem análise.** Na app a análise diária está desligada por omissão: liga-a quem quer, até 2 locais por pessoa (desde
+20/11; o dono da app, sem limite). Cada análise só aparece no telemóvel dono do local (e ao dono da app). O `dados.mjs` já escolhe os
 locais de cada corrida (`selectPlaces` em `meteo/lib/places.js`): todos os do **dono** — nunca são cortados — e os dos
 **convidados** (os outros telemóveis) que estão em uso, conforme **Ajustes → Utilização → Análise dos outros**: ligada;
 só 1× por dia (só na corrida da manhã, pela hora de Lisboa); desligada. Fica de fora o local desligado, o de um telemóvel

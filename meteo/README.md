@@ -106,9 +106,10 @@ sudoeste deve chegar ao ponto por volta das 21h») e os efeitos do relevo (vale:
 vento). O `publicar.mjs` recusa frases genéricas sobre o distrito ou a região.
 
 Na app a análise diária está **desligada por omissão**: o cartão «Análise» de um local sem análise oferece
-**Ativar a análise diária do Claude para este local**. Cada telemóvel (cada instalação da app) tem **1 local**, e a análise
-desse local só aparece nesse telemóvel (nunca a de outras pessoas por estar perto); ligar noutro sítio muda o local para
-lá, com a última análise e as lições. Se o telemóvel não abrir a app durante **14 dias**, o local fica em pausa (não é
+**Ativar a análise diária do Claude para este local**. Cada pessoa acompanha **até 2 análises** (1.27; eram 1): as suas ou
+as partilhadas na mesma cidade, e a análise de um local só aparece a quem o acompanha (nunca a de outras pessoas por estar
+perto). Com as 2 em uso, ligar uma 3.ª abre a folha **«Trocar uma análise»**: uma sua muda para o sítio novo, com a última
+análise e as lições; uma partilhada deixa-se. Se o telemóvel não abrir a app durante **14 dias**, o local fica em pausa (não é
 analisado) e volta quando a app for aberta. No máximo **15 locais** por corrida; os do dono nunca ficam de fora. O cartão e
 o separador Análise dizem para que ponto é («Para Santo Tirso · 41,3354, −8,4745 · a 0,1 km do ponto selecionado»); a mais
 de 2 km avisam e oferecem **Mudar a análise diária para este ponto** (o local muda de sítio e fica com a última análise e
@@ -243,7 +244,7 @@ a app pede antes de ligar a análise diária, as notificações ou dar um aviso.
 **Uma análise por cidade** (1.8.2, 1.15.1): o dono tem quantos locais quiser com análise diária; se o dono liga uma cidade
 que outro telemóvel já analisa (≤ 5 km), não se cria outra — o local passa a ser do dono e o outro continua a vê-lo. Se já há uma análise diária a 5 km ou menos (de preferência a do dono), o telemóvel
 novo junta-se a ela em vez de criar outra — vê essa análise (sem as coordenadas exatas), pode receber as notificações
-dela e dar avisos para ela, mas não a muda de sítio; desligar é só sair. Cada telemóvel acompanha uma análise. No painel **Utilização** o dono vê a lista: nome ou código, quando abriu a app, os locais com análise diária (só o
+dela e dar avisos para ela, mas não a muda de sítio; desligar é só sair. Cada pessoa acompanha até 2 análises (1.27). No painel **Utilização** o dono vê a lista: nome ou código, quando abriu a app, os locais com análise diária (só o
 nome) e se tem notificações. A localização de quem usa a app não é registada.
 
 ## Notificações do fim do dia (1.6)
@@ -252,6 +253,10 @@ Em **Ajustes → Notificações**: «Resumo ao fim do dia», **às 19:00 por omi
 16:00 às 23:45). Traz a análise do Claude das **17:34** para o teu local: **como vai estar amanhã e o que vestir** (de manhã,
 à tarde e à noite). **Ao domingo** (desligável) a notificação é **a semana que vem**. «Enviar uma agora» mostra já como fica.
 Na própria análise há também as secções «O que vestir amanhã» e «A semana em resumo».
+**Vários locais (1.27):** com mais de uma análise, escolhe-se em cada local se entra («Sim»/«Não»): um, os dois ou nenhum
+(nenhum desliga as notificações). Chegam **juntos numa só notificação**, à mesma hora: os nomes no título («Amanhã: Porto e
+Santo Tirso») e uma linha por local; um local sem análise recente diz que ainda não chegou. O dono escolhe até 4.
+Desligar a análise de um local tira-o das notificações.
 **Tocar na notificação** abre a Análise com tudo à vista (ao domingo, já na semana). No iPhone a app pode ficar visível
 antes de o pedido do toque chegar; por isso a app espera por ele uns segundos (1.8.1).
 
@@ -273,7 +278,7 @@ endereço e como a instalar:
 - **Android**: abrir no **Chrome** → **⋮** → **«Instalar app»**.
 
 É grátis, sem conta e sem publicidade. Cada instalação ganha uma identidade anónima (um id e um segredo ao acaso, só no
-telemóvel); quem a recebe tem tudo, menos a análise do Claude, que é opcional e liga para 1 local.
+telemóvel); quem a recebe tem tudo, menos a análise do Claude, que é opcional e liga para até 2 locais.
 
 **O dono** (eu) escreve o código uma vez em cada telemóvel seu, em **Ajustes → Conector de dados → «Sou o dono desta
 app»** (no iPhone é o único caminho para a app do ecrã principal, que não partilha a memória com o Safari), ou abre

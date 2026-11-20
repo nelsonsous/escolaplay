@@ -63,7 +63,7 @@ test('seleção da tarefa agendada (dados.mjs): os do dono sempre; os dos outros
 
 test('limite de segurança (15): os do dono nunca são cortados; dos outros, primeiro quem abriu a app há menos tempo', () => {
     assert.equal(ANALYSED_MAX, 15);
-    assert.equal(GUEST_MAX, 1);
+    assert.equal(GUEST_MAX, 2, '1.27: até 2 análises por pessoa (as suas ou partilhadas)');
     const devices = Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`t${i}`, { lastSeen: daysAgo(i + 1) }]));
     const g = Array.from({ length: 6 }, (_, i) => guest(`g${i}`, `t${i}`));
     const s = selectPlaces([...Array.from({ length: 12 }, (_, i) => owner(`o${i}`)), ...g.slice().reverse()], { devices, now: NOW });

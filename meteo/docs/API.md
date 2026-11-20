@@ -291,11 +291,15 @@ places: nomes dos locais com análise, push: notificações ligadas }]` — sem 
 
 - `GET /api/push/key` → `{ "publicKey": "<VAPID, P-256, base64url>" }` (o par de chaves é criado no primeiro uso e fica no
   KV em `push:vapid`).
-- `GET /api/push` → `{ "on": true, "time": "19:00", "sunday": true, "place": "<id>", "tz": "Europe/Lisbon", "last": "2026-11-09" }`
-  deste telemóvel (`on: false` com os valores por omissão se não tiver).
-- `POST /api/push` `{ subscription: PushSubscription.toJSON(), time: "HH:MM" (de 15 em 15 min), sunday, place, tz }` → 201 com
-  o mesmo formato. Só da app (origem) e com a identidade do telemóvel; `place` tem de ser um local **do próprio**, ligado
-  (409 `sem_local` se não houver); só serviços de notificações conhecidos (Apple, Google, Mozilla, Microsoft).
+- `GET /api/push` → `{ "on": true, "time": "19:00", "sunday": true, "places": ["<id>", …], "place": "<o 1.º>", "tz": "Europe/Lisbon", "last": "2026-11-09" }`
+  deste telemóvel (`on: false`, `places: []` e os valores por omissão se não tiver).
+- `POST /api/push` `{ subscription: PushSubscription.toJSON(), time: "HH:MM" (de 15 em 15 min), sunday, places: [ids], tz }` → 201
+  com o mesmo formato. Só da app (origem) e com a identidade do telemóvel; `places` (conector 1.13; as versões de antes
+  mandam `place`, um id) são locais que o telemóvel **acompanha**, ligados, pela ordem escolhida, sem repetidos — até 2 (o dono
+  até 4); os outros ficam de fora, e sem nenhum válido → 409 `sem_local`. Só serviços de notificações conhecidos (Apple,
+  Google, Mozilla, Microsoft). **Uma só notificação** para os locais todos: com um, «Amanhã em X»; com mais, «Amanhã: X e Y»
+  e uma linha por local (`pushGroupMessage` em `proxy/src/push.js`). Desligar um local (ou sair de um partilhado) tira-o das
+  notificações; quem fica sem nenhum deixa de as receber.
 - `DELETE /api/push` → 204. `POST /api/push/test` → envia já a que seguiria agora (1 por minuto).
 - **Cron** `*/15 * * * *` (`scheduled` → `runPush`): para cada entrada de `push:index` cuja hora local já passou (até 2 h) e
   que ainda não foi enviada hoje (dia local do telemóvel), envia `{ title, body, url, tag }` cifrado (RFC 8291, aes128gcm)
@@ -372,8 +376,8 @@ analisado. Conta no dia (`stats:<data>`, `instant`; `guest` se não é o dono).
 ## Locais com análise diária
 
 A análise diária está **desligada por omissão**; na app liga-se no cartão «Análise do Claude» (**Ativar a análise diária do
-Claude para este local**). Cada telemóvel tem no máximo **1 local** (`GUEST_MAX`; o dono não tem limite); ligar noutro sítio
-muda-o para lá. Um local de outro telemóvel fica **em pausa** (não é analisado) se esse telemóvel não abrir a app há
+Claude para este local**). Cada pessoa acompanha no máximo **2 análises** (`GUEST_MAX`, conector 1.13; eram 1): as suas e as
+partilhadas na mesma cidade; o dono não tem limite. Um local de outro telemóvel fica **em pausa** (não é analisado) se esse telemóvel não abrir a app há
 **14 dias** (`lastSeen` de `dev:<id>`) e volta quando a abrir. Limite de segurança: **15 locais** por corrida
 (`ANALYSED_MAX`; os do dono nunca são cortados). Regras e escolha em `lib/places.js`.
 
@@ -388,8 +392,10 @@ muda-o para lá. Um local de outro telemóvel fica **em pausa** (não é analisa
 - `GET /api/places` → os locais de quem pede (o dono: todos; sem identidade: `[]`), também os desligados.
 - `POST /api/places` body `{ "name": "Casa", "lat": 38.72, "lon": -9.14 }` → `201 place` (só da própria origem: `403`;
   sem identidade: `403 dispositivo`). A menos de 0,5 km de um local seu ligado → `200` com esse; de um seu desligado → volta
-  a ligá-lo (`200`, o mesmo id: a última análise e as lições). Outro telemóvel que já tem um local → `409 { "error":
-  "limite", "place": {…} }` (a app muda esse local para aqui com `PATCH`); com a análise dos outros desligada → `403
+  a ligá-lo (`200`, o mesmo id: a última análise e as lições). Quem já acompanha 2 análises → `409 { "error": "limite",
+  "places": [{…}, {…}], "place": {o 1.º}, "join": false|true }` (a app pergunta qual troca: uma sua muda para aqui com
+  `PATCH`; uma partilhada deixa-se com `DELETE`; `join: true` = aqui juntava-se a uma análise que já existe); voltar a ligar
+  (`PATCH { on: true }`) uma 3.ª também responde assim; com a análise dos outros desligada → `403
   convidados_desligados`; com 15 locais em análise → `409 cheio`. Os ids dos outros telemóveis levam sempre um sufixo ao
   acaso (`casa-k2m9xq`): nunca herdam a análise guardada de outro local.
 - `PATCH /api/places/<id>` body `{ "lat": 41.3612, "lon": -8.4877, "name": "…", "on": true }` (tudo opcional) → `200 place`

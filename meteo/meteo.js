@@ -2,7 +2,7 @@
 // A previsão é calculada no telemóvel por ./lib/data.js (com o radar no ponto, RainViewer); o conector (Cloudflare
 // Worker) serve METAR, FIRMS, fogos.pt, satélite, locais, avisos do utilizador e a análise do Claude.
 // Endereço do conector nos Ajustes ou ?proxy=URL. Sem contas: cada telemóvel tem uma identidade anónima (api.js); a
-// análise do Claude está desligada por omissão e cada telemóvel liga-a para 1 local, que só ele vê. O dono da app
+// análise do Claude está desligada por omissão e cada pessoa liga-a para até 2 locais (1.27), que só ela vê. O dono da app
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps, tidyCache } from './lib/data.js';
 import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE_MAX_AGE_H, CLAUDE_RAMP_H } from './lib/engine.js';
@@ -17,7 +17,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.26.0';
+const VERSION = '1.27.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -181,6 +181,10 @@ const near = (a, b, km = 0.2) => a && b && haversineKm(a.lat, a.lon, b.lat, b.lo
 const isOwner = () => !!st.status?.owner;
 const myPlaces = () => st.places.filter((p) => p.mine !== false);
 const onPlaces = () => myPlaces().filter((p) => !p.off);
+// quantas análises cada pessoa acompanha (as suas e as partilhadas; o conector diz, 2 desde a 1.27); o dono não tem limite
+const perPerson = () => st.status?.limit ?? 2;
+const andJoin = (n) => (n.length <= 2 ? n.join(' e ') : `${n.slice(0, -1).join(', ')} e ${n[n.length - 1]}`);
+const placeNames = (ps) => andJoin(ps.map((p) => p.name));
 const othersMode = () => st.status?.others || 'on';
 function upsertPlace(p) {
     if (!p?.id) return;
@@ -603,18 +607,18 @@ function teaserHtml() {
     return `<button type="button" class="claude" id="cl-teaser" data-tab="analise">${main}${note}</button>`;
 }
 // Sem análise para este ponto. A análise do Claude está desligada por omissão: ligá-la é uma escolha clara, para
-// este local e só para este telemóvel (os outros telemóveis têm 1 local: ligar aqui muda-o para aqui)
+// este local e só para esta pessoa (até 2 análises por pessoa; com as 2 em uso, ligar aqui pergunta qual troca)
 function optInHtml() {
     const head = `<div class="adv-src">Análise${IA_AN}</div>`;
     if (st.analysis?.error && !st.analysis.offline) return `${head}<p>Não foi possível obter a análise (${esc(st.analysis.error)}).</p>`;
     const here = nearPlace();
     if (here) return `${head}<p>A análise está ligada para este local (${esc(here.name)}). A primeira chega ${esc(nextRun())}.</p>`;
-    const owner = isOwner(), mine = owner ? null : myPlaces()[0];
-    if (!owner && mine?.off && mine.offBy === 'owner') return `${head}<p>A análise deste telemóvel foi desligada pelo dono da app.</p>`;
+    const owner = isOwner(), used = owner ? [] : onPlaces();
+    if (!owner && !used.length && myPlaces().some((p) => p.off && p.offBy === 'owner')) return `${head}<p>A análise deste telemóvel foi desligada pelo dono da app.</p>`;
     if (!owner && othersMode() === 'off') return `${head}<p>A análise está desligada, por agora, pelo dono da app.</p>`;
     const when = !owner && othersMode() === '1x' ? (onOpenH() ? 'uma vez por dia, quando abres a app' : 'uma vez por dia, às 07:34') : whenTxt();
     return `${head}<p>Opcional: uma análise escrita por inteligência artificial para este ponto exato, ${esc(when)}, com os modelos, as observações, o radar e o satélite. Uma análise por cidade: se alguém já a tiver aí, passas a ver a mesma.</p>
-        ${mine && !mine.off ? `<p class="cl-farmsg">${esc(`Cada pessoa tem 1 local: a tua análise passa de ${mine.name} para aqui.`)}</p>` : ''}
+        ${used.length >= perPerson() ? `<p class="cl-farmsg">${esc(`Já acompanhas ${perPerson()} análises (${placeNames(used)}): ao ativar aqui, escolhes qual trocas.`)}</p>` : ''}
         <button type="button" class="btn pri cl-on" data-act="place-on">${ui('sparkle')}<span>Ativar a análise para este local</span></button>`;
 }
 // o mar (só num ponto na costa ou na praia): a temperatura da água, as ondas e o UV de hoje; os próximos dias em «Ver mais»
@@ -911,12 +915,12 @@ function viewAnalysis() {
     } else {
         h += `<div class="today cl-opt">${optInHtml()}</div>`;
     }
-    const np = nearPlace(), owner = isOwner(), mine = owner ? null : myPlaces()[0];
+    const np = nearPlace(), owner = isOwner(), used = owner ? [] : onPlaces();
     const at = onOpenH() ? 'Ao abrir a app' : `Às ${sched.join(', ')}`;
     const swHint = np ? `Ligada (${np.name}) · ${onOpenH() ? `ao abrir a app, se tiver mais de ${onOpenH()} h` : schedFor().join(' · ')}`
         : owner ? `${at} · sem limite de locais`
         : othersMode() === 'off' ? 'Desligada pelo dono da app, por agora'
-        : `${othersMode() === '1x' ? (onOpenH() ? '1× por dia, ao abrir a app' : '1× por dia, às 07:34') : at} · 1 local por pessoa${mine && !mine.off ? ` (agora em ${mine.name})` : ''}`;
+        : `${othersMode() === '1x' ? (onOpenH() ? '1× por dia, ao abrir a app' : '1× por dia, às 07:34') : at} · até ${perPerson()} por pessoa${used.length ? ` (agora: ${placeNames(used)})` : ''}`;
     h += `<div class="form"><div class="sw"><span><b>Análise para este local</b><br><small class="hint">${esc(swHint)}</small></span>
         <div class="seg" role="group" aria-label="Análise para este local"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
@@ -1144,7 +1148,24 @@ const PUSH_TIMES = Array.from({ length: 32 }, (_, i) => `${String(16 + Math.floo
 const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-const pushPlace = () => { const own = onPlaces(), P = st.push; return own.find((p) => p.id === P?.place) || nearPlace() || own[0] || null; };
+// 1.27: os locais da notificação (vários, numa só); os escolhidos que ainda estão ligados, ou por omissão: com até 2, os
+// dois; com mais (o dono), o daqui (ou o primeiro)
+const pushMax = () => (isOwner() ? 4 : perPerson());
+function pushPlaceIds() {
+    const own = onPlaces(), P = st.push;
+    const chosen = (P?.places?.length ? P.places : P?.place ? [P.place] : []).filter((id) => own.some((p) => p.id === id));
+    if (chosen.length) return chosen;
+    return own.length <= 2 ? own.map((p) => p.id) : [(nearPlace() || own[0]).id];
+}
+const pushPlacesOn = () => pushPlaceIds().map((id) => onPlaces().find((p) => p.id === id)).filter(Boolean);
+async function pushTogglePlace(id, on) {
+    const cur = pushPlaceIds();
+    if (on === cur.includes(id)) return;
+    if (on && cur.length >= pushMax()) { toast(`No máximo ${pushMax()} locais na notificação.`); return; }
+    const next = onPlaces().map((p) => p.id).filter((x) => (x === id ? on : cur.includes(x)));
+    if (!next.length) { if (st.push?.on) await pushOff(); return; } // nenhum: sem notificação
+    await pushChange({ places: next });
+}
 function notifHtml() {
     const P = st.push || { on: false, time: '19:00', sunday: true };
     const seg = (act, on, label) => `<div class="seg" role="group" aria-label="${esc(label)}"><button type="button" data-act="${act}-on" class="${on ? 'on' : ''}" aria-pressed="${!!on}">Sim</button><button type="button" data-act="${act}-off" class="${on ? '' : 'on'}" aria-pressed="${!on}">Não</button></div>`;
@@ -1153,11 +1174,13 @@ function notifHtml() {
     else if (!pushSupported()) body = '<div class="hint">Este browser não recebe notificações.</div>';
     else if (!onPlaces().length && !P.on) body = '<div class="hint">A notificação traz a análise do teu local: liga-a primeiro (Análise → «Análise para este local»).</div>';
     else {
-        const own = onPlaces(), cur = pushPlace();
-        body = `<div class="sw"><span><b>Resumo ao fim do dia</b><br><small class="hint">${esc(P.on ? `Às ${P.time}${cur ? ` · ${cur.name}` : ''}` : 'Como vai estar amanhã e o que vestir')}</small></span>${seg('push', P.on, 'Notificação ao fim do dia')}</div>
+        const own = onPlaces(), cur = pushPlacesOn();
+        const pl = (p) => { const on = cur.some((x) => x.id === p.id);
+            return `<div class="sw"><span><b>${esc(p.name)}</b>${p.shared ? '<br><small class="hint">partilhada</small>' : ''}</span><div class="seg" role="group" aria-label="${esc(`${p.name} na notificação`)}"><button type="button" data-pushpl="${esc(p.id)}" data-on="1" class="${on ? 'on' : ''}" aria-pressed="${on}"${st.pushBusy ? ' disabled' : ''}>Sim</button><button type="button" data-pushpl="${esc(p.id)}" data-on="0" class="${on ? '' : 'on'}" aria-pressed="${!on}"${st.pushBusy ? ' disabled' : ''}>Não</button></div></div>`; };
+        body = `<div class="sw"><span><b>Resumo ao fim do dia</b><br><small class="hint">${esc(P.on ? `Às ${P.time}${cur.length ? ` · ${placeNames(cur)}` : ''}` : 'Como vai estar amanhã e o que vestir')}</small></span>${seg('push', P.on, 'Notificação ao fim do dia')}</div>
             ${P.on ? `<div><label for="f-push-time">Hora</label><select id="f-push-time" class="inp"${st.pushBusy ? ' disabled' : ''}>${PUSH_TIMES.map((t) => `<option value="${t}"${t === P.time ? ' selected' : ''}>${t}</option>`).join('')}</select></div>
             <div class="sw"><span><b>Ao domingo: a semana que vem</b><br><small class="hint">Em vez de amanhã, a semana toda</small></span>${seg('push-sun', P.sunday !== false, 'Ao domingo, a semana')}</div>
-            ${own.length > 1 ? `<div><label for="f-push-place">Local</label><select id="f-push-place" class="inp">${own.map((p) => `<option value="${esc(p.id)}"${p.id === cur?.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>` : ''}
+            ${own.length > 1 ? `<div><label>Locais</label><div class="push-pls">${own.map(pl).join('')}</div><div class="hint">${esc(cur.length > 1 ? 'Chegam juntos numa só notificação, um local por linha.' : 'Com mais de um, chegam juntos numa só notificação.')}${own.length > pushMax() ? ` No máximo ${pushMax()}.` : ''}</div></div>` : ''}
             <button type="button" class="btn blk" data-act="push-test"${st.pushBusy ? ' disabled' : ''}>${ui('bell')}Enviar uma agora (teste)</button>
             <div class="hint">${onOpenH() ? 'Da última análise do local (se tiver menos de 30 h), à hora deste telemóvel.' : 'Da análise das 17:34, à hora deste telemóvel.'}</div>`
                 : '<div class="hint">Às 19:00 por omissão; ao domingo, a semana que vem.</div>'}`;
@@ -1178,7 +1201,8 @@ async function pushSend(changes = {}, { create = false } = {}) {
     const P = { time: '19:00', sunday: true, ...(st.push || {}), ...changes };
     const sub = await pushSubscription(create);
     if (!sub) throw new Error('Sem autorização de notificações neste telemóvel.');
-    st.push = await api.savePush({ subscription: sub.toJSON(), time: P.time, sunday: P.sunday !== false, place: P.place || pushPlace()?.id,
+    const places = (P.places?.length ? P.places : pushPlaceIds()).slice(0, pushMax());
+    st.push = await api.savePush({ subscription: sub.toJSON(), time: P.time, sunday: P.sunday !== false, places,
         tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Lisbon' });
 }
 // ligar: o pedido de autorização tem de sair logo do toque (sem esperas antes)
@@ -1205,7 +1229,7 @@ async function pushOff() {
 async function pushChange(changes) {
     if (!st.push?.on) { st.push = { ...(st.push || { time: '19:00', sunday: true }), ...changes }; render(); return; }
     st.pushBusy = true; render();
-    try { await pushSend(changes); toast(changes.time ? `Notificação às ${st.push.time}.` : 'Guardado.'); }
+    try { await pushSend(changes); toast(changes.time ? `Notificação às ${st.push.time}.` : changes.places ? `Na notificação: ${placeNames(pushPlacesOn())}.` : 'Guardado.'); }
     catch (e) { toast(e.message); }
     st.pushBusy = false; render();
 }
@@ -1244,7 +1268,7 @@ function placeRow(p, other = false) {
 function placesSettingsHtml() {
     const owner = isOwner(), mineOn = onPlaces();
     const byOwner = !owner && myPlaces().some((p) => p.off && p.offBy === 'owner');
-    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Locais com análise</h2><span class="sub">${owner ? 'sem limite de locais' : '1 local por pessoa'}</span></div><div class="form">
+    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Locais com análise</h2><span class="sub">${owner ? 'sem limite de locais' : `${mineOn.length} de ${perPerson()}`}</span></div><div class="form">
         <div class="wl">${mineOn.length ? mineOn.map((p) => placeRow(p)).join('') : `<div class="hint">${byOwner ? 'Desligada pelo dono da app.' : 'Desligada (é opcional). Liga-a no cartão «Análise» do local que quiseres.'}</div>`}</div>`;
     if (owner) {
         const others = st.places.filter((p) => p.mine === false);
@@ -1336,6 +1360,15 @@ function renderSheet() {
             <div class="d-sub">Diz o que vês aí agora. O teu aviso manda no «agora» durante ${REPORT_MIN} min e ajuda a análise.</div></div>${closeBtn}</div>
             <div class="rpt-grid" role="group" aria-label="O que vês agora">${Object.entries(REPORT_KINDS).map(([k, label]) => `<button type="button" data-report="${k}" class="${cur?.kind === k ? 'on' : ''}" aria-pressed="${cur?.kind === k}">${weatherIcon(REPORT_ICON[k], day, 36)}<span>${esc(label)}</span></button>`).join('')}</div>
             ${cur ? `<p class="note">O teu último aviso: ${esc(REPORT_KINDS[cur.kind])}, ${esc(F.ago((Date.now() - Date.parse(cur.time)) / 6e4))}. Um aviso novo substitui-o.</p>` : ''}`;
+        return;
+    }
+    if (s.kind === 'swap') { // 1.27: com as análises da pessoa em uso, qual dá a vaga à deste local
+        const { places, name, join } = s.arg;
+        card.innerHTML = `<div class="grab"></div><div class="d-head"><div><h2 id="mt-sheet-title">Trocar uma análise</h2>
+            <div class="d-sub">Cada pessoa acompanha até ${perPerson()} análises. Qual dá lugar a ${esc(name)}?</div></div>${closeBtn}</div>
+            <div class="btns-col">${places.map((p) => `<button type="button" class="btn blk" data-swap="${esc(p.id)}">${esc(p.shared || join ? `Deixar ${p.name}` : `Trocar ${p.name}`)}</button>`).join('')}
+            <button type="button" class="btn blk" data-act="close">Cancelar</button></div>
+            <p class="note" style="margin:12px 2px 0">${esc(join ? `Em ${name} já há uma análise: passas a acompanhar essa.` : 'Uma tua muda para aqui com as lições que aprendeu; uma partilhada deixa de aparecer, e continua para quem a ligou.')}</p>`;
         return;
     }
     if (s.kind === 'why') { // 1.26: porque a previsão dizia o contrário do aviso, e o que a aprendizagem faz com isso
@@ -1610,7 +1643,8 @@ async function togglePlace(on) {
     render();
 }
 // Ligar a análise aqui: um local seu desligado perto volta a ligar-se (o mesmo id: a última análise e as lições
-// ficam); nos outros telemóveis (1 local cada) o seu local muda para aqui; senão regista-se um novo
+// ficam); senão regista-se um novo, ou junta-se à análise que já existe na mesma cidade. Com as análises da pessoa já
+// em uso (2, desde a 1.27), o conector responde «limite» com elas e a folha «Trocar» pergunta qual dá a vaga
 async function turnOn() {
     const { lat, lon } = cfg.loc, name = placeName();
     const off = myPlaces().find((p) => p.off && haversineKm(p.lat, p.lon, lat, lon) <= FAR_KM);
@@ -1623,16 +1657,34 @@ async function turnOn() {
     // o conector decide: na mesma cidade junta-se à análise que já existe; senão cria (ou pede para mudar o seu local)
     try {
         const p = await api.addPlace(name, lat, lon);
-        if (p.shared) st.places = st.places.filter((x) => x.id === p.id || !(x.shared || (!isOwner() && x.mine !== false && !x.off)));
         upsertPlace(p);
         toast(p.shared || p.adopted ? `Ligada: usas a análise de ${p.name}, que já existia.` : `Ligada. A primeira análise chega ${nextRun()}.`);
     } catch (e) {
-        if (e.code !== 'limite' || !e.data?.place) throw e;
-        upsertPlace(e.data.place); // já tinha um local (noutro sítio): muda-o para aqui
-        await moveHere(e.data.place, name);
+        const used = e.code === 'limite' ? e.data?.places || (e.data?.place ? [e.data.place] : []) : [];
+        if (!used.length) throw e;
+        used.forEach(upsertPlace);
+        if (used.length === 1) { await moveHere(used[0], name); return; } // conector de antes (1 por pessoa): muda-o para aqui
+        openSheet('swap', { places: used, join: !!e.data.join, name });
         return;
     }
     loadAnalysis(cfg.loc); // o conector pode ter voltado a ligar um local antigo daqui, com a última análise
+}
+// a folha «Trocar»: a análise escolhida dá a vaga a esta. Uma sua muda de sítio (o mesmo id: as lições ficam); uma
+// partilhada deixa-se (sai-se dela); se aqui houver uma análise partilhada, a sua desliga-se e junta-se a essa
+async function swapFor(id) {
+    const s = st.sheet?.kind === 'swap' ? st.sheet.arg : null, p = s?.places.find((x) => x.id === id);
+    closeSheet(true);
+    if (!p || !cfg.loc) return;
+    try {
+        if (!p.shared && !s.join) { await moveHere(p, s.name); return; }
+        await api.deletePlace(p.id);
+        if (p.shared) st.places = st.places.filter((x) => x.id !== p.id); else upsertPlace({ ...p, off: true, offBy: 'device' });
+        const n = await api.addPlace(s.name, cfg.loc.lat, cfg.loc.lon);
+        upsertPlace(n);
+        render();
+        loadAnalysis(cfg.loc);
+        toast(n.shared || n.adopted ? `Trocaste ${p.name} pela análise de ${n.name}, que já existia.` : `Trocaste ${p.name} por ${n.name}. A primeira análise chega ${nextRun()}.`);
+    } catch (e) { toast(e.message); render(); }
 }
 async function moveHere(p, name) {
     const from = { lat: p.lat, lon: p.lon, name: p.name, off: !!p.off };
@@ -1773,7 +1825,7 @@ async function saveProxy() {
 }
 
 document.addEventListener('click', (ev) => {
-    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-onplace],[data-others],[data-report],[data-lv],[data-ll]');
+    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-onplace],[data-swap],[data-pushpl],[data-others],[data-report],[data-lv],[data-ll]');
     if (!t) return;
     const d = t.dataset;
     if (d.tab) { goTab(d.tab); return; }
@@ -1807,6 +1859,8 @@ document.addEventListener('click', (ev) => {
     if (d.goplace) { const p = st.places.find((x) => x.id === d.goplace); if (p) { closeSheet(); setLocation({ lat: p.lat, lon: p.lon, name: p.name }); } return; }
     if (d.rmplace) { if (st.places.some((x) => x.id === d.rmplace)) openSheet('off', { id: d.rmplace }); return; }
     if (d.onplace) { const p = st.places.find((x) => x.id === d.onplace); if (p) placeBack(p); return; }
+    if (d.swap) { swapFor(d.swap); return; }
+    if (d.pushpl) { pushTogglePlace(d.pushpl, d.on === '1'); return; }
     if (d.others) { setOthers(d.others); return; }
     switch (d.act) {
         case 'close': closeSheet(true); break;
@@ -1857,7 +1911,7 @@ document.addEventListener('toggle', (e) => {
 }, true);
 document.addEventListener('change', (e) => {
     if (e.target.id === 'f-push-time') { e.target.blur(); pushChange({ time: e.target.value }); }
-    if (e.target.id === 'f-push-place') { e.target.blur(); pushChange({ place: e.target.value }); }
+
 });
 document.addEventListener('input', (e) => {
     if (e.target.id === 'f-q') { clearTimeout(searchT); searchT = setTimeout(() => doSearch(e.target.value), 300); }

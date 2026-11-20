@@ -78,8 +78,8 @@ Como escrever (a pessoa lê no telemóvel, de relance):
 O que vestir e as notificações (a app manda uma notificação ao fim do dia, às 19h por omissão, e ao domingo a da semana):
 - "vestir": o que vestir AMANHÃ no ponto, por período (como acima), a partir da temperatura e da sensação térmica nessas horas, da chuva (a que horas), do vento e do UV. Concreto: "Manhã: casaco quente (6 °C, sensação de 3 °C).\nTarde: camisola (16 °C); guarda-chuva entre as 15h e as 19h.\nNoite: casaco outra vez (8 °C)."
 - "semana": os próximos 7 dias no ponto, uma linha por dia (chuva, máximas e mínimas, vento forte, frio de manhã), com a confiança a baixar ao longo da semana.
-- "notificacao.amanha" (até 180 caracteres): amanhã no ponto numa ou duas frases, com o que vestir, sem o nome do sítio (já vem no título). Ex.: "Chuva fraca até às 11h, depois sol; 9 a 18 °C. Casaco impermeável de manhã, camisola à tarde."
-- "notificacao.semana" (até 180 caracteres): a semana que vem numa ou duas frases. Ex.: "Chuva na segunda e na terça; de quarta a sábado sol, 8 a 20 °C; noites frias no fim da semana."
+- "notificacao.amanha" (até 180 caracteres): amanhã no ponto numa ou duas frases, com o que vestir, sem o nome do sítio (já vem no título). O essencial (chuva/sol e as temperaturas) nos primeiros 120 caracteres: com dois locais na mesma notificação, corta-se aí. Ex.: "Chuva fraca até às 11h, depois sol; 9 a 18 °C. Casaco impermeável de manhã, camisola à tarde."
+- "notificacao.semana" (até 180 caracteres): a semana que vem numa ou duas frases, o essencial nos primeiros 120. Ex.: "Chuva na segunda e na terça; de quarta a sábado sol, 8 a 20 °C; noites frias no fim da semana."
 
 Estilo: português de Portugal, direto, frases curtas, números concretos no ponto (horas, mm, km/h, °C). Sem floreados nem repetições entre secções. "conselhos" práticos para quem está no ponto (roupa, guarda-chuva, estendal, rega, condução, atividades ao ar livre, saúde), no máximo 5. "dias" cobre os dias depois de amanhã (até 7). "licoes": mantém as anteriores que continuem válidas e junta o que aprendeste sobre este ponto (até 8).`;
 

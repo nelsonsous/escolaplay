@@ -13,9 +13,9 @@ import { analysisRows, runD1, readHistory, latestAnalysis, newest } from '../../
 import { cleanPrev, contradiction } from '../../lib/avisos.js';
 import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner, placeMembers, lastSeenOfPlace, isOwnerPlace, placeKind, othersMode, approx, lisbon,
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
-import { validSubscription, validTime, validTz, duePush, pushMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
+import { validSubscription, validTime, validTz, duePush, pushGroupMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.12.0';
+const VERSION = '1.13.0';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -281,7 +281,8 @@ async function adoptPlaces(env, id) {
 
 // ---------- locais ----------
 // Cada local tem dono: place.owner = id do telemóvel que o ligou, ou "owner" (o dono da app; também os de antes, sem
-// dono). Os outros telemóveis têm no máximo 1 (ligar noutro sítio muda-o: PATCH, o mesmo id); o dono não tem limite.
+// dono). Os outros telemóveis acompanham no máximo GUEST_MAX (2, desde a 1.13) análises, suas ou partilhadas; com as 2
+// em uso, ligar uma terceira responde 409 «limite» com as duas, e a app pergunta qual troca. O dono não tem limite.
 // Desligar não apaga: o local fica com off (e offBy), para voltar a ligar com o mesmo id (a última análise e as lições
 // ficam). Os ids dos outros telemóveis levam sempre um sufixo ao acaso: nunca herdam a análise guardada de outro local.
 async function getPlaces(env) { const v = env.KV && (await env.KV.get('places', 'json')); return Array.isArray(v) ? v : []; }
@@ -302,8 +303,14 @@ const claim = (me, p) => (!me.owner && me.id && !isOwnerPlace(p) && placeOwner(p
 const member = (me, p) => !mine(me, p) && !!me.id && placeMembers(p).includes(me.id);
 const uses = (me, p) => mine(me, p) || member(me, p);
 const canSee = (me, p) => me.owner || uses(me, p);
-/** Sai dos locais a que se tinha juntado (cada telemóvel acompanha 1 análise) */
+/** Sai de um local a que se tinha juntado */
 const leave = (p, id) => (placeMembers(p).includes(id) ? { ...p, members: placeMembers(p).filter((x) => x !== id) } : p);
+/** As análises que este telemóvel acompanha agora (as suas e as partilhadas, ligadas): no máximo GUEST_MAX */
+const inUse = (me, places, except = null) => places.filter((p) => !p.off && p.id !== except && uses(me, p));
+/** Já acompanha GUEST_MAX: 409 com as que tem, para a app perguntar qual troca (join: aqui juntava-se a uma partilhada) */
+const limitReached = (me, used, { join = false } = {}) => json({ error: 'limite',
+    message: `Cada pessoa acompanha até ${GUEST_MAX} análises: troca uma delas por esta.`,
+    places: used.map((p) => placeView(me, p)), place: placeView(me, used[0]), join }, 409);
 /** As coordenadas como as pode ver quem pede: as exatas só nos seus locais; nos dos outros (só o dono os vê), ~1 km. */
 const seenAt = (me, p) => (mine(me, p) ? { lat: p.lat, lon: p.lon } : { lat: approx(p.lat), lon: approx(p.lon) });
 function placeView(me, p, extra = {}) {
@@ -384,29 +391,34 @@ async function addPlace(req, env, url) {
             .sort((a, b) => Number(isOwnerPlace(b)) - Number(isOwnerPlace(a)) || dk(a) - dk(b))[0];
         if (join) {
             if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise nos outros telemóveis.' }, 403);
-            const next = places.map((p) => (p.id === join.id ? { ...p, members: [...placeMembers(p).filter((x) => x !== me.id), me.id] }
-                : mine(me, p) && !p.off ? { ...leave(p, me.id), off: true, offAt: nowIso, offBy: 'device' } : leave(p, me.id)));
-            if (JSON.stringify(next) !== JSON.stringify(places)) await savePlaces(env, next);
+            if (member(me, join)) return json(placeView(me, join), 200); // já a acompanha
+            // 1.13: acompanha até GUEST_MAX análises (as outras ficam); com as que pode já em uso, a app pergunta qual troca
+            const used = inUse(me, places);
+            if (used.length >= GUEST_MAX) return limitReached(me, used, { join: true });
+            const next = places.map((p) => (p.id === join.id ? { ...p, members: [...placeMembers(p).filter((x) => x !== me.id), me.id] } : p));
+            await savePlaces(env, next);
             return json(placeView(me, next.find((p) => p.id === join.id)), 200);
         }
     }
     if (!me.owner) {
-        // 1 local por telemóvel: noutro sítio, a app muda-o (PATCH /api/places/<id>)
-        if (!off && own.length >= GUEST_MAX) return json({ error: 'limite', message: 'Cada pessoa tem 1 local com análise: muda-o para aqui.', place: placeView(me, own[0]) }, 409);
+        // até GUEST_MAX análises por pessoa (próprias ou partilhadas): com elas em uso, a app pergunta qual troca
+        // (uma sua muda de sítio com PATCH, o mesmo id; uma partilhada, sai-se dela)
+        const used = inUse(me, places);
+        if (used.length >= GUEST_MAX) return limitReached(me, used);
         const block = await guestBlock(env, places, off);
         if (block) return block;
     }
     if (off) { // voltar a ligar: o mesmo id (a última análise e as lições continuam)
         const back = { ...claim(me, off), onAt: nowIso };
         delete back.off; delete back.offAt; delete back.offBy;
-        await savePlaces(env, places.map((x) => (x.id === off.id ? back : leave(x, me.id))));
+        await savePlaces(env, places.map((x) => (x.id === off.id ? back : x)));
         return json(placeView(me, back), 200);
     }
     const base = slug(name);
     let id = me.owner ? base : `${base.slice(0, 17)}-${rand(6)}`;
     while (places.some((x) => x.id === id)) id = `${base.slice(0, 17)}-${rand(6)}`;
     const place = { id, name, lat: r4(lat), lon: r4(lon), createdAt: nowIso, owner: me.owner ? OWNER : me.id, ...(!me.owner && me.name ? { ownerName: me.name } : {}) };
-    await savePlaces(env, [...places.map((x) => leave(x, me.id)), place]);
+    await savePlaces(env, [...places, place]);
     return json(placeView(me, place), 201);
 }
 
@@ -420,9 +432,16 @@ async function deletePlace(req, env, url, id) {
     const places = await getPlaces(env);
     const cur = places.find((x) => x.id === id);
     if (!cur || !canSee(me, cur)) return notFound();
-    // juntou-se a este local: desligar é sair (a análise continua para os outros)
-    if (member(me, cur) && !me.owner) { await savePlaces(env, places.map((x) => (x.id === id ? leave(x, me.id) : x))); return new Response(null, { status: 204 }); }
-    if (!cur.off) await savePlaces(env, places.map((x) => (x.id === id ? { ...cur, off: true, offAt: new Date().toISOString(), offBy: mine(me, cur) ? 'device' : 'owner' } : x)));
+    // juntou-se a este local: desligar é sair (a análise continua para os outros); sai também das suas notificações
+    if (member(me, cur) && !me.owner) {
+        await savePlaces(env, places.map((x) => (x.id === id ? leave(x, me.id) : x)));
+        await prunePush(env, [id], { device: me.id });
+        return new Response(null, { status: 204 });
+    }
+    if (!cur.off) {
+        await savePlaces(env, places.map((x) => (x.id === id ? { ...cur, off: true, offAt: new Date().toISOString(), offBy: mine(me, cur) ? 'device' : 'owner' } : x)));
+        await prunePush(env, [id]);
+    }
     return new Response(null, { status: 204 });
 }
 
@@ -442,7 +461,12 @@ async function updatePlace(req, env, url, id) {
     const b = (await req.json().catch(() => null)) || {};
     if (member(me, cur) && !me.owner) { // juntou-se: só pode sair (on: false); não o muda de sítio
         if (b.lat != null || b.lon != null) return json({ error: 'so_o_proprio', message: 'Esta análise é partilhada: só o telemóvel que a ligou a muda de sítio.' }, 403);
-        if (b.on === false) { const next = leave(cur, me.id); await savePlaces(env, places.map((x) => (x.id === id ? next : x))); return json({ ...placeView(me, next), off: true }, 200); }
+        if (b.on === false) {
+            const next = leave(cur, me.id);
+            await savePlaces(env, places.map((x) => (x.id === id ? next : x)));
+            await prunePush(env, [id], { device: me.id });
+            return json({ ...placeView(me, next), off: true }, 200);
+        }
         return json(placeView(me, cur), 200);
     }
     const move = b.lat != null || b.lon != null;
@@ -459,7 +483,11 @@ async function updatePlace(req, env, url, id) {
     }
     if (b.on === true && cur.off) {
         if (!own && cur.offBy !== 'owner') return json({ error: 'so_o_proprio', message: 'Este local foi desligado no próprio telemóvel.' }, 403);
-        if (!me.owner) { const block = await guestBlock(env, places, cur); if (block) return block; }
+        if (!me.owner) {
+            const used = inUse(me, places, cur.id);
+            if (used.length >= GUEST_MAX && own) return limitReached(me, used);
+            const block = await guestBlock(env, places, cur); if (block) return block;
+        }
         next.onAt = new Date().toISOString();
         delete next.off; delete next.offAt; delete next.offBy;
     } else if (b.on === false && !cur.off) {
@@ -468,6 +496,7 @@ async function updatePlace(req, env, url, id) {
     if (!move && b.on == null) return bad('Nada a mudar.');
     // sem mudanças (ligar o que já está ligado…): não grava
     if (move || (b.on === true && cur.off) || (b.on === false && !cur.off) || next.owner !== cur.owner) await savePlaces(env, places.map((x) => (x.id === id ? next : x)));
+    if (b.on === false && !cur.off) await prunePush(env, [id]);
     return json(placeView(me, next), 200);
 }
 
@@ -654,9 +683,11 @@ async function getHistory(req, env, url) {
 
 // ---------- notificações do fim do dia (Web Push; cifra e VAPID em push.js) ----------
 // push:vapid = par de chaves (criado no primeiro uso); push:index = uma entrada por telemóvel:
-// { id, ep, k: { p256dh, auth }, time: 'HH:MM', tz, sunday, place, last: dia local da última enviada }.
-// A notificação traz a última análise do Claude do local escolhido (um local do próprio telemóvel, com a análise).
-const PUSH_MAX = 300, PUSH_PER_RUN = 25;
+// { id, ep, k: { p256dh, auth }, time: 'HH:MM', tz, sunday, places: [ids], last: dia local da última enviada }.
+// A notificação traz a última análise de cada local escolhido (locais que o telemóvel acompanha, com a análise ligada):
+// desde a 1.13 podem ser vários, numa só notificação (as entradas de antes têm place: um id).
+const PUSH_MAX = 300, PUSH_PER_RUN = 25, PUSH_PLACES_MAX = 4;
+const pushIds = (e) => (Array.isArray(e?.places) ? e.places.filter((x) => typeof x === 'string') : typeof e?.place === 'string' ? [e.place] : []);
 const appUrl = (env) => env.APP_URL || 'https://nelsonsous.github.io/escolaplay/meteo/';
 async function vapid(env) {
     let k = await env.KV.get('push:vapid', 'json');
@@ -664,8 +695,22 @@ async function vapid(env) {
     return k;
 }
 async function pushIndex(env) { const v = await env.KV.get('push:index', 'json'); return Array.isArray(v) ? v : []; }
-const pushView = (e) => (e ? { on: true, time: e.time, sunday: !!e.sunday, place: e.place || null, tz: e.tz, last: e.last || null }
-    : { on: false, time: PUSH_DEFAULT_TIME, sunday: true, place: null });
+const pushView = (e) => (e ? { on: true, time: e.time, sunday: !!e.sunday, places: pushIds(e), place: pushIds(e)[0] || null, tz: e.tz, last: e.last || null }
+    : { on: false, time: PUSH_DEFAULT_TIME, sunday: true, places: [], place: null });
+/** Tira locais das notificações (desligados, ou de que um telemóvel saiu); quem fica sem nenhum deixa de as receber. */
+async function prunePush(env, ids, { device = null } = {}) {
+    const idx = await pushIndex(env), drop = new Set(ids);
+    let changed = false;
+    const next = idx.map((e) => {
+        if (device && e.id !== device) return e;
+        const keep = pushIds(e).filter((x) => !drop.has(x));
+        if (keep.length === pushIds(e).length) return e;
+        changed = true;
+        const { place, ...rest } = e;
+        return keep.length ? { ...rest, places: keep } : null;
+    }).filter(Boolean);
+    if (changed) await env.KV.put('push:index', JSON.stringify(next));
+}
 async function pushKey(env) {
     if (!env.KV) return noKv();
     return json({ publicKey: (await vapid(env)).publicKey }, 200, { 'cache-control': 'public, max-age=3600' });
@@ -690,11 +735,15 @@ async function savePush(req, env, url) {
     const b = await req.json().catch(() => null);
     const sub = validSubscription(b?.subscription), time = validTime(b?.time);
     if (!sub || !time) return bad('Notificação inválida.');
-    const place = (await getPlaces(env)).find((p) => p.id === b?.place && !p.off && uses(me, p));
-    if (!place) return json({ error: 'sem_local', message: 'As notificações trazem a análise: liga-a primeiro para um local teu (Análise → Análise).' }, 409);
+    // os locais escolhidos (places; as versões de antes mandam place), pela ordem: só os que este telemóvel acompanha
+    const ask = Array.isArray(b?.places) ? b.places : b?.place != null ? [b.place] : [];
+    const all = await getPlaces(env);
+    const chosen = [...new Set(ask.filter((x) => typeof x === 'string'))].map((id) => all.find((p) => p.id === id && !p.off && uses(me, p))).filter(Boolean)
+        .slice(0, me.owner ? PUSH_PLACES_MAX : GUEST_MAX);
+    if (!chosen.length) return json({ error: 'sem_local', message: 'As notificações trazem a análise: liga-a primeiro para um local teu (Análise → Análise).' }, 409);
     const idx = await pushIndex(env), old = idx.find((e) => e.id === me.id), rest = idx.filter((e) => e.id !== me.id);
     if (rest.length >= PUSH_MAX) return json({ error: 'cheio', message: 'De momento não há vagas para mais notificações.' }, 409);
-    const entry = { id: me.id, ep: sub.endpoint, k: sub.keys, time, tz: validTz(b?.tz) || 'Europe/Lisbon', sunday: b?.sunday !== false, place: place.id,
+    const entry = { id: me.id, ep: sub.endpoint, k: sub.keys, time, tz: validTz(b?.tz) || 'Europe/Lisbon', sunday: b?.sunday !== false, places: chosen.map((p) => p.id),
         last: old?.last || null, at: new Date().toISOString() };
     await env.KV.put('push:index', JSON.stringify([...rest, entry]));
     return json(pushView(entry), 201);
@@ -706,10 +755,15 @@ async function deletePush(req, env, url) {
     if (idx.some((e) => e.id === me.id)) await env.KV.put('push:index', JSON.stringify(idx.filter((e) => e.id !== me.id)));
     return new Response(null, { status: 204 });
 }
+// os locais da notificação que ainda estão ligados (um desligado entretanto sai)
+const pushPlaces = (e, places) => pushIds(e).map((id) => places.find((p) => p.id === id && !p.off)).filter(Boolean);
 async function deliver(env, e, { keys, places, analyses, weekly, nowMs }) {
-    if (!analyses.has(e.place)) analyses.set(e.place, await lastAnalysis(env, e.place));
-    const place = places.find((p) => p.id === e.place);
-    const msg = pushMessage(analyses.get(e.place), { name: place?.name, weekly, url: `${appUrl(env)}?tab=analise`, nowMs });
+    const items = [];
+    for (const p of pushPlaces(e, places)) {
+        if (!analyses.has(p.id)) analyses.set(p.id, await lastAnalysis(env, p.id));
+        items.push({ analysis: analyses.get(p.id), name: p.name });
+    }
+    const msg = pushGroupMessage(items, { weekly, url: `${appUrl(env)}?tab=analise`, nowMs });
     return sendPush({ endpoint: e.ep, keys: e.k }, msg, keys, { subject: appUrl(env) });
 }
 const testAt = new Map(); // por telemóvel, neste isolado: um teste por minuto
@@ -737,6 +791,7 @@ export async function runPush(env, nowMs = Date.now()) {
     const [keys, places] = await Promise.all([vapid(env), getPlaces(env)]);
     const analyses = new Map(), done = new Map(), gone = new Set();
     for (const e of due) {
+        if (!pushPlaces(e, places).length) { gone.add(e.id); continue; } // os locais foram todos desligados: deixa de enviar
         const status = await deliver(env, e, { keys, places, analyses, weekly: e.weekly, nowMs });
         if (status === 404 || status === 410) gone.add(e.id);
         else if (status >= 200 && status < 500) done.set(e.id, localParts(nowMs, e.tz).date); // 4xx não se resolve hoje: não insistir
