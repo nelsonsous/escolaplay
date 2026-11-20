@@ -1565,6 +1565,13 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         assert.equal(await corpo.getByRole('button', { name: 'Ligar a playlist na hora' }).count(), 0);
         assert.equal(await corpo.locator('[data-onda="ptx"]').inputValue(), texto, 'o texto fica');
         assert.ok(JSON.parse(await env.KV.get('tidal:tokens')).iaCfEm, 'a autorização fica registada');
+        // o visto «A IA melhora o texto do pedido antes de criar» vem desligado por omissão; ligado, a IA sugere antes de criar
+        const visto = corpo.locator('[data-onda="sug_auto"]');
+        assert.equal(await visto.getAttribute('aria-checked'), 'false', 'desligado por omissão');
+        assert.doesNotMatch(await visto.innerText(), /^✓/);
+        await visto.click();
+        await page.waitForFunction(() => document.querySelector('#mu-body [data-onda="sug_auto"]')?.getAttribute('aria-checked') === 'true');
+        assert.match(await visto.innerText(), /^✓\s*A IA melhora o texto do pedido antes de criar/);
         // criar: primeiro, a sugestão da IA para o texto. «Ajustar» põe-na no texto (o toque seguinte já cria)
         const sug = corpo.locator('.mu-sugestao');
         const ja = corpo.locator('.mu-duo [data-onda="pedir"]');
@@ -1633,10 +1640,8 @@ test('playlist na hora: ligar em «Pedir», criar já com a IA da Cloudflare, de
         const caixa = corpo.locator('[data-onda="ptx"]');
         await caixa.fill('Playlist instrumental e calma para estudar, energia baixa, lo-fi e piano acústico, focada na concentração, '.repeat(4));
         assert.ok(await caixa.evaluate((e) => e.scrollHeight <= e.clientHeight + 4), 'sem texto escondido');
-        // o visto «A IA melhora o texto do pedido antes de criar»: ligado por omissão; desligado, cria logo, sem sugestão
-        const visto = corpo.locator('[data-onda="sug_auto"]');
-        assert.equal(await visto.getAttribute('aria-checked'), 'true', 'ligado por omissão');
-        assert.match(await visto.innerText(), /^✓\s*A IA melhora o texto do pedido antes de criar/);
+        // desligado (o estado de origem), cria logo, sem sugestão
+        assert.equal(await visto.getAttribute('aria-checked'), 'true', 'ligado (foi ligado acima)');
         await visto.click();
         await page.waitForFunction(() => document.querySelector('#mu-body [data-onda="sug_auto"]')?.getAttribute('aria-checked') === 'false');
         await caixa.fill('Bossa nova ao domingo');
