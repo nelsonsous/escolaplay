@@ -937,6 +937,53 @@ test('um convite já usado: ao ligar diz porquê e aparece o campo para colar um
     await ctx.close();
 });
 
+// iPhone: o Safari e a app do ecrã principal não partilham nada (nem a chave nem o convite). Por isso, no Safari não se
+// liga o Tidal: pede-se para pôr a app no ecrã principal e liga-se lá; o convite pode ser colado (ou o link inteiro)
+test('iPhone: no Safari o convite pede a app no ecrã principal primeiro; lá, cola-se o convite (ou o link) e liga-se o Tidal', { skip: !chromium && 'sem Playwright' }, async () => {
+    const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+    const agente = await env.KV.get('agente:chave');
+    const cv = await (await worker.fetch(new Request(WORKER + '/api/convites', { method: 'POST', headers: { authorization: `Bearer ${agente}`, 'content-type': 'application/json' }, body: '{}' }), env, { waitUntil() {} })).json();
+    const erros = [];
+    // no Safari: nada de login já; o convite fica no endereço (o ecrã principal abre com ele) e o código vê-se
+    const a = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: IPHONE, serviceWorkers: 'block' });
+    const pa = await a.newPage();
+    pa.on('pageerror', (e) => erros.push(String(e)));
+    await pa.goto(`${APP}?ligar=${encodeURIComponent(cv.codigo)}&proxy=${encodeURIComponent(WORKER)}`);
+    await pa.getByText('Primeiro, põe a Música no ecrã principal').waitFor();
+    assert.equal(await pa.getByRole('button', { name: /Concordo e ligar ao Tidal/ }).count(), 0, 'não pede o login no Safari');
+    assert.ok(pa.url().includes('ligar='), 'o convite fica no endereço');
+    assert.equal((await pa.locator('.mu-codigo').textContent()).trim(), cv.codigo, 'o código vê-se, para colar lá');
+    // quem não quer instalar liga logo ali
+    await pa.getByRole('button', { name: 'Ligar já aqui, sem instalar' }).click();
+    await pa.getByRole('button', { name: /Concordo e ligar ao Tidal/ }).waitFor();
+    await a.close();
+    // na app do ecrã principal (armazém vazio): cola-se o convite, ou o link inteiro, e segue-se para o login do Tidal
+    for (const colado of [cv.codigo, cv.url]) {
+        const b = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: IPHONE, serviceWorkers: 'block' });
+        const pb = await b.newPage();
+        pb.on('pageerror', (e) => erros.push(String(e)));
+        await pb.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { get: () => true }); });
+        await pb.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        assert.equal(await pb.getByText('Primeiro, põe a Música no ecrã principal').count(), 0, 'no ecrã principal não pede para instalar');
+        await pb.locator('[data-onda="cod"]').fill(colado);
+        await pb.getByRole('button', { name: 'Usar este código' }).click();
+        await pb.getByRole('button', { name: /Concordo e ligar ao Tidal/ }).waitFor();
+        assert.equal(await pb.evaluate(() => localStorage.getItem('musica:codigo')), cv.codigo, 'guarda só o código');
+        await b.close();
+    }
+    // um código de ligação de 8 letras enganado continua a dar o erro de sempre
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: IPHONE, serviceWorkers: 'block' });
+    const pc = await c.newPage();
+    await pc.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { get: () => true }); });
+    await pc.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+    await pc.locator('[data-onda="cod"]').fill('ABCD2345');
+    await pc.getByRole('button', { name: 'Usar este código' }).click();
+    await pc.locator('#mu-aviso').getByText(/inválido ou já usado/).waitFor();
+    assert.equal(await pc.getByRole('button', { name: /Concordo e ligar ao Tidal/ }).count(), 0);
+    await c.close();
+    assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_|status of 401/.test(x)), [], 'sem erros');
+});
+
 test('trocar uma faixa (⇄): o motor escolhe a substituta no telemóvel, vê-se logo e grava-se no Tidal; a que sai não volta; desfazer', { skip: !chromium && 'sem Playwright' }, async () => {
     // uma playlist do Maestro já no Tidal: 4 faixas, 6 candidatas (2 livres)
     const base = await publicarComoCurador();

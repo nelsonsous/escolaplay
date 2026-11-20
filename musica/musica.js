@@ -30,13 +30,19 @@
     const ecraPrincipal = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     const temPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
     ls.set('avisos_ok', nativo ? 'nativo' : temPush ? '1' : iOS && !ecraPrincipal ? 'ios' : '0');
+    // no iPhone, o Safari e a app do ecrã principal não partilham nada (nem a chave nem o convite): a Onda pede para pôr
+    // a app no ecrã principal antes de ligar o Tidal («instalar»)
+    const instalarAqui = iOS && !ecraPrincipal && !nativo;
+    ls.set('instalar', instalarAqui ? '1' : '0');
     // o fuso do aparelho, para a app saber se é de dia ou de noite pela hora local (a Onda só tem a hora UTC)
     ls.set('fuso', String(-new Date().getTimezoneOffset()));
     const h = new URLSearchParams(location.hash.slice(1)), q = new URLSearchParams(location.search);
     if (h.has('chave')) { ls.set('chave', h.get('chave')); ls.del('codigo'); ls.set('aviso', 'Tidal ligado — este aparelho fica com acesso.'); }
     else if (h.has('ligado')) ls.set('aviso', 'Tidal ligado outra vez.');
     else if (h.has('erro')) ls.set('aviso', 'Não liguei ao Tidal: ' + h.get('erro'));
-    if (q.get('ligar')) { ls.set('codigo', q.get('ligar')); q.delete('ligar'); }
+    // (no Safari do iPhone, enquanto não há chave, o convite fica no endereço: «Adicionar ao ecrã principal» guarda o
+    // endereço da página, e a app do ecrã principal abre já com ele)
+    if (q.get('ligar')) { ls.set('codigo', q.get('ligar')); if (!(instalarAqui && !ls.get('chave'))) q.delete('ligar'); }
     // tocar num aviso do telemóvel abre a playlist dele (#pl=id): a Onda abre-a quando a lista chegar
     if (/^[a-z0-9_-]{4,40}$/.test(h.get('pl') || '')) ls.set('abrir', h.get('pl'));
     if (q.get('proxy')) { ls.set('proxy', q.get('proxy').replace(/\/+$/, '')); q.delete('proxy'); }

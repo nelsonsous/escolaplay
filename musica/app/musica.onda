@@ -112,11 +112,21 @@
 : carregar >i ? @ 3 `<p class="mu-nota mu-a-carregar">A carregar…</p>` `<p class="mu-nota mu-a-carregar">A ligar ao conector…</p>`
 
 # ===== boas-vindas (ligar o Tidal) =====
-: campo_codigo >i `<label class="mu-campo"><span>Código de ligação</span><input data-onda="cod" autocapitalize="off" autocomplete="off" spellcheck="false" value="{ esct @ 38 }"></label><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="usar">{ ic 15 }Usar este código</button></div>`
+# um link de convite colado («…?ligar=CODIGO&…»): fica só o código; um código sem link fica como está
+: so_codigo i>i t {
+  = k _tx_acha t $"ligar=" 0
+  ? < k 0 t {
+    = a + k 6 = b a
+    W && < b _tx_len t ~ || || || == _tx_b t b 38 == _tx_b t b 35 == _tx_b t b 32 == _tx_b t b 10 { = b + b 1 }
+    _tx_sub t a b } }
+: campo_codigo >i `<label class="mu-campo"><span>Código do convite ou de ligação</span><input data-onda="cod" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="cola aqui o código ou o link" value="{ esct @ 38 }"></label><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="usar">{ ic 15 }Usar este código</button></div>`
 : boas_vindas >i {
   = e @ 3
   = cod _an_ler $"codigo"
   = ch _an_ler $"chave"
+  # iPhone no Safari (sem a app no ecrã principal): primeiro instala-se; quem prefere ligar já ali toca em «sem instalar»
+  = i1 _an_ler $"instalar" = i2 _an_ler $"ligar_aqui"
+  = inst && ? i1 mesmo i1 $"1" 0 ~ ? i2 mesmo i2 $"1" 0
   ? ~ == tipo e.clientId 3 {
       `<div class="mu-card boas"><h3>Primeiro: a tua app no Tidal</h3><p>Em <a href="https://developer.tidal.com/dashboard" target="_blank" rel="noopener">developer.tidal.com</a> cria uma app (grátis) e, nas definições dela:</p><ul class="mu-tend"><li>Redirect URI: <code>{ esct txt e.retorno }</code></li><li>Scopes: <code>user.read collection.read playlists.read playlists.write search.read recommendations.read</code></li></ul>`
       ? || cod && ch e.tu {
@@ -124,8 +134,9 @@
         `<p class="mu-nota">Depois abre o link de ligação que recebeste (termina em <code>?ligar=…</code>) para colares aqui o Client ID.</p>`
       "</div>" }
     { ? && ch ~ e.tu `<div class="mu-card boas"><h3>Este aparelho perdeu o acesso</h3><p>A chave guardada já não é válida. Cola aqui um código de ligação novo.</p>{ campo_codigo }</div>`
+      ? && cod inst `<div class="mu-card boas"><h3>Primeiro, põe a Música no ecrã principal</h3><p>No iPhone, a app do ecrã principal não partilha nada com o Safari: se ligasses o Tidal aqui, terias de o fazer outra vez depois.</p><ol class="mu-passos"><li>Toca em <b>Partilhar</b> (o quadrado com a seta).</li><li>Escolhe <b>Adicionar ao ecrã principal</b>.</li><li>Abre a Música de lá e toca em <b>Ligar ao Tidal</b>.</li></ol><p class="mu-nota">O teu convite segue com ela. Se a app pedir um código, é este (toca nele para o escolher e copiar):</p><p class="mu-codigo">{ esct cod }</p><button type="button" class="mu-ligacao" data-onda="sem_instalar">Ligar já aqui, sem instalar</button></div>`
       ? cod `<div class="mu-card boas"><h3>Liga o teu Tidal</h3><p>Vais à página de login do Tidal, autorizas, e voltas aqui. As playlists passam a ser criadas na tua conta.</p><p>{ txt_ia } <a href="privacidade.html">Privacidade</a></p><div class="mu-acoes"><button type="button" class="mu-btn" data-onda="ligar_c">{ ic 1 }Concordo e ligar ao Tidal</button></div></div>`
-      `<div class="mu-card boas"><h3>{ ? ligado "Liga este aparelho" "Liga o teu Tidal" }</h3><p>Num aparelho onde já entraste, vai a Ajustes → <b>Ligar outro aparelho</b> e cola aqui o código. Se é a primeira vez, abre o link do convite.</p>{ campo_codigo }</div>` } }
+      `<div class="mu-card boas"><h3>{ ? ligado "Liga este aparelho" "Liga o teu Tidal" }</h3><p>Cola aqui o código (ou o link) do convite que recebeste. Se já usas a Música noutro aparelho, vai lá a Ajustes → <b>Ligar outro aparelho</b> e cola aqui o código que aparece.</p>{ campo_codigo }</div>` } }
 
 # ===== Playlists =====
 # os pedidos à espera do Maestro ficam no cimo da lista das playlists (é para lá que vão quando ficam prontos): o que
@@ -749,8 +760,9 @@
       = r _tx_abre + 1200 * 7 _tx_len cod `POST /api/config{ P 10 }\{"codigo":{ ? cod pjs cod "null" },"clientId":{ pjs @ 21 }\}`
       pede _tx_fecha r 1 0 } }
 : aparelho_enviar >i ? ocupado 0 {
-    ? < _tx_len @ 38 8 { aviso $"Cola o código de ligação." 0 } {
-      = r _tx_abre + 400 * 7 _tx_len @ 38 `POST /api/aparelho{ P 10 }\{"codigo":{ pjs @ 38 },"nome":"app Música"\}`
+    = cd so_codigo @ 38
+    ? < _tx_len cd 8 { aviso $"Cola o código de ligação." 0 } {
+      = r _tx_abre + 400 * 7 _tx_len cd `POST /api/aparelho{ P 10 }\{"codigo":{ pjs cd },"nome":"app Música"\}`
       pede _tx_fecha r 10 0 } }
 : desligar_enviar >i ? ocupado 0 { pede`POST /api/desligar{ P 10 }\{\}` 8 0 }
 # apagar a conta: o conector apaga tudo o que guarda da pessoa; este aparelho fica sem chave
@@ -825,10 +837,14 @@
     { ! 28 ? || == @ 28 7 == @ 28 8 @ 28 0 tvazio @ 46 ! 60 0 ! 61 0 tvazio @ 54
       # o codigo guardado (de um convite ou link ja usado) nao serve: esquece-o, para aparecer o campo do codigo
       Se && == modo 2 == s 401 _an_gravar $"codigo" 0
+      # um convite colado no campo do código: o conector só conhece códigos de ligação (8), por isso responde 401; um texto
+      # mais comprido guarda-se como o convite e passa-se ao login do Tidal (se não valer, o login diz-no e volta ao campo)
+      = cv && == modo 10 && == s 401 > _tx_len so_codigo @ 38 11
+      Se cv { _an_gravar $"codigo" so_codigo @ 38 tvazio @ 38 }
       # com a folha aberta redesenham-se só os pedaços dela (a página toda fazia a folha subir outra vez)
       ? && == @ 1 1 _tx_len @ 50 refolha 143 render
       # a sugestão não veio (a IA não respondeu): cria logo, com o texto da pessoa
-      ? == modo 37 { = mm sug_mm tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 } { erro_ped t s 0 } } }
+      ? == modo 37 { = mm sug_mm tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 } { ? cv { aviso $"Convite guardado: toca em «Concordo e ligar ao Tidal»." 0 } { erro_ped t s 0 } 0 } } }
 
 # ===== Pedir =====
 # começar por uma música (opcional): procura-se no Tidal (a mesma pesquisa de «Acrescentar uma faixa», a mesma caixa
@@ -1163,7 +1179,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.46.6 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.46.7 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»
@@ -1296,6 +1312,7 @@
   # a sugestão: criar com ela; ajustá-la (vai para o texto; o toque seguinte cria); manter o meu (cria com ele)
   ? mesmo a $"pr" { _an_gravar $"perfil_aberto" $"1" Se ~ @ 31 { = r _tx_abre 300 `POST /api/perfil/respostas{ P 10 }\{"campo":{ pjs b },"valor":{ pjs _tx_campo t 2 9 }\}` pede _tx_fecha r 39 } 0 }
   ? mesmo a $"perfil_abrir" { = ap _an_ler $"perfil_aberto" = ab ? ap mesmo ap $"1" ~ r_total _ar_get @ 3 $"respostas" _an_gravar $"perfil_aberto" ? ab $"0" $"1" render 0 }
+  ? mesmo a $"sem_instalar" { _an_gravar $"ligar_aqui" $"1" render 0 }
   ? mesmo a $"ir_perfil" { _an_gravar $"perfil_aberto" $"1" ir 5 = fica 1 0 }
   ? mesmo a $"ia_qual" { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"qualidade":{ ? mesmo b $"1" "true" "false" }\}` 40 0 } }
   ? mesmo a $"sug_auto" { ? sug_on { _an_gravar $"sugerir" 0 0 } { _an_gravar $"sugerir" $"1" 0 } render 0 }
