@@ -853,7 +853,8 @@
 # pedido; a pessoa escolhe: criar com ela, ajustá-la (vai para o texto) ou manter o seu. Em @47: vazio (ainda não
 # houve sugestão); «PJ»/«PM» à espera dela (J: já, com a IA; M: com o Claude); «S?», tab, texto, tab, porquê, tab,
 # quem a fez (a sugestão à vista); «RJ»/«RM» (já vista: o toque seguinte cria). Mudar de vista esquece tudo.
-: sug_on >i { = v _an_ler $"sugerir" ~ && v mesmo v $"0" }
+# (desligado por omissão: só está ligado se a pessoa o ligou, «1» no aparelho)
+: sug_on >i { = v _an_ler $"sugerir" && v mesmo v $"1" }
 : sug_visto >i { = on sug_on
   `<button type="button" class="mu-check" role="switch" aria-checked="{ ? on "true" "false" }" data-onda="sug_auto"><span class="cx" aria-hidden="true">{ Se on "✓" }</span><span><b>A IA melhora o texto do pedido antes de criar</b><i>Mostra-te a sugestão: usas, ajustas ou manténs o teu.</i></span></button>` }
 : sug_bloco >i {
@@ -1162,7 +1163,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.46.5 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.46.6 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»
@@ -1297,7 +1298,7 @@
   ? mesmo a $"perfil_abrir" { = ap _an_ler $"perfil_aberto" = ab ? ap mesmo ap $"1" ~ r_total _ar_get @ 3 $"respostas" _an_gravar $"perfil_aberto" ? ab $"0" $"1" render 0 }
   ? mesmo a $"ir_perfil" { _an_gravar $"perfil_aberto" $"1" ir 5 = fica 1 0 }
   ? mesmo a $"ia_qual" { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"qualidade":{ ? mesmo b $"1" "true" "false" }\}` 40 0 } }
-  ? mesmo a $"sug_auto" { ? sug_on { _an_gravar $"sugerir" $"0" 0 } { _an_gravar $"sugerir" 0 0 } render 0 }
+  ? mesmo a $"sug_auto" { ? sug_on { _an_gravar $"sugerir" 0 0 } { _an_gravar $"sugerir" $"1" 0 } render 0 }
   ? mesmo a $"sug_usar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 }
   ? mesmo a $"sug_ajustar" { = mm sug_mm tcopia @ 20 _tx_campo @ 47 1 9 1990 tcopia @ 47 ? mm $"RM" $"RJ" 10 render aviso $"Ajusta o texto e toca outra vez em criar." 0 }
   ? mesmo a $"sug_manter" { = mm sug_mm tcopia @ 47 ? mm $"RM" $"RJ" 10 pedir_enviar mm 0 }
