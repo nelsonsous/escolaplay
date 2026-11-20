@@ -471,6 +471,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(why[0], /^A previsão dava \d+% de chuva agora/);
     assert.ok(why.some((l) => /perdem peso na chuva deste local/.test(l)), why.join(' | '));
     await noOverflow('porque dizia chuva');
+    if (SHOTS) await page.waitForTimeout(700); // a folha sobe com animação
     await shot('02c-porque-chuva.png');
     await page.click('#mt-sheet-card .mt-ibtn[data-act="close"]');
     await page.waitForSelector('#mt-sheet[hidden]', { state: 'attached' });
@@ -1017,7 +1018,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.equal(await page.locator('#mt-sheet-title').textContent(), 'Trocar uma análise');
     assert.deepEqual(await page.locator('#mt-sheet [data-swap]').allTextContents(), ['Trocar Lisboa', 'Trocar Braga']);
     await noOverflow('trocar uma análise');
-    await shot('08b-trocar.png');
+    if (SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(SHOTS, '08b-trocar.png') }); } // a folha sobe com animação; só o ecrã
     await page.click('#mt-sheet [data-swap="braga"]');
     await toastIs(/A tua análise passa de Braga para este local/);
     assert.deepEqual(patchBody, { lat: 41.1496, lon: -8.611, name: 'Porto', on: true });
