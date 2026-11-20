@@ -99,7 +99,7 @@ function proxyBody(u) {
         { id: 2101, name: 'Gasóleo simples', n: 3012, avg: 1.611, median: 1.599, min: 1.449, max: 1.899, cheapest: [{ price: 1.449, name: 'Intermarché', brand: 'Intermarché', place: 'Leiria, Leiria' }], updated: '2026-11-05 09:30' },
         { id: 3201, name: 'Gasolina simples 95', n: 2987, avg: 1.751, median: 1.739, min: 1.589, max: 2.049, cheapest: [{ price: 1.589, name: 'Prio Torres Novas', brand: 'Prio', place: 'Torres Novas, Santarém' }], updated: '2026-11-05 09:30' }] };
     if (p === '/fuel/distritos') return { items: [{ id: 11, name: 'Lisboa' }, { id: 13, name: 'Porto' }] };
-    if (p === '/cryptoglobal') return { mcap: 2.1e12, mcapChg: -3.2, vol: 9.5e10, btcDom: 58.4, ethDom: 11.2, fng: { v: 24, label: 'Extreme Fear', prev: 30 } };
+    if (p === '/cryptoglobal') return { mcap: 2.1e12, mcapChg: -3.2, vol: 9.5e10, btcDom: 58.4, ethDom: 11.2, fng: { v: 24, label: 'Extreme Fear', prev: 30, h: Array.from({ length: 90 }, (_, i) => Math.round(50 + 30 * Math.sin(i / 9))) } };
     if (p === '/fuel/municipios') return { items: [{ id: 1316, name: 'Santo Tirso' }, { id: 1312, name: 'Porto' }] };
     if (p === '/me') return { owner: ME.owner, others: ME.others, ...(ME.naHora ? { naHora: true } : {}) };
     if (p === '/stats') return ME.owner ? { total: 5, d1: 2, d7: 4, d30: 5, claude: 1, others: ME.others, run: { at: '2026-11-07T07:20:00Z', queued: 1, done: 1, max: 20 } } : null;
@@ -529,6 +529,8 @@ function proxyBody(u) {
     await page.waitForSelector('details[data-fold="hl-eua"] .row[data-key="XYZ"]', { state: 'attached' });
     assert.equal(await page.locator('details[data-fold="hl-eua"] > summary small').textContent(), 'Xyz Therapeutics +38,20% · Abcd Corp −22,50%');
     assert.equal(await page.locator('details[data-fold="hl-cripto"] > summary').textContent(), 'Cripto hojeMedo extremo · mercado −3,20% em 24 h24');
+    // o medo e ganância nos últimos 90 dias: um gráfico com os 90 pontos
+    assert.equal(await page.locator('details[data-fold="hl-cripto"] .fg-h polyline').evaluate((p) => p.getAttribute('points').trim().split(' ').length), 90);
     assert.equal(await page.locator('#mk-body details[open]').count(), 0, 'as linhas do fim fechadas');
     console.log('✓ destaques: sobem', ups.join(', '), '| caem', downs.join(', '));
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '2-destaques.png') });

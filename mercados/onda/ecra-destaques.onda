@@ -153,7 +153,16 @@
       Se ln_fin bd { `<div><small>Dominância do Bitcoin</small><b class="num">{ _nu_intlm @f + bd 1 1 }%</b>`
           = ed g.ethDom `{ Se ln_fin ed `<em>Ether { _nu_intlm @f + ed 1 1 }%</em>` }</div>` }
       Se fin vo `<div><small>Volume 24 h</small><b class="num">{ _nu_compacto vo }{ P 194 }{ P 160 }€</b></div>`
-      `</div><p class="note">Medo e ganância: 0 = medo extremo, 100 = ganância extrema (com medo, os preços costumam estar mais baixos). Dominância a subir = o dinheiro foge das outras moedas para o Bitcoin.</p></details>` } } }
+      `</div>`
+      # o medo e ganância nos últimos 90 dias (0 em baixo, 100 em cima; as faixas de 25 e 75 a tracejado)
+      = hh f.h = nh quantos hh
+      Se && fv >= nh 5 {
+          `<div class="fg-h"><small>Medo e ganância · 90 dias</small><svg viewBox="0 0 300 64" preserveAspectRatio="none" role="img" aria-label="Medo e ganância nos últimos 90 dias">`
+          `<line class="fg-b" x1="0" x2="300" y1="16" y2="16"/><line class="fg-b" x1="0" x2="300" y1="48" y2="48"/><polyline class="fg-l" points="`
+          = i 0 = n pri hh
+          W n { = y - 64. * 0.64 Mx 0. Mn 100. num n `{ _nu_fixo / * 300. F i F - nh 1 1 },{ _nu_fixo y 1 } ` = i + i 1 = n seg n }
+          `"/></svg><em><span>em baixo: pânico</span><span>em cima: euforia</span></em></div>` }
+      `<p class="note">Medo e ganância: 0 = medo extremo, 100 = ganância extrema (com medo, os preços costumam estar mais baixos). Dominância a subir = o dinheiro foge das outras moedas para o Bitcoin.</p></details>` } } }
 
 # ===== a vista =====
 : ecra_destaques i>i s {
