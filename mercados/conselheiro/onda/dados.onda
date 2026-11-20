@@ -24,7 +24,7 @@
   ? == p 1 da_p1 ? == p 2 da_p2 ? == p 3 da_p3 ? == p 4 da_p4 ? == p 5 da_p5 ? == p 6 da_p6 ? == p 7 da_p7 ? == p 8 da_p8
   ? == p 9 da_p9 ? == p 10 da_p10 ? == p 11 da_p11 ? == p 12 da_p12 ? == p 13 da_p13 ? == p 14 da_p14 ? == p 15 da_p15
   ? == p 16 da_p16 ? == p 17 da_p17 ? == p 18 da_p18 ? == p 19 da_p19 ? == p 20 da_p20 ? == p 21 da_p21 ? == p 22 da_p22
-  ? == p 23 da_p23 ? == p 24 da_p24 ? == p 25 da_p25 ? == p 26 da_p26 ? == p 27 da_p27 ? == p 28 da_p28 0 }
+  ? == p 23 da_p23 ? == p 24 da_p24 ? == p 25 da_p25 ? == p 26 da_p26 ? == p 27 da_p27 ? == p 28 da_p28 ? == p 29 da_p29 0 }
 
 # owner = await tryOr(() => kvGet('cfg:owner'), null, 'dono'); jKeys = owner ? ['j:' + owner] : kvKeys('j:')
 : da_p1 >i {
@@ -201,6 +201,23 @@
   ! g_cg cg ! g_fng fng
   = fv ? _js_ehobj fng _js_oget fng $"v" 2 ! g_fg ? _js_fin fv fv 2
   = vq _js_oget @ g_q1d $"^VIX" = vp ? _js_ehobj vq _js_oget vq $"price" 2 ! g_vix ? _js_fin vp vp 2
+  ! g_ph 29 `{ cs_wini }/derivs` ~ cs_wfim 30000 }
+# os derivados da cripto (o /derivs do conector 1.14.0): moeda → { iv, f8, ann } (as opções, o funding e a base ao ano)
+: da_p29 >i {
+  cs_rget
+  = r ? @ g_err { cs_aviso $"derivados da cripto" 2 } @ g_res
+  = it ? _js_ehobj r _js_oget r $"items" 1
+  ! g_der _js_obj 8
+  Se _js_ehlst it {
+    L j _js_len it {
+      = x _js_it it j
+      Se && && _js_ehobj x _js_ehtxt _js_oget x $"c" ~ _js_v _js_oget x $"error" {
+          = iv _js_oget x $"dvol" = f8 _js_oget x $"funding8h" = b _js_oget x $"basis"
+          = an ? _js_ehobj b _js_oget b $"ann" 2
+          Se || || _js_fin iv _js_fin f8 _js_fin an {
+              = o _js_obj 3
+              _js_oset o $"iv" ? _js_fin iv cs_r2 iv 2 _js_oset o $"f8" ? _js_fin f8 cs_r2 f8 2 _js_oset o $"ann" ? _js_fin an cs_r2 an 2
+              _js_oset @ g_der _js_oget x $"c" o } } } }
   da_xini }
 # antes da abertura e depois do fecho (o /ext do conector 1.13.0): as ações e os fundos dos EUA (US), de 40 em 40; cada
 # um com negócio fora da sessão normal fica em g_ext: { k: 'pre' | 'post', pc } (a variação face ao fecho)
@@ -405,6 +422,7 @@
         _js_oset o $"fontes" ? ref 2 da_voto c r kind hz
         _js_oset o $"hz" hz
         = xe _js_oget @ g_ext k Se _js_v xe _js_oset o $"ext" xe
+        Se _js_eht kind $"crypto" { = ks _js_str k = dd _js_oget @ g_der _tx_s16 ks 2 _tx_len ks Se _js_v dd _js_oset o $"der" dd }
         _js_push rows o 0 } }
     = i + i 1 }
   ! g_rows rows 0 }
@@ -695,6 +713,17 @@
   0 }
 # foraTxt(r): antes da abertura / depois do fecho, ` · pré-abertura −20.1%`
 : da_xtxt i>i r { = x _js_get r $"ext" Se _js_v x { ` · { ? _js_eht _js_get x $"k" $"pre" "pré-abertura" "pós-fecho" } { da_pdia1 _js_get x $"pc" }` } 0 }
+# derivTxt(r): os derivados da cripto, ` | derivados opções 52.6% · funding -0.004%/8h · base +5.1%/ano`
+: da_dtxt i>i r {
+  = d _js_get r $"der"
+  Se _js_v d {
+    = iv _js_get d $"iv" = f8 _js_get d $"f8" = an _js_get d $"ann" = q 0
+    Se || || ~ _js_nulo iv ~ _js_nulo f8 ~ _js_nulo an {
+      " | derivados "
+      Se ~ _js_nulo iv { `opções { _nu_fixo _js_f iv 1 }%` = q 1 }
+      Se ~ _js_nulo f8 { Se q " · " `funding { Se > _js_f f8 0. P '+ }{ _nu_fixo _js_f f8 3 }%/8h` = q 1 }
+      Se ~ _js_nulo an { Se q " · " `base { Se > _js_f an 0. P '+ }{ _nu_fixo _js_f an 1 }%/ano` } } }
+  0 }
 # lineOf(r): uma linha compacta por ativo
 : da_pdia1 i>i dy ? _js_nulo dy "—" { = x _js_f dy Se > x 0. P '+ _nu_fixo x 1 P '% }
 : da_pjoin ii>i l sep { = j 0 W < j _js_len l { Se j ? == sep 1 " · " ", " _js_pu _js_it l j = j + j 1 } }
@@ -725,6 +754,7 @@
       = wa _js_get pv $"was" Se && _js_ehtxt wa > _tx_len wa 0 { = l2 cs_alabel wa ` (era { _js_pu ? _js_v l2 l2 wa })` } }
   = ev _js_get r $"events" Se && _js_v ev _js_len ev ` | AGENDA { da_pjoin ev 2 }`
   da_ftxt r
+  da_dtxt r
   0 }
 # pastLines(ev)
 : da_pE i>i e {

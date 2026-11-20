@@ -39,6 +39,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
 | `/calendar?symbols=NVDA,EDP.LS` | próximos resultados e datas de dividendo (Yahoo) | 6 h |
+| `/derivs?c=BTC,ETH,SOL,XRP` | derivados da cripto (Deribit): a volatilidade das opções a 30 dias (BTC, ETH), o funding dos perpétuos por 8 h e a base do futuro a ~3 meses, ao ano (1.14.0) | 5 min |
 | `/ext?symbols=TSLA,NVDA` | antes da abertura e depois do fecho (ações dos EUA): `kind` (`pre`, `post` ou null com a bolsa aberta), preço, variação face ao fecho e a série de 5 min (1.13.0) | 2 min |
 | `/search?q=mota` | procurar símbolos | 1 h |
 | `/fuel?distrito=11` | mediana, média, mín./máx. e postos mais baratos (DGEG) | 1 h |
@@ -70,11 +71,17 @@ Travões no conector: uma corrida de cada vez e no máximo 6 por dia (cada corri
 
 Para desligar, apaga os dois segredos (ou o token, na página da tarefa).
 
-## Fora de horas e a abertura (conector 1.13.0)
+## Fora de horas, a abertura e o intervalo provável (conector 1.13.0 e 1.14.0)
 
-- **Futuros**: o S&P 500 e o Nasdaq em futuros (`ES=F`, `NQ=F`) estão nos índices do Painel. Negoceiam quase 24 h, por isso antes de as bolsas abrirem já dizem para onde vão.
+- **Futuros**: o S&P 500, o Nasdaq e o Nikkei em futuros (`ES=F`, `NQ=F`, `NIY=F`) estão nos índices do Painel. Negoceiam quase 24 h, por isso antes de as bolsas abrirem já dizem para onde vão. Os futuros do próprio FTSE All-World (os FTAW da Eurex, 01:00–22:00) não têm dados grátis: o gémeo dele em Nova Iorque faz esse papel.
 - **Antes da abertura e depois do fecho**: as ações dos EUA negoceiam das 9:00 às 14:30 e das 21:00 à 1:00 (hora de Lisboa). Com a bolsa fechada, a linha mostra `pré −20,1%` ou `pós +1,3%` (no lugar da hora), a ficha diz o preço e a hora, e o gráfico de hoje continua com esse bocado numa linha mais clara. O `/ext` dá estes preços à parte; o `/quotes` fica só com a sessão normal (as séries e a análise não mudam).
-- **A estimativa para a abertura** (bolsas europeias, ETF, e as dos EUA sem negócio fora de horas): o que os futuros do S&P 500 fizeram desde o último preço, vezes a sensibilidade do ativo ao S&P 500 (a regressão dos retornos diários dos últimos 120 dias; fora dos EUA conta também o dia anterior do S&P 500, porque a bolsa fecha antes de Nova Iorque). A linha mostra `abre ≈ −0,8%` e a ficha a margem.
+- **A estimativa para a abertura** (bolsas europeias, ETF, e as dos EUA sem negócio fora de horas):
+  1. **o gémeo**, nos fundos da Xetra: o mesmo índice em Nova Iorque, que negoceia depois de cá fechar e até à 1:00 (o FTSE All-World → `VT`; MSCI World → `URTH`; S&P 500 → `IVV`; Nasdaq-100 → `QQQ`; emergentes → `IEMG`; Europa → `VGK`; ouro → os futuros `GC=F`). O que ele fez desde o último preço de cá, em euros (com o EUR/USD de cada hora);
+  2. **depois, os futuros** do S&P 500 e do Nikkei, vezes a sensibilidade do ativo a cada um (a regressão dos retornos diários dos últimos 120 dias no S&P 500 e no Nikkei; fora dos EUA conta também o dia anterior do S&P 500, porque a bolsa fecha antes de Nova Iorque).
+
+  A linha mostra `abre ≈ −0,8%`; a ficha mostra a margem e de onde vem cada parte.
+- **O intervalo provável** (2 em cada 3 vezes), para amanhã, 1 semana e 1 mês, na ficha: pela volatilidade das opções (nas ações e nos fundos, o VIX vezes o quanto o ativo mexe face ao S&P 500; no Bitcoin e no Ether, o DVOL da Deribit) ou, sem elas, pela dos últimos 120 dias.
+- **Os derivados da cripto** (Deribit, na ficha e para o Claude): a base dos futuros a ~3 meses (o prémio sobre o preço à vista, ao ano) e o funding dos perpétuos (positivo: mais alavancados a apostar na subida).
 - **Aprende**: cada estimativa vista nas 20 h antes de uma abertura fica guardada neste aparelho e é comparada com o primeiro preço da sessão. Com 8 aberturas, corrige as estimativas pelo que se confirmou (de 0,3 a 1,6 vezes); com 5 de um ativo, a margem passa a ser o erro médio delas (até lá, a que a história do ativo dá).
 - **O Claude vê o mesmo**: no `dados.md`, `dia -0.5% · pré-abertura -20.1%`; os que mexem 5% ou mais fora de horas vão para os movimentos fortes. Sem o conector 1.13.0 (sem o `/ext`) fica só a estimativa.
 
