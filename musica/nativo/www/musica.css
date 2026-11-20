@@ -567,3 +567,8 @@ body:has(.mu-folha) { overflow: hidden; }
 .mu-duo-b.mu-duo-p { color: #000; background: var(--fg); }
 .mu-duo-b.mu-duo-p:active { background: #d8d8da; }
 .mu-duo-b.mu-duo-p span { color: rgba(0, 0, 0, .6); }
+
+/* 2.46.7 — iPhone no Safari: primeiro, a app no ecrã principal (os passos) */
+.mu-passos { margin: 8px 0 4px; padding-left: 22px; }
+.mu-passos li { margin: 6px 0; color: var(--mut); font-size: 15px; }
+.mu-passos b { color: var(--fg); font-weight: 650; }
