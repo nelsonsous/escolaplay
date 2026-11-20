@@ -476,6 +476,10 @@ a.st-row { text-decoration: none; color: inherit; }
 /* hora do último preço (ações e fundos fora do ao vivo) */
 .row .r-px { position: relative; }
 .row .r-t { display: block; order: 3; color: var(--faint); font-size: calc(.68rem * var(--k)); font-weight: 500; line-height: 1.2; }
+.row .r-t.up { color: var(--up); font-weight: 650; } .row .r-t.down { color: var(--down); font-weight: 650; }
+.d-ext { font-size: calc(0.853rem * var(--k)); margin: 2px 0 6px; }
+.d-ext small { display: block; color: var(--muted); font-size: calc(0.75rem * var(--k)); margin-top: 2px; }
+.d-ext .alt { color: var(--muted); }
 .row .r-px { display: flex; flex-direction: column; align-items: flex-end; }
 /* sem barra fixa: o estado fica por baixo do título; atualizar = puxar para baixo */
 

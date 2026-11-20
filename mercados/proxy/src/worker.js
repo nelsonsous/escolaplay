@@ -37,7 +37,7 @@
 
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
 
-const VERSION = '1.12.0';
+const VERSION = '1.13.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -158,6 +158,47 @@ async function quotes(url) {
         }
     }));
     return { body: { range, interval, at: Math.floor(Date.now() / 1000), quotes: out }, ttl: RANGES[range].ttl };
+}
+
+// ---------- /ext: antes da abertura e depois do fecho (1.13.0) ----------
+// As ações dos EUA negoceiam das 4:00 às 9:30 (antes da abertura) e das 16:00 às 20:00 (depois do fecho), hora de
+// Nova Iorque. O /quotes não traz esses preços (includePrePost=false, para as séries e a análise ficarem as de sempre);
+// aqui vêm à parte: o último preço fora de horas, a variação face ao último fecho e a série desse bocado (5 min).
+// kind: 'pre' antes da abertura, 'post' depois do fecho, null com o mercado aberto (ou sem negócio fora de horas).
+export function parseExt(data, agora = Date.now() / 1000) {
+    const res = data && data.chart && data.chart.result && data.chart.result[0];
+    if (!res) throw new Error((data && data.chart && data.chart.error && data.chart.error.description) || 'sem dados');
+    const m = res.meta || {}, ts = res.timestamp || [];
+    const q = (res.indicators && res.indicators.quote && res.indicators.quote[0]) || {};
+    const ctp = m.currentTradingPeriod || {}, reg = ctp.regular, pre = ctp.pre;
+    const nada = { symbol: m.symbol, kind: null };
+    if (!reg || (agora >= reg.start && agora < reg.end)) return nada;
+    // as janelas da sessão normal (a de hoje e as que o Yahoo dê em tradingPeriods)
+    const wins = [reg];
+    const tp = m.tradingPeriods && m.tradingPeriods.regular;
+    if (Array.isArray(tp)) for (const d of tp) for (const w of Array.isArray(d) ? d : [d]) if (w && Number.isFinite(w.start)) wins.push(w);
+    const regular = (t) => wins.some((w) => t >= w.start && t < w.end);
+    const pts = [];
+    for (let i = 0; i < ts.length; i++) { const c = (q.close || [])[i]; if (c != null && Number.isFinite(c)) pts.push([ts[i], round(c)]); }
+    const reg0 = pts.filter((p) => regular(p[0])), fora = pts.filter((p) => !regular(p[0]));
+    const ultimoReg = reg0.length ? reg0[reg0.length - 1] : null;
+    const serie = ultimoReg ? fora.filter((p) => p[0] > ultimoReg[0]) : fora;
+    if (!serie.length) return nada;
+    // a referência: o último fecho da sessão normal (o desta série, ou o anterior)
+    const ref = ultimoReg ? ultimoReg[1] : Number.isFinite(m.chartPreviousClose) ? m.chartPreviousClose : Number.isFinite(m.previousClose) ? m.previousClose : null;
+    const [time, price] = serie[serie.length - 1];
+    const kind = pre && agora >= pre.start && agora < reg.start ? 'pre' : ultimoReg ? 'post' : 'pre';
+    return { symbol: m.symbol, kind, price, ref: round(ref), changePct: Number.isFinite(ref) && ref ? round((price / ref - 1) * 100) : null, time, series: serie.slice(-200) };
+}
+async function ext(url) {
+    const symbols = [...new Set((url.searchParams.get('symbols') || '').split(',').map((s) => s.trim()).filter(Boolean))];
+    if (!symbols.length) return { status: 400, body: { error: 'falta symbols' } };
+    if (symbols.length > MAX_SYMBOLS) return { status: 400, body: { error: `máximo ${MAX_SYMBOLS} símbolos por pedido` } };
+    const orc = { n: 4 };
+    const out = await Promise.all(symbols.map(async (s) => {
+        try { return parseExt(await yahoo(`/v8/finance/chart/${encodeURIComponent(s)}?range=1d&interval=5m&includePrePost=true`, undefined, orc)); } catch (e) { return { symbol: s, error: String(e.message || e) }; }
+    }));
+    return { body: { at: Math.floor(Date.now() / 1000), items: out }, ttl: 120 };
 }
 
 // ---------- /news ----------
@@ -742,7 +783,7 @@ async function universe(url, env) {
 }
 
 // ---------- router ----------
-const ROUTES = { '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal };
+const ROUTES = { '/ext': ext, '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal };
 
 export default {
     async fetch(request, env = {}, ctx) {

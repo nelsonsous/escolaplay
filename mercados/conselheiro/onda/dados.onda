@@ -24,7 +24,7 @@
   ? == p 1 da_p1 ? == p 2 da_p2 ? == p 3 da_p3 ? == p 4 da_p4 ? == p 5 da_p5 ? == p 6 da_p6 ? == p 7 da_p7 ? == p 8 da_p8
   ? == p 9 da_p9 ? == p 10 da_p10 ? == p 11 da_p11 ? == p 12 da_p12 ? == p 13 da_p13 ? == p 14 da_p14 ? == p 15 da_p15
   ? == p 16 da_p16 ? == p 17 da_p17 ? == p 18 da_p18 ? == p 19 da_p19 ? == p 20 da_p20 ? == p 21 da_p21 ? == p 22 da_p22
-  ? == p 23 da_p23 ? == p 24 da_p24 ? == p 25 da_p25 ? == p 26 da_p26 0 }
+  ? == p 23 da_p23 ? == p 24 da_p24 ? == p 25 da_p25 ? == p 26 da_p26 ? == p 27 da_p27 ? == p 28 da_p28 0 }
 
 # owner = await tryOr(() => kvGet('cfg:owner'), null, 'dono'); jKeys = owner ? ['j:' + owner] : kvKeys('j:')
 : da_p1 >i {
@@ -201,7 +201,38 @@
   ! g_cg cg ! g_fng fng
   = fv ? _js_ehobj fng _js_oget fng $"v" 2 ! g_fg ? _js_fin fv fv 2
   = vq _js_oget @ g_q1d $"^VIX" = vp ? _js_ehobj vq _js_oget vq $"price" 2 ! g_vix ? _js_fin vp vp 2
-  ! g_ph 13 1 }
+  da_xini }
+# antes da abertura e depois do fecho (o /ext do conector 1.13.0): as ações e os fundos dos EUA (US), de 40 em 40; cada
+# um com negócio fora da sessão normal fica em g_ext: { k: 'pre' | 'post', pc } (a variação face ao fecho)
+# US: /^[A-Z][A-Z0-9-]{0,6}$/
+: da_us i>i v ? ~ _js_ehtxt v 0 {
+  = n _tx_len v
+  ? && >= n 1 <= n 7 {
+      = c _tx_b v 0 = ok && >= c 'A <= c 'Z = j 1
+      W && ok < j n { = c _tx_b v j = ok || cs_az09 c == c '- = j + j 1 } ok } 0 }
+: da_xini >i {
+  = xk _js_lst 32 = ck @ g_ck
+  L j _js_len ck { = k _js_it ck j Se da_us k _js_push xk k }
+  ! g_xk xk ! g_ext _js_obj 16 ! g_i 0 ! g_ph 27 1 }
+: da_p27 >i {
+  = i @ g_i = xk @ g_xk = n _js_len xk
+  ? < i n {
+      _an_abre 0 = j i W < j Mn n + i 40 { Se > j i P ', crut _js_it xk j = j + j 1 } = sy _an_fecha
+      ! g_ph 28
+      ? _tx_urimal sy { cs_falha $"URI malformed" 1 } { `{ cs_wini }/ext?symbols={ _tx_uri sy }` ~ cs_wfim 60000 } }
+    { ! g_ph 13 1 } }
+: da_p28 >i {
+  cs_rget
+  = r ? @ g_err { cs_aviso $"fora de horas" 2 } @ g_res
+  = it ? _js_ehobj r _js_oget r $"items" 1
+  Se _js_ehlst it {
+    L j _js_len it {
+      = x _js_it it j
+      Se _js_ehobj x {
+          = sy _js_oget x $"symbol" = kd _js_oget x $"kind" = pc _js_oget x $"changePct"
+          Se && && _js_ehtxt sy || _js_eht kd $"pre" _js_eht kd $"post" _js_fin pc {
+              = o _js_obj 2 _js_oset o $"k" kd _js_oset o $"pc" cs_r2 pc _js_oset @ g_ext sy o } } } }
+  ! g_i + @ g_i 40 ! g_ph 27 1 }
 # n(x): o número finito, ou null;  p1(x): a percentagem com uma casa (Math.round(x * 1000) / 10), ou null
 : da_nn i>i v ? _js_fin v v 2
 : da_pc1 i>i v ? _js_fin v _js_num / _nu_round * _js_f v 1000. 10. 2
@@ -373,17 +404,20 @@
         = hz ? ref 2 da_hzde k
         _js_oset o $"fontes" ? ref 2 da_voto c r kind hz
         _js_oset o $"hz" hz
+        = xe _js_oget @ g_ext k Se _js_v xe _js_oset o $"ext" xe
         _js_push rows o 0 } }
     = i + i 1 }
   ! g_rows rows 0 }
 : da_mapnf >i $"d.series.map is not a function"
-# movimentos fortes: os 5 maiores do dia e os fortes (≥ 3%) do que tem, do que juntou e da referência (sem o VIX)
+# movimentos fortes: os 5 maiores do dia e os fortes (≥ 3%) do que tem, do que juntou e da referência (sem o VIX), e os que
+# mexem 5% ou mais antes da abertura ou depois do fecho
+: da_xforte i>i r { = x _js_get r $"ext" ? _js_v x >= Ab _js_tonum _js_get x $"pc" 5. 0 }
 : da_movers >i {
   = rows @ g_rows = inv _js_lst 32 = st _js_lst 16 = j 0
   W < j _js_len rows {
     = r _js_it rows j = dy _js_get r $"day"
     Se && ~ _js_eht _js_get r $"kind" $"ref" ~ _js_nulo dy _js_push inv r
-    Se && && ~ _js_nulo dy >= Ab _js_tonum dy 3. || _js_inc cs_c $"MINEX" _js_get r $"group" && _js_eht _js_get r $"kind" $"ref" ~ _js_eht _js_get r $"s" $"^VIX" _js_push st r
+    Se && ~ _js_nulo dy || && >= Ab _js_tonum dy 3. || _js_inc cs_c $"MINEX" _js_get r $"group" && _js_eht _js_get r $"kind" $"ref" ~ _js_eht _js_get r $"s" $"^VIX" da_xforte r _js_push st r
     = j + j 1 }
   cs_ordena inv 3
   = all _js_fatia inv 0 Mn 5 _js_len inv
@@ -659,6 +693,8 @@
       = fl _js_oget v $"f" L j _js_len fl { = par _js_it fl j Se j ", " `{ _tx_pu _js_it par 0 } { _nu_ps _js_f _js_it par 1 }` }
       P '] }
   0 }
+# foraTxt(r): antes da abertura / depois do fecho, ` · pré-abertura −20.1%`
+: da_xtxt i>i r { = x _js_get r $"ext" Se _js_v x { ` · { ? _js_eht _js_get x $"k" $"pre" "pré-abertura" "pós-fecho" } { da_pdia1 _js_get x $"pc" }` } 0 }
 # lineOf(r): uma linha compacta por ativo
 : da_pdia1 i>i dy ? _js_nulo dy "—" { = x _js_f dy Se > x 0. P '+ _nu_fixo x 1 P '% }
 : da_pjoin ii>i l sep { = j 0 W < j _js_len l { Se j ? == sep 1 " · " ", " _js_pu _js_it l j = j + j 1 } }
@@ -669,7 +705,7 @@
   "] " = pr _js_get r $"price" ? _js_nulo pr "—" _js_pu pr
   Se _js_v cur { P 32 _js_pu cur }
   Se && && _js_v cur ~ _js_eht cur $"EUR" ~ _js_nulo pe ` (≈{ _js_pu pe }€)`
-  ` | dia { da_pdia1 _js_get r $"day" }`
+  ` | dia { da_pdia1 _js_get r $"day" }{ da_xtxt r }`
   ` · 1M { cs_pc _js_get r $"r1m" } · 3M { cs_pc _js_get r $"r3m" } · 1A { cs_pc _js_get r $"r1y" }`
   ` | alg C{ cs_n0 _js_get r $"short" } M{ cs_n0 _js_get r $"mid" } L{ cs_n0 _js_get r $"long" } · RSI { cs_n0 _js_get r $"rsi" }`
   " · vol " = vo _js_get r $"vol" ? _js_nulo vo "—" { _nu_ps _nu_round * _js_tonum vo 100. P '% }
@@ -750,7 +786,7 @@
   `{ da_nl }## Movimentos fortes de hoje (explica o motivo em "movers")`
   = mv @ g_movers
   ? _js_len mv {
-      = j 0 W < j _js_len mv { = r _js_it mv j `{ da_nl }- { _js_pu _js_get r $"s" }{ P 32 }{ _js_pu _js_get r $"name" }: ` = x _js_tonum _js_get r $"day" Se > x 0. P '+ _nu_fixo x 1 P '% = j + j 1 } }
+      = j 0 W < j _js_len mv { = r _js_it mv j `{ da_nl }- { _js_pu _js_get r $"s" }{ P 32 }{ _js_pu _js_get r $"name" }: ` = x _js_tonum _js_get r $"day" Se > x 0. P '+ _nu_fixo x 1 P '% da_xtxt r = j + j 1 } }
     { `{ da_nl }- (nenhum)` }
   `{ da_nl }## Notícias`
   = nw @ g_news = ord _js_ordem nw = j 0

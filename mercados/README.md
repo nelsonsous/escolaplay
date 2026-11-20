@@ -39,6 +39,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
 | `/calendar?symbols=NVDA,EDP.LS` | próximos resultados e datas de dividendo (Yahoo) | 6 h |
+| `/ext?symbols=TSLA,NVDA` | antes da abertura e depois do fecho (ações dos EUA): `kind` (`pre`, `post` ou null com a bolsa aberta), preço, variação face ao fecho e a série de 5 min (1.13.0) | 2 min |
 | `/search?q=mota` | procurar símbolos | 1 h |
 | `/fuel?distrito=11` | mediana, média, mín./máx. e postos mais baratos (DGEG) | 1 h |
 | `/fuel/distritos` | distritos da DGEG | 24 h |
@@ -68,6 +69,14 @@ Travões no conector: uma corrida de cada vez e no máximo 6 por dia (cada corri
 4. Depois disso, as corridas a horas fixas podem sair da tarefa (ou ficar só uma, de reserva).
 
 Para desligar, apaga os dois segredos (ou o token, na página da tarefa).
+
+## Fora de horas e a abertura (conector 1.13.0)
+
+- **Futuros**: o S&P 500 e o Nasdaq em futuros (`ES=F`, `NQ=F`) estão nos índices do Painel. Negoceiam quase 24 h, por isso antes de as bolsas abrirem já dizem para onde vão.
+- **Antes da abertura e depois do fecho**: as ações dos EUA negoceiam das 9:00 às 14:30 e das 21:00 à 1:00 (hora de Lisboa). Com a bolsa fechada, a linha mostra `pré −20,1%` ou `pós +1,3%` (no lugar da hora), a ficha diz o preço e a hora, e o gráfico de hoje continua com esse bocado numa linha mais clara. O `/ext` dá estes preços à parte; o `/quotes` fica só com a sessão normal (as séries e a análise não mudam).
+- **A estimativa para a abertura** (bolsas europeias, ETF, e as dos EUA sem negócio fora de horas): o que os futuros do S&P 500 fizeram desde o último preço, vezes a sensibilidade do ativo ao S&P 500 (a regressão dos retornos diários dos últimos 120 dias; fora dos EUA conta também o dia anterior do S&P 500, porque a bolsa fecha antes de Nova Iorque). A linha mostra `abre ≈ −0,8%` e a ficha a margem.
+- **Aprende**: cada estimativa vista nas 20 h antes de uma abertura fica guardada neste aparelho e é comparada com o primeiro preço da sessão. Com 8 aberturas, corrige as estimativas pelo que se confirmou (de 0,3 a 1,6 vezes); com 5 de um ativo, a margem passa a ser o erro médio delas (até lá, a que a história do ativo dá).
+- **O Claude vê o mesmo**: no `dados.md`, `dia -0.5% · pré-abertura -20.1%`; os que mexem 5% ou mais fora de horas vão para os movimentos fortes. Sem o conector 1.13.0 (sem o `/ext`) fica só a estimativa.
 
 ## Decisão consolidada
 

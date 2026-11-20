@@ -74,6 +74,20 @@ export function cenarios() {
     d('fontes: Fear & Greed nos extremos e sem rótulo, domínio do Bitcoin', { semente: 35, cg: { fng: { v: 4, prev: 96, label: '' }, btcDom: 61.25 } });
     d('fontes: o conector antigo (404 nas duas rotas novas) e os juros em falta', { semente: 36, simbolos: { '^TNX': { erro: 'Not Found' }, 'DX-Y.NYB': { semPreco: true } },
         falhas: [{ url: '/consensus', estado: 404, corpo: { error: 'não encontrado' } }, { url: '/cryptoglobal', tipo: 'tempo' }] });
+    // antes da abertura e depois do fecho (conector 1.13.0): entradas estranhas, repetidas, nos limites dos movimentos fortes
+    const EXT_ITENS = [null, 'x', 7, [1], { symbol: 7, kind: 'pre', changePct: 1 }, { symbol: 'AAPL', kind: 'pre', changePct: '5' }, { symbol: 'NVDA', kind: 'x', changePct: 3 },
+        { symbol: 'MSFT', kind: 'post', changePct: null }, { symbol: 'AMZN', kind: 'pre', changePct: -20.123456789 }, { symbol: 'AMZN', kind: 'post', changePct: 1.25 },
+        { symbol: '__proto__', kind: 'pre', changePct: 2 }, { symbol: 'TSLA', kind: 'post', changePct: 5 }, { symbol: 'META', kind: 'pre', changePct: -4.99 },
+        { symbol: 'GOOGL', kind: 'pre', changePct: 0 }, { symbol: 'JPM', kind: 'pre', changePct: -0.04 }, { symbol: 'VWCE.DE', kind: 'pre', changePct: 9 }, { symbol: 'ZZZ', kind: 'post', changePct: 50 }];
+    d('fora de horas: entradas estranhas, repetidas e nos limites (5%)', { semente: 41, extCorpo: { at: 1, items: EXT_ITENS } });
+    d('fora de horas: o corpo é um texto', { semente: 42, extCorpo: 'texto' });
+    d('fora de horas: o corpo é uma lista', { semente: 43, extCorpo: [1, 2] });
+    d('fora de horas: null', { semente: 44, extCorpo: null });
+    d('fora de horas: items não é uma lista', { semente: 45, extCorpo: { items: { AAPL: 1 } } });
+    d('fora de horas: o conector antigo (404)', { semente: 46, falhas: [{ url: '/ext', estado: 404, corpo: { error: 'rota desconhecida' } }] });
+    d('fora de horas: o tempo esgota', { semente: 47, falhas: [{ url: '/ext', tipo: 'tempo' }] });
+    d('fora de horas: mais de 40 ações dos EUA (dois pedidos); o primeiro falha', { semente: 48, kv: { ...dono('x-0002'), ...diario('x-0002', { days: {}, my: MUITAS.concat(['Z-Z', 'ZZZZZZZ', 'ZZZZZZZZ'], Array.from({ length: 30 }, (_, i) => 'ZU' + String.fromCharCode(65 + (i % 26)) + (i < 26 ? '' : i))) }) },
+        falhas: [{ url: '/ext', estado: 500, corpo: { error: 'Yahoo recusou' }, vezes: 1 }] });
     d('fontes: mais de 40 ações e fundos (dois pedidos de consenso); o primeiro falha e o segundo responde', { semente: 37,
         kv: { ...dono('f-0001'), ...diario('f-0001', { days: {}, my: MUITAS }) }, simbolos: { ZZP: { cons: { symbol: 'ZZP', ...RICO } }, 'ZZC.DE': { cons: { symbol: 'ZZC.DE', ...RICO } } },
         falhas: [{ url: '/consensus', estado: 500, corpo: { error: 'Yahoo recusou' }, vezes: 1 }] });

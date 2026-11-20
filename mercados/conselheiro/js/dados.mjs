@@ -36,6 +36,8 @@ export const kindFromQuote = (k, q) => (MARKET[k] ? 'ref' : FUNDS[k] ? 'fund' : 
 const LV = { 'Média de 20 dias': 'MM20', 'Média de 50 dias': 'MM50', 'Média de 200 dias': 'MM200', 'Máximo do ano': 'máx.ano', 'Mínimo do ano': 'mín.ano', 'Topo recente': 'topo', 'Fundo recente': 'fundo', 'Antigo fundo, já perdido': 'ex-fundo', 'Antigo topo, já ultrapassado': 'ex-topo' };
 export const lvTxt = (l) => `${r2(l.price)} ${LV[l.label] || l.label}${l.strong ? '*' : ''} (${pc(l.dist)})`;
 const KIND_PT = { fund: 'ETF', stock: 'ação', crypto: 'cripto', ref: 'ref' };
+// antes da abertura / depois do fecho: ` · pré-abertura −20.1%` (r.ext: { k: 'pre' | 'post', pc }, a variação face ao fecho)
+export const foraTxt = (r) => (r.ext ? ` · ${r.ext.k === 'pre' ? 'pré-abertura' : 'pós-fecho'} ${r.ext.pc > 0 ? '+' : ''}${r.ext.pc.toFixed(1)}%` : '');
 export function lineOf(r) {
     const eur = r.cur && r.cur !== 'EUR' && r.priceEur != null ? ` (≈${r.priceEur}€)` : '';
     const day = r.day == null ? '—' : (r.day > 0 ? '+' : '') + r.day.toFixed(1) + '%';
@@ -43,7 +45,7 @@ export function lineOf(r) {
     const hz = r.hz && Object.hasOwn(HZ_PT, r.hz) ? ` | prazo ${HZ_PT[r.hz]}` : '';
     const prev = r.prev ? ` | antes ${r.prev.action || r.prev.key}${HZ.every((h) => Number.isFinite(r.prev[h])) ? ' ' + HZ.map((h) => r.prev[h]).join('/') : ''}`
         + `${r.prev.since ? ` desde ${r.prev.since}` : ''}${was ? ` (era ${Object.hasOwn(ACTION_LABEL, was) ? ACTION_LABEL[was] : was})` : ''}` : '';
-    return `- ${r.s} ${r.name} [${KIND_PT[r.kind] || r.kind}] ${r.price ?? '—'}${r.cur ? ' ' + r.cur : ''}${eur} | dia ${day} · 1M ${pc(r.r1m)} · 3M ${pc(r.r3m)} · 1A ${pc(r.r1y)}`
+    return `- ${r.s} ${r.name} [${KIND_PT[r.kind] || r.kind}] ${r.price ?? '—'}${r.cur ? ' ' + r.cur : ''}${eur} | dia ${day}${foraTxt(r)} · 1M ${pc(r.r1m)} · 3M ${pc(r.r3m)} · 1A ${pc(r.r1y)}`
         + ` | alg C${n0(r.short)} M${n0(r.mid)} L${n0(r.long)} · RSI ${n0(r.rsi)} · vol ${r.vol == null ? '—' : Math.round(r.vol * 100) + '%'}`
         + ` | máx ${pc(r.dd)}${r.ma200 != null ? ` · MM200 ${pc(r.ma200)}${r.longUp === true ? '↑' : r.longUp === false ? '↓' : ''}` : ''}`
         + ` | S ${r.sup.length ? r.sup.join(' · ') : '—'} | R ${r.res.length ? r.res.join(' · ') : '—'}`
@@ -53,6 +55,8 @@ export function lineOf(r) {
 // ---------- 2b) as outras fontes da decisão (o /consensus e o /cryptoglobal do conector) ----------
 const fin = Number.isFinite;
 const obj = (x) => (x !== null && typeof x === 'object' && !Array.isArray(x) ? x : null);
+// as ações e os fundos dos EUA: os que negoceiam antes da abertura e depois do fecho (o /ext do conector)
+const US = /^[A-Z][A-Z0-9-]{0,6}$/;
 const FAM_PT = { 1: 'entrar', 0: 'ficar', '-1': 'sair' };
 // o prazo em que o investidor tem cada ativo (Carteira da app) e o plano mensal (Ajustes): do primeiro diário que o diga
 const HZ_PT = { short: 'curto', mid: 'médio', long: 'longo' };
@@ -281,6 +285,14 @@ async function main() {
     const cg = obj(await tryOr(() => px('/cryptoglobal'), null, 'sentimento da cripto'));
     const fng = cg ? obj(cg.fng) : null, fg = fng && fin(fng.v) ? fng.v : null;
     const vixQ = obj(q1d['^VIX']), vix = vixQ && fin(vixQ.price) ? vixQ.price : null;
+    // antes da abertura e depois do fecho (o /ext do conector 1.13.0): o que se negociou fora da sessão normal, face ao fecho
+    const extKeys = consKeys.filter((k) => US.test(k));
+    const ext = new Map();
+    for (let i = 0; i < extKeys.length; i += 40) {
+        const r = await tryOr(() => px(`/ext?symbols=${encodeURIComponent(extKeys.slice(i, i + 40).join(','))}`, 60000), null, 'fora de horas');
+        const items = obj(r) && Array.isArray(r.items) ? r.items : [];
+        for (const it of items) if (obj(it) && typeof it.symbol === 'string' && (it.kind === 'pre' || it.kind === 'post') && fin(it.changePct)) ext.set(it.symbol, { k: it.kind, pc: r2(it.changePct) });
+    }
 
     // conselhos anteriores (KV): para a continuidade (antes) e a avaliação (sem os de hoje)
     const advKeys = (await tryOr(() => kvKeys('advice:2'), [], 'conselhos anteriores')).sort().slice(-45);
@@ -319,13 +331,15 @@ async function main() {
             cons: consRow, fg: !ref && kind === 'crypto' ? fg : null,
             fontes: voto ? { p: voto.p, fam: voto.fam, f: voto.f.map((x) => [FONTE_PT[x.f] || x.f, x.p]) } : null,
             hz,
+            ...(ext.has(k) ? { ext: ext.get(k) } : {}),
         });
     }
 
     // movimentos fortes e notícias (gerais, dos movimentos fortes e do que o investidor tem ou juntou)
     const inv = rows.filter((r) => r.kind !== 'ref' && r.day != null);
     const top5 = inv.slice().sort((a, b) => Math.abs(b.day) - Math.abs(a.day)).slice(0, 5);
-    const strong = rows.filter((r) => r.day != null && Math.abs(r.day) >= 3 && (['mine', 'extra'].includes(r.group) || (r.kind === 'ref' && r.s !== '^VIX')));
+    // (e os que mexem 5% ou mais antes da abertura ou depois do fecho, de qualquer lista)
+    const strong = rows.filter((r) => r.day != null && ((Math.abs(r.day) >= 3 && (['mine', 'extra'].includes(r.group) || (r.kind === 'ref' && r.s !== '^VIX'))) || (r.ext && Math.abs(r.ext.pc) >= 5)));
     const movers = [...new Map(top5.concat(strong).map((r) => [r.s, r])).values()].slice(0, 10);
     const news = {};
     for (const [q, lang] of [['stock market today', 'en'], ['bolsa mercados hoje', 'pt'], ['bitcoin', 'en']]) {
@@ -391,7 +405,7 @@ async function main() {
     if (ctx.length) L.push(ctx.join(' · '));
     const SECTIONS = [['mine', 'O que tens'], ['fund', 'ETF'], ['crypto', 'Cripto'], ['stock', 'Ações da lista da app'], ['extra', 'Juntadas por ti na app'], ['ref', 'Referência: índices, câmbio e futuros (key up/flat/down)']];
     for (const [g, title] of SECTIONS) { const rs = rows.filter((r) => r.group === g); if (rs.length) L.push(`## ${title} (${rs.length})`, ...rs.map(lineOf)); }
-    L.push('## Movimentos fortes de hoje (explica o motivo em "movers")', ...(movers.length ? movers.map((m) => `- ${m.s} ${m.name}: ${m.day > 0 ? '+' : ''}${m.day.toFixed(1)}%`) : ['- (nenhum)']));
+    L.push('## Movimentos fortes de hoje (explica o motivo em "movers")', ...(movers.length ? movers.map((m) => `- ${m.s} ${m.name}: ${m.day > 0 ? '+' : ''}${m.day.toFixed(1)}%${foraTxt(m)}`) : ['- (nenhum)']));
     L.push('## Notícias'); for (const [q, items] of Object.entries(news)) if (items.length) L.push(`### ${q}`, ...items.map((i) => `- ${i}`));
     L.push('## Os teus veredictos anteriores (retorno desde o dia de cada um; acerto = Comprar acima do VWCE, Vender/Reduzir/Evitar abaixo)', ...pastLines(past));
     for (const a of past.recent) L.push(`- ${a.date} "${a.headline}" | VWCE desde então ${pc(a.vwce)}`);

@@ -76,6 +76,13 @@ function agenda(s) {
     return { symbol: s, earnings: aj(s).resultados ?? d(), earningsEnd: null, exDividend: d(), dividend: null };
 }
 
+// o /ext do conector (1.13.0): metade sem negócio fora de horas; os outros antes da abertura ou depois do fecho, de −12% a +12%
+function foraHoras(s) {
+    const r = rng(hash('x|' + s + '|' + (cena.semente || 1))), u = r();
+    if (u < 0.5) return { symbol: s, kind: null };
+    const pc = Math.round((r() - 0.5) * 2400) / 100;
+    return { symbol: s, kind: u < 0.75 ? 'pre' : 'post', price: Math.round(100 * (100 + pc)) / 100, ref: 100, changePct: pc, time: Math.floor(T / 1000) - 600, series: [] };
+}
 // o /consensus do conector (1.8.0): os analistas, os fundamentos, as revisões e as surpresas de uma ação; o fundo por
 // dentro; e respostas estranhas à mistura (campos que faltam, tipos errados), como as que o Yahoo dá de vez em quando
 function consenso(s) {
@@ -153,6 +160,8 @@ globalThis.fetch = async (url, init = {}) => {
     // cena.consCorpo e cena.cg: o corpo inteiro, quando o cenário quer uma resposta estranha
     if (p.pathname === '/consensus') return resp('consCorpo' in cena ? JSON.stringify(cena.consCorpo) : { at: Math.floor(T / 1000), items: (p.searchParams.get('symbols') || '').split(',').map(consenso) });
     if (p.pathname === '/cryptoglobal') return resp('cg' in cena ? JSON.stringify(cena.cg) : criptoGlobal());
+    // o /ext (1.13.0): antes da abertura e depois do fecho; cena.extCorpo, o corpo inteiro (respostas estranhas)
+    if (p.pathname === '/ext') return resp('extCorpo' in cena ? JSON.stringify(cena.extCorpo) : { at: Math.floor(T / 1000), items: (p.searchParams.get('symbols') || '').split(',').map(foraHoras) });
     return resp({ error: 'rota desconhecida' }, 404);
 };
 process.on('exit', () => {

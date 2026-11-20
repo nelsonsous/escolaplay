@@ -41,16 +41,23 @@ function series(sym, n, stepSec, drift) {
     for (let i = 0; i < n; i++) { x *= 1 + drift + (r() - 0.5) * 0.02; out.push([t0 + i * stepSec, +x.toFixed(4)]); }
     return out;
 }
+const T_FECHO = 1762300000; // a hora do último preço de todos (a SAP fechou aí; os futuros andaram depois)
 function quote(sym, range) {
     const daily = range !== '1d';
     const drift = ((hash(sym) % 9) - 4) / 1500;
-    const s = daily ? series(sym, range === '5y' ? 1260 : range === '2y' ? 505 : range === '1y' ? 252 : 126, 86400, drift) : series(sym, 78, 300, 0);
+    let s = daily ? series(sym, range === '5y' ? 1260 : range === '2y' ? 505 : range === '1y' ? 252 : 126, 86400, drift) : series(sym, 78, 300, 0);
+    if (sym === 'SAP.DE' && daily) { // os retornos do S&P 500 vezes 1,2 (a sensibilidade que a estimativa tem de achar)
+        const g = series('^GSPC', s.length, 86400, ((hash('^GSPC') % 9) - 4) / 1500);
+        s = g.map((p, i) => [p[0], i ? 0 : 200]); for (let i = 1; i < g.length; i++) s[i][1] = +(s[i - 1][1] * (1 + 1.2 * (g[i][1] / g[i - 1][1] - 1))).toFixed(4);
+    }
+    // os futuros do S&P 500 nos últimos 5 dias: 6000 até ao fecho da SAP, depois a descer 1% em 10 h
+    if (sym === 'ES=F' && range === '5d') s = Array.from({ length: 27 }, (_, i) => [T_FECHO - 3 * 3600 + i * 1800, i <= 6 ? 6000 : +(6000 * (1 - 0.01 * (i - 6) / 20)).toFixed(2)]);
     const chgPct = DAYCHG[sym] ?? (((hash(sym) % 600) - 300) / 100);
     const price = BASE[sym] || s[s.length - 1][1];
     if (!daily) { const k = price / s[s.length - 1][1]; s.forEach((p) => { p[1] = +(p[1] * k).toFixed(4); }); }
     const prev = +(price / (1 + chgPct / 100)).toFixed(4);
     return { symbol: sym, name: sym + ' Name', currency: /\.LS$|\.DE$|\.PA$|\.AS$|\.MU$|\.DU$/.test(sym) ? 'EUR' : /\.CO$/.test(sym) ? 'DKK' : 'USD', exchange: 'Test', price, prevClose: prev,
-        change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : 1762300000, open: true, series: s };
+        change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : T_FECHO, open: !['PLTR', 'SAP.DE'].includes(sym), series: s };
 }
 // análise do Claude do dono: o formato antigo (até à 3.x: o veredicto de alguns ativos) e o da 4.0, feito no arranque
 // pelo publicar.mjs a partir de uma análise de teste (um veredicto por ativo, com convicção por prazo, níveis e porquê)
@@ -91,6 +98,12 @@ function proxyBody(u) {
     if (p === '/health') return { ok: true };
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
+    if (p === '/ext') return { at: Math.floor(Date.now() / 1000), items: u.searchParams.get('symbols').split(',').map((s) => {
+        if (s !== 'PLTR') return { symbol: s, kind: null };
+        const q = quote(s, '1d'), t1 = Math.floor(Date.now() / 1000) - 600;
+        const series = Array.from({ length: 12 }, (_, i) => [t1 - (11 - i) * 600, +(q.price * (1 - 0.2 * (i + 1) / 12)).toFixed(4)]);
+        return { symbol: s, kind: 'pre', price: series[11][1], ref: q.price, changePct: -20, time: t1, series };
+    }) };
     if (p === '/consensus') return { items: u.searchParams.get('symbols').split(',').map((s) => (s === 'NVDA' ? { symbol: s, key: 'strong_buy', mean: 1.4, n: 58, target: 230.5, low: 150, high: 300, price: 196, currency: 'USD', votes: [20, 30, 6, 1, 1], votes3: [14, 28, 12, 2, 2], f: { pe: 28.4, cr: 0.6, mg: 0.55, roe: 0.9 }, rev: { up: 12, down: 2, chg: 0.084 }, sur: { n: 4, beats: 4, avg: 0.062 } } : s === 'TSLA' ? { symbol: s, key: 'hold', mean: 2.8, n: 40, target: 300, low: 120, high: 500, price: 250, currency: 'USD', votes: [5, 10, 18, 5, 2] } : s === 'VWCE.DE' ? { symbol: s, none: true, fund: { pe: 21.5, pb: 3.2, ter: 0.0022, top: [['NVIDIA Corp', 0.051], ['Apple <b>Inc</b>', 0.043]] } } : { symbol: s, none: true })) };
     if (p === '/movers') return { gainers: [{ symbol: 'XYZ', name: 'Xyz Therapeutics', price: 12.3, changePct: 38.2, volume: 9e6, currency: 'USD' }], losers: [{ symbol: 'ABCD', name: 'Abcd Corp', price: 4.1, changePct: -22.5, volume: 3e6, currency: 'USD' }], actives: [] };
     if (p === '/fuel' && u.searchParams.get('list') === '1') return { fuels: [{ id: +u.searchParams.get('tipos'), name: 'Gasolina simples 95', n: 3, median: 1.739, max: 1.799, updated: '2026-11-05 09:30',
@@ -504,6 +517,58 @@ function proxyBody(u) {
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel.png') });
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1b-painel-completo.png'), fullPage: true });
 
+    // fora de horas: a Palantir negoceia antes da abertura (−20%): na linha, na ficha e no gráfico de hoje, mais claro; a SAP
+    // (bolsa fechada, sem negócio fora de horas) leva a estimativa para a abertura — os futuros do S&P 500 caíram 1% desde o
+    // fecho e ela mexe 1,2 vezes o S&P 500 — e aprende com cada abertura
+    await page.waitForFunction(() => window.__mk.EXT.PLTR && window.__mk.fut5);
+    await page.evaluate(() => window.__mk.render());
+    const tagP = page.locator('.row[data-key="PLTR"] .r-t').first(), tagS = page.locator('.row[data-key="SAP.DE"] .r-t').first();
+    if (SHOTS) { await tagP.scrollIntoViewIfNeeded(); await page.locator('.row[data-key="PLTR"]').first().screenshot({ path: path.join(SHOTS, '9a-linha-pre.png') }); }
+    if (SHOTS) { // os índices, com os futuros
+        const ix = page.locator('details[data-fold="pn-idx"]');
+        await ix.evaluate((d) => { d.open = true; }); await ix.scrollIntoViewIfNeeded(); await ix.screenshot({ path: path.join(SHOTS, '9d-indices.png') }); await ix.evaluate((d) => { d.open = false; });
+    }
+    assert.equal(await tagP.textContent(), 'pré −20,0%');
+    assert.equal(await tagP.getAttribute('class'), 'r-t down', 'na cor da descida');
+    const beta = await page.evaluate(() => window.__mk.betaOf('SAP.DE'));
+    assert.ok(beta && beta.b > 1 && beta.b < 1.4 && beta.n === 120, 'a sensibilidade ao S&P 500 (1,2): ' + JSON.stringify(beta));
+    const tS = await tagS.textContent();
+    assert.match(tS, /^abre ≈ −1,[0-4]%$/, 'a estimativa da SAP: ' + tS);
+    assert.ok(await page.evaluate(() => window.__mk.pj.pend['SAP.DE'] && window.__mk.pj.pend['SAP.DE'].T === 1762300000), 'fica à espera da abertura');
+    assert.match(await page.locator('.row[data-key="NVDA"] .r-t').first().textContent(), /^\d{1,2}:\d{2}$|^\d{1,2}\/\d{1,2}$|^ontem$/, 'sem negócio fora de horas e com a bolsa aberta: a hora');
+    await page.locator('.row[data-open="PLTR"]:visible').first().click();
+    await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && document.querySelector('#d-load').hidden);
+    await page.waitForTimeout(400);
+    if (SHOTS) { await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9b-ficha-pre.png') }); await page.locator('#d-cv').screenshot({ path: path.join(SHOTS, '9e-grafico.png') }); }
+    assert.match(await page.locator('#d-ext').textContent(), /^Antes da abertura, às \d\d:\d\d: .+ −20,0%face ao último fecho, .+\(no gráfico de hoje, a linha mais clara\)$/);
+    const cvx = await page.locator('#d-cv').boundingBox();
+    await page.mouse.move(cvx.x + cvx.width - 4, cvx.y + cvx.height / 2);
+    assert.match(await page.locator('#d-tip').textContent(), /· pré-abertura · −\d/, 'o fim do gráfico é o antes da abertura');
+    await page.mouse.move(cvx.x + 4, cvx.y + cvx.height / 2);
+    assert.doesNotMatch(await page.locator('#d-tip').textContent(), /pré-abertura/, 'o princípio é a sessão');
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    // a SAP abriu a −1,5%: a estimativa fica registada; com 8 aberturas em que se confirmou metade, a correção e o erro
+    const pj = await page.evaluate(() => {
+        const mk = window.__mk, o = mk.pj.pend['SAP.DE'], q = mk.Q['SAP.DE'], s0 = q.series;
+        q.series = [[o.T + 3600, o.base * 0.985]]; mk.pjResolve(); q.series = s0;
+        const d = mk.pj.done.slice(-1)[0];
+        for (let i = 0; i < 8; i++) mk.pj.done.push({ k: 'SAP.DE', p: -1, a: i % 2 ? -0.4 : -0.6, d: o.T - i * 86400 });
+        mk.render();
+        return { d, pend: !!mk.pj.pend['SAP.DE'], tag: document.querySelector('.row[data-key="SAP.DE"] .r-t').textContent, pr: mk.projOf('SAP.DE') };
+    });
+    assert.deepEqual([pj.d.k, pj.d.a, pj.d.p < -1 && pj.d.p > -1.4], ['SAP.DE', -1.5, true], 'a abertura registada: ' + JSON.stringify(pj.d));
+    assert.ok(pj.pr.fac > 0.5 && pj.pr.fac < 0.7 && pj.pr.n === 9 && pj.pr.err > 0.05 && pj.pr.err < 0.4, 'a correção e o erro: ' + JSON.stringify(pj.pr));
+    assert.match(pj.tag, /^abre ≈ −0,[6-9]%$/, 'corrigida: ' + pj.tag);
+    await page.locator('.row[data-open="SAP.DE"]:visible').first().click();
+    await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && !document.querySelector('#d-ext').hidden);
+    if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9c-ficha-estimativa.png') });
+    assert.match(await page.locator('#d-ext').textContent(), /^Abertura estimada: −0,\d% \(±0,\d%\)Futuros do S&P 500 −1,0% desde o último preço, × 0,\d\d \(a sensibilidade deste ativo, corrigida com 9 aberturas\) · erro médio nas últimas 9 aberturas: ±0,\d%$/);
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    await page.evaluate(() => { const mk = window.__mk; mk.pj.done.length = 0; delete mk.pj.pend['SAP.DE']; });
+    console.log('✓ fora de horas: Palantir', await tagP.textContent(), '| SAP', tS, '→', pj.tag, '(β', beta.b.toFixed(2) + ')');
+
     // destaques: simples como a Análise — o sentimento numa linha (com os índices do dia), uma lista por secção com as
     // linhas do Painel (o porquê numa linha pequena: o motivo do Claude ou a notícia) e o resto em linhas fechadas no fim
     await page.click('#mk-nav [data-tab="destaques"]');
@@ -914,6 +979,7 @@ function proxyBody(u) {
     const tabAgora = () => page.evaluate(() => window.__mk.cfg.tab);
     const aoLado = async (y, x1, x2) => { await gesto(0, Array(9).fill(y), tempos(9), Array.from({ length: 9 }, (_, i) => x1 + (x2 - x1) * i / 8)); await page.waitForTimeout(500); };
     const ateAoFim = async (sel) => { const b = await page.locator(sel).first().boundingBox(); await aoLado(b.y + b.height / 2, b.x + b.width - 20, b.x + b.width - 300); };
+    await page.locator(idxSel).first().scrollIntoViewIfNeeded(); // o Repor (no fim da lista) deixou a página mais abaixo
     await ateAoFim(idxSel);
     assert.equal(await page.locator(idxSel).count(), nIdx - 1, 'arrastar até ao fim retira');
     assert.match(await page.locator('#mk-toast').textContent(), /retirado.*Desfazer/);
