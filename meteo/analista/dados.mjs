@@ -11,7 +11,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { loadForecast, buildSummary, perModelTable } from '../lib/data.js';
 import { satUrl, FOGOS_URL, IPMA } from '../lib/sources.js';
-import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns, ipmaByPosition } from '../lib/engine.js';
+import { ipmaSeries, nearestIpmaLocal, ipmaRunRecord, ipmaPrevFromRuns, ipmaByPosition, rcmMax } from '../lib/engine.js';
 import { SYSTEM_PROMPT } from '../lib/analysis.js';
 import { selectPlaces, isOwnerPlace, placeOwner, placeMembers, othersMode, recentReports, lisbon, OTHERS, KIND_PT, ANALYSED_MAX } from '../lib/places.js';
 import { mergeMemory } from '../lib/learn.js';
@@ -61,9 +61,13 @@ if (!places.length) { console.log('Sem locais a analisar — nada a fazer.'); pr
 
 // Ocorrências da Proteção Civil: o fogos.pt recusa o Worker e limita pedidos sem chave (429, muitas vezes por causa de
 // outros no mesmo endereço de saída) — até 3 tentativas espaçadas; a cópia vai para a análise de cada local (sem
-// depender do conector) e para a app (KV, válida 6 h)
-let fogos = null;
-for (let k = 0; k < 3 && !fogos; k++) {
+// depender do conector) e para a app (KV, válida 6 h). Só se pede com risco de incêndio (IPMA, hoje ou amanhã) moderado
+// ou mais no concelho de algum local: com risco reduzido (quase todo o inverno) não faz falta e falhava quase sempre (429)
+const fireRisk = await Promise.all([getJSON(IPMA.rcm0, 15000), getJSON(IPMA.rcm1, 15000)])
+    .then(([d0, d1]) => rcmMax(d0, d1, places)).catch(() => null); // sem o IPMA (ou fora de Portugal): pede-se como antes
+let fogos = fireRisk != null && fireRisk < 2 ? false : null;
+if (fogos === false) console.log(`fogos.pt: não pedido — risco de incêndio reduzido nos locais (IPMA, hoje e amanhã: ${fireRisk}). Não é uma falha dos dados.`);
+for (let k = 0; k < 3 && fogos === null; k++) {
     if (k) await new Promise((r) => setTimeout(r, k * 20000));
     try {
         const f = await getJSON(FOGOS_URL, 20000, { 'user-agent': 'meteo-preciso/1.0 (app pessoal)' });
@@ -73,7 +77,7 @@ for (let k = 0; k < 3 && !fogos; k++) {
 if (fogos) {
     await kvPut('fogos:latest', { savedAt: fogos.savedAt, data: fogos }, { ttl: 6 * 3600 }).catch(() => {});
     console.log(`fogos.pt: ${fogos.data.length} ocorrências ativas.`);
-} else console.log('fogos.pt indisponível: a análise segue sem as ocorrências da Proteção Civil.');
+} else if (fogos === null) console.log('fogos.pt indisponível: a análise segue sem as ocorrências da Proteção Civil.');
 
 console.log(`\n# REGRAS DA ANÁLISE\n${SYSTEM_PROMPT}\n`);
 {

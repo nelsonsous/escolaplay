@@ -614,3 +614,14 @@ test('resumo para o Claude: previsto na véspera vs observado, com o erro típic
     // a previsão traz os dias observados quando há histórico das estações (o fixture de Lisboa: METAR do aeroporto)
     assert.ok(fc.observed === null || fc.observed.days.every((d) => d.date < '2026-11-06' && 'model' in d));
 });
+
+test('risco de incêndio do IPMA nos locais (1.27): o maior de hoje e amanhã no concelho mais perto; fora de Portugal não se sabe', async () => {
+    const { rcmMax } = await import('../lib/engine.js');
+    const d0 = { local: { 1314: { dico: '1314', latitude: 41.34, longitude: -8.47, data: { rcm: 1 } }, 1101: { dico: '1101', latitude: 38.72, longitude: -9.14, data: { rcm: 2 } } } };
+    const d1 = { local: { 1314: { dico: '1314', data: { rcm: 3 } }, 1101: { dico: '1101', data: { rcm: 1 } } } };
+    assert.equal(rcmMax(d0, { local: {} }, [{ lat: 41.3354, lon: -8.4745 }]), 1, 'Santo Tirso hoje: reduzido');
+    assert.equal(rcmMax(d0, d1, [{ lat: 41.3354, lon: -8.4745 }]), 3, 'amanhã elevado');
+    assert.equal(rcmMax(d0, d1, [{ lat: 38.7223, lon: -9.1393 }, { lat: 41.3354, lon: -8.4745 }]), 3, 'o maior dos locais');
+    assert.equal(rcmMax(d0, d1, [{ lat: 48.85, lon: 2.35 }]), null, 'Paris: sem concelho perto');
+    assert.equal(rcmMax(null, d1, [{ lat: 41.3, lon: -8.4 }]), null, 'sem dados');
+});
