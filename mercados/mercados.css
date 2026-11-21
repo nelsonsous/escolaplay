@@ -921,4 +921,8 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .reg .pp-f > summary small { color: var(--muted); font-size: calc(.74rem * var(--k)); }
 .reg .pp-f > .note { margin: 0 0 4px; }
 .reg .pp-x { color: var(--down); }
+/* 4.45: em cada data da poupança periódica, o valor escreve-se num campo pequeno */
+.reg .pp-v { width: 86px; flex: none; padding: 6px 8px; text-align: right; }
+.reg .pp-eur { color: var(--muted); margin-left: -4px; }
+.reg .pp-l > span:first-child small { display: block; margin-left: 0; }
 
