@@ -914,4 +914,11 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .reg .pp-l.pp-prox { color: var(--muted); }
 .reg .pp-bs { display: inline-flex; gap: 4px; }
 .reg .pp-b { min-width: 32px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card2); color: var(--text); font-weight: 650; }
+/* 4.43: as listas do round up e do saveback (dobras que vão crescendo) */
+.reg .pp-f { border-top: 1px solid var(--line); }
+.reg .pp-f > summary { display: flex; align-items: center; gap: 8px; min-height: 38px; cursor: pointer; font-size: calc(.86rem * var(--k)); }
+.reg .pp-f > summary span { flex: 1; font-weight: 650; }
+.reg .pp-f > summary small { color: var(--muted); font-size: calc(.74rem * var(--k)); }
+.reg .pp-f > .note { margin: 0 0 4px; }
+.reg .pp-x { color: var(--down); }
 

@@ -3369,3 +3369,20 @@ habitual faz entrar os estimados; bateria 107/107.
 
 **Verificado.** Interface (a poupança periódica) e bateria.
 
+## Iteração (Mercados 4.43.0): as listas do round up e do saveback, com a média
+
+**Pedido.** «Uma linha por mês para o saveback e 4 por mês para o round up; o valor sugerido vai vendo os valores
+inseridos e ajusta-se à média; quanto dá por ano o saveback (perto de 100 €?) e o round up — e considerar sempre que se
+acumula, na análise; quero ver os meus round ups e saveback em listas, para corrigir, apagar ou editar. Algo que vai
+crescer.»
+
+**Feito.** O round up e o saveback passam a ter um valor por data (`lots.ra`, `lots.sa`; os que eram compras, da 4.40,
+migram sozinhos). O habitual é a média dos últimos inseridos — 8 round ups (2 meses), 3 saveback — e vai-se ajustando;
+sem nenhum, o escolhido com −/+. Cada um tem a sua lista numa dobra (fica como a deixares): o habitual, quanto dá por
+ano (round up × 48, saveback × 12), quantos inseridos e o total, e cada data — a próxima e as feitas, a mais recente
+primeiro — com −/+/0 e ✕ (apagar volta à sugestão). O campo do valor sugere a média. As contas do futuro (o simulador e
+a análise do Claude) contam 4 round ups por mês.
+
+**Verificado.** Interface: o valor de cada data; a média de 2,24 € e 12 € (7,12 €, ~342 € por ano) e o campo a
+sugeri-la; + e ✕ numa data da lista; o plano e o round up habitual como antes; bateria 107/107.
+
