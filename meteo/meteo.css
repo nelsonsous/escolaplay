@@ -682,3 +682,75 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
 
 /* 1.27: os locais da notificação, um interruptor cada */
 .push-pls { display: grid; gap: 2px; margin-top: 4px; }
+
+/* ---------- 1.28: o dia e a noite — Ajustes → Cores (Automático segue o iPhone, Dia, Noite) e o botão do topo do Agora ---------- */
+#mt-body { position: relative; }
+.seg.thm { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
+/* o botão do sol (passa a dia) e da lua (passa a noite): abaixo da faixa das horas do iPhone e ao meio do título */
+.pg-tema { position: absolute; top: calc(var(--safe-t) + 16px); right: 18px; width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0;
+    background: var(--card2); color: var(--text); display: grid; place-items: center; cursor: pointer; transition: transform .1s; }
+.pg-tema svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.pg-tema:active { transform: scale(.94); }
+.pg-t.pg-t-tema { padding-right: 50px; }
+
+/* o dia: branco e preto, plano (como a Música de dia); a cor continua só para estados e dados */
+:root[data-theme="light"] {
+    --bg: #fff; --bg2: #f2f2f7; --card: #f2f2f7; --card2: #e3e3e8; --line: #dedee3; --panel2: #e3e3e8; --line2: #d1d1d6;
+    --text: #000; --muted: #6e6e73; --faint: #7c7c80; --soft: #3a3a3c;
+    --up: #15803d; --up-bg: rgba(21, 128, 61, .12); --down: #d70015; --down-bg: rgba(215, 0, 21, .1);
+    --flat: #636366; --flat-bg: rgba(142, 142, 147, .14); --accent: #a8650a; --accent2: #000;
+    --grid: #dcdce1; --axis: #c7c7cc; --night: rgba(0, 0, 0, .045);
+    --st-low: #6e6e73; --st-warn: #8f6c00; --st-serious: #b85600; --st-critical: #d70015;
+    --wx-sun: #f5a300; --wx-moon: #8e99c4; --wx-cloud: #b4bfcd; --wx-cloud-2: #6f7b8d; --wx-rain: #2f7fe0; --wx-snow: #7fa8d6; --wx-bolt: #f0a800; --wx-fog: #7c8696;
+    color-scheme: light;
+}
+/* a faixa das horas: se o iPhone ainda tiver a barra da noite (horas a branco, por cima da página), fica preta para se lerem;
+   com a barra do dia («default») o conteúdo começa abaixo das horas e a faixa tem 0 px */
+:root[data-theme="light"] body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top: 0; height: var(--safe-t); pointer-events: none; background: #000; }
+:root[data-theme="light"] .btn.pri { background: #000; color: #fff; }
+:root[data-theme="light"] .btn.pri:active { background: #3a3a3c; }
+:root[data-theme="light"] .seg button.on { background: #fff; color: #000; box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }
+:root[data-theme="light"] .chips button.on { background: #000; color: #fff; }
+:root[data-theme="light"] .inp:focus { border-color: #000; }
+:root[data-theme="light"] button.row:active { background: var(--card2); }
+:root[data-theme="light"] .now-l, :root[data-theme="light"] .cl-far { border-top-color: rgba(0, 0, 0, .1); }
+:root[data-theme="light"] .locs small.cl, :root[data-theme="light"] .pg-st .cl-on { color: #6a3fc8; }
+:root[data-theme="light"] .ia { color: #9333d6; }
+:root[data-theme="light"] .an-list li::before { background: #c8724f; }
+:root[data-theme="light"] .guide-l { fill: #2f6fbf; }
+:root[data-theme="light"] .day .d-p { color: #1a64c8; }
+:root[data-theme="light"] .cmp-t .hot { color: #b35c00 !important; }
+:root[data-theme="light"] .cmp-t .cold, :root[data-theme="light"] .cmp-t tr.k-oficial th { color: #1a64c8 !important; }
+:root[data-theme="light"] .cmp-t tr.k-consenso th, :root[data-theme="light"] .cmp-t tr.k-consenso td { background: rgba(0, 0, 0, .04); }
+:root[data-theme="light"] .fire-ico { color: #c25e00; }
+:root[data-theme="light"] .inc-ico { color: #d70015; }
+:root[data-theme="light"] .rng .rn { background: #000; border-color: #fff; }
+:root[data-theme="light"] .rs-bars i { background: rgba(0, 0, 0, .1); }
+/* as linhas postas de parte (estações avariadas…) continuam esbatidas, mas legíveis no claro (≥ 3:1) */
+:root[data-theme="light"] .list > .row.off { opacity: .78; }
+:root[data-theme="light"] .chart-tip { background: #fff; box-shadow: 0 8px 26px rgba(0, 0, 0, .18); }
+:root[data-theme="light"] .mt-nav { background: rgba(255, 255, 255, .92); border-top-color: var(--line); }
+:root[data-theme="light"] .mt-nav button.on { color: #000; }
+:root[data-theme="light"] .mt-sheet-bg { background: rgba(0, 0, 0, .32); }
+:root[data-theme="light"] .mt-sheet-card { background: #fff; }
+:root[data-theme="light"] .mt-toast { background: rgba(255, 255, 255, .97); color: #000; box-shadow: 0 12px 34px -10px rgba(0, 0, 0, .35); }
+/* os ícones grandes: nuvens, lua e chuva mais escuras para se verem no claro */
+:root[data-theme="light"] #wxg-cloud stop:first-child { stop-color: #e2e7ee; }
+:root[data-theme="light"] #wxg-cloud stop:last-child { stop-color: #a3afc0; }
+:root[data-theme="light"] #wxg-moon stop:first-child { stop-color: #dfe3f2; }
+:root[data-theme="light"] #wxg-moon stop:last-child { stop-color: #8c98c6; }
+:root[data-theme="light"] #wxg-streak stop:first-child { stop-color: #8cc0ff; }
+:root[data-theme="light"] #wxg-drop stop:first-child { stop-color: #6fb3ff; }
+/* o céu do cartão «Agora» de dia: as peças em CSS com cores para o claro (o céu da Onda é luz sobre o preto e fica para a
+   noite): o sol amarelo suave, nuvens e nevoeiro cinzentos, chuva, granizo e neve azuis; as estrelas só de noite */
+:root[data-theme="light"] .sky-glow { background: radial-gradient(closest-side, rgba(255, 184, 0, .3), rgba(255, 184, 0, .1) 52%, transparent); }
+:root[data-theme="light"] .sky-glow.moon { background: radial-gradient(closest-side, rgba(110, 120, 220, .16), rgba(110, 120, 220, .05) 55%, transparent); }
+:root[data-theme="light"] .sky-st { display: none; }
+:root[data-theme="light"] .sky-c { background: radial-gradient(closest-side, rgba(110, 120, 140, .17), rgba(110, 120, 140, .06) 58%, transparent); }
+:root[data-theme="light"] .sky-c.dark { background: radial-gradient(closest-side, rgba(70, 76, 100, .24), rgba(70, 76, 100, .08) 58%, transparent); }
+:root[data-theme="light"] .sky-f { background: radial-gradient(50% 50% at 50% 50%, rgba(110, 118, 130, .18), rgba(110, 118, 130, .07) 60%, transparent); }
+:root[data-theme="light"] .sky-r::after { background: linear-gradient(transparent, rgba(30, 100, 210, .8)); }
+:root[data-theme="light"] .sky-r.dz::after { background: rgba(30, 100, 210, .7); }
+:root[data-theme="light"] .sky-h::after { background: rgba(100, 120, 150, .85); }
+:root[data-theme="light"] .sky-s::after { background: rgba(100, 145, 205, .85); }
+:root[data-theme="light"] .sky-fl { background: radial-gradient(120% 90% at 70% 0, rgba(140, 110, 255, .32), transparent 70%); }

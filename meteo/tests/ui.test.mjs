@@ -26,6 +26,44 @@ const NOW = '2026-11-06T15:45:00Z';
 const PROXY = 'https://meteo.proxy.test';
 const MARINE = { ...JSON.parse(fs.readFileSync(path.join(HERE, 'fixtures/marine-matosinhos.json'), 'utf8')), latitude: 38.69, longitude: -9.16 };
 const LAT = 38.7223, LON = -9.1393;
+// lê-se bem? os textos à vista com contraste abaixo de `min` (a razão da WCAG) com o fundo opaco por baixo deles; em `dentro`
+// (um seletor) só os dessa parte do ecrã (como nos Mercados 4.37.4)
+function contraste(page, min, dentro) {
+    return page.evaluate(([min, dentro]) => {
+        const cor = (s) => { const m = /rgba?\(([^)]+)\)/.exec(s || ''); if (!m) return null; const v = m[1].split(/[\s,/]+/).filter(Boolean).map(parseFloat); return [v[0], v[1], v[2], v.length > 3 ? v[3] : 1]; };
+        const lum = (c) => c.slice(0, 3).reduce((s, v, i) => { v /= 255; v = v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; return s + v * [0.2126, 0.7152, 0.0722][i]; }, 0);
+        const sobre = (a, b) => [0, 1, 2].map((i) => a[i] * a[3] + b[i] * (1 - a[3])).concat(1);
+        const hex = (c) => '#' + c.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+        const fundo = (el) => { const cs = []; for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const c = cor(getComputedStyle(e).backgroundColor); if (c && c[3] > 0) { cs.push(c); if (c[3] >= 1) break; } } return cs.reverse().reduce((b, c) => sobre(c, b), [255, 255, 255, 1]); };
+        const opac = (el) => { let o = 1; for (let e = el; e && e.nodeType === 1; e = e.parentElement) o *= +getComputedStyle(e).opacity; return o; };
+        const raiz = dentro ? document.querySelector(dentro) : document.body, vistos = new Set(), maus = new Map();
+        const ver = (el, txt, cs) => {
+            const svg = el instanceof SVGElement, f = cor(svg ? cs.fill : cs.color);
+            if (!f || !txt) return;
+            const b = fundo(svg ? el.closest('svg') : el), fg = sobre([f[0], f[1], f[2], f[3] * opac(el)], b);
+            const [l1, l2] = [lum(fg), lum(b)].sort((x, y) => y - x), r = (l1 + 0.05) / (l2 + 0.05);
+            const px = parseFloat(cs.fontSize), grande = px >= 24 || (px >= 18.6 && +cs.fontWeight >= 700);
+            if (r < (grande ? Math.min(min, 3) : min)) {
+                const k = el.tagName.toLowerCase() + (el.getAttribute('class') ? '.' + el.getAttribute('class').trim().split(/\s+/).join('.') : '') + ' ' + hex(fg) + '/' + hex(b);
+                if (!maus.has(k)) maus.set(k, r.toFixed(2) + ' ' + k + ' «' + txt.slice(0, 28) + '»');
+            }
+        };
+        const tw = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+        for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+            const el = n.parentElement;
+            if (!el || vistos.has(el) || !n.textContent.trim() || /^(SCRIPT|STYLE|TITLE|OPTION)$/.test(el.tagName)) continue;
+            vistos.add(el);
+            const cs = getComputedStyle(el);
+            if (cs.visibility === 'hidden' || !el.getClientRects().length || el.closest('[hidden]')) continue;
+            ver(el, n.textContent.trim(), cs);
+        }
+        for (const el of raiz.querySelectorAll('*')) for (const ps of ['::before', '::after']) {
+            const cs = getComputedStyle(el, ps), t = /^"(.+)"$/.exec(cs.content || '');
+            if (t && el.getClientRects().length && !el.closest('[hidden]')) ver(el, t[1], cs);
+        }
+        return [...maus.values()].sort();
+    }, [min, dentro || null]);
+}
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
 const CORS = { 'Access-Control-Allow-Origin': '*' };
 const SCHEDULE = ['07:12', '13:12', '19:42'];
@@ -72,7 +110,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const browser = await chromium.launch();
     const ctx = await browser.newContext({
         viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1, isMobile: true, hasTouch: true,
-        locale: 'pt-PT', timezoneId: 'Europe/Lisbon', serviceWorkers: 'block',
+        locale: 'pt-PT', timezoneId: 'Europe/Lisbon', serviceWorkers: 'block', colorScheme: 'dark', // o iPhone em escuro (1.28: Automático segue-o)
         geolocation: { latitude: LAT, longitude: LON, accuracy: 12 }, permissions: ['geolocation'],
     });
     const errors = [], unexpected = [], calls = [], ids = [];
@@ -255,6 +293,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (lift) el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(pts.at(-1))], bubbles: true }));
     }, { sel, pts, lift, cancelable });
     const LEFT = [[300, 400], [288, 401], [200, 404], [120, 405]], RIGHT = [[90, 400], [102, 401], [200, 404], [290, 405]];
+    const tema = () => page.evaluate(() => [document.documentElement.dataset.theme, getComputedStyle(document.body).backgroundColor,
+        document.querySelector('meta[name="theme-color"]').getAttribute('content'), document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').getAttribute('content')]);
+    const NOITE = ['dark', 'rgb(0, 0, 0)', '#000000', 'black-translucent'], DIA = ['light', 'rgb(255, 255, 255)', '#ffffff', 'default'];
     const tab = async (t) => { await page.click(`#mt-nav [data-tab="${t}"]`); await page.waitForFunction((x) => document.querySelector(`#mt-nav [data-tab="${x}"]`).classList.contains('on'), t); };
     const toastIs = async (re) => { await page.waitForFunction((s) => new RegExp(s).test(document.querySelector('#mt-toast').textContent) && document.querySelector('#mt-toast').classList.contains('show'), re.source); };
 
@@ -807,8 +848,8 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
 
     // 6) Ajustes: conector, estado das fontes, tamanho da letra
     await tab('ajustes');
-    // simples: Local, Notificações, Análise, Partilhar e Este telemóvel à vista; o resto em «Avançado» (fechado)
-    assert.deepEqual((await page.locator('#mt-body > section.sec > .sec-h h2').allTextContents()).slice(0, 5), ['Local', 'Notificações', 'Locais com análise', 'Partilhar', 'Este telemóvel']);
+    // simples: Local, Notificações, Análise, Cores (1.28), Partilhar e Este telemóvel à vista; o resto em «Avançado» (fechado)
+    assert.deepEqual((await page.locator('#mt-body > section.sec > .sec-h h2').allTextContents()).slice(0, 6), ['Local', 'Notificações', 'Locais com análise', 'Cores', 'Partilhar', 'Este telemóvel']);
     assert.equal(await page.locator('#d-adv').getAttribute('open'), null);
     await shot('07-ajustes-simples.png');
     await page.click('#d-adv > summary');
@@ -868,6 +909,62 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await noOverflow('Ajustes (letra grande)');
     await shot('07-ajustes.png');
     await page.click('[data-fs="n"]');
+    // 1.28: o dia e a noite — em Ajustes → Cores e no botão do topo do Agora; a barra das horas do iPhone vai com eles
+    assert.deepEqual(await tema(), NOITE, 'em Automático, com o iPhone em escuro: a noite');
+    assert.equal(await page.locator('#cores [data-thm="auto"].on').count(), 1, 'Cores: Automático por omissão');
+    await page.click('#cores [data-thm="light"]');
+    assert.deepEqual(await tema(), DIA, 'Dia: claro, com a barra das horas clara (horas a escuro)');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('meteo:v1')).theme), 'light', 'a escolha fica guardada (o index.html lê-a ao abrir)');
+    await noOverflow('Ajustes (dia)');
+    // de dia lê-se tudo: em todos os separadores (com as secções abertas) e na folha de um dia, nenhum texto abaixo de 3:1
+    // com o fundo (com DIA_LISTA=1, a lista dos que ficam abaixo de 4,5:1)
+    const open0 = await page.evaluate(() => [...window.__mt.st.open]), baixos = {}, MINIMO = process.env.DIA_LISTA ? 4.5 : 3;
+    for (const t of ['agora', 'dias', 'satelite', 'analise', 'ajustes']) {
+        await tab(t);
+        await page.waitForTimeout(200);
+        await page.evaluate(() => document.querySelectorAll('#mt-body details').forEach((d) => { d.open = true; }));
+        await page.waitForTimeout(150);
+        baixos[t] = await contraste(page, MINIMO, '#mt-body');
+        if (t === 'agora') await shot('10-agora-dia.png');
+    }
+    await tab('dias');
+    await page.click('.row.day[data-day="2"]');
+    await page.waitForFunction(() => !document.querySelector('#mt-sheet').hidden);
+    await page.waitForTimeout(700);
+    baixos.folha = await contraste(page, MINIMO, '#mt-sheet-card');
+    await page.click('#mt-sheet-card .mt-ibtn[data-act="close"]');
+    await page.waitForFunction(() => document.querySelector('#mt-sheet').hidden);
+    await page.evaluate((o) => { const s = window.__mt.st.open; s.clear(); o.forEach((x) => s.add(x)); window.__mt.render(); }, open0);
+    if (process.env.DIA_LISTA) console.log(JSON.stringify(baixos, null, 1));
+    else assert.deepEqual(baixos, { agora: [], dias: [], satelite: [], analise: [], ajustes: [], folha: [] }, 'de dia, textos que se leem mal');
+    // o botão do topo do Agora: abaixo da faixa das horas de um iPhone (47 px), ao meio do título e sem tocar no nome do local
+    await tab('agora');
+    const btTema = page.locator('#mt-body > .pg-tema');
+    assert.equal(await btTema.getAttribute('data-thm'), 'dark', 'de dia, o botão da lua (passa a noite)');
+    const posTema = await page.evaluate(() => {
+        window.scrollTo(0, 0);
+        const h = document.documentElement; h.style.setProperty('--safe-t', '47px');
+        const b = document.querySelector('#mt-body > .pg-tema').getBoundingClientRect(), t = document.querySelector('#mt-body > .pg-t'), r = t.getBoundingClientRect(), fx = getComputedStyle(document.body, '::before');
+        const out = { faixa: [fx.backgroundColor, fx.height], abaixo: b.top >= 47, aoMeio: Math.abs((b.top + b.bottom) / 2 - (r.top + r.bottom) / 2) <= 8, folga: parseFloat(getComputedStyle(t).paddingRight) >= b.width + 8, dentro: b.right <= innerWidth - 8 };
+        h.style.removeProperty('--safe-t');
+        return out;
+    });
+    assert.deepEqual(posTema, { faixa: ['rgb(0, 0, 0)', '47px'], abaixo: true, aoMeio: true, folga: true, dentro: true }, 'o botão do dia e da noite à vista no iPhone (e a faixa das horas preta, se ficar a barra da noite)');
+    await btTema.click();
+    assert.deepEqual(await tema(), NOITE, 'o botão da lua: a noite');
+    assert.equal(await page.locator('#mt-body > .pg-tema').getAttribute('data-thm'), 'light', 'à noite, o botão do sol');
+    assert.equal(await page.locator('#mt-body > .pg-tema').getAttribute('aria-label'), 'Modo dia (claro)');
+    // Automático segue o iPhone, também com a app aberta
+    await tab('ajustes');
+    await page.click('#cores [data-thm="auto"]');
+    assert.deepEqual(await tema(), NOITE);
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    assert.deepEqual(await tema(), DIA, 'o iPhone passa a claro: a app também');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    assert.equal(await page.evaluate(() => window.__mt.cfg.theme), 'auto');
+    console.log('✓ o dia e a noite: Cores (Automático, Dia, Noite), o botão do Agora abaixo das horas, a barra do iPhone e de dia tudo a ler-se');
     // 1.27: uma 2.ª análise (Braga): as notificações escolhem os locais, que chegam juntos numa só
     places.push({ id: 'braga', name: 'Braga', lat: 41.5454, lon: -8.4265, mine: true, kind: 'guest', status: 'active', createdAt: NOW });
     await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
@@ -1104,6 +1201,15 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await toastIs(/Código do dono esquecido/);
     await page.waitForSelector('details.own');
     console.log('✓ dono: ?dono= guardado e fora do endereço, Utilização, análise dos outros, locais dos outros (~1 km), esquecer o código; código escrito na app');
+
+    // 1.28: na app instalada (iPhone) a barra das horas só se lê ao abrir: mudar o dia e a noite volta a abrir a página,
+    // já com a escolha guardada (e o index.html acerta a barra antes de pintar)
+    await tab('agora');
+    await page.evaluate(() => { Object.defineProperty(navigator, 'standalone', { configurable: true, get: () => true }); window.__antes = 1; });
+    await Promise.all([page.waitForEvent('load'), page.click('#mt-body > .pg-tema')]);
+    await page.waitForFunction(() => !window.__antes && document.querySelector('#mt-body > .pg-tema'));
+    assert.deepEqual(await tema(), DIA, 'na app instalada: aberta de novo, já de dia e com a barra clara');
+    console.log('✓ na app instalada, mudar o dia e a noite abre a página de novo com a barra das horas certa');
 
     assert.deepEqual(unexpected, [], 'sem pedidos à rede real');
     assert.deepEqual(errors, [], 'sem erros na consola');

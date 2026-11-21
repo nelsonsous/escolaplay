@@ -17,7 +17,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.27.0';
+const VERSION = '1.28.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -51,7 +51,7 @@ const PAUSE_DAYS = 14; // como o conector (lib/places.js): sem abrir a app 14 di
 
 // ---------- configuração ----------
 const KEY = 'meteo:v1';
-const DEFAULTS = { proxy: '', tab: 'agora', fs: 'n', layer: 'geocolour', km: 600, rz: 7, loc: null, favs: [], noInstall: false, lv: 't', ll: 1, anim: true };
+const DEFAULTS = { proxy: '', tab: 'agora', fs: 'n', layer: 'geocolour', km: 600, rz: 7, loc: null, favs: [], noInstall: false, lv: 't', ll: 1, anim: true, theme: 'auto' };
 const cfg = { ...DEFAULTS, ...(api.store.get(KEY) || {}) };
 if (!Array.isArray(cfg.favs)) cfg.favs = [];
 if (!TITLES[cfg.tab] && cfg.tab !== 'agora') cfg.tab = 'agora';
@@ -207,7 +207,9 @@ function toast(msg, undo) {
 
 // ---------- arranque ----------
 function init() {
-    applyFs();
+    applyFs(); applyTheme();
+    // em Automático segue o iPhone também com a app aberta (ao pôr do sol, se o iPhone muda sozinho)
+    mqLight?.addEventListener?.('change', () => { if (cfg.theme !== 'light' && cfg.theme !== 'dark') { applyTheme(); render(); } });
     // antes de tudo, arrumar o localStorage: cheio, a última previsão não se guardava e a app abria à espera da rede
     tidyCache(); api.tidyAnalyses();
     if ('serviceWorker' in navigator) {
@@ -239,6 +241,24 @@ function init() {
 function applyFs() {
     if (cfg.fs && cfg.fs !== 'n') document.documentElement.dataset.fs = cfg.fs;
     else delete document.documentElement.dataset.fs;
+}
+// 1.28: o dia (claro) e a noite (escuro): Automático segue o iPhone; Dia e Noite ficam. A barra das horas do iPhone vai
+// com eles: «default» (horas a escuro) de dia, «black-translucent» (horas a branco, por cima do preto) à noite. O iPhone só
+// a lê ao abrir a página: na app instalada, mudar volta a abri-la (com a escolha já guardada); ao arrancar, o index.html
+// já a acertou (como nos Mercados 4.37.3).
+const mqLight = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: light)') : null;
+let themeOn = false;
+const themeNow = () => (cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : mqLight?.matches ? 'light' : 'dark');
+function applyTheme() {
+    const t = themeNow();
+    document.documentElement.dataset.theme = t;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'light' ? '#ffffff' : '#000000');
+    const bar = t === 'light' ? 'default' : 'black-translucent', sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (sb && sb.getAttribute('content') !== bar) {
+        sb.setAttribute('content', bar);
+        if (themeOn && navigator.standalone === true) { saveCfg(); location.reload(); return; }
+    }
+    themeOn = true;
 }
 
 // ---------- local ----------
@@ -378,7 +398,10 @@ function render() {
     if (act && body.contains(act) && act.matches('input')) { renderStatus(); return; }
     const v = { dias: viewDays, satelite: viewSat, analise: viewAnalysis, ajustes: viewSettings }[cfg.tab] || viewNow;
     const { title, html } = v();
-    body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mt-status" aria-live="polite"></div>${html}`;
+    // 1.28: o dia e a noite à mão, no topo do Agora (como nos Mercados): ☀︎ passa a dia, ☾ volta a noite
+    const dia = document.documentElement.dataset.theme === 'light';
+    const tema = cfg.tab === 'agora' ? `<button type="button" class="pg-tema" data-thm="${dia ? 'dark' : 'light'}" aria-label="${dia ? 'Modo noite (escuro)' : 'Modo dia (claro)'}">${ui(dia ? 'moon' : 'sun')}</button>` : '';
+    body.innerHTML = `<h1 class="pg-t${tema ? ' pg-t-tema' : ''}">${title}</h1>${tema}<div class="pg-st" id="mt-status" aria-live="polite"></div>${html}`;
     renderStatus();
     mount();
     const f = st.focus && document.getElementById(st.focus);
@@ -414,7 +437,8 @@ function watchSky() {
     if (!sky || !('IntersectionObserver' in window)) return;
     skyWatch = new IntersectionObserver((es) => { for (const e of es) e.target.classList.toggle('off', !e.isIntersecting); });
     skyWatch.observe(sky);
-    if (!startSky(sky)) startRain(sky.querySelector('.sky-rain')); // a Onda na placa gráfica; sem WebGL2, o céu em CSS
+    // a Onda na placa gráfica; sem WebGL2 — e de dia (1.28: o céu da Onda é luz sobre o preto) — o céu em CSS
+    if (document.documentElement.dataset.theme === 'light' || !startSky(sky)) startRain(sky.querySelector('.sky-rain'));
 }
 function mount() {
     watchSky();
@@ -1079,6 +1103,10 @@ function viewSettings() {
     </div></section>`;
     h += notifHtml();
     h += placesSettingsHtml();
+    // 1.28: as cores à vista (o dia e a noite); o botão do sol e da lua no topo do Agora faz o mesmo
+    const thm = cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : 'auto';
+    h += `<section class="sec" id="cores"><div class="sec-h"><h2>Cores</h2></div><div class="form"><div><div class="seg thm" role="group" aria-label="Cores">${[['auto', 'Automático'], ['light', 'Dia'], ['dark', 'Noite']].map(([v, l]) => `<button type="button" data-thm="${v}" class="${thm === v ? 'on' : ''}" aria-pressed="${thm === v}">${l}</button>`).join('')}</div>
+        <div class="hint">Dia é claro e Noite é escuro. Automático segue o iPhone (Definições → Ecrã e brilho). O botão do sol e da lua, no topo do Agora, troca logo.</div></div></div></section>`;
     h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
         <div class="hint">Envia o endereço e como instalar (iPhone e Android). Grátis e sem conta.</div></div></section>`;
     h += meHtml();
@@ -1092,7 +1120,8 @@ function viewSettings() {
     adv += `<section class="sec" id="conector"><div class="sec-h"><h2>Conector de dados</h2></div><div class="form">${oc}<div><label for="f-proxy">Endereço do teu Worker</label>
         <div class="inl"><input id="f-proxy" class="inp" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="${esc(DEFAULT_PROXY)}" value="${esc(cfg.proxy)}"><button type="button" class="btn pri" data-act="save-proxy">Guardar</button></div>
         <div class="hint" id="f-proxy-msg">${stTxt}. Vazio = ${esc(DEFAULT_PROXY.replace('https://', ''))}. Serve observações METAR, satélite, incêndios, locais e a análise.</div></div>${ownerHtml()}</div></section>`;
-    adv += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form"><div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
+    adv += `<section class="sec"><div class="sec-h"><h2>Preferências</h2></div><div class="form">
+        <div><label>Tamanho da letra</label><div class="seg fs">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}" aria-pressed="${(cfg.fs || 'n') === v}">${l}</button>`).join('')}</div>
         <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>
         <div class="sw" id="animacoes"><span><b>Animações</b><br><small class="hint">O céu do cartão «Agora» e os ícones grandes a mexer (chuva, sol, neve…).</small></span>
         <div class="seg" role="group" aria-label="Animações"><button type="button" data-act="anim-on" class="${cfg.anim !== false ? 'on' : ''}" aria-pressed="${cfg.anim !== false}">Sim</button><button type="button" data-act="anim-off" class="${cfg.anim === false ? 'on' : ''}" aria-pressed="${cfg.anim === false}">Não</button></div></div>
@@ -1825,7 +1854,7 @@ async function saveProxy() {
 }
 
 document.addEventListener('click', (ev) => {
-    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-onplace],[data-swap],[data-pushpl],[data-others],[data-report],[data-lv],[data-ll]');
+    const t = ev.target.closest('[data-act],[data-tab],[data-day],[data-layer],[data-km],[data-rz],[data-fs],[data-thm],[data-pick],[data-fav],[data-rmfav],[data-goplace],[data-rmplace],[data-onplace],[data-swap],[data-pushpl],[data-others],[data-report],[data-lv],[data-ll]');
     if (!t) return;
     const d = t.dataset;
     if (d.tab) { goTab(d.tab); return; }
@@ -1835,6 +1864,7 @@ document.addEventListener('click', (ev) => {
     if (d.rz) { stopRadar(); cfg.rz = +d.rz; saveCfg(); render(); return; }
     if (d.report) { submitReport(d.report); return; }
     if (d.fs) { cfg.fs = d.fs; saveCfg(); applyFs(); render(); return; }
+    if (d.thm) { cfg.theme = d.thm; saveCfg(); applyTheme(); render(); return; }
     if (d.act === 'anim-on' || d.act === 'anim-off') { cfg.anim = d.act === 'anim-on'; saveCfg(); render(); return; }
     if (d.act === 'cnum-on' || d.act === 'cnum-off') { cfg.claudeNums = d.act === 'cnum-on'; saveCfg(); render(); return; }
     if (d.lv) { cfg.lv = d.lv; saveCfg(); render(); return; }

@@ -223,6 +223,17 @@ ficam quietos. Desliga-se em **Ajustes → Avançado → Preferências → Anima
 ondular, e a chuva cai lá para dentro: mais gotas e mais depressa quanto mais chove. 60 imagens/s; pára fora do ecrã.
 Com as animações desligadas (ou sem WebAssembly), as barras SVG de sempre.
 
+## O dia e a noite (1.28)
+
+**Ajustes → Cores**: Automático (segue o iPhone: claro de dia e escuro à noite, se o iPhone estiver assim), Dia (claro) e
+Noite (escuro); o **botão do sol e da lua**, no topo do Agora, troca logo (abaixo da faixa das horas, ao meio do título).
+Como nos Mercados (4.33–4.38): a barra das horas do iPhone vai com as cores — «default» (horas a escuro) de dia e
+«black-translucent» (horas a branco, por cima do preto) à noite. O iPhone só a lê ao abrir a página: o `index.html` acerta-a
+antes de pintar (lê `meteo:v1`) e, na app instalada, mudar volta a abrir a página. Se o iPhone ainda tiver a barra da noite
+com a app de dia, a faixa das horas fica preta para se lerem. De dia o céu do Agora usa as peças em CSS com cores para o
+claro (o céu da Onda é luz sobre o preto e fica para a noite) e os ícones grandes têm nuvens e lua mais escuras. O teste da
+interface mede o contraste de dia em todos os separadores e na folha de um dia (nenhum texto abaixo de 3:1).
+
 ## Simples (1.7)
 
 Como a app da Trade Republic: o essencial à vista e o resto em «Ver mais», que fica aberto enquanto a app está aberta.
@@ -231,7 +242,7 @@ Como a app da Trade Republic: o essencial à vista e o resto em «Ver mais», qu
   indicadores em «Indicadores». O gráfico das 2 horas só aparece com chuva a caminho.
 - **Análise**: o essencial do Claude (resumo, alertas, amanhã, o que vestir); o resto em «Ver a análise completa». As
   fontes lado a lado, a fiabilidade, a aprendizagem, as observações e os modelos ficam em «Detalhes técnicos».
-- **Ajustes**: Local, Notificações, Análise diária, Partilhar, Este telemóvel; o conector, o código do dono, a letra,
+- **Ajustes**: Local, Notificações, Análise diária, Cores, Partilhar, Este telemóvel; o conector, o código do dono, a letra,
   o estado das fontes e as licenças em «Avançado».
 
 ## Quem usa a app (1.6.1, 1.8.2)
