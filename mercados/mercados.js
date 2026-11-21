@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.38.1';
+    const VERSION = '4.38.2';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1310,14 +1310,15 @@
     // a carteira ao vivo: com os preços a mudar (a cripto a cada segundo), o cartão redesenha-se sozinho (pela Onda, no
     // máximo a cada 2 s), sem redesenhar o Painel todo
     let pfT = 0;
+    // o cartão redesenhado já (sem o Painel todo), com os grupos da tabela abertos ou fechados como o utilizador os deixou
+    function pfAgora() {
+        const el = $('#mk-body > section.pf');
+        if (!el || !aoOk || !AO.ecra || !AO.ecra.pf) return;
+        try { const h = AO.ecra.pf({ pf: pfSnap(), per: cfg.per, foldPfc: !!st.fold['pf-cripto'], foldPff: !!st.fold['pf-fundos'] }).trim(); if (h) el.outerHTML = h; } catch (e) { console.error('ecrã Onda:', e); }
+    }
     function pfSoon() {
         if (pfT) return;
-        pfT = setTimeout(() => {
-            pfT = 0;
-            const el = $('#mk-body > section.pf');
-            if (!el || st.touching || !aoOk || !AO.ecra || !AO.ecra.pf) return;
-            try { const h = AO.ecra.pf({ pf: pfSnap(), per: cfg.per }).trim(); if (h) el.outerHTML = h; } catch (e) { console.error('ecrã Onda:', e); }
-        }, 2000);
+        pfT = setTimeout(() => { pfT = 0; if (!st.touching) pfAgora(); }, 2000);
     }
     function drawSparks() {
         if (PS[cfg.per]) loadPerSeries();
@@ -1656,7 +1657,7 @@
             proxy: cfg.proxy, fiat: cfg.fiat, per: cfg.per, sort: cfg.sort, swipe: st.swipe,
             mine, watch: cfg.watch, funds: cfg.funds, hidden: cfg.hidden,
             crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), indices: INDICES.map((i) => i.sym), mktOrder: MKT_ORDER,
-            foldHoje: fold('hoje'), foldIdx: fold('pn-idx'), foldEn: fold('pn-en'), foldFuel: fold('pn-fuel'),
+            foldHoje: fold('hoje'), foldIdx: fold('pn-idx'), foldEn: fold('pn-en'), foldFuel: fold('pn-fuel'), foldPfc: fold('pf-cripto'), foldPff: fold('pf-fundos'),
             assets: Object.keys(REG).map((k) => {
                 const a = REG[k], q = qv(k), r = AN[k], h = r && r.horizons, d = r && r.discount, ad = r && r.advice;
                 // sem o Claude, a etiqueta dos meus ativos é a da decisão consolidada (a mesma da ficha)
@@ -2820,6 +2821,8 @@
         switch (d.act) {
             case 'refresh': refreshAll(); break;
             case 'close': closeSheet(true); break;
+            // 4.38.2: a soma da cripto (ou dos fundos) na tabela da carteira abre e fecha os ativos dela
+            case 'pf-g': if (d.g === 'cripto' || d.g === 'fundos') { st.fold['pf-' + d.g] = !st.fold['pf-' + d.g]; pfAgora(); } break;
             case 'follow': {
                 const k = sheetKey;
                 if (cfg.watch.includes(k) || cfg.funds.includes(k)) { cfg.watch = cfg.watch.filter((s) => s !== k); cfg.funds = cfg.funds.filter((s) => s !== k); toast('Retirado da lista'); }

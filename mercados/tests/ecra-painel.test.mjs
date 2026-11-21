@@ -395,19 +395,32 @@ function verificar({ de, ate, seed }) {
                     if (!a.cr) g.a = a;
                 }
                 // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo, em euros sem cêntimos — os fundos e as
-                // ações, depois a cripto (um grupo com mais de um ativo, e com o outro grupo, leva antes a linha da soma, com os
-                // ativos debaixo dela) — e o total, com mais de um ativo
+                // ações, depois a cripto — e o total, com mais de um ativo. Um grupo com mais de um ativo, e com o outro grupo, leva
+                // a linha da soma, que abre e fecha os ativos dele (4.38.2): fechada por omissão, aberta como o utilizador a deixou
                 const eur0 = (x) => mk.fmtPx(x, { decimals: 0 }, 'EUR'), sg0 = (x) => (x >= 0 ? '+' : '−') + eur0(Math.abs(x));
                 const lin = (cl, nm, v, e) => [cl, nm, e > 0 ? eur0(e) : '', eur0(v), e > 0 ? `${sg0(v - e)} (${mk.fmtPct1((v / e - 1) * 100)})` : '', e > 0 ? 'num ' + toneOf(v - e) + '-t' : 'num'];
-                const tqPf = [['pf-gh', '', 'Investido', 'Vale', 'Ganho', '']];
-                for (const [g, cr, nm, outro] of [[gr.o, false, 'Fundos e ações', gr.c.n], [gr.c, true, 'Cripto', gr.o.n]]) {
-                    const sub = g.n > 1 && outro > 0;
-                    if (sub) { tqPf.push(lin('pf-gr pf-gg', nm, g.v, g.e)); T.carteiraSoma++; }
-                    for (const { a, u, e } of tbPf) if (!!a.cr === cr) tqPf.push(lin(sub ? 'pf-gr pf-ga' : 'pf-gr', txt(a.nm), a.px * u, e));
-                }
-                if (tbPf.length > 1) tqPf.push(lin('pf-gr pf-gt', 'Total', vv, ee));
-                const tabPf = s ? [...s.querySelectorAll('.pf-gs > span')].map((r) => { const c = r.children; return [r.className, c[0].textContent, c[1].textContent, c[2].textContent, c[3].textContent, c[3].className]; }) : [];
+                const tabQ = (abC, abF) => {
+                    const q = [['pf-gh', '', 'Investido', 'Vale', 'Ganho', '', '']];
+                    for (const [g, cr, nm, outro, ab, gk] of [[gr.o, false, 'Fundos e ações', gr.c.n, abF, 'fundos'], [gr.c, true, 'Cripto', gr.o.n, abC, 'cripto']]) {
+                        const sub = g.n > 1 && outro > 0;
+                        if (sub) q.push([...lin(ab ? 'pf-gr pf-gg on' : 'pf-gr pf-gg', nm, g.v, g.e), gk]);
+                        if (!sub || ab) for (const { a, u, e } of tbPf) if (!!a.cr === cr) q.push([...lin(sub ? 'pf-gr pf-ga' : 'pf-gr', txt(a.nm), a.px * u, e), '']);
+                    }
+                    if (tbPf.length > 1) q.push([...lin('pf-gr pf-gt', 'Total', vv, ee), '']);
+                    return q;
+                };
+                const tabDe = (raiz) => (raiz ? [...raiz.querySelectorAll('.pf-gs > span')].map((r) => { const c = r.children; return [r.className, c[0].textContent, c[1].textContent, c[2].textContent, c[3].textContent, c[3].className, r.dataset.g || '']; }) : []);
+                const tqPf = tabQ(!!snap.foldPfc, !!snap.foldPff), tabPf = tabDe(s);
                 if (JSON.stringify(tabPf) !== JSON.stringify(tqPf)) erro(`a carteira: a tabela ${JSON.stringify(tabPf)} em vez de ${JSON.stringify(tqPf)}`);
+                if (s && s.querySelector('.pf-b .pf-gs')) erro('a carteira: a tabela dentro do botão (lá dentro não se abre a soma)');
+                // e o cartão sozinho (o que se redesenha ao vivo) com os grupos ao contrário: assim cada carteira com somas vê-se
+                // aberta e fechada
+                if ((gr.c.n > 1 && gr.o.n) || (gr.o.n > 1 && gr.c.n)) {
+                    T.carteiraSoma++;
+                    const so = new DOMParser().parseFromString(AO.ecra.pf({ pf: snap.pf, per: snap.per, foldPfc: !snap.foldPfc, foldPff: !snap.foldPff }), 'text/html').querySelector('section.pf');
+                    const tq2 = tabQ(!snap.foldPfc, !snap.foldPff), tab2 = tabDe(so);
+                    if (JSON.stringify(tab2) !== JSON.stringify(tq2)) erro(`a carteira (o cartão sozinho): a tabela ${JSON.stringify(tab2)} em vez de ${JSON.stringify(tq2)}`);
+                }
                 if (s && (s.querySelector('.pf-ix') || s.querySelector('.pf-gl'))) erro('a carteira: sem os índices nem os grupos em linhas');
                 // o gráfico do período escolhido: o valor e o investido a tracejado (60 pontos cada), na cor do período
                 const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l'), pi = sv && sv.querySelector('path.pf-i');

@@ -482,7 +482,10 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-pe { display: flex; justify-content: flex-end; margin: 0 2px 8px; }
 .pf .pf-pe .seg.per { margin-left: 0; }
 .pf .pf-h .pf-v { margin-left: auto; font-size: calc(1.45rem * var(--k)); font-weight: 800; letter-spacing: -.02em; }
-.pf .pf-b { display: block; width: 100%; padding: 8px 10px 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--card, var(--bg2)); color: inherit; text-align: left; cursor: pointer; }
+/* 4.38.2: o cartão é uma caixa com o botão (o total, o de hoje e o gráfico: abre a Carteira) e, fora dele, a tabela (a soma
+   da cripto abre e fecha as moedas) */
+.pf .pf-cx { padding: 8px 10px 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--card, var(--bg2)); }
+.pf .pf-b { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
 .pf .pf-g { display: block; color: var(--muted); font-size: calc(.8rem * var(--k)); }
 .pf .pf-sv { display: block; width: 100%; height: 88px; margin-top: 6px; overflow: visible; }
 .pf .pf-sv .pf-i { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
@@ -503,6 +506,9 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-gr.pf-ga { border-top: 0; padding-top: 1px; }
 .pf .pf-gr.pf-ga b { padding-left: 10px; font-weight: 500; color: var(--muted); }
 .pf .pf-gr.pf-gt b { font-weight: 750; }
+.pf .pf-gg { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pf .pf-gg .pf-sx::after { content: '›'; display: inline-block; margin-left: 6px; color: var(--faint); font-weight: 600; transition: transform .2s; }
+.pf .pf-gg.on .pf-sx::after { transform: rotate(90deg); }
 .pf .pf-gr b { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf .pf-gr .num { text-align: right; white-space: nowrap; }
 .pf .pf-grs { display: block; margin-top: 6px; }
