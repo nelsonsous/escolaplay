@@ -482,7 +482,15 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-h .pf-v { margin-left: auto; font-size: calc(1.45rem * var(--k)); font-weight: 800; letter-spacing: -.02em; }
 .pf .pf-b { display: block; width: 100%; padding: 8px 10px 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--card, var(--bg2)); color: inherit; text-align: left; cursor: pointer; }
 .pf .pf-g { display: block; color: var(--muted); font-size: calc(.8rem * var(--k)); }
-.pf .pf-sv { display: block; width: 100%; height: 38px; margin-top: 4px; overflow: visible; }
+.pf .pf-sv { display: block; width: 100%; height: 88px; margin-top: 6px; overflow: visible; }
+.pf .pf-sv .pf-i { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.pf .pf-cap { display: flex; justify-content: space-between; color: var(--faint); font-size: calc(.68rem * var(--k)); margin-top: 2px; }
+.pf .pf-cap .pf-inv::before { content: ''; display: inline-block; width: 14px; border-top: 1.5px dashed var(--muted); vertical-align: middle; margin-right: 4px; }
+.pf .pf-grs { display: block; margin-top: 6px; }
+.pf .pf-gl { display: block; padding: 2px 0; color: var(--muted); font-size: calc(.8rem * var(--k)); }
+.pf .pf-gl b { color: var(--text); font-weight: 650; }
+.pf .pf-ix { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--muted); font-size: calc(.74rem * var(--k)); line-height: 1.4; }
+.pf .pf-ix i { font-style: normal; font-weight: 600; }
 .pf .pf-as { display: block; margin-top: 4px; color: var(--muted); font-size: calc(.74rem * var(--k)); line-height: 1.35; }
 .pf .pf-as span { white-space: nowrap; } .pf .pf-as i { font-style: normal; font-weight: 600; }
 .pf .pf-sv .pf-l { fill: none; stroke: var(--flat); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }

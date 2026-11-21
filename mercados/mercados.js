@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.33.0';
+    const VERSION = '4.34.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1338,9 +1338,11 @@
             const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k);
             // o nome curto (o símbolo na cripto; sem a moeda, o «(Acc)» e o «UCITS ETF» nos fundos)
             const nm = REG[k].kind === 'crypto' ? REG[k].sym : nameOf(k).replace(/\s*\(.*\)\s*$/, '').replace(/\s+(USD|EUR|UCITS|ETF|Acc|Dist)\b.*$/i, '').trim() || k;
-            return { k, nm, px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: q.changePct,
+            return { k, nm, cr: REG[k].kind === 'crypto', px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: q.changePct,
                 s: (pd.series || []).filter((x) => fin(x[1])).map(([t, v]) => [t, v * f]) };
-        }) };
+        }),
+        // os principais índices do dia (e os futuros do S&P 500, que dizem para onde vai a abertura)
+        ix: [['S&P 500', '^GSPC'], ['Nasdaq', '^IXIC'], ['Euro Stoxx 50', '^STOXX50E'], ['Futuros S&P 500', 'ES=F']].map(([n, k]) => ({ n, c: Q[k] ? Q[k].changePct : null })).filter((x) => fin(x.c)) };
     }
     // a carteira ao vivo: com os preços a mudar (a cripto a cada segundo), o cartão redesenha-se sozinho (pela Onda, no
     // máximo a cada 2 s), sem redesenhar o Painel todo

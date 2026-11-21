@@ -527,7 +527,7 @@ function proxyBody(u) {
     // (as quantidades de teste: o que tem no FTSE All-World, no Bitcoin e na Solana, com o investido)
     const lots0 = await page.evaluate(() => {
         const mk = window.__mk, o = mk.cfg.lots;
-        mk.cfg.lots = { 'VWCE.DE': { plan: '', buys: [], qty: 25.31, cost: 3800 }, 'c:BTC': { plan: '', buys: [], qty: 0.0412, cost: 3200 }, 'c:SOL': { plan: '', buys: [], qty: 12, cost: 1500 } };
+        mk.cfg.lots = { 'VWCE.DE': { plan: '', buys: [], qty: 25.31, cost: 3800, qd: '2025-06-02' }, 'c:BTC': { plan: '', buys: [], qty: 0.0412, cost: 3200, qd: '2025-07-01' }, 'c:SOL': { plan: '', buys: [], qty: 12, cost: 1500, qd: '2025-08-01' } };
         mk.render(); window.scrollTo(0, 0); return o;
     });
     await page.waitForSelector('.pf svg.pf-sv path.pf-l');
@@ -542,7 +542,14 @@ function proxyBody(u) {
     const vivo = await page.evaluate((f) => [document.querySelector('.pf .pf-v').textContent, new Function('return (' + f + ')()')().txt], pfVal.toString());
     assert.ok(vivo[0] !== pfS.txt || vivo[1] === pfS.txt, 'o cartão acompanha os preços ao vivo: ' + JSON.stringify([pfS.txt, vivo]));
     assert.match(await page.locator('.pf .pf-g').textContent(), /^[+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\) no total · hoje [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\)$/);
-    assert.match(await page.locator('.pf .pf-as').textContent(), /^FTSE All-World \d+% [+−]?\d+,\d% · BTC \d+% [+−]?\d+,\d% · SOL \d+% [+−]?\d+,\d%$/, 'cada ativo: o peso e o dia');
+    // o que é do FTSE e o que é da cripto; os principais índices; o gráfico desde a primeira compra com o investido
+    const gls = await page.locator('.pf .pf-gl').allTextContents();
+    assert.equal(gls.length, 2, 'dois grupos: ' + gls);
+    assert.match(gls[0], /^FTSE All-World [\d\s ]+,\d\d\s€ [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d%\) · hoje [+−]?\d+,\d%$/);
+    assert.match(gls[1], /^Cripto [\d\s ]+,\d\d\s€ [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d%\) · hoje [+−]?\d+,\d%$/);
+    assert.match(await page.locator('.pf .pf-ix').textContent(), /^S&P 500 [+−]?\d+,\d% · Nasdaq [+−]?\d+,\d% · Euro Stoxx 50 [+−]?\d+,\d% · Futuros S&P 500 [+−]?\d+,\d%$/);
+    assert.equal(await page.locator('.pf svg.pf-hist path.pf-i').count(), 1, 'o investido a tracejado');
+    assert.match(await page.locator('.pf .pf-cap').textContent(), /^desde \d\d\/\d{4}investidohoje$/);
     assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#mk-body > section, #mk-body > details')].slice(0, 3).map((e) => (e.tagName === 'SECTION' ? e.querySelector('h2').textContent : e.dataset.fold))), ['A minha carteira', 'hoje', 'Os meus ativos'], 'a carteira, o Hoje (o sentimento e o resumo) e os meus ativos');
     const pfLinha = await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d');
     assert.equal(pfLinha.split('L').length, 60, 'a linha do valor: 60 pontos');

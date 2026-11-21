@@ -3151,3 +3151,16 @@ ecrã inicial para ter mais informação e ser mais pequena? E as cores, pode ha
 **Verificado.** Painel: 600 estados (a ordem com o Hoje, o cartão compacto e os ativos com o peso e o dia). Ajustes: a
 paridade com as Cores. Interface: Dia, Noite e Automático (com o browser a passar de escuro a claro), e o fundo e a
 cor da barra de cima em cada um.
+
+## Iteração (Mercados 4.34.0): a carteira com os grupos, os índices e o investido
+
+**Pedido.** Em vez do peso de cada ativo, os principais índices; o gráfico mais alto e com o investido numa linha; e
+separar o ganho ou a perda da cripto do do FTSE.
+
+**Feito.** No cartão da carteira: o gráfico desde a primeira compra (o `cr_vt` e o `cr_it` do gráfico da Carteira), mais
+alto, com o investido a tracejado (sem datas em todas as compras, fica o do período); os dois grupos — os fundos e as
+ações (com um só, o nome dele) e a cripto — cada um com o valor, o ganho face ao investido e o de hoje; e os principais
+índices do dia (S&P 500, Nasdaq, Euro Stoxx 50 e os futuros do S&P 500).
+
+**Verificado.** Painel: 600 estados, com a referência em JS dos grupos, dos índices e do gráfico (com e sem datas).
+Interface: o FTSE All-World e a cripto separados, os índices e o investido a tracejado.
