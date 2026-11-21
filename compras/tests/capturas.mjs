@@ -1,5 +1,5 @@
 // Capturas da app a 390 px, com uma amostra dos dados reais (economo/amostra.mjs), para rever o layout de cada ecrã:
-//   node compras/tests/capturas.mjs <amostra.json> <pasta> [parte do nome]
+//   [CORES=dia] node compras/tests/capturas.mjs <amostra.json> <pasta> [parte do nome]   (CORES=dia: o iPhone em claro)
 // A folha (fixa, rola por dentro) tira-se inteira: a janela cresce até à altura dela. Não é um teste (não corre no
 // npm test): é a ferramenta das voltas de layout (17/11/2026).
 import { readFileSync } from 'node:fs';
@@ -27,7 +27,7 @@ poe('produtor_artigo', real.prod, (l) => ({ ...l, visto: agora }));
 poe('preco_historico', real.hist);
 esquecerTipos();
 const br = await pw.chromium.launch();
-const ctx = await br.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'pt-PT', colorScheme: 'dark' });
+const ctx = await br.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: 'pt-PT', colorScheme: process.env.CORES === 'dia' ? 'light' : 'dark' });
 const a = await ctx.newPage();
 const erros = [];
 a.on('pageerror', (e) => erros.push(e.message));

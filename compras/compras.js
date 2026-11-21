@@ -47,7 +47,7 @@
             .then((o) => (o && o.title ? JSON.stringify({ ...c, legenda: o.title, autor: o.author_name }) : corpo), () => corpo);
     }
 
-    fetch('app/compras.wasm?v=0.58.14')
+    fetch('app/compras.wasm?v=0.59.0')
         .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then((b) => WebAssembly.compile(b))
         .then((mod) => { window.app = window.OndaApp.criar(mod, { buscar, prefixo: PRE }); })
@@ -191,5 +191,23 @@
             .catch((err) => JSON.stringify({ erro: navigator.onLine === false || err instanceof TypeError ? 'sem ligação à Internet; tenta outra vez quando houver rede' : String((err && err.message) || err) }))
             .then((t) => { ls.set('talao', t); evento('talao:1'); });
     });
+    // o dia e a noite (Casa → Cores: «tema» é dia, noite ou nada = automático, como o iPhone): o <html> com
+    // data-theme="light", a cor da barra e a barra das horas do iPhone; o iPhone só lê a barra ao abrir a app, por isso
+    // na app instalada mudar volta a abri-la (o primeiro acerto, ao arrancar, já o fez o index.html)
+    const claro = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+    function aplicaTema() {
+        const e = ls.get('tema');
+        const dia = e === 'dia' || (e !== 'noite' && !!(claro && claro.matches));
+        const el = document.documentElement;
+        if ((el.dataset.theme === 'light') === dia) return;
+        if (dia) el.dataset.theme = 'light'; else delete el.dataset.theme;
+        const tc = document.querySelector('meta[name="theme-color"]');
+        if (tc) tc.setAttribute('content', dia ? '#ffffff' : '#000000');
+        const sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (sb) { sb.setAttribute('content', dia ? 'default' : 'black-translucent'); if (navigator.standalone === true) location.reload(); }
+    }
+    document.addEventListener('onda-desenho', aplicaTema);
+    if (claro && claro.addEventListener) claro.addEventListener('change', aplicaTema);
+    aplicaTema();
     if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
 })();
