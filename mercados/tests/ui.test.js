@@ -552,8 +552,10 @@ function proxyBody(u) {
     // ao abrir outra vez, a análise dos meus ativos aparece logo: o ano de fechos diários deles fica guardado no instantâneo
     const snapD = await page.evaluate(() => { const d = (JSON.parse(localStorage.getItem('mercados:snap') || '{}').D) || {}; return ['VWCE.DE', 'c:BTC', '^GSPC'].map((k) => (d[k] || []).length); });
     assert.ok(snapD.every((n) => n > 100), 'o histórico guardado: ' + snapD);
-    assert.equal(await page.locator('.pf svg.pf-hist path.pf-i').count(), 1, 'o investido a tracejado');
-    assert.match(await page.locator('.pf .pf-cap').textContent(), /^desde \d\d\/\d{4}investidohoje$/);
+    assert.equal(await page.locator('.pf svg.pf-sv path.pf-i').count(), 1, 'o investido a tracejado');
+    assert.equal(await page.locator('.pf .pf-cap').textContent(), 'há 24 hinvestidoagora', 'o gráfico do período escolhido (1D)');
+    assert.equal(await page.locator('.pf .pf-pe .seg.per button').count(), 4, 'o filtro do período no cartão');
+    assert.equal(await page.locator('.sec:has(h2:text-is("Os meus ativos")) .seg.per').count(), 0, 'e não repetido nos meus ativos');
     assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#mk-body > section, #mk-body > details')].slice(0, 3).map((e) => (e.tagName === 'SECTION' ? e.querySelector('h2').textContent : e.dataset.fold))), ['A minha carteira', 'Os meus ativos', 'hoje'], 'a carteira, os meus ativos e depois a análise do Claude (o Hoje)');
     const pfLinha = await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d');
     assert.equal(pfLinha.split('L').length, 60, 'a linha do valor: 60 pontos');
@@ -562,6 +564,14 @@ function proxyBody(u) {
     // o dia e a noite: em Ajustes → Cores; em automático segue o iPhone (aqui, o modo do browser)
     const tema = () => page.evaluate(() => [document.documentElement.dataset.theme, getComputedStyle(document.body).backgroundColor, document.querySelector('meta[name="theme-color"]').getAttribute('content')]);
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'à noite (o iPhone em escuro): escuro');
+    // o botão do topo do Painel: ☀︎ passa a dia, ☾ volta a noite
+    assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'light');
+    await page.click('#mk-body > .pg-tema');
+    assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o botão do Painel: dia');
+    assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'dark');
+    await page.click('#mk-body > .pg-tema');
+    assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'e volta a noite');
+    await page.evaluate(() => { window.__mk.cfg.theme = 'auto'; window.__mk.render(); });
     await page.click('#mk-nav [data-tab="ajustes"]');
     assert.equal(await page.locator('[data-thm="auto"].on').count(), 1, 'por omissão, automático');
     await page.click('[data-thm="light"]');

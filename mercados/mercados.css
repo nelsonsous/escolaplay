@@ -479,6 +479,8 @@ a.st-row { text-decoration: none; color: inherit; }
 .row .r-t.up { color: var(--up); font-weight: 650; } .row .r-t.down { color: var(--down); font-weight: 650; }
 .d-ext { font-size: calc(0.853rem * var(--k)); margin: 2px 0 6px; }
 .pf .pf-h { align-items: baseline; margin-bottom: 4px; }
+.pf .pf-pe { display: flex; justify-content: flex-end; margin: 0 2px 8px; }
+.pf .pf-pe .seg.per { margin-left: 0; }
 .pf .pf-h .pf-v { margin-left: auto; font-size: calc(1.45rem * var(--k)); font-weight: 800; letter-spacing: -.02em; }
 .pf .pf-b { display: block; width: 100%; padding: 8px 10px 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--card, var(--bg2)); color: inherit; text-align: left; cursor: pointer; }
 .pf .pf-g { display: block; color: var(--muted); font-size: calc(.8rem * var(--k)); }
@@ -863,3 +865,8 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 :root[data-theme="light"] .adv-alg.diff, :root[data-theme="light"] .alg-diff, :root[data-theme="light"] .dec-desde.novo { color: #8a5a00; border-left-color: #8a5a00; }
 :root[data-theme="light"] .sim-otim { stroke: #16a34a; }
 :root[data-theme="light"] .mk-toast { box-shadow: 0 8px 30px rgba(0, 0, 0, .18); }
+
+/* ---------- 4.37: o dia e a noite à mão, no topo do Painel ---------- */
+#mk-body { position: relative; }
+.pg-tema { position: absolute; top: 4px; right: 2px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.pg-tema:active { transform: scale(.94); }

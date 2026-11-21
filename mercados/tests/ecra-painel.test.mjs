@@ -368,7 +368,7 @@ function verificar({ de, ate, seed }) {
                 for (let k = 0; k < 60; k++) {
                     const t = t0 + (tf - t0) * (k / 59);
                     let v = 0;
-                    for (const { a, u } of tbPf) v += u * (Array.isArray(a.s) && a.s.length > 1 ? pxAt(a.s, t) : a.px);
+                    for (const { a, u, dat } of tbPf) v += u * (Array.isArray(a.s) && a.s.length > 1 ? pxAt(a.s, t) : dat ? pxAt(a.h, t) : a.px);
                     vs.push(v);
                 }
                 const pc = vs[0] > 0 ? (vs[59] / vs[0] - 1) * 100 : 0, dp = vv - dd > 0 ? (dd / (vv - dd)) * 100 : 0, mostra = !!c.per && c.per !== '1d';
@@ -393,16 +393,18 @@ function verificar({ de, ate, seed }) {
                 const gse = s ? [...s.querySelectorAll('.pf-gs > .pf-gr')].map((r) => { const c = r.children; return [c[0].textContent, c[1].textContent, c[2].textContent, c[2].className]; }) : [];
                 if (JSON.stringify(gse) !== JSON.stringify(gq2)) erro(`a carteira: os grupos ${JSON.stringify(gse)} em vez de ${JSON.stringify(gq2)}`);
                 if (s && (s.querySelector('.pf-ix') || s.querySelector('.pf-gl'))) erro('a carteira: sem os índices nem os grupos em linhas');
-                // o gráfico: com todas as compras datadas, o valor desde a primeira e o investido a tracejado; sem isso, o do período
-                const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l'), pi = sv && sv.querySelector('path.pf-i'), hist = tbPf.every((x) => x.dat);
-                if (hist) T.carteiraHist = (T.carteiraHist || 0) + 1;
-                const cls = hist ? 'pf-sv pf-hist ' + toneOf(vv - ee) : 'pf-sv ' + toneOf(pc);
-                if (!b || b.dataset.tab !== 'carteira' || !sv || sv.getAttribute('class') !== cls || !pl || pl.getAttribute('d').split('L').length !== 60 || !!pi !== hist || (pi && pi.getAttribute('d').split('L').length !== 60)) erro(`a carteira: o toque ou o gráfico ${sv && sv.outerHTML.slice(0, 120)} (${cls})`);
+                // o gráfico do período escolhido: o valor e o investido a tracejado (60 pontos cada), na cor do período
+                const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l'), pi = sv && sv.querySelector('path.pf-i');
+                const cap = s && s.querySelector('.pf-cap'), capq = ({ '1w': 'há 1 semana', '1m': 'há 1 mês', '1y': 'há 1 ano' }[c.per] || 'há 24 h') + 'investidoagora';
+                if (!b || b.dataset.tab !== 'carteira' || !sv || sv.getAttribute('class') !== 'pf-sv ' + toneOf(pc) || !pl || pl.getAttribute('d').split('L').length !== 60 || !pi || pi.getAttribute('d').split('L').length !== 60 || !cap || cap.textContent !== capq) erro(`a carteira: o toque ou o gráfico ${sv && sv.outerHTML.slice(0, 120)}`);
             } else if (sec('A minha carteira')) erro('a carteira sem nada para mostrar');
             // ---- os meus ativos e o período ----
             const sm = sec('Os meus ativos');
             if (sm) {
-                const pr = [...sm.querySelectorAll('.sec-h .seg.per button')].map((b) => [b.dataset.per, b.textContent, b.className]);
+                // o filtro do período: no cartão da carteira quando ele lá está, senão aqui
+                const sp = tbPf.length ? sec('A minha carteira') : sm;
+                if (tbPf.length && sm.querySelector('.seg.per')) erro('o período repetido nos meus ativos');
+                const pr = sp ? [...sp.querySelectorAll(tbPf.length ? '.pf-pe .seg.per button' : '.sec-h .seg.per button')].map((b) => [b.dataset.per, b.textContent, b.className]) : [];
                 const p = c.per || '1d';
                 T[p === '1d' ? 'p1d' : p === '1w' ? 'p1w' : p === '1m' ? 'p1m' : p === '1y' ? 'p1y' : 'pOutro']++;
                 const prq = [['1d', '1D'], ['1w', '1S'], ['1m', '1M'], ['1y', '1A']].map(([v, l]) => [v, l, p === v ? 'on' : '']);
