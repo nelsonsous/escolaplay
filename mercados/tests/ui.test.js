@@ -609,17 +609,18 @@ function proxyBody(u) {
     const tema = () => page.evaluate(() => [document.documentElement.dataset.theme, getComputedStyle(document.body).backgroundColor, document.querySelector('meta[name="theme-color"]').getAttribute('content')]);
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'à noite (o iPhone em escuro): escuro');
     // o botão do topo do Painel: ☀︎ passa a dia, ☾ volta a noite
+    // no iPhone a zona das horas (a faixa fixa do topo) tapa o que lá estiver: o botão fica logo abaixo dela
+    const btTopo = await page.evaluate(() => { window.scrollTo(0, 0); const h = document.documentElement; h.style.setProperty('--safe-t', '54px'); const r = document.querySelector('#mk-body > .pg-tema').getBoundingClientRect(); h.style.removeProperty('--safe-t'); return Math.round(r.top); });
+    assert.ok(btTopo >= 54, 'o botão do dia e da noite abaixo da zona das horas (no iPhone): começa em ' + btTopo + ' px');
     assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'light');
-    // 4.38.1: num iPhone à noite (barra «black-translucent», faixa das horas com ~47 px) o botão fica abaixo da faixa, ao
-    // lado do título — estava a 4 px do topo, escondido por baixo dela (só se via sem a faixa, como aqui)
-    const posBotao = await page.evaluate(() => {
+    // 4.38.2: e ao meio do título (com a faixa das horas de um iPhone, 47 px), dentro do ecrã
+    const btLado = await page.evaluate(() => {
         document.documentElement.style.setProperty('--safe-t', '47px');
         const b = document.querySelector('#mk-body > .pg-tema').getBoundingClientRect(), t = document.querySelector('#mk-body > .pg-t').getBoundingClientRect();
-        const faixa = parseFloat(getComputedStyle(document.body, '::before').height);
         document.documentElement.style.removeProperty('--safe-t');
-        return { faixa, abaixo: b.top >= faixa, aoLado: Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2) <= 8, dentro: b.right <= innerWidth };
+        return { desvio: Math.round(Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2)), dentro: b.right <= innerWidth };
     });
-    assert.deepEqual(posBotao, { faixa: 47, abaixo: true, aoLado: true, dentro: true }, 'o botão do dia e da noite à vista no iPhone');
+    assert.ok(btLado.desvio <= 8 && btLado.dentro, 'o botão do dia e da noite ao meio do título: ' + JSON.stringify(btLado));
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o botão do Painel: dia');
     // 4.37.3: a barra das horas do iPhone também clara de dia («default», horas a escuro) e a faixa por trás dela clara
