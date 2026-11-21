@@ -573,14 +573,20 @@
       = tu eh es.per $"all" = ta ? tu num p.t0 0.0
       = kk 60 = vs A kk = ws A kk = ms A kk = sv A na = t0 ? > ta 0.0 ta - tf * 86400.0 pn_dias es.per
       L j na { = c @ cr_p tb j ! + sv j ? > quantos c.s 1 cr_vec c.s 0 }
-      = lo 0.0 = hi 0.0
+      = lo 0.0 = hi 0.0 = vlo 0.0 = vhi 0.0
       L k kk {
         = t + t0 * - tf t0 / F k F - kk 1 = v 0.0 = e 0.0 = vm 0.0
         L j na { = q cr_p tb j = px pn_pxt q @ + sv j t = v + v * pn_ut q t px = e + e pn_et q t = vm + vm * @f + q 4 px }
         !f + vs k v !f + ws k e !f + ms k vm
         = mn2 Mn v e = mx2 Mx v e
         Se || == k 0 < mn2 lo = lo mn2
-        Se || == k 0 > mx2 hi = hi mx2 }
+        Se || == k 0 > mx2 hi = hi mx2
+        Se || == k 0 < v vlo = vlo v
+        Se || == k 0 > v vhi = vhi v }
+      # 4.44: a escala — com o investido longe (a escala toda mais de 3 vezes a do valor: no 1D, o de hoje deixava de se
+      # ver), o gráfico fica só com o valor e o investido não se desenha
+      = ci <= - hi lo * 3.0 Mx - vhi vlo 0.000001
+      Se ~ ci { = lo vlo = hi vhi }
       = v0 @f ms = v1 @f + ms - kk 1 = pc ? > v0 0.0 * - / v1 v0 1.0 100.0 0.0
       = d1 || ~ ha es.per eh es.per $"1d"
       `\n        <section class="sec pf"><div class="sec-h pf-h"><h2>A minha carteira</h2><span class="pf-v num">{ pn_eurf vv }</span></div>`
@@ -593,13 +599,16 @@
       Se && ~ d1 ~ tu pn_casa 2 pc pc 0
       "</span>"
       # o gráfico do período: o valor e o investido a tracejado
-      `<svg class="pf-sv { ln_tom pc }" viewBox="0 0 320 88" preserveAspectRatio="none" aria-hidden="true"><path class="pf-a" d="M2 88`
+      `<svg class="pf-sv { ln_tom pc }" data-esc="{ ? ci "tudo" "valor" }" viewBox="0 0 320 88" preserveAspectRatio="none" aria-hidden="true"><path class="pf-a" d="M2 88`
       L k kk ` L{ _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 }{ P 32 }{ _nu_fixo pn_pfy @f + vs k lo hi 1 }`
-      ` L318 88 Z"/><path class="pf-i" d="M`
-      L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + ws k lo hi 1 }
-      `"/><path class="pf-l" d="M`
+      ` L318 88 Z"/>`
+      Se ci {
+        `<path class="pf-i" d="M`
+        L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + ws k lo hi 1 }
+        `"/>` }
+      `<path class="pf-l" d="M`
       L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + vs k lo hi 1 }
-      `"/></svg><span class="pf-cap"><span>{ ? && tu > ta 0.0 { "desde " esc p.dl 0 } pn_desde es.per }</span><span class="pf-inv">investido</span><span>agora</span></span></button>`
+      `"/></svg><span class="pf-cap"><span>{ ? && tu > ta 0.0 { "desde " esc p.dl 0 } pn_desde es.per }</span>{ Se ci `<span class="pf-inv">investido</span>` }<span>agora</span></span></button>`
       # a tabela da carteira, fora do botão: o investido, o valor e o ganho de cada ativo — os fundos e as ações, depois a
       # cripto (um grupo com mais de um ativo, e com o outro grupo, leva a linha da soma, que o abre e fecha) — e o total
       `<div class="pf-gs"><span class="pf-gh"><b></b><span>Investido</span><span>Vale</span><span>Ganho</span></span>`
