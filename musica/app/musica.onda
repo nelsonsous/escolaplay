@@ -1125,10 +1125,16 @@
       { ? && ok mesmo ok $"nativo" "<p>Nesta app de teste não há avisos: numa app nativa precisam do programa pago da Apple. Liga-os na app do ecrã principal.</p>"
         "<p>Este browser não deixa enviar avisos.</p>" } }
   "</div>" }
+# as cores: Automático (como o telemóvel), Dia ou Noite. A casca (musica.js) aplica-as e guarda a escolha («tema»)
+: cartao_cores >i {
+  = t _an_ler $"tema"
+  = l ? t mesmo t $"light" 0 = d ? t mesmo t $"dark" 0
+  `<div class="mu-card mu-cores"><h3>Cores</h3><div class="mu-seg"><button type="button" data-onda="tema&#9;auto" aria-pressed="{ ? || l d "false" "true" }">Automático</button><button type="button" data-onda="tema&#9;light" aria-pressed="{ ? l "true" "false" }">Dia</button><button type="button" data-onda="tema&#9;dark" aria-pressed="{ ? d "true" "false" }">Noite</button></div><p class="mu-nota">Automático segue o telemóvel: claro ou escuro, como o tens no iPhone.</p></div>` }
 : v_ajustes >i {
   `<header class="mu-head"><div><h1>Ajustes</h1></div>{ pill }</header>`
   = e @ 3
   ? ~ e carregar {
+    cartao_cores
     Se acesso { cartao_gosto cartao_perfil }
     `<div class="mu-card"><h3>Tidal</h3>`
     ? ligado `<dl class="mu-kv"><dt>Conta</dt><dd>{ esct txt e.utilizador } ({ esct txt e.pais })</dd><dt>Desde</dt><dd>{ pdia txt e.ligadoEm }</dd><dt>Biblioteca</dt><dd>{ N int e.playlists } playlists · { N int e.pedidos } pedidos à espera</dd></dl>` "<p>Não está ligado.</p>"
@@ -1179,7 +1185,7 @@
       ? == @ 28 5 `<p><b>Apagar tudo?</b> Sai a ligação ao Tidal, o perfil, as playlists da app, os pedidos e os avisos, e este aparelho deixa de ter acesso. As playlists que já estão no teu Tidal ficam lá. Não dá para desfazer.{ Se == tipo e.dono 3 " És quem montou a app: para voltares a entrar vais precisar de um código de ligação novo." }</p><div class="mu-acoes"><button type="button" class="mu-btn perigo forte" data-onda="conta_sim">{ ic 9 }Sim, apagar a minha conta</button><button type="button" class="mu-btn sec" data-onda="nao">Não</button></div>`
         `<div class="mu-acoes"><button type="button" class="mu-btn perigo" data-onda="conta">{ ic 9 }Apagar a minha conta</button></div>`
       "</div>" }
-    `<p class="mu-nota">Música 2.46.7 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
+    `<p class="mu-nota">Música 2.47.0 · conector { esct txt e.versao } · <a href="privacidade.html">Privacidade</a> · <a href="apoio.html">Apoio</a> · <a href="https://github.com/nelsonsous/escolaplay/tree/main/musica" target="_blank" rel="noopener">código</a></p>` }
   0 }
 
 # ligar a conta de uma IA (g: 0 a Mistral, 1 a Google): os passos, a chave (que nunca volta a aparecer) e «Ligar»
@@ -1312,6 +1318,7 @@
   # a sugestão: criar com ela; ajustá-la (vai para o texto; o toque seguinte cria); manter o meu (cria com ele)
   ? mesmo a $"pr" { _an_gravar $"perfil_aberto" $"1" Se ~ @ 31 { = r _tx_abre 300 `POST /api/perfil/respostas{ P 10 }\{"campo":{ pjs b },"valor":{ pjs _tx_campo t 2 9 }\}` pede _tx_fecha r 39 } 0 }
   ? mesmo a $"perfil_abrir" { = ap _an_ler $"perfil_aberto" = ab ? ap mesmo ap $"1" ~ r_total _ar_get @ 3 $"respostas" _an_gravar $"perfil_aberto" ? ab $"0" $"1" render 0 }
+  ? mesmo a $"tema" { render 0 }
   ? mesmo a $"sem_instalar" { _an_gravar $"ligar_aqui" $"1" render 0 }
   ? mesmo a $"ir_perfil" { _an_gravar $"perfil_aberto" $"1" ir 5 = fica 1 0 }
   ? mesmo a $"ia_qual" { ? ocupado 0 { pede`POST /api/consentir{ P 10 }\{"qualidade":{ ? mesmo b $"1" "true" "false" }\}` 40 0 } }
