@@ -579,8 +579,10 @@ function proxyBody(u) {
     await page.waitForFunction(([t0, f]) => { const t = document.querySelector('.pf .pf-v').textContent; return t === new Function('return (' + f + ')()')().txt && t !== t0; }, [pfS.txt, pfVal.toString()], { timeout: 8000 }).catch(() => {});
     const vivo = await page.evaluate((f) => [document.querySelector('.pf .pf-v').textContent, new Function('return (' + f + ')()')().txt], pfVal.toString());
     assert.ok(vivo[0] !== pfS.txt || vivo[1] === pfS.txt, 'o cartão acompanha os preços ao vivo: ' + JSON.stringify([pfS.txt, vivo]));
-    assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['No total', 'Hoje'], 'a tabela de cima (no 1D, sem o período)');
-    assert.match((await page.locator('.pf .pf-st .pf-c').allTextContents()).join(' | '), /^No total[+−][\d\s ]+,\d\d\s€[+−]?\d+,\d\d% \| Hoje[+−][\d\s ]+,\d\d\s€[+−]?\d+,\d\d%$/);
+    // 4.38.4: em cima, numa linha, só o de hoje (no 1D, sem o período; o ganho no total está no Total da tabela)
+    assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['Hoje'], 'em cima, só o de hoje');
+    assert.match((await page.locator('.pf .pf-st .pf-c').allTextContents()).join(' | '), /^Hoje[+−][\d\s ]+,\d\d\s€[+−]?\d+,\d\d%$/);
+    assert.ok(await page.locator('.pf .pf-st').evaluate((e) => e.getBoundingClientRect().height < 26), 'numa linha');
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
     // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com
     // as moedas debaixo dela e o total — o investido total é a soma do que custou cada um

@@ -530,10 +530,10 @@
       = q cr_p tb j = c @ q
       Se == g ? ha c.cr 1 0 { `<span class="pf-gr` Se sub " pf-ga" `"><b>{ esc c.nm 0 }</b>` pn_gx * @f + q 3 @f + q 4 @f + q 5 "</span>" } } }
   0 }
-# uma casa da tabela de cima (k: 0 no total, 1 hoje, 2 o período escolhido): o nome, o valor em € (se houver) e a %
+# uma casa da linha de cima (k: 1 hoje, 2 o período escolhido): o nome, o valor em € (se houver) e a %
 : pn_casa iffi>i k x p temx {
   `<span class="pf-c"><small>`
-  ? == k 0 "No total" ? == k 1 "Hoje" pn_perlbl es.per
+  ? == k 1 "Hoje" pn_perlbl es.per
   "</small>"
   Se temx `<b class="{ ln_tom x }-t">{ pn_eursf x }</b>`
   `<i class="{ ln_tom p }-t">{ fm_pct p }</i></span>`
@@ -578,7 +578,7 @@
       # o filtro do período, aqui em cima: vale para a carteira e para os meus ativos
       `<div class="pf-pe">{ pn_periodo }</div>`
       `<div class="pf-cx"><button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-st">`
-      Se > ee 0.0 pn_casa 0 - vv ee * - / vv ee 1.0 100.0 1
+      # numa linha: o de hoje e, fora do 1D, o do período (o ganho no total está no Total da tabela, em baixo — 4.38.4)
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
       pn_casa 1 dd dp 1
       Se ~ d1 pn_casa 2 pc pc 0

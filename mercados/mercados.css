@@ -491,11 +491,14 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-sv .pf-i { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .pf .pf-cap { display: flex; justify-content: space-between; color: var(--faint); font-size: calc(.68rem * var(--k)); margin-top: 2px; }
 .pf .pf-cap .pf-inv::before { content: ''; display: inline-block; width: 14px; border-top: 1.5px dashed var(--muted); vertical-align: middle; margin-right: 4px; }
-.pf .pf-st { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.pf .pf-c { display: flex; flex-direction: column; min-width: 0; }
-.pf .pf-c small { color: var(--muted); font-size: calc(.7rem * var(--k)); }
-.pf .pf-c b { font-size: calc(.92rem * var(--k)); font-weight: 700; white-space: nowrap; }
-.pf .pf-c i { font-style: normal; font-size: calc(.78rem * var(--k)); font-weight: 600; }
+/* 4.38.4: numa linha — o de hoje (€ e %) e, fora do 1D, o do período; o ganho no total está no Total da tabela */
+.pf .pf-st { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 18px; }
+.pf .pf-c { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.pf .pf-c small { color: var(--muted); font-size: calc(.78rem * var(--k)); }
+.pf .pf-c b { font-size: calc(.86rem * var(--k)); font-weight: 700; white-space: nowrap; }
+.pf .pf-c i { font-style: normal; font-size: calc(.8rem * var(--k)); font-weight: 600; white-space: nowrap; }
+.pf .pf-c b + i::before { content: '('; }
+.pf .pf-c b + i::after { content: ')'; }
 /* 4.38: a tabela da carteira — o investido, o valor e o ganho de cada ativo, a soma de cada grupo e o total; as colunas
    alinhadas em todas as linhas (cada linha é uma subgrelha da tabela) */
 .pf .pf-gs { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; column-gap: 10px; margin-top: 6px; }
