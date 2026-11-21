@@ -420,7 +420,7 @@ function proxyBody(u) {
     assert.equal(await page.locator('[data-act="reg-sbru"]').count(), 0);
     await page.evaluate((n) => { const L = window.__mk.cfg.lots['VWCE.DE']; L.compras = (L.compras || []).slice(0, n); window.__mk.render(); }, nC);
     console.log('✓ saveback (dia 2) e round up (2, 9, 16, 23): só o valor, a data feita, ao preço desse dia');
-    // 4.42: a poupança periódica — o plano (900 € por mês, no dia 2) conta sozinho, ao fim da tarde; ajusta-se data a data com
+    // 4.42: a poupança periódica — o plano (900 € por mês, no dia 2) conta sozinho, por volta das 15h45; ajusta-se data a data com
     // −/+/0; o round up habitual (−/+) entra nas datas dele, como estimado
     const sd0 = await page.evaluate(() => window.__mk.cfg.saveDays);
     await page.evaluate(() => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; L.at = new Date(Date.now() - 40 * 864e5).toISOString().slice(0, 10); L.pm = 900; c.saveDays = [2]; window.__mk.render(); });
@@ -445,7 +445,7 @@ function proxyBody(u) {
     await page.waitForSelector('.reg-i:has-text("round up (estimado)")', { timeout: 3000 });
     if (SHOTS) await page.locator('.reg').screenshot({ path: path.join(SHOTS, '8h-carteira-poupanca.png') });
     await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; delete L.pm; delete L.pa; delete L.ruS; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
-    console.log('✓ poupança periódica: o plano conta sozinho ao fim da tarde, −/+/0 por execução, o round up habitual');
+    console.log('✓ poupança periódica: o plano conta sozinho por volta das 15h45, −/+/0 por execução, o round up habitual');
     // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
     await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
     await page.waitForSelector('.reg-i:has-text("plano (estimado)")');

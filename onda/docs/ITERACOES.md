@@ -3360,3 +3360,12 @@ ativo) contam com o round up e o saveback habituais. O cartão «Hoje» continua
 **Verificado.** Interface: o plano no dia 2 conta sozinho; −50 € e 0 nessa execução (e sai das contas); + no round up
 habitual faz entrar os estimados; bateria 107/107.
 
+## Iteração (Mercados 4.42.1): a poupança conta por volta das 15h45
+
+**Pedido.** «Em vez das 18 h, aponta mais ou menos esta hora» (o print da TR: o plano de 900 € executado a 2/11 às 15:42).
+
+**Feito.** Cada execução da poupança periódica (o plano, o round up e o saveback) conta a partir das 15h45 desse dia (era
+às 18 h); na lista, as de hoje antes dessa hora aparecem «por volta das 15h45».
+
+**Verificado.** Interface (a poupança periódica) e bateria.
+
