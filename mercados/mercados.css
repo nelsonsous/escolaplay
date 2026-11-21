@@ -847,11 +847,22 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 /* ---------- 4.33: o dia (claro) e a noite (escuro): automático como o iPhone, ou escolhido em Ajustes → Cores ---------- */
 :root[data-theme="light"] {
     --bg: #fff; --bg2: #f2f2f7; --card: #fff; --card2: #f2f2f7; --line: #e5e5ea;
-    --text: #000; --muted: #6e6e73; --faint: #8e8e93;
-    --up: #1a9b4b; --up-bg: rgba(26, 155, 75, .12); --down: #d70015; --down-bg: rgba(215, 0, 21, .1);
-    --flat: #8e8e93; --flat-bg: rgba(142, 142, 147, .14); --accent: #c27c0e; --accent2: #007aff;
+    --text: #000; --muted: #6e6e73; --faint: #7c7c80;
+    --up: #15803d; --up-bg: rgba(21, 128, 61, .12); --down: #d70015; --down-bg: rgba(215, 0, 21, .1);
+    --flat: #636366; --flat-bg: rgba(142, 142, 147, .14); --accent: #a8650a; --accent2: #007aff;
     color-scheme: light;
 }
+/* 4.37.4: com o iPhone em escuro e a app de dia, se o iPhone ainda usar a barra antiga as horas vêm a branco: a faixa fica
+   preta (com a barra «default» do 4.37.3 a faixa nem aparece, por isso não estraga nada) */
+@media (prefers-color-scheme: dark) { :root[data-theme="light"] body::before { background: #000; } }
+/* 4.37.4: os textos que eram claros para o fundo preto, escuros de dia (todos acima de 3:1 com o fundo; o teste da app mede-os) */
+:root[data-theme="light"] .adv-why, :root[data-theme="light"] .an-sobre, :root[data-theme="light"] .hl-hint, :root[data-theme="light"] .chips button { color: #3a3a3c; }
+:root[data-theme="light"] .badge.flat { color: var(--flat); }
+:root[data-theme="light"] .adv-ev { color: #6b5314; }
+:root[data-theme="light"] .ranges button.on { background: var(--line); color: #000; }
+:root[data-theme="light"] .claude .cl-head { color: #a6532d; }
+:root[data-theme="light"] .cons-av, :root[data-theme="light"] .dec-conf.c0 { color: var(--accent); }
+:root[data-theme="light"] .sim-pess, :root[data-theme="light"] .fg-h .fg-l { stroke: #d97706; }
 :root[data-theme="light"] .mk-nav { background: rgba(255, 255, 255, .92); border-top-color: var(--line); }
 :root[data-theme="light"] .mk-nav button.on { color: #000; }
 :root[data-theme="light"] .mk-sheet-bg { background: rgba(0, 0, 0, .3); }

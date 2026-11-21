@@ -17,7 +17,7 @@ Endereço: `https://nelsonsous.github.io/escolaplay/mercados/` (no telemóvel: *
 
 > Ferramenta pessoal: as decisões e a execução são tuas.
 
-**Cores**: dia (claro) e noite (escuro), no botão ☀︎/☾ do topo do Painel ou em Ajustes → Cores; em Automático segue o iPhone (Definições → Ecrã e brilho).
+**Cores**: dia (claro) e noite (escuro), no botão ☀︎/☾ do topo do Painel ou em Ajustes → Cores; em Automático segue o iPhone (Definições → Ecrã e brilho). De dia a faixa das horas é branca (com o iPhone em claro as horas vêm a preto) e todos os textos ficam acima de 3:1 com o fundo (o teste da app mede-os).
 
 **Abrir depressa**: o histórico do que tens (um ano de fechos, os 5 anos para as contas da carteira e as séries da semana e do mês) fica guardado no iPhone; os gráficos da ficha usam o que já há; e uma versão nova entra logo à primeira (a app recarrega-se sozinha quando acabou de abrir).
 

@@ -3226,3 +3226,21 @@ antigo, o teste falha em 6M); e os 9 períodos dentro da linha.
 intervalo provável (amanhã, 1 semana, 1 mês) com a fonte da volatilidade, por baixo dos períodos.
 
 **Verificado.** Interface: sem o gráfico e com os números (o VIX nas ações e nos fundos, a Deribit na cripto).
+
+## Iteração (Mercados 4.37.4): o dia lê-se todo
+
+**Pedido.** «Porque em cima fica mais escuro? Dá para ler tudo bem?»
+
+**Porquê.** A faixa fixa das horas era sempre preta (feita para a noite). No print do dono, de dia, o iPhone já escreve
+as horas a preto e põe um véu claro por cima da faixa: o preto ficava cinzento (≈ #868686). E várias cores eram claras
+para o fundo preto: o «Manter», os botões por escolher («↓ Desce», «Tudo»), a dica dos Destaques, a legenda do Claude, o
+«Ainda é cedo…» e o período escolhido na ficha (branco sobre cinzento) ficavam abaixo de 2:1 com o fundo.
+
+**Feito.** A barra e a faixa claras de dia vieram no 4.37.3 (#847, de outra sessão: a barra «default» de dia, a faixa da
+cor do fundo). Aqui: com o iPhone em escuro e a app de dia a faixa fica preta (se o iPhone ainda usar a barra antiga, as
+horas vêm a branco); os textos claros passam a escuros de dia; o verde (#15803d), o neutro (#636366), o âmbar (#a8650a) e o
+cinzento fraco (#7c7c80) ficam mais escuros, para se lerem ao sol.
+
+**Verificado.** O teste da app mede o contraste de todos os textos à vista nos cinco separadores e na ficha, de dia:
+nenhum abaixo de 3:1 (antes: 9 tipos de texto abaixo de 3:1, o pior a 1,1:1); e a barra e a faixa na noite, no dia com o
+iPhone em escuro e no dia com o iPhone em claro.
