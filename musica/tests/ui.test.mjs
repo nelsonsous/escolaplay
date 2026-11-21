@@ -52,6 +52,9 @@ before(async () => {
     env = { KV: kv(), APP_URL: APP }; // sem Client ID: cola-se na app, como na primeira vez
     await env.KV.put('codigo:ligacao', createHash('sha256').update('LIGAR-123').digest('hex'));
     browser = await chromium.launch();
+    // (os testes foram escritos com a app escura: o «Automático» segue o telemóvel, e o Playwright começa em dia; o teste das cores escolhe o seu)
+    const novoContexto = browser.newContext.bind(browser);
+    browser.newContext = (o = {}) => novoContexto({ colorScheme: 'dark', ...o });
 });
 after(async () => { await browser?.close(); estatico?.close(); conector?.close(); });
 
@@ -2000,5 +2003,100 @@ test('o teu perfil musical: o convite em «Pedir», os toques que guardam, as pe
         assert.equal(await corpo.locator('.mu-convite-perfil').count(), 0);
         assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
         if (SHOTS) { await nav(5); await page.screenshot({ path: path.join(SHOTS, 'perfil.png') }); }
+    } finally { await ctx.close(); }
+});
+
+// Cores: Automático (como o iPhone), Dia ou Noite, em Ajustes. A escolha fica no aparelho e aplica-se antes do primeiro
+// desenho (sem piscar); a faixa de cima (as horas do iPhone), a barra do browser (theme-color) e a barra de estado
+// acompanham; de dia, todo o texto à vista tem contraste com o fundo
+test('cores: Automático, Dia ou Noite em Ajustes; a faixa de cima e as barras acompanham; de dia lê-se tudo', { skip: !chromium && 'sem Playwright' }, async () => {
+    await publicarComoCurador(); // (uma playlist, para ver a lista e a folha)
+    await env.KV.put('codigo:ligacao', createHash('sha256').update('TEMAS-123').digest('hex'));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', colorScheme: 'dark' });
+    const erros = [];
+    try {
+        const page = await ctx.newPage();
+        page.on('pageerror', (e) => erros.push(String(e)));
+        await page.goto(`${APP}?proxy=${encodeURIComponent(WORKER)}`);
+        await page.locator('[data-onda="cod"]').fill('TEMAS-123');
+        await page.getByRole('button', { name: 'Usar este código' }).click();
+        await page.locator('#mu-body .mu-pl').first().waitFor();
+        const nav = (v) => page.locator(`#mu-nav [data-onda="ir\t${v}"]`).click();
+        const estado = () => page.evaluate(() => ({
+            tema: document.documentElement.dataset.theme, fundo: getComputedStyle(document.body).backgroundColor, texto: getComputedStyle(document.body).color,
+            faixa: getComputedStyle(document.body, '::before').backgroundColor, barra: document.querySelector('meta[name="theme-color"]').content,
+            estadoBar: document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content, guardado: localStorage.getItem('musica:tema'),
+        }));
+        // contraste de todo o texto à vista (apanha as cores «só de noite» que sobrem: texto claro em fundo claro)
+        const legivel = async (onde) => {
+            await page.waitForTimeout(400); // (as transições de cor acabam: mede-se o fim, não o meio)
+            const mal = await page.evaluate(() => {
+                const lum = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+                const rgba = (s) => { const m = (s.match(/[\d.]+/g) || ['0', '0', '0']).map(Number); return [m[0], m[1], m[2], m.length > 3 ? m[3] : 1]; };
+                const fundo = (el) => { for (let e = el; e; e = e.parentElement) { const c = rgba(getComputedStyle(e).backgroundColor); if (c[3] > 0.6) return c.slice(0, 3); } return [255, 255, 255]; };
+                const out = [];
+                for (const el of document.querySelectorAll('#mu-body *, #mu-nav *, #mu-aviso *')) {
+                    if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+                    const r = el.getBoundingClientRect();
+                    if (!r.width || !r.height) continue;
+                    const cs = getComputedStyle(el);
+                    if (cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+                    const c = rgba(cs.color);
+                    if (c[3] < 0.5) continue;
+                    const a = lum(c.slice(0, 3)), b = lum(fundo(el));
+                    const cr = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+                    if (cr < 3) out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]} «${el.textContent.trim().slice(0, 24)}» ${cr.toFixed(1)}`);
+                }
+                return out;
+            });
+            assert.deepEqual(mal, [], `${onde}: texto sem contraste com o fundo`);
+        };
+        // Automático, com o telemóvel em noite: escuro, como sempre foi
+        assert.deepEqual(await estado(), { tema: 'dark', fundo: 'rgb(0, 0, 0)', texto: 'rgb(255, 255, 255)', faixa: 'rgb(0, 0, 0)', barra: '#0b0713', estadoBar: 'black-translucent', guardado: null });
+        await nav(5);
+        const cores = page.locator('#mu-body .mu-cores');
+        await cores.waitFor();
+        const premido = async () => (await cores.locator('button[aria-pressed="true"]').allInnerTexts()).join('|');
+        assert.deepEqual(await cores.locator('button').allInnerTexts(), ['Automático', 'Dia', 'Noite']);
+        assert.equal(await premido(), 'Automático');
+        // Dia
+        await cores.getByRole('button', { name: 'Dia' }).click();
+        await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+        assert.deepEqual(await estado(), { tema: 'light', fundo: 'rgb(255, 255, 255)', texto: 'rgb(0, 0, 0)', faixa: 'rgb(255, 255, 255)', barra: '#ffffff', estadoBar: 'default', guardado: 'light' });
+        assert.equal(await premido(), 'Dia');
+        await legivel('ajustes de dia');
+        if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'cores-dia-ajustes.png') });
+        await nav(1);
+        await page.locator('#mu-body .mu-pl').first().waitFor();
+        await legivel('lista de dia');
+        if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'cores-dia-lista.png') });
+        await page.locator('#mu-body .mu-pl').first().click();
+        await page.locator('.mu-folha').waitFor();
+        await legivel('folha de dia');
+        if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'cores-dia-folha.png') });
+        await page.keyboard.press('Escape');
+        await page.locator('.mu-folha').waitFor({ state: 'detached' });
+        await nav(3);
+        await page.locator('#mu-body [data-onda="ptx"]').waitFor();
+        await legivel('pedir de dia');
+        if (SHOTS) await page.screenshot({ path: path.join(SHOTS, 'cores-dia.png') });
+        // fica guardado: ao abrir outra vez já é de dia, antes de a app desenhar
+        await page.reload();
+        assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light', 'de dia logo ao abrir');
+        await page.locator('#mu-body .mu-pl, #mu-body .mu-head').first().waitFor();
+        // Noite: escuro mesmo com o telemóvel em dia
+        await page.emulateMedia({ colorScheme: 'light' });
+        await nav(5);
+        await cores.getByRole('button', { name: 'Noite' }).click();
+        await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+        assert.deepEqual(await estado(), { tema: 'dark', fundo: 'rgb(0, 0, 0)', texto: 'rgb(255, 255, 255)', faixa: 'rgb(0, 0, 0)', barra: '#0b0713', estadoBar: 'black-translucent', guardado: 'dark' });
+        // Automático: segue o telemóvel, também em direto
+        await cores.getByRole('button', { name: 'Automático' }).click();
+        await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+        assert.equal((await estado()).guardado, null, 'automático: nada guardado');
+        await page.emulateMedia({ colorScheme: 'dark' });
+        await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+        assert.equal(await premido(), 'Automático');
+        assert.deepEqual(erros.filter((x) => !/ERR_TUNNEL_CONNECTION_FAILED|ERR_NAME_NOT_RESOLVED|net::ERR_/.test(x)), [], 'sem erros');
     } finally { await ctx.close(); }
 });

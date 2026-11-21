@@ -37,7 +37,7 @@ Cada volta é um pedaço que se pode usar: um PR com testes, a versão sobe, e a
 
 ## O que ficou por fazer
 
-As dez voltas estão feitas e publicadas (hoje: Música 2.46.7, conector 1.39.0; o Maestro já não tem horário, só corre quando é pedido, uma corrida por pedido). Fica isto, por ordem do que mais importa:
+As dez voltas estão feitas e publicadas (hoje: Música 2.47.0, conector 1.39.0; o Maestro já não tem horário, só corre quando é pedido, uma corrida por pedido). Fica isto, por ordem do que mais importa:
 
 | O quê | Porquê ficou | O que é preciso |
 |---|---|---|

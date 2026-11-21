@@ -34,6 +34,33 @@
     // a app no ecrã principal antes de ligar o Tidal («instalar»)
     const instalarAqui = iOS && !ecraPrincipal && !nativo;
     ls.set('instalar', instalarAqui ? '1' : '0');
+    // as cores: Automático (como o telemóvel), Dia ou Noite (Ajustes → Cores, «tema» no aparelho). O index.html já as põe antes
+    // do primeiro desenho (sem piscar); aqui acompanham a escolha e o telemóvel. A barra de estado do iPhone (as horas) só se
+    // lê ao abrir a página: «default» (horas escuras) de dia e «black-translucent» (horas brancas) de noite; na app do ecrã
+    // principal, mudar o dia e a noite volta a abri-la (a escolha fica guardada antes)
+    const mqClaro = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+    let temaOn = false; // o primeiro acerto (ao arrancar) nunca recarrega
+    function aplicarTema() {
+        const g = ls.get('tema'), t = g === 'light' || g === 'dark' ? g : mqClaro && mqClaro.matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = t;
+        const m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', t === 'light' ? '#ffffff' : '#0b0713');
+        const bar = t === 'light' ? 'default' : 'black-translucent', sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (sb && sb.getAttribute('content') !== bar) {
+            sb.setAttribute('content', bar);
+            if (temaOn && navigator.standalone === true) location.reload();
+        }
+        temaOn = true;
+    }
+    aplicarTema();
+    if (mqClaro && mqClaro.addEventListener) mqClaro.addEventListener('change', () => { const g = ls.get('tema'); if (g !== 'light' && g !== 'dark') aplicarTema(); });
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('[data-onda^="tema\t"]');
+        if (!b) return;
+        const v = b.dataset.onda.split('\t')[1];
+        if (v === 'light' || v === 'dark') ls.set('tema', v); else ls.del('tema');
+        aplicarTema();
+    }, true);
     // o fuso do aparelho, para a app saber se é de dia ou de noite pela hora local (a Onda só tem a hora UTC)
     ls.set('fuso', String(-new Date().getTimezoneOffset()));
     const h = new URLSearchParams(location.hash.slice(1)), q = new URLSearchParams(location.search);
