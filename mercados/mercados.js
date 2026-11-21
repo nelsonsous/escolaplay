@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.36.0';
+    const VERSION = '4.37.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -190,6 +190,8 @@
             st.yahooAt = s.yahooAt || 0;
         }
         if (s && s.D && typeof s.D === 'object') for (const [k, v] of Object.entries(s.D)) if (Array.isArray(v) && v.length > 1) D[k] = v;
+        st.snapLH = s && s.LH && typeof s.LH === 'object' ? s.LH : null; // o histórico longo e as séries do período (repostos mais abaixo)
+        st.snapPS = s && s.PS && typeof s.PS === 'object' ? s.PS : null;
     }
     let snapT = 0;
     function saveSnap() {
@@ -199,7 +201,10 @@
         for (const [k, v] of Object.entries(Q)) if (REG[k] && !REG[k].temp) q[k] = { ...v, series: (v.series || []).slice(-120), stale: undefined };
         // e o ano de fechos diários do que tenho (e do S&P 500): a análise dos meus ativos aparece logo ao abrir
         const dk = [...new Set(cfg.holdings.concat(cfg.coreFund, '^GSPC'))].filter((k) => D[k] && D[k].length > 1);
-        store.set(SNAP, { Q: q, FUEL, yahooAt: st.yahooAt, D: Object.fromEntries(dk.map((k) => [k, D[k]])) });
+        // o histórico longo (5 anos, para as contas da carteira) e as séries do período (a linha do cartão) do que tenho
+        const lk = dk.filter((k) => LH[k] && LH[k].length > 1), per = (p) => Object.fromEntries(dk.filter((k) => PS[p][k]).map((k) => [k, PS[p][k]]));
+        store.set(SNAP, { Q: q, FUEL, yahooAt: st.yahooAt, D: Object.fromEntries(dk.map((k) => [k, D[k]])),
+            LH: Object.fromEntries(lk.map((k) => [k, { at: lhAt[k] || 0, v: LH[k] }])), PS: { '1w': per('1w'), '1m': per('1m') } });
     }
 
     // ---------- vista da cotação: preço da noite e conversão para euros ----------
@@ -1432,7 +1437,9 @@
         if (st.pulling) return;
         const html = cfg.tab === 'destaques' ? highlightsHtml() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'carteira' ? walletHtml() : cfg.tab === 'ajustes' ? settingsHtml() : panelHtml();
         const title = { destaques: 'Destaques', analise: 'Análise', carteira: 'Carteira', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
-        body.innerHTML = `<h1 class="pg-t">${title}</h1><div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
+        const dia = document.documentElement.dataset.theme === 'light';
+        const tema = cfg.tab === 'painel' ? `<button type="button" class="pg-tema" data-thm="${dia ? 'dark' : 'light'}" aria-label="${dia ? 'Modo noite (escuro)' : 'Modo dia (claro)'}">${dia ? '☾' : '☀︎'}</button>` : '';
+        body.innerHTML = `<h1 class="pg-t">${title}</h1>${tema}<div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
         renderStatus();
         drawSparks();
     }
@@ -1502,6 +1509,10 @@
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
     const LH = {}, lhAt = {}, lhVai = new Set();
+    // ao abrir: o que ficou do histórico longo (com a hora: só se volta a pedir 6 h depois) e das séries do período
+    if (st.snapLH) for (const [k, o] of Object.entries(st.snapLH)) if (o && Array.isArray(o.v) && o.v.length > 1) { LH[k] = o.v; lhAt[k] = +o.at || 0; }
+    if (st.snapPS) for (const p of ['1w', '1m']) for (const [k, v] of Object.entries(st.snapPS[p] || {})) if (Array.isArray(v) && v.length > 1) PS[p][k] = v;
+    st.snapLH = st.snapPS = null;
     // o valor por mês do plano de cada ativo, pela divisão dos Ajustes (o fundo núcleo e a cripto)
     // quanto investe por mês: a soma do «€ por mês» de cada ativo na Carteira (é o que a TR executa); sem nenhum, o
     // valor dos Ajustes (que então se divide pela estratégia)
@@ -2302,6 +2313,7 @@
         if (lv && lv.series && lv.series.length > 1 && (lv.time || 0) > (q0.time || 0)) return mergeDay(q0.series, lv.series);
         return q0.series;
     }
+    const SC = new Map(); // os gráficos da ficha já pedidos nesta sessão (ativo|período → { t, pts })
     async function loadSheetChart() {
         const k = sheetKey, range = sheetRange, id = ++sheetLoadId;
         const a = REG[k];
@@ -2316,9 +2328,20 @@
                 const end = q.series[q.series.length - 1][0]; // mercado fechado: os últimos minutos da sessão
                 pts = q.series.filter(([t]) => t >= end - SHORT_R[range]);
             }
-            else if (range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 1 && !Q[k].stale) pts = daySeries(k);
+            else if (range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 1) {
+                pts = daySeries(k);
+                // o do instantâneo (da última vez) aparece logo; o de agora vem a seguir
+                if (Q[k].stale && cfg.proxy) px(`/quotes?symbols=${encodeURIComponent(k)}&range=1d`, 20000).then((r) => {
+                    const q = r.quotes && r.quotes[0];
+                    if (id === sheetLoadId && q && !q.error && q.series && q.series.length > 1) { sheetPts = q.series; renderSheetPrice(); drawSheetChart(); }
+                }).catch(() => {});
+            }
             else if (range === '1y' && D[k]) pts = D[k];
-            else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=${range}`, 20000); const q = r.quotes && r.quotes[0]; if (!q || q.error) throw new Error(q && q.error || 'sem dados'); pts = q.series; }
+            // o que o Painel já tem (as séries da semana e do mês) ou o que se pediu há menos de 10 min: aparece logo
+            else if (range === '5d' && PS['1w'][k] && PS['1w'][k].length > 1) pts = PS['1w'][k];
+            else if (range === '1mo' && PS['1m'][k] && PS['1m'][k].length > 1) pts = PS['1m'][k];
+            else if (SC.has(k + '|' + range) && now() - SC.get(k + '|' + range).t < 10 * 60000) pts = SC.get(k + '|' + range).pts;
+            else { const r = await px(`/quotes?symbols=${encodeURIComponent(k)}&range=${range}`, 20000); const q = r.quotes && r.quotes[0]; if (!q || q.error) throw new Error(q && q.error || 'sem dados'); pts = q.series; SC.set(k + '|' + range, { t: now(), pts }); }
             if (id !== sheetLoadId) return;
             sheetPts = pts;
             renderSheetPrice();
@@ -3137,7 +3160,19 @@
     }
 
     if ('serviceWorker' in navigator && location.protocol === 'https:') {
-        window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+        // a versão nova chega à primeira: ao voltar à app procura-se uma; quando ela toma conta, a app recarrega-se se
+        // acabou de abrir ou de voltar (nos primeiros 20 s), senão na próxima vez que voltar
+        const tinha = !!navigator.serviceWorker.controller;
+        let reg = null, voltou = now(), falta = false;
+        const recarrega = () => { if (now() - voltou < 20000 && !st.touching) location.reload(); else falta = true; };
+        navigator.serviceWorker.addEventListener('controllerchange', () => { if (tinha) recarrega(); });
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) return;
+            voltou = now();
+            if (falta) { location.reload(); return; }
+            if (reg) reg.update().catch(() => {});
+        });
+        window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { reg = r; }).catch(() => {}));
     }
 
     // para os testes

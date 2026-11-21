@@ -3188,3 +3188,21 @@ dos fundos e o da cripto face ao investido (sem os índices, que estão no Hoje 
 
 **Verificado.** Painel: 600 estados (as casas da tabela, as cores e as linhas dos grupos). Interface: a tabela, os
 grupos em colunas e o histórico guardado no instantâneo.
+
+## Iteração (Mercados 4.37.0): o filtro do período no cartão, o botão do dia e da noite e abrir ainda mais depressa
+
+**Pedido.** «O gráfico ainda demora a carregar. Não dá para pôr o modo dia, com as cores invertidas, em branco?» E: «o
+filtro do 1D, 1S, 1A pode ir para cima e aplicar-se também ao gráfico da carteira».
+
+**Feito.**
+- **O filtro do período** passa para o cartão da carteira (sai dos meus ativos quando o cartão lá está) e vale para os
+  dois: o gráfico do cartão é o do período escolhido, com o valor (as unidades de cada instante, `pn_ut`) e o investido
+  a tracejado (`pn_et`); a percentagem do período é a do mercado, com as unidades de hoje.
+- **O dia e a noite** num botão ☀︎/☾ no topo do Painel (o Automático fica em Ajustes → Cores).
+- **Mais depressa:** o instantâneo guarda também o histórico longo (com a hora, para só se voltar a pedir 6 h depois) e
+  as séries da semana e do mês do que tenho; a ficha usa as séries do Painel, os fechos diários e o que pediu nos últimos
+  10 min; o 1D da última vez aparece logo e o de agora vem a seguir. As versões novas entram à primeira: ao voltar à app
+  procura-se uma e, quando entra, a app recarrega-se se acabou de abrir.
+
+**Verificado.** Painel: 600 estados (o filtro no sítio certo, o gráfico do período com o investido e a legenda).
+Interface: o filtro no cartão e não repetido, o botão do dia e da noite, e o histórico guardado.
