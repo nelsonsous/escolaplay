@@ -3398,3 +3398,17 @@ muito, no 1A e no Tudo), ficam os dois. Em Onda (`pn_carteira`: `ci`, `data-esc`
 **Verificado.** Painel: a escala com o investido longe (só o valor) e perto (os dois), e a legenda e o tracejado coerentes
 nos 600 estados; interface: o 1D só com o valor; bateria 108/108.
 
+## Iteração (Mercados 4.45.0): a poupança periódica, simples
+
+**Pedido.** «Não percebo isto» (o «Registar»: o formulário «Saveback e round up» com «Sem datas depois de 10/11/2026», as
+listas a ~0,00 € e os −/+/0 — duas maneiras de pôr o mesmo).
+
+**Feito.** Sai o formulário. Fica a «Poupança periódica» com três listas — Plano, Round up (dias 2, 9, 16 e 23), Saveback
+(dia 2) —, desde o dia em que copiaste da TR, abertas por omissão: a próxima data e as feitas, cada uma com um campo onde
+se escreve o valor como na TR (vazio fica a sugestão a cinzento: o plano por mês; a média dos escritos); grava ao sair do
+campo; ✕ apaga. Os pendentes escrevem-se já e só contam nesse dia às 15h45. Sem nenhum escrito, a lista diz «escreve o
+valor da TR em cada data»; com eles, a média e quanto dá por ano. O acerto passa a «Acertar com a TR (o que faltar)».
+
+**Verificado.** Interface: as datas de cada lista, a sugestão do plano e a média (7,12 €, ~342 € por ano), o pendente, o
+saveback, o plano de um dia, o ✕ e o campo vazio; bateria 108/108.
+

@@ -385,82 +385,47 @@ function proxyBody(u) {
     assert.match(await page.locator('#mk-toast').textContent(), /Acertado com a TR: \+0,001 de Bitcoin/);
     await page.click('.reg-i [data-act="reg-rm"][data-i="1"]');
     assert.equal((await btcL()).compras.length, 1, '✕ apaga o registo');
-    // 4.40: o saveback (dia 2) e o round up (dias 2, 9, 16 e 23): só o valor; a data vem feita — a mais recente depois do dia em
-    // que se copiou o que tens da TR (as de antes já lá estão) — e entra ao preço de fecho desse dia
-    await page.evaluate(() => { window.__mk.cfg.lots['VWCE.DE'].at = new Date(Date.now() - 40 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
-    await page.selectOption('.reg select[data-reg="k"]', 'VWCE.DE');
-    const opcoesSd = () => page.locator('.reg select[data-reg="sd"] option').evaluateAll((os) => os.map((o) => o.value));
-    const fL = () => page.evaluate(() => window.__mk.cfg.lots['VWCE.DE']);
-    const de40 = isoAtras(40), hoje0 = isoAtras(0);
-    const sbDatas = await opcoesSd();
-    assert.ok(sbDatas.length >= 1 && sbDatas.every((x) => x.endsWith('-02') && x > de40 && x <= hoje0), 'saveback: o dia 2 de cada mês, depois do que copiaste: ' + sbDatas);
-    await page.fill('.reg [data-reg="se"]', '8,40');
-    await page.click('[data-act="reg-sbru"]');
-    // 4.43: fica o valor dessa data (lots.sa), não uma compra
-    let vL = await fL();
-    assert.deepEqual([vL.sa && vL.sa[sbDatas[0]], (vL.compras || []).some((c) => c.sb)], [8.4, false], 'o saveback na data mais recente (o valor dessa data)');
-    assert.match(await page.locator('#mk-toast').textContent(), /^Saveback juntado: 8,40\s€ de .+ a \d\d\/\d\d\/\d{4}/);
-    await page.waitForSelector(`.reg .pp-f[data-fold="pp-sb"] .pp-l:has([data-d="${sbDatas[0]}"])`, { state: 'attached', timeout: 3000 });
-    await page.click('[data-act="reg-tipo"][data-v="ru"]');
-    const ruDatas = await opcoesSd();
-    assert.ok(ruDatas.length >= 4 && ruDatas.every((x) => ['02', '09', '16', '23'].includes(x.slice(8)) && x > de40 && x <= hoje0), 'round up: os dias 2, 9, 16 e 23: ' + ruDatas);
-    assert.deepEqual([...ruDatas].sort().reverse(), ruDatas, 'a mais recente primeiro');
-    await page.selectOption('.reg select[data-reg="sd"]', ruDatas[1]);
-    await page.fill('.reg [data-reg="se"]', '2,24');
-    await page.click('[data-act="reg-sbru"]');
-    vL = await fL();
-    assert.equal(vL.ra && vL.ra[ruDatas[1]], 2.24, 'o round up na data escolhida');
-    // a sugestão é a média dos inseridos: mais um de 12 € → (2,24 + 12) / 2 = 7,12; 48 por ano → ~342 €
-    await page.selectOption('.reg select[data-reg="sd"]', ruDatas[0]);
-    await page.fill('.reg [data-reg="se"]', '12');
-    await page.click('[data-act="reg-sbru"]');
-    await page.waitForFunction(() => /~7,12\s€/.test((document.querySelector('.reg .pp-f[data-fold="pp-ru"] > summary') || {}).textContent || ''), null, { timeout: 3000 });
-    assert.match(await page.locator('.reg .pp-f[data-fold="pp-ru"] > summary').textContent(), /~342\s€ por ano/, '48 round ups por ano');
-    assert.equal(await page.locator('.reg [data-reg="se"]').getAttribute('placeholder'), '7,12', 'o campo sugere a média');
-    // a lista do round up (numa dobra): cada data com −/+/0 e ✕ — apagar volta à sugestão
-    await page.evaluate(() => { const f = document.querySelector('.reg .pp-f[data-fold="pp-ru"]'); if (f && !f.open) f.open = true; });
-    const linhaRu = page.locator(`.reg .pp-f[data-fold="pp-ru"] .pp-l:has([data-d="${ruDatas[1]}"])`);
-    assert.match(await linhaRu.textContent(), /round up\s*inserido\s*2,24\s€/);
-    await linhaRu.locator('[data-act="pp-aj"][data-v="+"]').click();
-    assert.equal((await fL()).ra[ruDatas[1]], 2.74, '+ meio euro');
-    await page.locator(`.reg .pp-f[data-fold="pp-ru"] .pp-l:has([data-d="${ruDatas[1]}"]) [data-act="pp-rm"]`).click();
-    assert.equal(ruDatas[1] in (await fL()).ra, false, '✕ apaga o inserido dessa data');
-    await page.waitForFunction((d) => !document.querySelector(`.reg .pp-f[data-fold="pp-ru"] [data-act="pp-rm"][data-d="${d}"]`), ruDatas[1], { timeout: 3000 });
-    await page.waitForTimeout(250);
-    if (SHOTS) await page.locator('.reg').screenshot({ path: path.join(SHOTS, '8g-carteira-saveback.png') });
-    // copiado hoje: sem datas depois — um aviso, sem o botão
-    await page.evaluate(() => { window.__mk.cfg.lots['VWCE.DE'].at = new Date().toISOString().slice(0, 10); window.__mk.render(); });
-    await page.waitForSelector('.reg .note:has-text("Sem datas depois de")');
-    assert.equal(await page.locator('[data-act="reg-sbru"]').count(), 0);
-    await page.evaluate(() => { const L = window.__mk.cfg.lots['VWCE.DE']; delete L.sa; delete L.ra; window.__mk.render(); });
-    console.log('✓ saveback (dia 2) e round up (2, 9, 16, 23): o valor de cada data; a sugestão é a média; listas com −/+/0 e ✕');
-    // 4.42: a poupança periódica — o plano (900 € por mês, no dia 2) conta sozinho, por volta das 15h45; ajusta-se data a data com
-    // −/+/0; o round up habitual (−/+, sem nenhum inserido) entra nas datas dele, como estimado
+    // 4.45: a poupança periódica — o plano, o round up e o saveback em listas, desde o dia em que se copiou o que tens da TR (as
+    // datas de antes já lá estão): em cada data escreve-se o valor como na TR (vazio fica a sugestão: o plano por mês; a média dos
+    // escritos), grava ao sair do campo, e ✕ apaga; conta nesse dia às 15h45, ao preço desse dia
     const sd0 = await page.evaluate(() => window.__mk.cfg.saveDays);
     await page.evaluate(() => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; L.at = new Date(Date.now() - 40 * 864e5).toISOString().slice(0, 10); L.pm = 900; c.saveDays = [2]; window.__mk.render(); });
     await page.selectOption('.reg select[data-reg="k"]', 'VWCE.DE');
-    await page.waitForSelector('.reg .pp');
-    assert.match(await page.locator('.reg .pp-h').first().textContent(), /^Plano900\s€por mês · dia 2$/);
-    const plL = page.locator('.reg .pp > .pp-l:not(.pp-prox):has-text("plano")').first();
-    const dPl = await plL.locator('[data-act="pp-aj"][data-v="-"]').getAttribute('data-d');
-    assert.ok(dPl.endsWith('-02') && dPl > isoAtras(40) && dPl <= isoAtras(0), 'o plano no dia 2, depois do que copiaste: ' + dPl);
-    assert.match(await plL.textContent(), /plano\s*estimado\s*900,00\s€/);
-    const nPl0 = await page.locator('.reg-i:has-text("plano")').count();
-    await plL.locator('[data-v="-"]').click();
-    assert.equal((await fL()).pa[dPl], 850, '− tira 50 € a essa execução');
-    assert.match(await page.locator('#mk-toast').textContent(), /^Plano a \d\d\/\d\d\/\d{4}: 850,00\s€/);
+    await page.waitForSelector('.reg .pp .pp-f[data-fold="pp-ru"]');
+    assert.equal(await page.locator('.reg [data-act="reg-sbru"], .reg [data-reg="sd"]').count(), 0, 'sem o formulário antigo');
+    const fL = () => page.evaluate(() => window.__mk.cfg.lots['VWCE.DE']);
+    const datasDe = (tp) => page.locator(`.reg .pp-f[data-fold="pp-${tp}"] input[data-ppv]`).evaluateAll((is) => is.map((x) => x.dataset.d));
+    const ruD = await datasDe('ru'), sbD = await datasDe('sb'), plD = await datasDe('pl');
+    assert.ok(ruD.length >= 5 && ruD.every((x) => ['02', '09', '16', '23'].includes(x.slice(8)) && x > isoAtras(40)), 'round up: os dias 2, 9, 16 e 23, depois do que copiaste: ' + ruD);
+    assert.deepEqual([...ruD].sort().reverse(), ruD, 'a mais recente primeiro');
+    assert.ok(ruD[0] > isoAtras(0) && ruD[1] <= isoAtras(0), 'a primeira é a próxima');
+    assert.ok(sbD.length >= 2 && sbD.every((x) => x.endsWith('-02')) && plD.length >= 2 && plD.every((x) => x.endsWith('-02')), 'o saveback e o plano no dia 2');
+    assert.equal(await page.locator(`.reg [data-ppv="pl"][data-d="${plD[1]}"]`).getAttribute('placeholder'), '900', 'o plano: vazio é o valor por mês');
+    assert.match(await page.locator('.reg .pp-f[data-fold="pp-ru"] > summary').textContent(), /escreve o valor da TR em cada data/, 'sem nenhum escrito');
+    const escreve = async (tp, d, v) => { const x = page.locator(`.reg [data-ppv="${tp}"][data-d="${d}"]`); await x.fill(v); await x.evaluate((e) => e.blur()); await page.waitForTimeout(150); };
+    // dois round ups (2,24 € e 12 €): fica o valor de cada data, e a sugestão passa a ser a média — 7,12 €, ~342 € por ano
+    await escreve('ru', ruD[2], '2,24');
+    assert.equal((await fL()).ra[ruD[2]], 2.24, 'o round up dessa data');
+    assert.match(await page.locator('#mk-toast').textContent(), /^Round up a \d\d\/\d\d\/\d{4}: 2,24\s€/);
+    await escreve('ru', ruD[1], '12');
+    await page.waitForFunction(() => /média 7,12\s€ · ~342\s€ por ano/.test(document.querySelector('.reg .pp-f[data-fold="pp-ru"] > summary').textContent), null, { timeout: 3000 });
+    assert.equal(await page.locator(`.reg [data-ppv="ru"][data-d="${ruD[3]}"]`).getAttribute('placeholder'), '7,12', 'as datas vazias sugerem a média');
+    // o pendente (a próxima) escreve-se já: só conta nesse dia, às 15h45; o saveback de 8,40 €; o plano de um dia em 600 €
+    await escreve('ru', ruD[0], '2,31');
+    await escreve('sb', sbD[sbD.length - 1], '8,40');
+    await escreve('pl', plD[1], '600');
+    const vL = await fL();
+    assert.deepEqual([vL.ra[ruD[0]], vL.sa[sbD[sbD.length - 1]], vL.pa[plD[1]]], [2.31, 8.4, 600]);
     await page.waitForSelector('.reg-i:has-text("plano (ajustado)")', { timeout: 3000 });
-    await page.locator(`.reg .pp > .pp-l [data-act="pp-aj"][data-tp="pl"][data-d="${dPl}"][data-v="0"]`).click();
-    assert.equal((await fL()).pa[dPl], 0, '0: nesse dia não houve plano');
-    await page.waitForFunction((n) => [...document.querySelectorAll('.reg-i')].filter((e) => /plano/.test(e.textContent)).length === n - 1, nPl0, { timeout: 3000 });
-    // o round up habitual, sem nenhum inserido: + meio euro por execução, e entra nas datas dele (2, 9, 16 e 23) como estimado
-    await page.evaluate(() => { const f = document.querySelector('.reg .pp-f[data-fold="pp-ru"]'); if (f && !f.open) f.open = true; });
-    await page.click('.reg .pp-f[data-fold="pp-ru"] [data-act="pp-hab"][data-v="+"]');
-    assert.equal((await fL()).ruS, 0.5, '+ meio euro');
-    await page.waitForSelector('.reg .pp-f[data-fold="pp-ru"] .pp-l:has-text("estimado")', { timeout: 3000 });
-    if (SHOTS) await page.locator('.reg').screenshot({ path: path.join(SHOTS, '8h-carteira-poupanca.png') });
-    await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; delete L.pm; delete L.pa; delete L.ruS; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
-    console.log('✓ poupança periódica: o plano conta sozinho por volta das 15h45, −/+/0 por execução, o round up habitual');
+    if (SHOTS) await page.locator('.reg').screenshot({ path: path.join(SHOTS, '8g-carteira-poupanca.png') });
+    // ✕ apaga o escrito; e o campo vazio também volta à sugestão
+    await page.locator(`.reg .pp-l:has([data-ppv="ru"][data-d="${ruD[2]}"]) [data-act="pp-rm"]`).click();
+    assert.equal(ruD[2] in (await fL()).ra, false, '✕ apaga');
+    await page.waitForFunction((d) => !document.querySelector(`.reg .pp-l:has([data-ppv="ru"][data-d="${d}"]) [data-act="pp-rm"]`), ruD[2], { timeout: 3000 });
+    await escreve('pl', plD[1], '');
+    assert.equal(plD[1] in (await fL()).pa, false, 'vazio volta à sugestão');
+    await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; for (const x of ['pm', 'pa', 'ra', 'sa']) delete L[x]; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
+    console.log('✓ poupança periódica: plano, round up e saveback em listas; escreve-se o valor de cada data; a sugestão é a média');
     // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
     await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
     await page.waitForSelector('.reg-i:has-text("plano (estimado)")');
