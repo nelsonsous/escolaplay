@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.42.0';
+    const VERSION = '4.42.1';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1562,10 +1562,11 @@
         return fin(p) && p > 0 ? p : pxEur(k);
     }
     // 4.42: a poupança periódica — o plano (o valor por mês, repartido pelos dias do plano), o round up (dias 2, 9, 16 e 23)
-    // e o saveback (dia 2). Cada execução conta ao fim da tarde desse dia (18 h), ao preço de fecho, com o valor habitual;
+    // e o saveback (dia 2). Cada execução conta por volta das 15h45 desse dia (a hora a que a TR executa: o plano de 2/11
+    // entrou às 15:42), ao preço desse dia, com o valor habitual;
     // ajusta-se data a data com −/+/0 (lots.pa, lots.ra, lots.sa: {dia: €}); um registado nesse dia (o «Registar») ganha
-    const FIM_TARDE = 18;
-    const feito = (iso) => iso < todayLocal() || (iso === todayLocal() && new Date().getHours() >= FIM_TARDE);
+    const HORA_PLANO = 15 * 60 + 45; // 15h45, em minutos
+    const feito = (iso) => { if (iso < todayLocal()) return true; const a = new Date(); return iso === todayLocal() && a.getHours() * 60 + a.getMinutes() >= HORA_PLANO; };
     const PP_MAPA = { pl: 'pa', ru: 'ra', sb: 'sa' }, PP_PASSO = { pl: 50, ru: 0.5, sb: 1 };
     // o habitual do round up (€ por semana) e do saveback (€ por mês): o escolhido, senão a média dos últimos 4 registados
     function habitual(k, tp) {
@@ -1600,7 +1601,7 @@
         const L = lotOf(k), out = [];
         if (!temHoje(L) || !ISO_D.test(L.at || '')) return out;
         (L.compras || []).forEach((c, i) => { if (fin(+c.q) && +c.q !== 0 && ISO_D.test(c.d || '')) out.push({ d: c.d, e: +c.e || 0, q: +c.q, t: c.cb ? 2 : c.sb ? 3 : c.ru ? 4 : 1, i }); });
-        // a poupança periódica, nos dias já feitos (ao fim da tarde) e sem um registado desse tipo (4.42)
+        // a poupança periódica, nos dias já feitos (por volta das 15h45) e sem um registado desse tipo (4.42)
         for (const tp of ['pl', 'ru', 'sb']) {
             const reg = new Set(tp === 'pl' ? [] : (L.compras || []).filter((c) => c[tp]).map((c) => c.d));
             for (const d of agendaPP(k, tp, L.at, todayLocal())) {

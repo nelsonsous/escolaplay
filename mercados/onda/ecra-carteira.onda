@@ -277,7 +277,7 @@
     `<button type="button" class="btn sm reg-bt" data-act="reg-sbru">+ Juntar</button>` }
     `<p class="note">Sem datas depois de { esc g.desde }: o que copiaste da TR já as tem.</p>`
   # 4.42: a poupança periódica — o habitual do round up e do saveback (−/+) e as próximas e últimas execuções (o plano, o
-  # round up e o saveback), cada uma ajustável com −/+/0; contam ao fim da tarde do dia, ao preço de fecho
+  # round up e o saveback), cada uma ajustável com −/+/0; contam por volta das 15h45 do dia (como a TR), ao preço desse dia
   = pp g.pp
   Se ha pp {
     `<small class="real-gt">Poupança periódica</small><div class="pp">`
@@ -291,7 +291,7 @@
       `<div class="pp-l{ Se ~ ha c.feito " pp-prox" }"><span>{ esc c.l } · `
       ? eh c.tp $"pl" "plano" ? eh c.tp $"ru" "round up" "saveback"
       `<small>`
-      ? ha c.reg "registado" ? ~ ha c.feito "ao fim da tarde" ? ha c.aj "ajustado" "estimado"
+      ? ha c.reg "registado" ? ~ ha c.feito "por volta das 15h45" ? ha c.aj "ajustado" "estimado"
       `</small></span><b class="num">{ _nu_moeda num c.e 2 $"EUR" }</b>`
       Se ~ ha c.reg {
         `<span class="pp-bs"><button type="button" class="pp-b" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="-" aria-label="Menos">−</button>`
