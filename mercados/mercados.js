@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.31.0';
+    const VERSION = '4.32.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -538,11 +538,53 @@
             el.innerHTML = `Derivados (Deribit)<small>${esc(ps.join(' · '))}</small>`;
         }
         el.hidden = !e && !pr && !(dv && (fin(dv.funding8h) || dv.basis));
-        const x = rg ? rangeOf(k) : null;
-        if (rg) {
-            rg.hidden = !x;
-            if (x) rg.innerHTML = `Intervalo provável (2 em cada 3 vezes): ${x.h.map((h) => `${h.l} <b class="num">${fmtPx(h.lo, a, q.currency)}–${fmtPx(h.hi, a, q.currency)}</b>`).join(' · ')}<small>pela volatilidade ${esc(x.src)}</small>`;
+        const x = rangeOf(k), fan = $('#d-fan'), fb = fanBase(k);
+        if (fan) fan.hidden = !x;
+        if (rg && x) rg.innerHTML = `Intervalo provável (2 em cada 3 vezes): ${x.h.map((h) => `${h.l} <b class="num">${fmtPx(h.lo, a, q.currency)}–${fmtPx(h.hi, a, q.currency)}</b>`).join(' · ')}`
+            + `<small>no gráfico: a zona escura apanha 2 em cada 3 vezes, a clara 19 em 20${fb.mu ? `; o centro segue os futuros (${fmtPct1(fb.ann)} ao ano)` : ''}${fb.pr ? `; começa na abertura estimada (${fmtPct1(fb.pr.p)})` : ''} · pela volatilidade ${esc(x.src)}</small>`;
+        if (x) requestAnimationFrame(drawFan);
+    }
+    // o ponto de partida do «Para onde pode ir»: o preço de agora (fora de horas, o desse negócio; com a bolsa fechada, a
+    // abertura estimada) e, na cripto, a inclinação dos futuros (a base ao ano)
+    function fanBase(k) {
+        const a = REG[k], q = qv(k), f = q.fx || 1, e = extOf(k), pr = !e ? projOf(k) : null;
+        const P = e ? e.price * f : q.price, dv = a && a.kind === 'crypto' && DERIV ? DERIV[a.sym] : null, ann = dv && dv.basis && fin(dv.basis.ann) ? dv.basis.ann : null;
+        return { P, P0: pr ? P * (1 + pr.p / 100) : P, pr, ann, mu: ann != null && ann > -99 ? Math.log(1 + ann / 100) / 365 : 0 };
+    }
+    // o gráfico do «Para onde pode ir»: o último mês (a linha) e as próximas 4 semanas (o leque: ±1 e ±1,96 desvios, a
+    // crescer com a raiz do tempo, à volta do preço de partida ou, na cripto, da linha dos futuros)
+    function drawFan() {
+        const cv = $('#d-fan-cv'), k = sheetKey, x = k && REG[k] ? rangeOf(k) : null, c = cv && x ? setupCanvas(cv) : null;
+        if (!c) return;
+        const { g, w, h } = c, a = REG[k], q = qv(k), f = q.fx || 1, b = fanBase(k), T = 30, now0 = now() / 1000;
+        const sd = (t) => (x.v / 100) * Math.sqrt(t / 365), at = (t, z) => b.P0 * Math.exp(b.mu * t + z * sd(t));
+        const dd = D[k] || [], tz = dd.length ? dd[dd.length - 1][0] : now0; // o último mês dos fechos (a contar do último)
+        const hist = dd.filter((p) => p[0] >= tz - 31 * 86400 && fin(p[1])).map((p) => p[1] * f);
+        if (fin(b.P)) hist.push(b.P);
+        if (hist.length < 2 || !fin(b.P0)) return;
+        const xl = w * 0.34, xr = w - 52, yT = 8, yB = h - 18;
+        const lo = Math.min(...hist, at(T, -1.96)), hi = Math.max(...hist, at(T, 1.96));
+        const Y = (v) => yT + ((hi - v) / Math.max(1e-12, hi - lo)) * (yB - yT), X = (t) => xl + (t / T) * (xr - xl);
+        for (const [z, al] of [[1.96, 0.13], [1, 0.27]]) {
+            g.beginPath();
+            for (let i = 0; i <= 48; i++) { const t = (T * i) / 48; g.lineTo(X(t), Y(at(t, z))); }
+            for (let i = 48; i >= 0; i--) { const t = (T * i) / 48; g.lineTo(X(t), Y(at(t, -z))); }
+            g.closePath(); g.globalAlpha = al; g.fillStyle = COL.accent; g.fill(); g.globalAlpha = 1;
         }
+        g.setLineDash([4, 3]); g.lineWidth = 1; g.strokeStyle = COL.muted;
+        g.beginPath(); g.moveTo(X(0), Y(b.P0)); g.lineTo(X(T), Y(at(T, 0))); g.stroke();
+        g.beginPath(); g.moveTo(xl, yT); g.lineTo(xl, yB); g.stroke();
+        g.setLineDash([]);
+        g.lineWidth = 1.6; g.strokeStyle = COL.text; g.beginPath();
+        hist.forEach((v, i) => { const xx = (i / (hist.length - 1)) * xl; if (i) g.lineTo(xx, Y(v)); else g.moveTo(xx, Y(v)); });
+        g.stroke();
+        if (b.pr) { g.strokeStyle = COL[b.pr.p >= 0 ? 'up' : 'down']; g.beginPath(); g.moveTo(xl, Y(b.P)); g.lineTo(xl + 4, Y(b.P0)); g.stroke(); }
+        g.fillStyle = COL.text; g.beginPath(); g.arc(xl, Y(b.P0), 3, 0, 7); g.fill();
+        g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'left';
+        g.fillText(fmtPx(at(T, 1), a, q.currency), xr + 4, Y(at(T, 1)) + 3); g.fillText(fmtPx(at(T, -1), a, q.currency), xr + 4, Y(at(T, -1)) + 3);
+        g.textAlign = 'center'; g.textBaseline = 'top';
+        for (const [t, l] of [[-30, 'há 1 mês'], [0, 'hoje'], [7, '+1 sem.'], [T, '+1 mês']]) g.fillText(l, t < 0 ? 22 : Math.min(w - 22, X(t)), yB + 4);
+        g.textBaseline = 'alphabetic'; g.textAlign = 'left';
     }
     const dateLbl = (sec, withTime) => new Date(sec * 1000).toLocaleString('pt-PT', withTime ? { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -1284,40 +1326,18 @@
         return { pct: (q.price / ref - 1) * 100, series, base: ref };
     }
     // ---------- a carteira no Painel (como na TR, mal se abre) ----------
-    // o valor de hoje (as quantidades da Carteira × o preço em euros), o ganho face ao investido, a variação de hoje e a do
-    // período escolhido (1D, 1S, 1M, 1A); null sem quantidades na Carteira
-    const pfKeys = () => cfg.holdings.filter((k) => REG[k] && posOf(k).q > 0 && fin(pxEur(k)));
-    // a linha do valor no período, com as quantidades de hoje: 80 pontos; em cada um, o último preço de cada ativo
-    function pfSerie() {
-        const ss = pfKeys().map((k) => { const p = perData(k), f = fxPara(qv(k)); return { q: posOf(k).q, s: (p.series || []).filter((x) => fin(x[1])).map(([t, v]) => [t, v * f]) }; })
-            .filter((x) => x.s.length > 1);
-        if (!ss.length) return null;
-        const t1 = now() / 1000, t0 = t1 - (PER_DAYS[cfg.per] || 1) * 86400, N = 80, out = [];
-        for (let i = 0; i < N; i++) {
-            const t = t0 + ((t1 - t0) * i) / (N - 1);
-            let v = 0;
-            for (const x of ss) { let j = x.s.length - 1; while (j > 0 && x.s[j][0] > t) j--; v += x.q * x.s[j][1]; }
-            out.push([t, v]);
-        }
-        return out;
-    }
+    // as mesmas contas da Carteira (o cr_prep da Onda: as compras do plano, as avulsas e o que tem hoje): o valor de hoje, o
+    // ganho face ao investido, o de hoje (ch, a variação de cada ativo) e o do período escolhido, e a linha do valor no
+    // período (as unidades de hoje × o preço em cada instante: s, a série do período em euros). null sem nada na Carteira.
     function pfSnap() {
-        const ks = pfKeys();
-        if (!ks.length) return null;
-        let v = 0, c = 0, d = 0, semCusto = false;
-        for (const k of ks) {
-            const P = posOf(k), e = P.q * pxEur(k), ch = qv(k).changePct;
-            v += e;
-            if (P.c > 0) c += P.c; else semCusto = true;
-            if (fin(ch) && ch > -100) d += e - e / (1 + ch / 100);
-        }
-        const s = cfg.per !== '1d' ? pfSerie() : null;
-        return { v, g: semCusto ? null : v - c, gp: semCusto || !(c > 0) ? null : (v / c - 1) * 100, d, dp: v - d > 0 ? (d / (v - d)) * 100 : null,
-            pc: s && s[0][1] > 0 ? (s[s.length - 1][1] / s[0][1] - 1) * 100 : null };
-    }
-    function drawPf() {
-        const pc = $('canvas.pf-cv'), s = pc ? pfSerie() : null;
-        if (s) drawLine(pc, s, { tone: toneOf((s[s.length - 1][1] / s[0][1] - 1) * 100), base: s[0][1], pad: 4, width: 2 });
+        const keys = cfg.holdings.filter((k) => REG[k]), comp = keys.filter((k) => buysOf(k).length || temHoje(lotOf(k)));
+        if (!comp.length) return null;
+        loadLong(comp);
+        return { now: now() / 1000, ativos: keys.map((k) => {
+            const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k);
+            return { k, px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: q.changePct,
+                s: (pd.series || []).filter((x) => fin(x[1])).map(([t, v]) => [t, v * f]) };
+        }) };
     }
     // a carteira ao vivo: com os preços a mudar (a cripto a cada segundo), o cartão redesenha-se sozinho (pela Onda, no
     // máximo a cada 2 s), sem redesenhar o Painel todo
@@ -1328,11 +1348,10 @@
             pfT = 0;
             const el = $('#mk-body > section.pf');
             if (!el || st.touching || !aoOk || !AO.ecra || !AO.ecra.pf) return;
-            try { const h = AO.ecra.pf({ pf: pfSnap(), per: cfg.per }).trim(); if (h) { el.outerHTML = h; drawPf(); } } catch (e) { console.error('ecrã Onda:', e); }
+            try { const h = AO.ecra.pf({ pf: pfSnap(), per: cfg.per }).trim(); if (h) el.outerHTML = h; } catch (e) { console.error('ecrã Onda:', e); }
         }, 2000);
     }
     function drawSparks() {
-        drawPf();
         if (PS[cfg.per]) loadPerSeries();
         for (const cv of $$('canvas.spark')) {
             const k = cv.dataset.key;
@@ -1345,7 +1364,7 @@
 
     // ---------- atualização ao vivo de um cartão ----------
     function patchLive(k, prev) {
-        if (cfg.tab === 'painel' && cfg.holdings.includes(k) && posOf(k).q > 0) pfSoon();
+        if (cfg.tab === 'painel' && cfg.holdings.includes(k) && $('#mk-body > section.pf')) pfSoon();
         const raw = Q[k];
         const q = qv(k);
         for (const el of $$(`[data-key="${CSS.escape(k)}"]`)) {
@@ -1595,7 +1614,7 @@
             } catch { /* fica o histórico de 1 ano */ }
             lhVai.delete(k);
         }));
-        if (cfg.tab === 'carteira') scheduleRender();
+        if (cfg.tab === 'carteira' || cfg.tab === 'painel') scheduleRender();
     }
     function realSnap() {
         const keys = cfg.holdings.filter((k) => REG[k]);
@@ -2458,10 +2477,10 @@
                 <button type="button" class="mk-ibtn" data-act="close" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
             <div class="d-px" id="d-px"></div>
             <div class="d-ext" id="d-ext" hidden></div>
-            <div class="d-ext d-rng" id="d-rng" hidden></div>
             <div class="d-tip" id="d-tip"></div>
             <div class="d-chart"><canvas id="d-cv"></canvas><div class="d-axis num" id="d-axis"></div><div class="loading" id="d-load">A carregar…</div></div>
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
+            <div class="fan" id="d-fan" hidden><div class="fan-h">Para onde pode ir</div><canvas id="d-fan-cv" class="fan-cv" aria-label="O intervalo provável para as próximas 4 semanas"></canvas><div class="d-ext d-rng" id="d-rng"></div></div>
             ${perfRow(k, q)}
             ${dec ? AO.ecra.decisao(decSnap(k, q, dec)) + decFold(k, q) : cl ? `${claudeBox(k, q)}<details class="auto sh-auto" data-fold="sheet-auto" ${foldAttr('sheet-auto')}><summary>Sinais automáticos (algoritmo)<small>regras fixas: tendência, momento, desconto</small></summary>
                 ${techBox(k)}${discountBox(k, q)}</details>` : ''}
@@ -3113,6 +3132,6 @@
         // de cada ativo, o imposto da cripto), e o estado dos combustíveis
         panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, pedirAnalise, clWhen, decSnapOf: (k) => { const d = decOf(k); return d ? decSnap(k, qv(k), d) : null; }, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; },
         // fora de horas (antes da abertura, depois do fecho) e a estimativa para a abertura, com o que aprende
-        EXT, S5, extOf, betaOf, projOf, pxTag, pjResolve, rangeOf, volOf, pollYahoo, pfSnap, pfSerie, get pj() { return pjLoad(); }, get deriv() { return DERIV; } };
+        EXT, S5, extOf, betaOf, projOf, pxTag, pjResolve, rangeOf, volOf, pollYahoo, pfSnap, get pj() { return pjLoad(); }, get deriv() { return DERIV; } };
     boot();
 })();

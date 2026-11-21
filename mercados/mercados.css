@@ -482,9 +482,17 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-b { display: block; width: 100%; padding: 12px 12px 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--card, var(--bg2)); color: inherit; text-align: left; cursor: pointer; }
 .pf .pf-v { display: block; font-size: calc(2rem * var(--k)); font-weight: 800; letter-spacing: -.02em; }
 .pf .pf-g { display: block; margin-top: 2px; color: var(--muted); font-size: calc(.85rem * var(--k)); }
-.pf .pf-cv { display: block; width: 100%; height: 64px; margin-top: 8px; }
+.pf .pf-sv { display: block; width: 100%; height: 64px; margin-top: 8px; overflow: visible; }
+.pf .pf-sv .pf-l { fill: none; stroke: var(--flat); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.pf .pf-sv .pf-a { fill: var(--line); opacity: .35; }
+.pf .pf-sv.up .pf-l { stroke: var(--up); } .pf .pf-sv.up .pf-a { fill: var(--up-bg); opacity: 1; }
+.pf .pf-sv.down .pf-l { stroke: var(--down); } .pf .pf-sv.down .pf-a { fill: var(--down-bg); opacity: 1; }
 .d-ext small { display: block; color: var(--muted); font-size: calc(0.75rem * var(--k)); margin-top: 2px; }
 .d-ext .alt { color: var(--muted); }
+.fan { margin: 12px 0 4px; }
+.fan .fan-h { font-weight: 700; font-size: calc(.9rem * var(--k)); margin-bottom: 4px; }
+.fan .fan-cv { display: block; width: 100%; height: 130px; }
+.fan .d-rng { margin-top: 6px; }
 .row .r-px { display: flex; flex-direction: column; align-items: flex-end; }
 /* sem barra fixa: o estado fica por baixo do título; atualizar = puxar para baixo */
 
