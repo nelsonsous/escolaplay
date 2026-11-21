@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.45.0';
+    const VERSION = '4.46.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1260,7 +1260,8 @@
     }
     const PER_DAYS = { '1w': 7, '1m': 30, '1y': 365 };
     // 4.41: o período dos meus ativos, à parte do do cartão da carteira
-    const perA = () => cfg.perA || '1d';
+    // (4.46: nos ativos, 5A em vez de «Tudo» — desde a compra enganava: o FTSE eram 3 semanas)
+    const perA = () => (cfg.perA === 'all' ? '5y' : cfg.perA || '1d');
     // 1S e 1M: as mesmas séries da ficha (de 30 min / 1 h; cripto 1 h / 4 h), para o gráfico pequeno e a % baterem certo
     const PS = { '1w': {}, '1m': {} }, psAt = { '1w': 0, '1m': 0 };
     async function loadPerSeries(per) {
@@ -1277,10 +1278,11 @@
         const q = qv(k);
         const days = PER_DAYS[per];
         const day = { pct: q.changePct, series: q.series, base: REG[k] && REG[k].kind === 'crypto' ? null : q.prevClose };
-        // 4.39: «Tudo» — desde a 1.ª compra deste ativo (sem compras com data, desde o início da carteira; sem nenhuma, 1 ano),
-        // pelos fechos de 5 anos e do último ano, como na Carteira
-        if (per === 'all') {
-            const b = buysOf(k), t0 = b.length ? b[0][0] : pfInicio() || now() / 1000 - 365 * 86400;
+        // 4.39: «Tudo» — desde a 1.ª compra deste ativo (sem compras com data, desde o início da carteira; sem nenhuma, 1 ano);
+        // 4.46: 5A — os últimos 5 anos (os ativos de baixo); os dois pelos fechos de 5 anos e do último ano, como na Carteira
+        if (per === 'all' || per === '5y') {
+            const b = buysOf(k), t0 = per === '5y' ? now() / 1000 - 5 * 365.25 * 86400 : b.length ? b[0][0] : pfInicio() || now() / 1000 - 365 * 86400;
+            if (per === '5y' && !LH[k]) loadLong([k]);
             const w = LH[k] || [], d = D[k] || [], cut = d.length ? d[0][0] : Infinity;
             const h = w.filter((p) => p[0] < cut).concat(d).filter((p) => fin(p[1]) && p[1] > 0);
             if (h.length < 2 || !fin(q.price)) return day;
@@ -2265,7 +2267,7 @@
     function openSheet(k, tempName, ut) {
         if (!REG[k]) REG[k] = { key: k, kind: ut === 'etf' ? 'fund' : 'stock', ut, sym: k, name: tempName || k, temp: true };
         // abre no mesmo período escolhido no Painel (1D, 1S, 1M, 1A)
-        sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y', all: '5y' }[perA()] || '1d'; sheetPts = null;
+        sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y', '5y': '5y', all: '5y' }[perA()] || '1d'; sheetPts = null;
         loadConsensus(k);
         if (REG[k] && REG[k].kind === 'crypto') loadCryptoGlobal(); // o Fear & Greed, para o sentimento da decisão
         const sh = $('#mk-sheet');

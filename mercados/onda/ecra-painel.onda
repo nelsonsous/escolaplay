@@ -89,12 +89,12 @@
   "</div>" }
 # o período da variação ((cfg.per || '1d') === v: a escolha a branco)
 : pn_per ii>i p v `<button type="button" data-per="{ crut v }" class="{ Se ? ha p eh p v mesmo v $"1d" "on" }">`
-# 4.41: a barra dos meus ativos (data-pera, es.perA), à parte da do cartão da carteira
+# 4.41: a barra dos meus ativos (data-pera, es.perA), à parte da do cartão da carteira; 4.46: com 5A em vez de «Tudo»
 : pn_perA ii>i p v `<button type="button" data-pera="{ crut v }" class="{ Se ? ha p eh p v mesmo v $"1d" "on" }">`
 : pn_periodoA >i {
   = p es.perA
   `<div class="right seg per" role="group" aria-label="Período dos meus ativos">`
-  `{ pn_perA p $"1d" }1D</button>{ pn_perA p $"1w" }1S</button>{ pn_perA p $"1m" }1M</button>{ pn_perA p $"1y" }1A</button>{ pn_perA p $"all" }Tudo</button>`
+  `{ pn_perA p $"1d" }1D</button>{ pn_perA p $"1w" }1S</button>{ pn_perA p $"1m" }1M</button>{ pn_perA p $"1y" }1A</button>{ pn_perA p $"5y" }5A</button>`
   "</div>" }
 : pn_periodo >i {
   = p es.per
