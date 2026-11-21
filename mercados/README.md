@@ -19,6 +19,8 @@ Endereço: `https://nelsonsous.github.io/escolaplay/mercados/` (no telemóvel: *
 
 **Cores**: automático (segue o iPhone: Definições → Ecrã e brilho), dia (claro) ou noite (escuro) — no botão do topo do Painel, que mostra o modo (◐ automático, ☀ dia, ☾ noite) e passa ao seguinte a cada toque, com um aviso, ou em Ajustes → Cores. De dia a faixa das horas é branca (com o iPhone em claro as horas vêm a preto) e todos os textos ficam acima de 3:1 com o fundo (o teste da app mede-os).
 
+**Registar** (Carteira): uma compra (só os euros), o **saveback** (dia 2 de cada mês) e o **round up** (dias 2, 9, 16 e 23, como as execuções da TR) — só o valor: a data vem feita, a mais recente depois do dia em que copiaste o que tens da TR (as de antes já lá estão), e entra ao preço de fecho desse dia —, e o acerto com a TR para o que faltar.
+
 **Abrir depressa**: o histórico do que tens (um ano de fechos, os 5 anos para as contas da carteira e as séries da semana e do mês) fica guardado no iPhone; os gráficos da ficha usam o que já há; e uma versão nova entra logo à primeira (a app recarrega-se sozinha quando acabou de abrir).
 
 ## Conector
