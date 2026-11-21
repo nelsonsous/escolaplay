@@ -122,7 +122,7 @@ function verificar({ de, ate, seed }) {
             set('claude', pick([true, false]));
             set('per', pick(['1d', '1d', '1w', '1m', '1y', 'all', undefined, '', 'x', 7]));
             // 4.41: o período dos meus ativos, à parte (pelo número do estado: não mexe nos sorteios dos outros)
-            set('perA', ['1d', '1w', '1m', '1y', 'all'][i % 5]);
+            set('perA', ['1d', '1w', '1m', '1y', '5y'][i % 5]);
             set('sort', pick(['up', 'down', 'mkt', 'name', 'mine', 'chg', undefined, 'x']));
             set('profile', pick(['prud', 'bal', 'dyn', undefined, 'x']));
             set('strategy', pick(['etfcrypto', 'etfcrypto', 'mix', 'mix', undefined]));
@@ -442,8 +442,10 @@ function verificar({ de, ate, seed }) {
                     const pr = [...sec('A minha carteira').querySelectorAll('.pf-pe .seg.per button')].map((b) => [b.dataset.per, b.textContent, b.className]);
                     if (JSON.stringify(pr) !== JSON.stringify(perq(p))) erro(`o período do cartão ${JSON.stringify(pr)}`);
                 }
+                // (4.46: nos meus ativos, 5A em vez de «Tudo»)
+                const perqA = (x) => [['1d', '1D'], ['1w', '1S'], ['1m', '1M'], ['1y', '1A'], ['5y', '5A']].map(([v, l]) => [v, l, x === v ? 'on' : '']);
                 const pa = [...sm.querySelectorAll('.sec-h .seg.per button')].map((b) => [b.dataset.pera, b.textContent, b.className]);
-                if (JSON.stringify(pa) !== JSON.stringify(perq(c.perA || '1d'))) erro(`o período dos meus ativos ${JSON.stringify(pa)}`);
+                if (JSON.stringify(pa) !== JSON.stringify(perqA(c.perA || '1d'))) erro(`o período dos meus ativos ${JSON.stringify(pa)}`);
                 T[p === '1d' ? 'p1d' : p === '1w' ? 'p1w' : p === '1m' ? 'p1m' : p === '1y' ? 'p1y' : p === 'all' ? 'pTudo' : 'pOutro']++;
                 const l = sm.querySelector(':scope > .list.sw-list'), e = sm.querySelector(':scope > .empty');
                 if (mine.length ? !l || e : l || !e || e.textContent !== 'Escolhe em Ajustes → O que tenho.') erro('os meus: a lista ou o vazio');

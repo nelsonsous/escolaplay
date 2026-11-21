@@ -3412,3 +3412,14 @@ valor da TR em cada data»; com eles, a média e quanto dá por ano. O acerto pa
 **Verificado.** Interface: as datas de cada lista, a sugestão do plano e a média (7,12 €, ~342 € por ano), o pendente, o
 saveback, o plano de um dia, o ✕ e o campo vazio; bateria 108/108.
 
+## Iteração (Mercados 4.46.0): nos meus ativos, 5A em vez de «Tudo»
+
+**Pedido.** «Os meus ativos têm o Tudo? Para o FTSE faz sentido? Se eu quiser ver a mais de um ano, o Tudo engana.» (No
+FTSE, «desde a 1.ª compra» eram 3 semanas.)
+
+**Feito.** A barra dos meus ativos passa a 1D · 1S · 1M · 1A · **5A**: os últimos 5 anos do preço (pelos fechos de 5 anos;
+os que não os têm ainda pedem-nos). O «Tudo» fica só no cartão da carteira (desde a 1.ª compra), onde faz sentido; quem
+tinha «Tudo» nos ativos passa a 5A.
+
+**Verificado.** Painel: a barra dos ativos com 5A nos 600 estados; interface: o 5A na barra; bateria 108/108.
+
