@@ -372,14 +372,15 @@ function verificar({ de, ate, seed }) {
                     vs.push(v);
                 }
                 const pc = vs[0] > 0 ? (vs[59] / vs[0] - 1) * 100 : 0, dp = vv - dd > 0 ? (dd / (vv - dd)) * 100 : 0, mostra = !!c.per && c.per !== '1d';
-                const v = s && s.querySelector('.sec-h .pf-v'), gg = s && s.querySelector('.pf-b .pf-g'), b = s && s.querySelector('.pf-b');
+                const v = s && s.querySelector('.sec-h .pf-v'), gg = s && s.querySelector('.pf-b .pf-st'), b = s && s.querySelector('.pf-b');
                 if (!v || v.textContent !== eur(vv)) erro(`a carteira: o valor ${v && v.textContent} em vez de ${eur(vv)}`);
                 const lbl = { '1w': '1 semana', '1m': '1 mês', '1y': '1 ano' }[c.per] || 'hoje';
                 if (mostra) T.carteiraPeriodo++;
-                const gq = (ee > 0 ? `${sgf(vv - ee)} (${mk.fmtPct((vv / ee - 1) * 100)}) no total · ` : '') + `hoje ${sgf(dd)} (${mk.fmtPct(dp)})` + (mostra ? ` · ${lbl} ${mk.fmtPct(pc)}` : '');
-                if (!gg || gg.textContent !== gq) erro(`a carteira: ${gg && gg.textContent} em vez de ${gq}`);
-                const tons = gg ? [...gg.querySelectorAll(':scope > span')].map((x) => x.className) : [];
-                if (JSON.stringify(tons) !== JSON.stringify((ee > 0 ? [toneOf(vv - ee) + '-t'] : []).concat(toneOf(dd) + '-t', mostra ? [toneOf(pc) + '-t'] : []))) erro(`a carteira: as cores ${JSON.stringify(tons)}`);
+                // a tabela de cima: no total (com o investido), hoje e o período (fora do 1D): o nome, o valor e a %, com as cores
+                const casas = gg ? [...gg.querySelectorAll(':scope > .pf-c')].map((c) => [c.querySelector('small').textContent, c.querySelector('b') ? [c.querySelector('b').textContent, c.querySelector('b').className] : null, c.querySelector('i').textContent, c.querySelector('i').className]) : null;
+                const cq = (ee > 0 ? [['No total', [sgf(vv - ee), toneOf(vv - ee) + '-t'], mk.fmtPct((vv / ee - 1) * 100), toneOf((vv / ee - 1) * 100) + '-t']] : [])
+                    .concat([['Hoje', [sgf(dd), toneOf(dd) + '-t'], mk.fmtPct(dp), toneOf(dp) + '-t']], mostra ? [[lbl, null, mk.fmtPct(pc), toneOf(pc) + '-t']] : []);
+                if (JSON.stringify(casas) !== JSON.stringify(cq)) erro(`a carteira: a tabela ${JSON.stringify(casas)} em vez de ${JSON.stringify(cq)}`);
                 // o que é dos fundos e ações e o que é da cripto: o valor, o ganho e o de hoje de cada grupo
                 const gr = { c: { v: 0, e: 0, d: 0, n: 0 }, o: { v: 0, e: 0, d: 0, n: 0, a: null } };
                 for (const { a, u, e } of tbPf) {
@@ -387,10 +388,10 @@ function verificar({ de, ate, seed }) {
                     g.v += val; g.e += e; g.d += Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; g.n++;
                     if (!a.cr) g.a = a;
                 }
-                const gx = (g) => (g.e > 0 ? ` ${sgf(g.v - g.e)} (${mk.fmtPct1((g.v / g.e - 1) * 100)})` : ` ${eur(g.v)}`);
-                const gq2 = [gr.o.n ? `${gr.o.n === 1 ? txt(gr.o.a.nm) : 'Fundos e ações'}${gx(gr.o)}` : null, gr.c.n ? `Cripto${gx(gr.c)}` : null].filter(Boolean).join(' · ');
-                const gse = s && s.querySelector('.pf-gs');
-                if (!gse || gse.textContent !== gq2) erro(`a carteira: os grupos ${gse && gse.textContent} em vez de ${gq2}`);
+                const gx = (nm, g) => [nm, eur(g.v), g.e > 0 ? `${sgf(g.v - g.e)} (${mk.fmtPct1((g.v / g.e - 1) * 100)})` : '', g.e > 0 ? 'num ' + toneOf(g.v - g.e) + '-t' : 'num'];
+                const gq2 = [gr.o.n ? gx(gr.o.n === 1 ? txt(gr.o.a.nm) : 'Fundos e ações', gr.o) : null, gr.c.n ? gx('Cripto', gr.c) : null].filter(Boolean);
+                const gse = s ? [...s.querySelectorAll('.pf-gs > .pf-gr')].map((r) => { const c = r.children; return [c[0].textContent, c[1].textContent, c[2].textContent, c[2].className]; }) : [];
+                if (JSON.stringify(gse) !== JSON.stringify(gq2)) erro(`a carteira: os grupos ${JSON.stringify(gse)} em vez de ${JSON.stringify(gq2)}`);
                 if (s && (s.querySelector('.pf-ix') || s.querySelector('.pf-gl'))) erro('a carteira: sem os índices nem os grupos em linhas');
                 // o gráfico: com todas as compras datadas, o valor desde a primeira e o investido a tracejado; sem isso, o do período
                 const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l'), pi = sv && sv.querySelector('path.pf-i'), hist = tbPf.every((x) => x.dat);

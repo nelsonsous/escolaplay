@@ -541,10 +541,17 @@ function proxyBody(u) {
     await page.waitForFunction(([t0, f]) => { const t = document.querySelector('.pf .pf-v').textContent; return t === new Function('return (' + f + ')()')().txt && t !== t0; }, [pfS.txt, pfVal.toString()], { timeout: 8000 }).catch(() => {});
     const vivo = await page.evaluate((f) => [document.querySelector('.pf .pf-v').textContent, new Function('return (' + f + ')()')().txt], pfVal.toString());
     assert.ok(vivo[0] !== pfS.txt || vivo[1] === pfS.txt, 'o cartão acompanha os preços ao vivo: ' + JSON.stringify([pfS.txt, vivo]));
-    assert.match(await page.locator('.pf .pf-g').textContent(), /^[+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\) no total · hoje [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\)$/);
+    assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['No total', 'Hoje'], 'a tabela de cima (no 1D, sem o período)');
+    assert.match((await page.locator('.pf .pf-st .pf-c').allTextContents()).join(' | '), /^No total[+−][\d\s ]+,\d\d\s€[+−]?\d+,\d\d% \| Hoje[+−][\d\s ]+,\d\d\s€[+−]?\d+,\d\d%$/);
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
-    assert.match(await page.locator('.pf .pf-gs').textContent(), /^FTSE All-World [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d%\) · Cripto [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d%\)$/);
+    const grs = await page.locator('.pf .pf-gs .pf-gr').evaluateAll((rs) => rs.map((r) => [...r.children].map((c) => c.textContent)));
+    assert.equal(grs.length, 2, 'duas linhas: o FTSE e a cripto');
+    assert.deepEqual(grs.map((r) => r[0]), ['FTSE All-World', 'Cripto']);
+    for (const r of grs) { assert.match(r[1], /^[\d\s ]+,\d\d\s€$/); assert.match(r[2], /^[+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d%\)$/); }
     assert.equal(await page.locator('.pf .pf-ix').count(), 0, 'os índices ficam no Hoje e nas linhas fechadas');
+    // ao abrir outra vez, a análise dos meus ativos aparece logo: o ano de fechos diários deles fica guardado no instantâneo
+    const snapD = await page.evaluate(() => { const d = (JSON.parse(localStorage.getItem('mercados:snap') || '{}').D) || {}; return ['VWCE.DE', 'c:BTC', '^GSPC'].map((k) => (d[k] || []).length); });
+    assert.ok(snapD.every((n) => n > 100), 'o histórico guardado: ' + snapD);
     assert.equal(await page.locator('.pf svg.pf-hist path.pf-i').count(), 1, 'o investido a tracejado');
     assert.match(await page.locator('.pf .pf-cap').textContent(), /^desde \d\d\/\d{4}investidohoje$/);
     assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#mk-body > section, #mk-body > details')].slice(0, 3).map((e) => (e.tagName === 'SECTION' ? e.querySelector('h2').textContent : e.dataset.fold))), ['A minha carteira', 'Os meus ativos', 'hoje'], 'a carteira, os meus ativos e depois a análise do Claude (o Hoje)');
