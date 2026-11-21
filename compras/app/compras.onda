@@ -623,6 +623,13 @@
   `</div>`
   dtaloes
   dsaude
+  # as cores (o compras.js aplica-as): automático (como o iPhone), dia ou noite; só neste telemóvel
+  = tm _an_ler $"tema"
+  `<h3>Cores</h3><div class="chips" role="group" aria-label="Cores">`
+  `<button class="chip{ Se ~ tm ` on` }" data-onda="tema:0" aria-pressed="{ ? tm `false` `true` }">Automático</button>`
+  `<button class="chip{ Se && tm mesmo tm $"dia" ` on` }" data-onda="tema:1" aria-pressed="{ ? && tm mesmo tm $"dia" `true` `false` }">☀︎ Dia</button>`
+  `<button class="chip{ Se && tm mesmo tm $"noite" ` on` }" data-onda="tema:2" aria-pressed="{ ? && tm mesmo tm $"noite" `true` `false` }">☾ Noite</button></div>`
+  `<p class="nota">Automático: claro de dia e escuro à noite, como o iPhone (Definições → Ecrã e brilho). Só neste telemóvel.</p>`
   = sp _an_ler $"simples"
   `<h3>Modo simples</h3><p class="nota">Letra e botões maiores, as secções com ícones e o que costumas comprar primeiro, para escolher sem escrever. Só neste telemóvel; a lista é a mesma.</p>`
   `<button class="botao{ Se ~ sp ` fraco` }" data-onda="simples:0" aria-pressed="{ ? sp `true` `false` }">{ ? sp `✓ Modo simples ligado (tocar para desligar)` `Ligar o modo simples` }</button>`
@@ -1449,7 +1456,7 @@
         = n + n 1 }
       = x seg x }
     `</ul>`
-    Se > t 3 `<button class="mais-op" data-onda="bprt:{ N ? todas 0 1 }">{ ? todas `Mostrar só 3 ▴` `Ver as { N t } promoções ▾` }</button>` }
+    Se > t 3 `<button class="promos-mais" data-onda="bprt:{ N ? todas 0 1 }">{ ? todas `Mostrar só 3 ▴` `Ver as { N t } promoções ▾` }</button>` }
   0 }
 : dest iiii>i tp fe q mu {
   = j _ar_json _an_ler $"casa"
@@ -1701,6 +1708,7 @@
   Se eacao t $"ntj" ntjunta
   Se eacao t $"ntv" { = j _ar_json _an_ler $"nt" = p ? j idx j.partes v 0 = o ? p pri p.opcoes 0
       Se && o o.tipo { = k txt o.tipo _an_gravar $"natal" 0 fecha_tipo _an_gravar $"tk" k _an_buscar texto`/api/tipo?k={ crut _tx_uri k }` $"lido_tipo" } }
+  Se eacao t $"tema" _an_gravar $"tema" ? == v 1 $"dia" ? == v 2 $"noite" 0
   Se eacao t $"simples" { ? _an_ler $"simples" _an_gravar $"simples" 0 _an_gravar $"simples" $"1" }
   Se eacao t $"carr" { ? _an_ler $"carrinho" _an_gravar $"carrinho" 0 _an_gravar $"carrinho" $"1" }
   Se eacao t $"qp" { = c idx itens v Se c faz texto`\{"o":"q","id":{ pjs txt c.id },"q":{ N Mn 99 + int c.q 1 }\}` }

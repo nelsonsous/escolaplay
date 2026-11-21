@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- o dia e a noite antes do primeiro desenho (Casa → Cores; automático, como o iPhone), e a barra das horas a condizer:
+     de dia branca com as horas a preto («default»); o iPhone só a lê ao abrir a app -->
+<script>try { var t = localStorage.getItem('compras:tema'); if (t !== 'dia' && t !== 'noite') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'dia' : 'noite'; if (t === 'dia') { document.documentElement.dataset.theme = 'light'; document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'default'); document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff'); } } catch (e) { /* fica a noite */ }</script>
 <meta name="apple-mobile-web-app-title" content="Compras">
 <meta name="description" content="A lista das compras da casa, e em que supermercado fica mais barata.">
 <title>Compras</title>
@@ -13,7 +16,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="compras.css?v=0.58.14">
+<link rel="stylesheet" href="compras.css?v=0.59.0">
 </head>
 <body>
 <main>
@@ -25,6 +28,6 @@
 <div id="folha"></div>
 <div id="aviso" aria-live="polite"></div>
 <script src="../onda/rt/anfitriao.js"></script>
-<script src="compras.js?v=0.58.14"></script>
+<script src="compras.js?v=0.59.0"></script>
 </body>
 </html>

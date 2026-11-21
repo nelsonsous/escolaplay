@@ -382,3 +382,46 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, select:foc
 .pd-ord { display: flex; gap: 8px; padding: 2px 0 6px; border: 0; background: none; }
 .promo-l li .promo { grid-column: 1 / -1; justify-self: start; margin-top: 4px; }
 .pd-ord .chip { flex: none; }
+
+/* 0.59.0 — o dia: as cores claras (Casa → Cores: Automático, como o iPhone; Dia; Noite). O index.html e o compras.js
+   põem data-theme="light" no <html>; as cores fixas acima têm aqui a versão clara */
+:root[data-theme="light"] {
+    --fundo: #fff; --cartao: #f2f2f7; --linha: #e5e5ea; --texto: #000; --fraco: #6e6e73;
+    --verde: #1a8f45; --azul: #007aff; --vermelho: #d70015;
+    --n1: #2f4fd0; --n1f: #b9c6f7; --n2: #1a8f45; --n2f: #b7dcc2; --n3: #8a6d00; --n3f: #e6d28f; --n4: #7a3fc4; --n4f: #d8c3f3; --n5: #48484a; --n5f: #c7c7cc;
+    color-scheme: light;
+}
+:root[data-theme="light"] .botao.whats { background: #e3f6e8; color: #146c34; }
+:root[data-theme="light"] .rede, :root[data-theme="light"] .item small.pack, :root[data-theme="light"] .cartao.natal .total small { color: #8a6d00; }
+:root[data-theme="light"] #abas { background: rgba(255, 255, 255, 0.92); }
+:root[data-theme="light"] .veu { background: rgba(0, 0, 0, 0.3); }
+:root[data-theme="light"] .cartao { background: #fff; box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12); }
+:root[data-theme="light"] .prod.on { color: #146c34; }
+:root[data-theme="light"] .toast { background: #fff; color: #000; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); }
+:root[data-theme="light"] .prod em, :root[data-theme="light"] .chip.on { background: #e3f6e8; }
+:root[data-theme="light"] .loja, :root[data-theme="light"] .veredicto { background: #eefaf1; border-color: #b7dcc2; }
+:root[data-theme="light"] .sug .chip { border-color: #b7dcc2; }
+:root[data-theme="light"] .costume .chip.falta, :root[data-theme="light"] .cost-par.falta { border-color: #e6d28f; }
+:root[data-theme="light"] .costume .chip.falta { color: #8a6d00; }
+:root[data-theme="light"] .cartao .fechar, :root[data-theme="light"] .cost-par .costx:active { background: #e5e5ea; }
+:root[data-theme="light"] .chips.n3 .chip.on { background: #fbf3d6; }
+:root[data-theme="light"] .chips.n4 .chip.on { background: #f1e8fd; }
+:root[data-theme="light"] .chips.n5 .chip.on { background: #ececf0; }
+:root[data-theme="light"] .melhores .sinais i.p { border-color: #a9d9b8; }
+:root[data-theme="light"] .melhores .sinais i.n, :root[data-theme="light"] .saude li.aviso { color: #b35c00; }
+:root[data-theme="light"] .melhores .sinais i.n { border-color: #f0c890; }
+:root[data-theme="light"] .grelha button:active, :root[data-theme="light"] .melhores .opcoes .op.on,
+:root[data-theme="light"] .melhores > li.escolhido, :root[data-theme="light"] .subsug { background: #eaf2ff; }
+:root[data-theme="light"] .melhores .mais-op { border-color: #b9d3f5; }
+:root[data-theme="light"] .melhores li.prod b { color: #8a5a2b; }
+:root[data-theme="light"] .botao.natal { background: #fdecec; border-color: #f3c0c0; color: #8a1f1f; }
+:root[data-theme="light"] .bc li { background: #fdf8e6; border-color: #e6d28f; }
+:root[data-theme="light"] .bc a.fonte { color: #8a6d00; }
+:root[data-theme="light"] .botao.analisar { background: #eaf2ff; border-color: #b9d3f5; color: #0b3a75; }
+:root[data-theme="light"] .item small.desce { color: #1a8f45; }
+:root[data-theme="light"] .melhores .promo { background: #fff0e0; color: #b35c00; }
+:root[data-theme="light"] .promos { background: #fff6ee; border-color: #f3c6a0; }
+:root[data-theme="light"] .promos-t h3, :root[data-theme="light"] .promos .pr .total { color: #b35c00; }
+:root[data-theme="light"] .promos li { border-top-color: #f6dcc5; }
+:root[data-theme="light"] .promos .promos-f .chip { border-color: #f3c6a0; }
+:root[data-theme="light"] .promos .promos-f .chip.on { background: #ffe7d1; border-color: #e8833a; color: #a14a00; }
