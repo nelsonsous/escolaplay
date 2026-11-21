@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.37.2';
+    const VERSION = '4.37.3';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -2807,7 +2807,13 @@
         if (d.hide) { hideAsset(d.hide, d.grp); return; }
         if (d.unhide) { const set = { crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), index: INDICES.map((i) => i.sym) }[d.unhide] || []; cfg.hidden = cfg.hidden.filter((k) => !set.includes(k)); saveCfg(); render(); toast('Lista reposta'); return; }
         if (d.fs) { cfg.fs = d.fs; applyFs(); saveCfg(); render(); return; }
-        if (d.thm) { cfg.theme = d.thm; applyTheme(); saveCfg(); render(); return; }
+        if (d.thm) {
+            const antes = document.documentElement.dataset.theme;
+            cfg.theme = d.thm; applyTheme(); saveCfg(); render();
+            // na app instalada no iPhone, a barra de cima só muda ao voltar a abrir a app
+            if (navigator.standalone && document.documentElement.dataset.theme !== antes) toast('A barra de cima muda quando voltares a abrir a app');
+            return;
+        }
         if (d.hold) { cfg.holdings = cfg.holdings.includes(d.hold) ? cfg.holdings.filter((x) => x !== d.hold) : cfg.holdings.concat(d.hold); saveCfg(); render(); return; }
         if (d.sday) {
             const n = +d.sday;
@@ -3039,6 +3045,9 @@
         colors(); vivaCores = false;
         const m = document.querySelector('meta[name="theme-color"]');
         if (m) m.setAttribute('content', getComputedStyle(el).getPropertyValue('--bg').trim() || (t === 'light' ? '#ffffff' : '#000000'));
+        // a barra de cima do iPhone (a app no ecrã principal): de dia branca com letras pretas; o iPhone só a lê ao abrir
+        const sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (sb) sb.setAttribute('content', t === 'light' ? 'default' : 'black-translucent');
     }
     if (mqClaro && mqClaro.addEventListener) mqClaro.addEventListener('change', () => { if (cfg.theme !== 'light' && cfg.theme !== 'dark') { applyTheme(); render(); if (sheetKey && !$('#mk-sheet').hidden) renderSheet(); } });
     function applyFs() { document.documentElement.dataset.fs = ['n', 'l', 'xl'].includes(cfg.fs) ? cfg.fs : 'n'; }

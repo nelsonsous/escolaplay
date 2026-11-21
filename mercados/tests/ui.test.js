@@ -563,20 +563,35 @@ function proxyBody(u) {
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel.png') });
     // o dia e a noite: em Ajustes → Cores; em automático segue o iPhone (aqui, o modo do browser)
     const tema = () => page.evaluate(() => [document.documentElement.dataset.theme, getComputedStyle(document.body).backgroundColor, document.querySelector('meta[name="theme-color"]').getAttribute('content')]);
+    // a barra de cima do iPhone acompanha: de dia branca com letras pretas, de noite transparente sobre o preto
+    const barra = () => page.evaluate(() => document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').getAttribute('content'));
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'à noite (o iPhone em escuro): escuro');
     // o botão do topo do Painel: ☀︎ passa a dia, ☾ volta a noite
     assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'light');
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o botão do Painel: dia');
+    assert.equal(await barra(), 'default', 'de dia, a barra de cima clara');
     assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'dark');
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'e volta a noite');
+    assert.equal(await barra(), 'black-translucent', 'de noite, a barra de cima escura');
     await page.evaluate(() => { window.__mk.cfg.theme = 'auto'; window.__mk.render(); });
     await page.click('#mk-nav [data-tab="ajustes"]');
     assert.equal(await page.locator('[data-thm="auto"].on').count(), 1, 'por omissão, automático');
     await page.click('[data-thm="light"]');
     assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'Dia: claro');
     assert.equal(await page.evaluate(() => window.__mk.cfg.theme), 'light');
+    // ao abrir com «Dia» guardado, a barra já vem clara do index.html (o iPhone lê-a ao abrir): noutro contexto, à parte
+    {
+        const ctx2 = await browser.newContext({ colorScheme: 'dark' });
+        await ctx2.addInitScript(() => localStorage.setItem('mercados:v1', JSON.stringify({ theme: 'light' })));
+        const p2 = await ctx2.newPage();
+        await p2.goto(url, { waitUntil: 'domcontentloaded' });
+        const [t2, sb2, tc2] = await p2.evaluate(() => [document.documentElement.dataset.theme, document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').getAttribute('content'), document.querySelector('meta[name="theme-color"]').getAttribute('content')]);
+        assert.deepEqual([t2, sb2], ['light', 'default'], 'ao abrir de dia, a barra de cima já clara');
+        assert.match(tc2, /^#fff(fff)?$/, 'e a cor da barra branca');
+        await ctx2.close();
+    }
     await page.click('#mk-nav [data-tab="painel"]');
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForSelector('.pf svg.pf-sv');
