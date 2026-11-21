@@ -506,10 +506,24 @@
 : pn_perlbl i>i p ? eh p $"1w" "1 semana" ? eh p $"1m" "1 mês" ? eh p $"1y" "1 ano" "hoje"
 : pn_dias i>f p ? eh p $"1w" 7.0 ? eh p $"1m" 30.0 ? eh p $"1y" 365.0 1.0
 : pn_pfy fff>f v lo hi ? > hi lo + 4.0 / * 80.0 - hi v - hi lo 44.0
-# uma linha da tabela dos grupos: o nome (impresso antes), o valor e o ganho face ao investido (sem o investido, nada)
+# euros sem cêntimos (na tabela da carteira, para caberem as quatro colunas no iPhone)
+: pn_eur0 f>i x _nu_moeda x 0 $"EUR"
+: pn_eurs0 f>i x { ? >= x 0.0 P '+ { P 226 P 136 P 146 0 } _nu_moeda Ab x 0 $"EUR" }
+# uma linha da tabela da carteira: o nome (impresso antes), o investido, o valor e o ganho face ao investido (sem o
+# investido, só o valor)
 : pn_gx ff>i v e {
-  `<span class="num">{ pn_eurf v }</span>`
-  ? > e 0.0 `<span class="num { ln_tom - v e }-t">{ pn_eursf - v e } ({ fm_pct1 * - / v e 1.0 100.0 })</span>` `<span class="num"></span>`
+  `<span class="num">` Se > e 0.0 pn_eur0 e "</span>"
+  `<span class="num">{ pn_eur0 v }</span>`
+  ? > e 0.0 `<span class="num { ln_tom - v e }-t">{ pn_eurs0 - v e } ({ fm_pct1 * - / v e 1.0 100.0 })</span>` `<span class="num"></span>`
+  0 }
+# as linhas de um grupo da tabela (g: 0 os fundos e as ações, 1 a cripto; n os ativos dele, v e e as somas; so: quantos
+# tem o outro grupo). Com mais de um ativo e com o outro grupo, primeiro a linha da soma, com os ativos debaixo dela
+: pn_gtab iiiiffi>i tb na g n v e so {
+  = sub && > n 1 > so 0
+  Se sub { `<span class="pf-gr pf-gg"><b>` ? g "Cripto" "Fundos e ações" "</b>" pn_gx v e "</span>" }
+  L j na {
+    = q cr_p tb j = c @ q
+    Se == g ? ha c.cr 1 0 { `<span class="pf-gr` Se sub " pf-ga" `"><b>{ esc c.nm 0 }</b>` pn_gx * @f + q 3 @f + q 4 @f + q 5 "</span>" } }
   0 }
 # uma casa da tabela de cima (k: 0 no total, 1 hoje, 2 o período escolhido): o nome, o valor em € (se houver) e a %
 : pn_casa iffi>i k x p temx {
@@ -535,12 +549,12 @@
     Se na {
       # o total e os dois grupos: a cripto e o resto (os fundos e as ações)
       = vv 0.0 = ee 0.0 = dd 0.0
-      = vc 0.0 = ec 0.0 = dc 0.0 = nc 0 = vo 0.0 = eo 0.0 = dz 0.0 = nn 0 = n1 0
+      = vc 0.0 = ec 0.0 = dc 0.0 = nc 0 = vo 0.0 = eo 0.0 = dz 0.0 = nn 0
       L j na {
         = q cr_p tb j = val * @f + q 3 @f + q 4 = c @ q = ch num c.ch = e @f + q 5
         = dv ? && fin ch > ch -100.0 - val / val + 1.0 / ch 100.0 0.0
         = vv + vv val = ee + ee e = dd + dd dv
-        ? ha c.cr { = vc + vc val = ec + ec e = dc + dc dv = nc + nc 1 } { = vo + vo val = eo + eo e = dz + dz dv = nn + nn 1 = n1 c } }
+        ? ha c.cr { = vc + vc val = ec + ec e = dc + dc dv = nc + nc 1 } { = vo + vo val = eo + eo e = dz + dz dv = nn + nn 1 } }
       # o período escolhido (1D, 1S, 1M, 1A) em 60 instantes: o valor (com as unidades de cada instante), o investido e,
       # para a percentagem do período, o valor só pelo mercado (com as unidades de hoje)
       = kk 60 = vs A kk = ws A kk = ms A kk = sv A na = t0 - tf * 86400.0 pn_dias es.per
@@ -572,10 +586,12 @@
       `"/><path class="pf-l" d="M`
       L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + vs k lo hi 1 }
       `"/></svg><span class="pf-cap"><span>{ pn_desde es.per }</span><span class="pf-inv">investido</span><span>agora</span></span>`
-      # a tabela dos grupos: o que é dos fundos (com um só, o nome dele) e o que é da cripto, com o valor e o ganho
-      `<span class="pf-gs">`
-      Se nn { `<span class="pf-gr"><b>` ? == nn 1 { esc n1.nm 0 } "Fundos e ações" "</b>" pn_gx vo eo "</span>" }
-      Se nc { `<span class="pf-gr"><b>Cripto</b>` pn_gx vc ec "</span>" }
+      # a tabela da carteira: o investido, o valor e o ganho de cada ativo — os fundos e as ações, depois a cripto (um grupo
+      # com mais de um ativo, e com o outro grupo, leva a linha da soma) — e o total, com mais de um ativo
+      `<span class="pf-gs"><span class="pf-gh"><b></b><span>Investido</span><span>Vale</span><span>Ganho</span></span>`
+      pn_gtab tb na 0 nn vo eo nc
+      pn_gtab tb na 1 nc vc ec nn
+      Se > na 1 { `<span class="pf-gr pf-gt"><b>Total</b>` pn_gx vv ee "</span>" }
       "</span></button></section>"
       = r 1 } }
   r }

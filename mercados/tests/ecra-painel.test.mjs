@@ -102,7 +102,7 @@ function verificar({ de, ate, seed }) {
             p1d: 0, p1w: 0, p1m: 0, p1y: 0, pOutro: 0, oSobe: 0, oDesce: 0, oBolsa: 0, oNome: 0, oMinha: 0, grupos: 0,
             meusVazio: 0, acoesVazio: 0, fundosVazio: 0, semFundos: 0, cripto: 0, retirados: 0, aberta: 0, arrastada: 0,
             fuel: 0, fuelCarrega: 0, fuelErro: 0, semConector: 0, skel: 0, hora: 0, badgeClaude: 0, badgeAuto: 0, badgeDecisao: 0, desconto: 0, imposto: 0, litro: 0,
-            carteira: 0, carteiraPeriodo: 0 } };
+            carteira: 0, carteiraPeriodo: 0, carteiraSoma: 0 } };
     const T = out.tipos;
     const DIA = 864e5;
     const isoDia = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -202,6 +202,12 @@ function verificar({ de, ate, seed }) {
             for (const k of ['c:BTC', 'c:ETH', 'c:SOL']) if (sim(0.3)) c.lots[k] = { plan: pick(['', isoDia(agora - 500 * DIA)]), buys: [{ d: isoDia(agora - pick([30, 400, 800]) * DIA), e: 100 }] };
             // as quantidades da Carteira (o resumo no topo do Painel): umas com o investido, outras sem, e valores estranhos
             for (const k of c.holdings) if (sim(0.45)) c.lots[k] = { ...(c.lots[k] || { plan: '', buys: [] }), qty: pick([0.5, 2, 25.31, '3', 0, -1, 'x']), cost: pick([100, 3800.5, 4200, 0, undefined, 'y']) };
+            // às vezes, uma carteira como a do dono: um ou dois fundos e várias cripto, todos com o que tem hoje (a tabela da
+            // carteira leva então a soma da cripto, com as moedas debaixo dela)
+            if (sim(0.12)) {
+                c.holdings = [funds[0], ...(sim(0.5) && funds[1] ? [funds[1]] : []), 'c:BTC', 'c:ETH', ...(sim(0.5) ? ['c:SOL'] : []), ...(sim(0.5) ? ['c:XRP'] : [])];
+                for (const k of c.holdings) c.lots[k] = { ...(c.lots[k] || { plan: '', buys: [] }), qty: pick([0.5, 2, 25.31]), cost: pick([100, 3800.5, 4200]) };
+            }
             // ---- os combustíveis ----
             const fl = () => (sim(0.15) ? { id: 9, name: pick(['Gasóleo', pick(ODD)]), error: pick(['HTTP 500', pick(ODD)]) } : { id: pick([2101, 3201, '<x>', undefined]), name: pick(['Gasóleo simples', 'Gasolina simples 95', pick(ODD)]),
                 n: pick([3012, 2987, 12345, 1, 0, null, undefined, NaN, 1e21]), avg: pick([1.611, 1.751, null]), median: pick([1.599, 1.739, 1.0005, NaN, undefined]), max: pick([1.899, 2.049, Infinity]),
@@ -388,10 +394,20 @@ function verificar({ de, ate, seed }) {
                     g.v += val; g.e += e; g.d += Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; g.n++;
                     if (!a.cr) g.a = a;
                 }
-                const gx = (nm, g) => [nm, eur(g.v), g.e > 0 ? `${sgf(g.v - g.e)} (${mk.fmtPct1((g.v / g.e - 1) * 100)})` : '', g.e > 0 ? 'num ' + toneOf(g.v - g.e) + '-t' : 'num'];
-                const gq2 = [gr.o.n ? gx(gr.o.n === 1 ? txt(gr.o.a.nm) : 'Fundos e ações', gr.o) : null, gr.c.n ? gx('Cripto', gr.c) : null].filter(Boolean);
-                const gse = s ? [...s.querySelectorAll('.pf-gs > .pf-gr')].map((r) => { const c = r.children; return [c[0].textContent, c[1].textContent, c[2].textContent, c[2].className]; }) : [];
-                if (JSON.stringify(gse) !== JSON.stringify(gq2)) erro(`a carteira: os grupos ${JSON.stringify(gse)} em vez de ${JSON.stringify(gq2)}`);
+                // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo, em euros sem cêntimos — os fundos e as
+                // ações, depois a cripto (um grupo com mais de um ativo, e com o outro grupo, leva antes a linha da soma, com os
+                // ativos debaixo dela) — e o total, com mais de um ativo
+                const eur0 = (x) => mk.fmtPx(x, { decimals: 0 }, 'EUR'), sg0 = (x) => (x >= 0 ? '+' : '−') + eur0(Math.abs(x));
+                const lin = (cl, nm, v, e) => [cl, nm, e > 0 ? eur0(e) : '', eur0(v), e > 0 ? `${sg0(v - e)} (${mk.fmtPct1((v / e - 1) * 100)})` : '', e > 0 ? 'num ' + toneOf(v - e) + '-t' : 'num'];
+                const tqPf = [['pf-gh', '', 'Investido', 'Vale', 'Ganho', '']];
+                for (const [g, cr, nm, outro] of [[gr.o, false, 'Fundos e ações', gr.c.n], [gr.c, true, 'Cripto', gr.o.n]]) {
+                    const sub = g.n > 1 && outro > 0;
+                    if (sub) { tqPf.push(lin('pf-gr pf-gg', nm, g.v, g.e)); T.carteiraSoma++; }
+                    for (const { a, u, e } of tbPf) if (!!a.cr === cr) tqPf.push(lin(sub ? 'pf-gr pf-ga' : 'pf-gr', txt(a.nm), a.px * u, e));
+                }
+                if (tbPf.length > 1) tqPf.push(lin('pf-gr pf-gt', 'Total', vv, ee));
+                const tabPf = s ? [...s.querySelectorAll('.pf-gs > span')].map((r) => { const c = r.children; return [r.className, c[0].textContent, c[1].textContent, c[2].textContent, c[3].textContent, c[3].className]; }) : [];
+                if (JSON.stringify(tabPf) !== JSON.stringify(tqPf)) erro(`a carteira: a tabela ${JSON.stringify(tabPf)} em vez de ${JSON.stringify(tqPf)}`);
                 if (s && (s.querySelector('.pf-ix') || s.querySelector('.pf-gl'))) erro('a carteira: sem os índices nem os grupos em linhas');
                 // o gráfico do período escolhido: o valor e o investido a tracejado (60 pontos cada), na cor do período
                 const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l'), pi = sv && sv.querySelector('path.pf-i');

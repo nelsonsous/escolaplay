@@ -3244,3 +3244,18 @@ cinzento fraco (#7c7c80) ficam mais escuros, para se lerem ao sol.
 **Verificado.** O teste da app mede o contraste de todos os textos à vista nos cinco separadores e na ficha, de dia:
 nenhum abaixo de 3:1 (antes: 9 tipos de texto abaixo de 3:1, o pior a 1,1:1); e a barra e a faixa na noite, no dia com o
 iPhone em escuro e no dia com o iPhone em claro.
+
+## Iteração (Mercados 4.38.0): o investido de cada um e o total
+
+**Pedido.** «Não aparece em lado nenhum o investido em cada um e o total.»
+
+**Feito.** No cartão «A minha carteira», a tabela dos grupos passa a tabela da carteira, com as colunas Investido, Vale
+e Ganho: uma linha por ativo (os fundos e as ações primeiro, depois a cripto); um grupo com mais de um ativo, e com o
+outro grupo, leva antes a linha da soma (a «Cripto»), com as moedas debaixo dela; no fim, o Total. Em euros sem
+cêntimos, para caberem as quatro colunas no iPhone (o valor de cima continua com os cêntimos). As colunas ficam
+alinhadas em todas as linhas (cada linha é uma subgrelha da tabela). Em Onda (`pn_gtab`, `pn_gx`).
+
+**Verificado.** Painel: a tabela igual à referência em JS nos 600 estados (19 com a soma da cripto, numa carteira como a
+do dono); interface: as linhas, os formatos, o investido total (a soma do que custou cada um) e a tabela a caber no
+cartão a 390 px.
+
