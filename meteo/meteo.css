@@ -704,9 +704,12 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
     --wx-sun: #f5a300; --wx-moon: #8e99c4; --wx-cloud: #b4bfcd; --wx-cloud-2: #6f7b8d; --wx-rain: #2f7fe0; --wx-snow: #7fa8d6; --wx-bolt: #f0a800; --wx-fog: #7c8696;
     color-scheme: light;
 }
-/* a faixa das horas: se o iPhone ainda tiver a barra da noite (horas a branco, por cima da página), fica preta para se lerem;
-   com a barra do dia («default») o conteúdo começa abaixo das horas e a faixa tem 0 px */
-:root[data-theme="light"] body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top: 0; height: var(--safe-t); pointer-events: none; background: #000; }
+/* 1.28.1: a faixa das horas, como nos Mercados (4.37.3–4.37.4): preta à noite e da cor do fundo de dia (branca, sem a barra
+   escura); com o iPhone em escuro e a app de dia, se o iPhone ainda tiver a barra da noite (horas a branco), preta para se
+   lerem. Com a barra do dia («default») o conteúdo começa abaixo das horas e a faixa tem 0 px */
+body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top: 0; height: var(--safe-t); pointer-events: none; background: #000; }
+:root[data-theme="light"] body::before { background: var(--bg); }
+@media (prefers-color-scheme: dark) { :root[data-theme="light"] body::before { background: #000; } }
 :root[data-theme="light"] .btn.pri { background: #000; color: #fff; }
 :root[data-theme="light"] .btn.pri:active { background: #3a3a3c; }
 :root[data-theme="light"] .seg button.on { background: #fff; color: #000; box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }

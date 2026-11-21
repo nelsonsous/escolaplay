@@ -17,7 +17,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.28.0';
+const VERSION = '1.28.1';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -237,6 +237,8 @@ function init() {
     if (cfg.loc) setLocation(cfg.loc, { save: false });
     else render();
     reportTimer();
+    // 1.28.1: o aviso das cores que ficou de antes de a app se reabrir (a mudar a barra das horas)
+    try { const a = sessionStorage.getItem('mt:aviso'); if (a) { sessionStorage.removeItem('mt:aviso'); setTimeout(() => toast(a), 400); } } catch { /* nada */ }
 }
 function applyFs() {
     if (cfg.fs && cfg.fs !== 'n') document.documentElement.dataset.fs = cfg.fs;
@@ -248,6 +250,8 @@ function applyFs() {
 // já a acertou (como nos Mercados 4.37.3).
 const mqLight = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: light)') : null;
 let themeOn = false;
+// 1.28.1: os três modos das cores (como nos Mercados 4.38.3): o nome (no aviso) e o ícone do botão do Agora
+const TEMA_NOME = { auto: 'automático (como o iPhone)', light: 'dia', dark: 'noite' }, TEMA_ICO = { auto: 'contrast', light: 'sun', dark: 'moon' };
 const themeNow = () => (cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : mqLight?.matches ? 'light' : 'dark');
 function applyTheme() {
     const t = themeNow();
@@ -256,9 +260,10 @@ function applyTheme() {
     const bar = t === 'light' ? 'default' : 'black-translucent', sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
     if (sb && sb.getAttribute('content') !== bar) {
         sb.setAttribute('content', bar);
-        if (themeOn && navigator.standalone === true) { saveCfg(); location.reload(); return; }
+        if (themeOn && navigator.standalone === true) { saveCfg(); location.reload(); return true; }
     }
     themeOn = true;
+    return false;
 }
 
 // ---------- local ----------
@@ -398,9 +403,10 @@ function render() {
     if (act && body.contains(act) && act.matches('input')) { renderStatus(); return; }
     const v = { dias: viewDays, satelite: viewSat, analise: viewAnalysis, ajustes: viewSettings }[cfg.tab] || viewNow;
     const { title, html } = v();
-    // 1.28: o dia e a noite à mão, no topo do Agora (como nos Mercados): ☀︎ passa a dia, ☾ volta a noite
-    const dia = document.documentElement.dataset.theme === 'light';
-    const tema = cfg.tab === 'agora' ? `<button type="button" class="pg-tema" data-thm="${dia ? 'dark' : 'light'}" aria-label="${dia ? 'Modo noite (escuro)' : 'Modo dia (claro)'}">${ui(dia ? 'moon' : 'sun')}</button>` : '';
+    // 1.28.1: o botão do topo do Agora mostra o modo das cores (◐ automático, sol dia, lua noite); tocar passa ao seguinte
+    // (como nos Mercados 4.38.3)
+    const modo = cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : 'auto', seg = { auto: 'light', light: 'dark', dark: 'auto' }[modo];
+    const tema = cfg.tab === 'agora' ? `<button type="button" class="pg-tema" data-thm="${seg}" data-modo="${modo}" aria-label="Cores: ${TEMA_NOME[modo]}. Tocar passa a ${TEMA_NOME[seg]}">${ui(TEMA_ICO[modo])}</button>` : '';
     body.innerHTML = `<h1 class="pg-t${tema ? ' pg-t-tema' : ''}">${title}</h1>${tema}<div class="pg-st" id="mt-status" aria-live="polite"></div>${html}`;
     renderStatus();
     mount();
@@ -1106,7 +1112,7 @@ function viewSettings() {
     // 1.28: as cores à vista (o dia e a noite); o botão do sol e da lua no topo do Agora faz o mesmo
     const thm = cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : 'auto';
     h += `<section class="sec" id="cores"><div class="sec-h"><h2>Cores</h2></div><div class="form"><div><div class="seg thm" role="group" aria-label="Cores">${[['auto', 'Automático'], ['light', 'Dia'], ['dark', 'Noite']].map(([v, l]) => `<button type="button" data-thm="${v}" class="${thm === v ? 'on' : ''}" aria-pressed="${thm === v}">${l}</button>`).join('')}</div>
-        <div class="hint">Dia é claro e Noite é escuro. Automático segue o iPhone (Definições → Ecrã e brilho). O botão do sol e da lua, no topo do Agora, troca logo.</div></div></div></section>`;
+        <div class="hint">Dia é claro e Noite é escuro. Automático segue o iPhone (Definições → Ecrã e brilho). O botão do topo do Agora mostra o modo (◐ automático, sol, lua) e cada toque passa ao seguinte.</div></div></div></section>`;
     h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
         <div class="hint">Envia o endereço e como instalar (iPhone e Android). Grátis e sem conta.</div></div></section>`;
     h += meHtml();
@@ -1864,7 +1870,16 @@ document.addEventListener('click', (ev) => {
     if (d.rz) { stopRadar(); cfg.rz = +d.rz; saveCfg(); render(); return; }
     if (d.report) { submitReport(d.report); return; }
     if (d.fs) { cfg.fs = d.fs; saveCfg(); applyFs(); render(); return; }
-    if (d.thm) { cfg.theme = d.thm; saveCfg(); applyTheme(); render(); return; }
+    if (d.thm) {
+        // 1.28.1: o aviso do modo escolhido; se a app se reabrir para mudar a barra das horas, aparece depois de abrir
+        const aviso = 'Cores: ' + TEMA_NOME[d.thm in TEMA_NOME ? d.thm : 'auto'];
+        cfg.theme = d.thm; saveCfg();
+        try { sessionStorage.setItem('mt:aviso', aviso); } catch { /* sem onde guardar: fica o aviso de agora */ }
+        if (applyTheme()) return; // a app reabre-se
+        try { sessionStorage.removeItem('mt:aviso'); } catch { /* idem */ }
+        render(); toast(aviso);
+        return;
+    }
     if (d.act === 'anim-on' || d.act === 'anim-off') { cfg.anim = d.act === 'anim-on'; saveCfg(); render(); return; }
     if (d.act === 'cnum-on' || d.act === 'cnum-off') { cfg.claudeNums = d.act === 'cnum-on'; saveCfg(); render(); return; }
     if (d.lv) { cfg.lv = d.lv; saveCfg(); render(); return; }
