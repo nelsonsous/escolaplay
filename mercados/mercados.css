@@ -486,6 +486,8 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-sv .pf-i { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .pf .pf-cap { display: flex; justify-content: space-between; color: var(--faint); font-size: calc(.68rem * var(--k)); margin-top: 2px; }
 .pf .pf-cap .pf-inv::before { content: ''; display: inline-block; width: 14px; border-top: 1.5px dashed var(--muted); vertical-align: middle; margin-right: 4px; }
+.pf .pf-gs { display: block; margin-top: 4px; color: var(--muted); font-size: calc(.8rem * var(--k)); }
+.pf .pf-gs b { color: var(--text); font-weight: 650; }
 .pf .pf-grs { display: block; margin-top: 6px; }
 .pf .pf-gl { display: block; padding: 2px 0; color: var(--muted); font-size: calc(.8rem * var(--k)); }
 .pf .pf-gl b { color: var(--text); font-weight: 650; }
