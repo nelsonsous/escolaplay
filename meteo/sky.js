@@ -247,6 +247,8 @@ export function startRain(canvas) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
         ctx.lineCap = 'round';
+        // 1.28: de dia (fundo claro) as gotas são azul-escuras; à noite, luz azul-clara sobre o escuro
+        const dia = document.documentElement.dataset.theme === 'light', gota = dia ? '30, 100, 210' : '175, 205, 255', salpico = dia ? '45, 115, 220' : '190, 215, 255';
         // três camadas (longe, meio, perto): um caminho por camada
         for (const [z0, z1, alpha, lw] of [[0, 0.35, 0.22, 0.7], [0.35, 0.7, 0.38, 1.0], [0.7, 1.01, 0.5, 1.4]]) {
             ctx.beginPath();
@@ -256,7 +258,7 @@ export function startRain(canvas) {
                 ctx.moveTo(d.x, d.y);
                 ctx.lineTo(d.x + len * sinA, d.y - len * cosA); // o rasto fica para trás (cima, contra o vento)
             }
-            ctx.strokeStyle = `rgba(175, 205, 255, ${dz ? alpha * 0.9 : alpha})`;
+            ctx.strokeStyle = `rgba(${gota}, ${dz ? alpha * 0.9 : alpha})`;
             ctx.lineWidth = dz ? lw * 1.2 : lw;
             ctx.stroke();
         }
@@ -265,7 +267,7 @@ export function startRain(canvas) {
             ctx.lineWidth = 0.8;
             for (const s of RAIN.splash) {
                 const k = s.t / 0.32, a = (1 - k) * 0.55 * s.z;
-                ctx.strokeStyle = `rgba(190, 215, 255, ${a.toFixed(3)})`;
+                ctx.strokeStyle = `rgba(${salpico}, ${a.toFixed(3)})`;
                 ctx.beginPath();
                 ctx.ellipse(s.x, s.y, 2 + 9 * k * s.z, 0.8 + 2.2 * k * s.z, 0, Math.PI, 2 * Math.PI);
                 ctx.stroke();
