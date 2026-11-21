@@ -642,6 +642,16 @@ function proxyBody(u) {
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'e volta a noite');
     assert.deepEqual(await barra(), ['black-translucent', 'rgb(0, 0, 0)'], 'à noite a faixa preta, com as horas a branco');
+    // 4.38.3: o botão mostra o modo (◐ automático, ☀ dia, ☾ noite, desenhado e na cor do texto) e passa ao seguinte; um aviso
+    // diz qual ficou; e fica alinhado com a coluna da direita (o cartão da carteira)
+    assert.equal(await page.locator('#mk-toast').textContent(), 'Cores: noite', 'o aviso do modo');
+    assert.deepEqual(await page.locator('#mk-body > .pg-tema').evaluate((b) => [b.dataset.modo, b.dataset.thm, !!b.querySelector('svg'), getComputedStyle(b).color]), ['dark', 'auto', true, 'rgb(255, 255, 255)'], 'à noite: a lua, a branco; tocar passa a automático');
+    await page.click('#mk-body > .pg-tema');
+    assert.equal(await page.locator('#mk-toast').textContent(), 'Cores: automático (como o iPhone)');
+    assert.deepEqual(await page.locator('#mk-body > .pg-tema').evaluate((b) => [b.dataset.modo, b.dataset.thm]), ['auto', 'light'], 'automático; tocar passa a dia');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.theme), 'auto');
+    const alin = await page.evaluate(() => [document.querySelector('#mk-body > .pg-tema').getBoundingClientRect().right, document.querySelector('.pf .pf-cx').getBoundingClientRect().right]);
+    assert.ok(Math.abs(alin[0] - alin[1]) <= 1, 'o botão alinhado à direita com o cartão da carteira: ' + alin);
     await page.evaluate(() => { window.__mk.cfg.theme = 'auto'; window.__mk.render(); });
     await page.click('#mk-nav [data-tab="ajustes"]');
     assert.equal(await page.locator('[data-thm="auto"].on').count(), 1, 'por omissão, automático');
