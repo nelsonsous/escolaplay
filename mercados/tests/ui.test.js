@@ -20,6 +20,44 @@ async function fichaInteira(page, nome) {
     await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, nome) });
     await solta(false);
 }
+// lê-se bem? os textos à vista com contraste abaixo de `min` (a razão da WCAG) com o fundo opaco por baixo deles; em `dentro`
+// (um seletor) só os dessa parte do ecrã
+function contraste(page, min, dentro) {
+    return page.evaluate(([min, dentro]) => {
+        const cor = (s) => { const m = /rgba?\(([^)]+)\)/.exec(s || ''); if (!m) return null; const v = m[1].split(/[\s,/]+/).filter(Boolean).map(parseFloat); return [v[0], v[1], v[2], v.length > 3 ? v[3] : 1]; };
+        const lum = (c) => c.slice(0, 3).reduce((s, v, i) => { v /= 255; v = v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; return s + v * [0.2126, 0.7152, 0.0722][i]; }, 0);
+        const sobre = (a, b) => [0, 1, 2].map((i) => a[i] * a[3] + b[i] * (1 - a[3])).concat(1);
+        const hex = (c) => '#' + c.slice(0, 3).map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+        const fundo = (el) => { const cs = []; for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const c = cor(getComputedStyle(e).backgroundColor); if (c && c[3] > 0) { cs.push(c); if (c[3] >= 1) break; } } return cs.reverse().reduce((b, c) => sobre(c, b), [255, 255, 255, 1]); };
+        const opac = (el) => { let o = 1; for (let e = el; e && e.nodeType === 1; e = e.parentElement) o *= +getComputedStyle(e).opacity; return o; };
+        const raiz = dentro ? document.querySelector(dentro) : document.body, vistos = new Set(), maus = new Map();
+        const ver = (el, txt, cs) => {
+            const svg = el instanceof SVGElement, f = cor(svg ? cs.fill : cs.color);
+            if (!f || !txt) return;
+            const b = fundo(svg ? el.closest('svg') : el), fg = sobre([f[0], f[1], f[2], f[3] * opac(el)], b);
+            const [l1, l2] = [lum(fg), lum(b)].sort((x, y) => y - x), r = (l1 + 0.05) / (l2 + 0.05);
+            const px = parseFloat(cs.fontSize), grande = px >= 24 || (px >= 18.6 && +cs.fontWeight >= 700);
+            if (r < (grande ? Math.min(min, 3) : min)) {
+                const k = el.tagName.toLowerCase() + (el.getAttribute('class') ? '.' + el.getAttribute('class').trim().split(/\s+/).join('.') : '') + ' ' + hex(fg) + '/' + hex(b);
+                if (!maus.has(k)) maus.set(k, r.toFixed(2) + ' ' + k + ' «' + txt.slice(0, 28) + '»');
+            }
+        };
+        const tw = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+        for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+            const el = n.parentElement;
+            if (!el || vistos.has(el) || !n.textContent.trim() || /^(SCRIPT|STYLE|TITLE|OPTION)$/.test(el.tagName)) continue;
+            vistos.add(el);
+            const cs = getComputedStyle(el);
+            if (cs.visibility === 'hidden' || !el.getClientRects().length || el.closest('[hidden]')) continue;
+            ver(el, n.textContent.trim(), cs);
+        }
+        for (const el of raiz.querySelectorAll('*')) for (const ps of ['::before', '::after']) {
+            const cs = getComputedStyle(el, ps), t = /^"(.+)"$/.exec(cs.content || '');
+            if (t && el.getClientRects().length && !el.closest('[hidden]')) ver(el, t[1], cs);
+        }
+        return [...maus.values()].sort();
+    }, [min, dentro || null]);
+}
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
 function rnd(seed) { let s = seed % 2147483647 || 1; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
@@ -570,7 +608,8 @@ function proxyBody(u) {
     assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o botão do Painel: dia');
     // 4.37.3: a barra das horas do iPhone também clara de dia («default», horas a escuro) e a faixa por trás dela clara
     const barra = () => page.evaluate(() => [document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').getAttribute('content'), getComputedStyle(document.body, '::before').backgroundColor]);
-    assert.deepEqual(await barra(), ['default', 'rgb(255, 255, 255)'], 'a barra de cima também clara de dia');
+    // (aqui o browser está em escuro, como o iPhone em escuro: se ficar a barra antiga, as horas vêm a branco — a faixa preta)
+    assert.deepEqual(await barra(), ['default', 'rgb(0, 0, 0)'], 'a barra de cima clara de dia; com o iPhone em escuro, a faixa preta');
     assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'dark');
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'e volta a noite');
@@ -585,12 +624,53 @@ function proxyBody(u) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForSelector('.pf svg.pf-sv');
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel-dia.png') });
+    // de dia lê-se tudo: em todos os separadores e na ficha, nenhum texto abaixo de 3:1 com o fundo (com DIA_LISTA=1, a
+    // lista dos que ficam abaixo de 4,5:1)
+    const baixos = {}, MINIMO = process.env.DIA_LISTA ? 4.5 : 3, fold0 = await page.evaluate(() => JSON.stringify(window.__mk.st.fold));
+    for (const tab of ['painel', 'analise', 'destaques', 'carteira', 'ajustes']) {
+        await page.click(`#mk-nav [data-tab="${tab}"]`);
+        await page.waitForTimeout(200);
+        await page.evaluate(() => document.querySelectorAll('#mk-body details').forEach((d) => { d.open = true; }));
+        await page.waitForTimeout(100);
+        baixos[tab] = await contraste(page, MINIMO, '#mk-body');
+    }
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.locator('.row[data-open="PLTR"]:visible').first().click();
+    await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && document.querySelector('#d-load').hidden);
+    await page.evaluate(() => document.querySelectorAll('#mk-sheet details').forEach((d) => { d.open = true; }));
+    await page.waitForTimeout(300);
+    baixos.ficha = await contraste(page, MINIMO, '#mk-sheet-card');
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+    await page.waitForTimeout(100);
+    await page.evaluate((f) => { const s = window.__mk.st; Object.keys(s.fold).forEach((k) => delete s.fold[k]); Object.assign(s.fold, JSON.parse(f)); window.__mk.render(); }, fold0);
+    if (process.env.DIA_LISTA) console.log(JSON.stringify(baixos, null, 1));
+    else assert.deepEqual(baixos, { painel: [], analise: [], destaques: [], carteira: [], ajustes: [], ficha: [] }, 'de dia, textos que se leem mal');
     await page.click('#mk-nav [data-tab="ajustes"]');
     await page.click('[data-thm="auto"]');
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'automático com o iPhone em escuro');
     await page.emulateMedia({ colorScheme: 'light' });
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o iPhone passa a claro: a app acompanha');
+    if (SHOTS) {
+        // o topo como no iPhone (simulado): a zona das horas com 54 px, o véu claro que o iPhone põe por baixo das horas e
+        // as horas a preto, como no ecrã do dono
+        await page.click('#mk-nav [data-tab="painel"]');
+        await page.evaluate(() => {
+            window.scrollTo(0, 0);
+            document.documentElement.style.setProperty('--safe-t', '54px');
+            const s = document.createElement('div');
+            s.id = 'sim-horas';
+            s.style.cssText = 'position:fixed;z-index:99;left:0;right:0;top:0;height:54px;background:rgba(255,255,255,.52);display:flex;justify-content:space-between;align-items:center;padding:4px 30px 0 50px;font:600 17px system-ui,sans-serif;color:#000;pointer-events:none';
+            s.innerHTML = '<span>9:41</span><span>▂▄▆ ▭</span>';
+            document.body.appendChild(s);
+        });
+        await page.waitForTimeout(200);
+        await page.screenshot({ path: path.join(SHOTS, '1c-painel-dia-topo.png'), clip: { x: 0, y: 0, width: 390, height: 420 } });
+        await page.evaluate(() => { document.documentElement.style.removeProperty('--safe-t'); document.getElementById('sim-horas').remove(); });
+        await page.click('#mk-nav [data-tab="ajustes"]');
+    }
+    assert.deepEqual(await barra(), ['default', 'rgb(255, 255, 255)'], 'e com o iPhone em claro a faixa das horas fica branca (as horas a preto)');
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     await page.click('#mk-nav [data-tab="painel"]');
