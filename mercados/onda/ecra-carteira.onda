@@ -246,6 +246,30 @@
     = c seg c }
   `<p class="note">Copia da Trade Republic, na posição de cada ativo, os «Ativos» (a quantidade) e o «Preço médio de compra»: a app calcula o investido. Com eles, conta o que tens hoje (a TR já inclui as compras do plano); a data, se a puseres, entra no gráfico e no rendimento por ano. Sem eles, conta o plano: nos dias de execução dos Ajustes, com o valor do mês dividido por eles, mais as compras avulsas da cripto (na ficha).</p></details>` }
 
+# 4.43: uma linha da poupança periódica — a data, o tipo, o estado, o valor e os botões (−/+/0; ✕ no inserido ou ajustado)
+: cr_ppl i>i c {
+  `<div class="pp-l{ Se ~ ha c.feito " pp-prox" }"><span>{ esc c.l } · `
+  ? eh c.tp $"pl" "plano" ? eh c.tp $"ru" "round up" "saveback"
+  `<small>`
+  ? ~ ha c.feito "por volta das 15h45" ? ha c.reg "inserido" ? ha c.aj "ajustado" "estimado"
+  `</small></span><b class="num">{ _nu_moeda num c.e 2 $"EUR" }</b><span class="pp-bs">`
+  `<button type="button" class="pp-b" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="-" aria-label="Menos">−</button>`
+  `<button type="button" class="pp-b" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="+" aria-label="Mais">+</button>`
+  `<button type="button" class="pp-b pp-0" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="0" aria-label="Não houve">0</button>`
+  Se || ha c.reg ha c.aj { `<button type="button" class="pp-b pp-x" data-act="pp-rm" data-tp="{ esc c.tp }" data-d="{ esc c.d }" aria-label="Apagar">✕</button>` }
+  "</span></div>" 0 }
+# 4.43: a lista do round up (ru = 1) ou do saveback, numa dobra (vai crescendo): o habitual (a média dos últimos inseridos),
+# quanto dá por ano, quantos inseridos e cada data (a próxima e as feitas, a mais recente primeiro)
+: cr_ppf ii>i f ru {
+  `<details class="pp-f" data-fold="pp-{ ? ru "ru" "sb" }"{ Se ha f.aberto " open" }><summary><span>{ ? ru "Round up" "Saveback" }</span>`
+  `<b class="num">~{ _nu_moeda num f.hab 2 $"EUR" }</b><small>{ ? ru "cada · 4 por mês" "por mês" } · ~{ _nu_moeda num f.ano 0 $"EUR" } por ano</small></summary>`
+  `<p class="note">{ _nu_ps num f.n } inseridos ({ _nu_moeda num f.soma 2 $"EUR" }). A sugestão é a média dos últimos { ? ru "8" "3" }.</p>`
+  Se == num f.n 0.0 {
+    `<div class="pp-h"><span>Sem nenhum inserido, o habitual:</span>`
+    `<button type="button" class="pp-b" data-act="pp-hab" data-tp="{ ? ru "ru" "sb" }" data-v="-" aria-label="Menos">−</button><button type="button" class="pp-b" data-act="pp-hab" data-tp="{ ? ru "ru" "sb" }" data-v="+" aria-label="Mais">+</button></div>` }
+  = c pri f.linhas
+  W c { cr_ppl c = c seg c }
+  "</details>" 0 }
 # registar (4.20) sem escrever tudo outra vez: uma compra (só os euros; a data e o preço do dia vêm feitos) e o acerto
 # com a TR (escreve-se a quantidade que a TR mostra: a diferença são os arredondamentos e o cashback). Depois, a lista.
 : cr_reg i>i g {
@@ -269,35 +293,23 @@
   `<button type="button" data-act="reg-tipo" data-v="ru" class="{ Se eh ti $"ru" "on" }">Round up · 2, 9, 16, 23</button></div>`
   = ds g.datas
   ? > quantos ds 0 {
-    `<div class="real-g2"><label><small>€</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="se" value="{ esc g.se }"></label>`
+    `<div class="real-g2"><label><small>€</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="se" value="{ esc g.se }" placeholder="{ Se > num g.sug 0.0 _nu_intlm num g.sug 2 }"></label>`
     `<label><small>Data</small><select class="inp" data-reg="sd">`
     = c pri ds
     W c { `<option value="{ esc c.v }"{ Se igual c.v g.sd " selected" }>{ esc c.l }</option>` = c seg c }
     "</select></label></div>"
     `<button type="button" class="btn sm reg-bt" data-act="reg-sbru">+ Juntar</button>` }
     `<p class="note">Sem datas depois de { esc g.desde }: o que copiaste da TR já as tem.</p>`
-  # 4.42: a poupança periódica — o habitual do round up e do saveback (−/+) e as próximas e últimas execuções (o plano, o
-  # round up e o saveback), cada uma ajustável com −/+/0; contam por volta das 15h45 do dia (como a TR), ao preço desse dia
+  # 4.43: a poupança periódica — o plano (as próximas e as últimas execuções, com −/+/0) e as listas do round up e do
+  # saveback (o habitual é a média dos últimos inseridos; quanto dá por ano; cada data com −/+/0 e ✕)
   = pp g.pp
   Se ha pp {
     `<small class="real-gt">Poupança periódica</small><div class="pp">`
     `<div class="pp-h"><span>Plano</span><b class="num">{ _nu_moeda num pp.pm 0 $"EUR" }</b><small>por mês{ Se ha pp.dias { " · dia " esc pp.dias } }</small></div>`
-    `<div class="pp-h"><span>Round up</span><b class="num">{ _nu_moeda num pp.ru 2 $"EUR" }</b><small>por semana</small>`
-    `<button type="button" class="pp-b" data-act="pp-hab" data-tp="ru" data-v="-" aria-label="Menos">−</button><button type="button" class="pp-b" data-act="pp-hab" data-tp="ru" data-v="+" aria-label="Mais">+</button></div>`
-    `<div class="pp-h"><span>Saveback</span><b class="num">{ _nu_moeda num pp.sb 2 $"EUR" }</b><small>por mês</small>`
-    `<button type="button" class="pp-b" data-act="pp-hab" data-tp="sb" data-v="-" aria-label="Menos">−</button><button type="button" class="pp-b" data-act="pp-hab" data-tp="sb" data-v="+" aria-label="Mais">+</button></div>`
     = c pri pp.linhas
-    W c {
-      `<div class="pp-l{ Se ~ ha c.feito " pp-prox" }"><span>{ esc c.l } · `
-      ? eh c.tp $"pl" "plano" ? eh c.tp $"ru" "round up" "saveback"
-      `<small>`
-      ? ha c.reg "registado" ? ~ ha c.feito "por volta das 15h45" ? ha c.aj "ajustado" "estimado"
-      `</small></span><b class="num">{ _nu_moeda num c.e 2 $"EUR" }</b>`
-      Se ~ ha c.reg {
-        `<span class="pp-bs"><button type="button" class="pp-b" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="-" aria-label="Menos">−</button>`
-        `<button type="button" class="pp-b" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="+" aria-label="Mais">+</button>`
-        `<button type="button" class="pp-b pp-0" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="0" aria-label="Não houve">0</button></span>` }
-      "</div>" = c seg c }
+    W c { cr_ppl c = c seg c }
+    cr_ppf pp.ru 1
+    cr_ppf pp.sb 0
     "</div>" }
   `<small class="real-gt">Acertar com a TR (arredondamentos e cashback)</small><div class="real-g2">`
   `<label><small>Quantidade na TR</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="q" value="{ esc g.q }`

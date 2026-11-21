@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.42.1';
+    const VERSION = '4.43.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1569,11 +1569,34 @@
     const feito = (iso) => { if (iso < todayLocal()) return true; const a = new Date(); return iso === todayLocal() && a.getHours() * 60 + a.getMinutes() >= HORA_PLANO; };
     const PP_MAPA = { pl: 'pa', ru: 'ra', sb: 'sa' }, PP_PASSO = { pl: 50, ru: 0.5, sb: 1 };
     // o habitual do round up (€ por semana) e do saveback (€ por mês): o escolhido, senão a média dos últimos 4 registados
+    // os valores inseridos do round up ou do saveback (pelo «Registar» ou acertados com −/+/0): [[dia, €]], por ordem
+    function entradas(k, tp) {
+        const m = lotOf(k)[PP_MAPA[tp]] || {};
+        return Object.keys(m).filter((d) => ISO_D.test(d) && m[d] !== null && m[d] !== '' && fin(+m[d])).sort().map((d) => [d, +m[d]]);
+    }
+    // 4.43: o habitual do round up (por execução, 4 por mês) e do saveback (por mês) é a média dos últimos inseridos (8 round
+    // ups, 2 meses; 3 saveback), e vai-se ajustando; sem nenhum, o escolhido com −/+ (L.ruS, L.sbM)
     function habitual(k, tp) {
-        const L = lotOf(k), v = tp === 'ru' ? L.ruS : L.sbM;
-        if (v !== undefined && v !== null && v !== '' && fin(+v) && +v >= 0) return +v;
-        const r = (L.compras || []).filter((c) => c[tp] && +c.e > 0).slice(-4);
-        return r.length ? Math.round((r.reduce((s, c) => s + +c.e, 0) / r.length) * 100) / 100 : 0;
+        const v = entradas(k, tp).slice(tp === 'ru' ? -8 : -3);
+        if (v.length) return Math.round((v.reduce((s, x) => s + x[1], 0) / v.length) * 100) / 100;
+        const L = lotOf(k), b = tp === 'ru' ? L.ruS : L.sbM;
+        return b !== undefined && b !== null && b !== '' && fin(+b) && +b >= 0 ? +b : 0;
+    }
+    // 4.43: o saveback e o round up registados como compras (4.40) passam para os valores por data (lots.sa, lots.ra)
+    function migraSbRu() {
+        let mudou = false;
+        for (const L of Object.values(cfg.lots || {})) {
+            const cs = Array.isArray(L.compras) ? L.compras : [], fica = [];
+            for (const c of cs) {
+                const tp = c && c.sb ? 'sb' : c && c.ru ? 'ru' : '';
+                if (!tp || !ISO_D.test(c.d || '')) { fica.push(c); continue; }
+                const m = (L[PP_MAPA[tp]] = { ...(L[PP_MAPA[tp]] || {}) });
+                m[c.d] = Math.round(((+m[c.d] || 0) + (+c.e || 0)) * 100) / 100;
+                mudou = true;
+            }
+            if (fica.length !== cs.length) L.compras = fica;
+        }
+        if (mudou) saveCfg();
     }
     // as datas de cada um entre de (exclusive) e ate (inclusive): o plano pelos dias dele; o round up e o saveback pelos da TR
     function agendaPP(k, tp, de, ate) {
@@ -1595,19 +1618,19 @@
         return { e: tp === 'pl' ? pmOf(k) / Math.max(1, (cfg.saveDays || []).length) : habitual(k, tp), aj: 0 };
     }
     // o round up e o saveback habituais num mês (para as contas do futuro: o simulador e a análise do Claude)
-    const extrasMes = (k) => (temHoje(lotOf(k)) ? habitual(k, 'ru') * 52 / 12 + habitual(k, 'sb') : 0);
+    // (4 round ups por mês: dias 2, 9, 16 e 23)
+    const extrasMes = (k) => (temHoje(lotOf(k)) ? habitual(k, 'ru') * 4 + habitual(k, 'sb') : 0);
     const poupMes = () => budgetOf() + cfg.holdings.filter((k) => REG[k]).reduce((s, k) => s + extrasMes(k), 0);
     function extrasOf(k) {
         const L = lotOf(k), out = [];
         if (!temHoje(L) || !ISO_D.test(L.at || '')) return out;
         (L.compras || []).forEach((c, i) => { if (fin(+c.q) && +c.q !== 0 && ISO_D.test(c.d || '')) out.push({ d: c.d, e: +c.e || 0, q: +c.q, t: c.cb ? 2 : c.sb ? 3 : c.ru ? 4 : 1, i }); });
-        // a poupança periódica, nos dias já feitos (por volta das 15h45) e sem um registado desse tipo (4.42)
+        // a poupança periódica, nos dias já feitos (por volta das 15h45): o inserido nesse dia, senão o habitual (4.42/4.43)
         for (const tp of ['pl', 'ru', 'sb']) {
-            const reg = new Set(tp === 'pl' ? [] : (L.compras || []).filter((c) => c[tp]).map((c) => c.d));
             for (const d of agendaPP(k, tp, L.at, todayLocal())) {
-                if (reg.has(d) || !feito(d)) continue;
+                if (!feito(d)) continue;
                 const v = valorPP(k, tp, d), p = pxEm(k, d);
-                if (v.e > 0 && fin(p) && p > 0) out.push({ d, e: v.e, q: v.e / p, t: tp === 'pl' ? 0 : tp === 'sb' ? 5 : 6, aj: v.aj });
+                if (v.e > 0 && fin(p) && p > 0) out.push({ d, e: v.e, q: v.e / p, t: tp === 'pl' ? 0 : tp === 'sb' ? (v.aj ? 3 : 5) : v.aj ? 4 : 6, aj: v.aj });
             }
         }
         return out.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
@@ -1708,24 +1731,25 @@
         if (!ks.length) return null;
         const k = ks.includes(st.reg.k) ? st.reg.k : ks.includes(cfg.coreFund) ? cfg.coreFund : ks[0];
         st.reg.k = k;
-        const lista = ks.flatMap((x) => extrasOf(x).map((e) => ({ ...e, k: x }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)).slice(0, 8)
+        const lista = ks.flatMap((x) => extrasOf(x).map((e) => ({ ...e, k: x }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)).filter((e) => !(e.t >= 3 && e.t <= 6)).slice(0, 8)
             .map((e) => ({ k: e.k, name: nameOf(e.k), d: dmy(e.d), e: Math.round(e.e * 100) / 100, q: e.q, t: e.t, aj: e.aj || 0, i: e.i ?? -1 }));
         const tipo = st.reg.tipo === 'ru' ? 'ru' : 'sb', ds = datasSbru(k, tipo);
-        // 4.42: a poupança periódica deste ativo — as próximas (até 3) e as últimas (até 6) execuções, para ajustar
-        const hjP = todayLocal(), deP = [lotOf(k).at, isoMais(hjP, -45)].filter((x) => ISO_D.test(x || '')).sort().pop(), ppL = [];
-        for (const tp of ['pl', 'ru', 'sb']) {
-            const regs = tp === 'pl' ? [] : (lotOf(k).compras || []).filter((c) => c[tp]);
-            for (const dd of agendaPP(k, tp, deP, isoMais(hjP, 35))) {
-                const r = regs.filter((c) => c.d === dd);
-                const v = r.length ? { e: r.reduce((s, c) => s + (+c.e || 0), 0), aj: 0, reg: 1 } : { ...valorPP(k, tp, dd), reg: 0 };
-                if (!v.reg && !v.aj && !(v.e > 0)) continue;
-                ppL.push({ d: dd, l: dmy(dd), tp, e: Math.round(v.e * 100) / 100, aj: v.aj, reg: v.reg, feito: feito(dd) ? 1 : 0 });
-            }
-        }
-        ppL.sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : a.tp < b.tp ? -1 : 1));
-        const pp = { pm: pmOf(k), dias: (cfg.saveDays || []).join(', '), ru: habitual(k, 'ru'), sb: habitual(k, 'sb'), linhas: ppL.filter((x) => !x.feito).slice(-3).concat(ppL.filter((x) => x.feito).slice(0, 6)) };
+        // 4.43: a poupança periódica deste ativo — o plano (as próximas e as últimas execuções, para ajustar) e as listas do
+        // round up e do saveback: todas as datas desde que copiaste da TR (com valor), a próxima e as feitas, a mais recente primeiro
+        const hjP = todayLocal(), L1 = lotOf(k), deP = [L1.at, isoMais(hjP, -45)].filter((x) => ISO_D.test(x || '')).sort().pop(), plL = [];
+        for (const dd of agendaPP(k, 'pl', deP, isoMais(hjP, 35))) { const v = valorPP(k, 'pl', dd); plL.push({ d: dd, l: dmy(dd), tp: 'pl', e: Math.round(v.e * 100) / 100, aj: v.aj, reg: 0, feito: feito(dd) ? 1 : 0 }); }
+        plL.sort((a, b) => (a.d < b.d ? 1 : -1));
+        const lst = (tp) => {
+            const de = ISO_D.test(L1.at || '') ? L1.at : isoMais(hjP, -45), ds = agendaPP(k, tp, de, isoMais(hjP, tp === 'ru' ? 8 : 31));
+            const linhas = ds.filter((x) => !feito(x)).slice(0, 1).concat(ds.filter((x) => feito(x)).reverse())
+                .map((dd) => { const v = valorPP(k, tp, dd); return { d: dd, l: dmy(dd), tp, e: Math.round(v.e * 100) / 100, aj: 0, reg: v.aj, feito: feito(dd) ? 1 : 0 }; })
+                .filter((x) => x.reg || x.e > 0);
+            const ent = entradas(k, tp), h = habitual(k, tp);
+            return { hab: h, ano: Math.round(h * (tp === 'ru' ? 48 : 12)), n: ent.length, soma: Math.round(ent.reduce((s, x) => s + x[1], 0) * 100) / 100, aberto: st.fold['pp-' + tp] ? 1 : 0, linhas };
+        };
+        const pp = { pm: pmOf(k), dias: (cfg.saveDays || []).join(', '), linhas: plL.filter((x) => !x.feito).slice(-3).concat(plL.filter((x) => x.feito).slice(0, 6)), ru: lst('ru'), sb: lst('sb') };
         return { ks: ks.map((x) => ({ k: x, name: nameOf(x) })), k, e: st.reg.e || '', d: st.reg.d || todayLocal(), q: st.reg.q || '', hoje: todayLocal(), pm: pmOf(k), qApp: posOf(k).q, lista,
-            pp, tipo, se: st.reg.se || '', sd: ds.includes(st.reg.sd) ? st.reg.sd : ds[0] || '', datas: ds.map((v) => ({ v, l: dmy(v) })), desde: lotOf(k).at ? dmy(lotOf(k).at) : '' };
+            pp, tipo, sug: habitual(k, tipo), se: st.reg.se || '', sd: ds.includes(st.reg.sd) ? st.reg.sd : ds[0] || '', datas: ds.map((v) => ({ v, l: dmy(v) })), desde: lotOf(k).at ? dmy(lotOf(k).at) : '' };
     }
     function walletHtml() {
         if (aoOk && AO.ecra && AO.ecra.carteira) try { return AO.ecra.carteira(walletSnap()); } catch (e) { console.error('ecrã Onda:', e); }
@@ -3023,6 +3047,15 @@
                 setLots(k, { ...L0, [tp === 'ru' ? 'ruS' : 'sbM']: novo });
                 break;
             }
+            case 'pp-rm': {
+                const k = (st.reg || {}).k, L0 = lotOf(k), tp = d.tp, dia = d.d;
+                if (!REG[k] || !temHoje(L0) || !PP_MAPA[tp] || !ISO_D.test(dia || '')) break;
+                const antes = L0[PP_MAPA[tp]], m = { ...(antes || {}) };
+                delete m[dia];
+                setLots(k, { ...L0, [PP_MAPA[tp]]: m });
+                toast(`Apagado: ${tp === 'pl' ? 'o ajuste do plano' : tp === 'ru' ? 'o round up' : 'o saveback'} de ${dmy(dia)}`, () => setLots(k, { ...lotOf(k), [PP_MAPA[tp]]: antes }));
+                break;
+            }
             case 'pp-aj': {
                 const k = (st.reg || {}).k, L0 = lotOf(k), tp = d.tp, dia = d.d;
                 if (!REG[k] || !temHoje(L0) || !PP_MAPA[tp] || !ISO_D.test(dia || '')) break;
@@ -3042,10 +3075,10 @@
                 if (!(e > 0)) { toast(`Escreve o valor do ${tipo === 'ru' ? 'round up' : 'saveback'}.`); break; }
                 const p = pxEm(k, dia);
                 if (!fin(p) || p <= 0) { toast('Ainda sem o preço desse dia: tenta daqui a pouco.'); break; }
-                const antes = L0.compras || [];
+                const antes = L0[PP_MAPA[tipo]];
                 st.reg.se = ''; st.reg.sd = ''; { const i = $('.reg [data-reg="se"]'); if (i) i.value = ''; }
-                setLots(k, { ...L0, compras: antes.concat({ d: dia, e: Math.round(e * 100) / 100, q: e / p, [tipo]: 1 }) });
-                toast(`${nome} juntado: ${fmtPx(e, { decimals: 2 }, 'EUR')} de ${nameOf(k)} a ${dmy(dia)} (${fmtQ(e / p)})`, () => setLots(k, { ...lotOf(k), compras: antes }));
+                setLots(k, { ...L0, [PP_MAPA[tipo]]: { ...(antes || {}), [dia]: Math.round(e * 100) / 100 } });
+                toast(`${nome} juntado: ${fmtPx(e, { decimals: 2 }, 'EUR')} de ${nameOf(k)} a ${dmy(dia)} (${fmtQ(e / p)})`, () => setLots(k, { ...lotOf(k), [PP_MAPA[tipo]]: antes }));
                 break;
             }
             case 'reg-acerto': {
@@ -3269,6 +3302,7 @@
         applyFs();
         applyTheme();
         colors();
+        migraSbRu();
         render();
         // o aviso das cores que ficou de antes de a app se reabrir (a mudar a barra das horas)
         try { const a = sessionStorage.getItem('mk:aviso'); if (a) { sessionStorage.removeItem('mk:aviso'); setTimeout(() => toast(a), 400); } } catch { /* nada */ }
