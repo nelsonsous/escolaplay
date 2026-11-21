@@ -3259,3 +3259,14 @@ alinhadas em todas as linhas (cada linha é uma subgrelha da tabela). Em Onda (`
 do dono); interface: as linhas, os formatos, o investido total (a soma do que custou cada um) e a tabela a caber no
 cartão a 390 px.
 
+## Iteração (Mercados 4.38.1): o botão do dia e da noite à mão
+
+**Pedido.** «Não consigo clicar no botão para trocar dia e noite, está escondido acima.»
+
+**Porquê.** O botão ☀︎/☾ estava a 4 px do topo do Painel, dentro da zona das horas do iPhone (a faixa fixa tapava-o).
+No browser dos testes essa zona tem 0 px, por isso não se via.
+
+**Feito.** O botão começa logo abaixo da zona das horas (`top: calc(var(--safe-t) + 4px)`).
+
+**Verificado.** Interface, com a zona das horas a 54 px (como num iPhone): o botão começa abaixo dela (antes: a 4 px).
+

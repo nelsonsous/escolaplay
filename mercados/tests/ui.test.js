@@ -609,6 +609,9 @@ function proxyBody(u) {
     const tema = () => page.evaluate(() => [document.documentElement.dataset.theme, getComputedStyle(document.body).backgroundColor, document.querySelector('meta[name="theme-color"]').getAttribute('content')]);
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'à noite (o iPhone em escuro): escuro');
     // o botão do topo do Painel: ☀︎ passa a dia, ☾ volta a noite
+    // no iPhone a zona das horas (a faixa fixa do topo) tapa o que lá estiver: o botão fica logo abaixo dela
+    const btTopo = await page.evaluate(() => { window.scrollTo(0, 0); const h = document.documentElement; h.style.setProperty('--safe-t', '54px'); const r = document.querySelector('#mk-body > .pg-tema').getBoundingClientRect(); h.style.removeProperty('--safe-t'); return Math.round(r.top); });
+    assert.ok(btTopo >= 54, 'o botão do dia e da noite abaixo da zona das horas (no iPhone): começa em ' + btTopo + ' px');
     assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'light');
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o botão do Painel: dia');
