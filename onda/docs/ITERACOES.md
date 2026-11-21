@@ -3319,3 +3319,17 @@ do período (o ganho no total está no Total da tabela). Nos meus ativos, cada u
 **Verificado.** Painel: o «Tudo» entre os estados aleatórios, igual à referência (o gráfico, a legenda e sem a casa do
 período); interface: o cartão desde a 1.ª compra, 60 pontos na linha, os cinco botões a caber no ecrã.
 
+## Iteração (Mercados 4.40.0): o saveback e o round up no «Registar»
+
+**Pedido.** «Poder inserir o saveback, sempre no dia 2 de cada mês (basta inserir o valor), e o round up com a mesma
+periodicidade da TR, para ter os mesmos valores da carteira.» (Na TR: o saveback paga-se a 2; os round ups a 2, 9, 16 e 23.)
+
+**Feito.** No «Registar» da Carteira, «Saveback e round up»: escolhe-se Saveback (dia 2) ou Round up (dias 2, 9, 16 e 23)
+e escreve-se só o valor; a data vem feita — a mais recente depois do dia em que se copiou o que tens da TR (as de antes
+já estão nessa quantidade) — e pode escolher-se outra da lista. Entra como compra marcada (`sb`/`ru`) ao preço de fecho
+desse dia; na lista aparece «saveback» ou «round up», e o ✕ apaga. Fica no iPhone, como as outras compras (o conector não
+as recebe: nada a publicar nele).
+
+**Verificado.** Interface: as datas (o dia 2 e os dias 2, 9, 16 e 23, a mais recente primeiro, depois do que copiaste e
+até hoje), o valor, a marca, a lista e o aviso sem datas; bateria 107/107.
+

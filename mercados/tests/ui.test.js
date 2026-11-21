@@ -385,6 +385,41 @@ function proxyBody(u) {
     assert.match(await page.locator('#mk-toast').textContent(), /Acertado com a TR: \+0,001 de Bitcoin/);
     await page.click('.reg-i [data-act="reg-rm"][data-i="1"]');
     assert.equal((await btcL()).compras.length, 1, '✕ apaga o registo');
+    // 4.40: o saveback (dia 2) e o round up (dias 2, 9, 16 e 23): só o valor; a data vem feita — a mais recente depois do dia em
+    // que se copiou o que tens da TR (as de antes já lá estão) — e entra ao preço de fecho desse dia
+    await page.evaluate(() => { window.__mk.cfg.lots['VWCE.DE'].at = new Date(Date.now() - 40 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
+    await page.selectOption('.reg select[data-reg="k"]', 'VWCE.DE');
+    const opcoesSd = () => page.locator('.reg select[data-reg="sd"] option').evaluateAll((os) => os.map((o) => o.value));
+    const fL = () => page.evaluate(() => window.__mk.cfg.lots['VWCE.DE']);
+    const de40 = isoAtras(40), hoje0 = isoAtras(0), nC = ((await fL()).compras || []).length;
+    const sbDatas = await opcoesSd();
+    assert.ok(sbDatas.length >= 1 && sbDatas.every((x) => x.endsWith('-02') && x > de40 && x <= hoje0), 'saveback: o dia 2 de cada mês, depois do que copiaste: ' + sbDatas);
+    await page.fill('.reg [data-reg="se"]', '8,40');
+    await page.click('[data-act="reg-sbru"]');
+    let vL = await fL();
+    const sbC = vL.compras[vL.compras.length - 1];
+    assert.deepEqual([vL.compras.length, sbC.d, sbC.e, sbC.sb], [nC + 1, sbDatas[0], 8.4, 1], 'o saveback na data mais recente, marcado');
+    assert.ok(sbC.q > 0, 'as unidades pelo preço desse dia');
+    assert.match(await page.locator('#mk-toast').textContent(), /^Saveback juntado: 8,40\s€ de .+ a \d\d\/\d\d\/\d{4}/);
+    await page.waitForSelector('.reg-i:has-text("saveback")', { timeout: 3000 });
+    await page.click('[data-act="reg-tipo"][data-v="ru"]');
+    const ruDatas = await opcoesSd();
+    assert.ok(ruDatas.length >= 4 && ruDatas.every((x) => ['02', '09', '16', '23'].includes(x.slice(8)) && x > de40 && x <= hoje0), 'round up: os dias 2, 9, 16 e 23: ' + ruDatas);
+    assert.deepEqual([...ruDatas].sort().reverse(), ruDatas, 'a mais recente primeiro');
+    await page.selectOption('.reg select[data-reg="sd"]', ruDatas[1]);
+    await page.fill('.reg [data-reg="se"]', '2,24');
+    await page.click('[data-act="reg-sbru"]');
+    vL = await fL();
+    const ruC = vL.compras[vL.compras.length - 1];
+    assert.deepEqual([vL.compras.length, ruC.d, ruC.e, ruC.ru], [nC + 2, ruDatas[1], 2.24, 1], 'o round up na data escolhida, marcado');
+    await page.waitForSelector('.reg-i:has-text("round up")', { timeout: 3000 });
+    if (SHOTS) await page.locator('.reg').screenshot({ path: path.join(SHOTS, '8g-carteira-saveback.png') });
+    // copiado hoje: sem datas depois — um aviso, sem o botão
+    await page.evaluate(() => { window.__mk.cfg.lots['VWCE.DE'].at = new Date().toISOString().slice(0, 10); window.__mk.render(); });
+    await page.waitForSelector('.reg .note:has-text("Sem datas depois de")');
+    assert.equal(await page.locator('[data-act="reg-sbru"]').count(), 0);
+    await page.evaluate((n) => { const L = window.__mk.cfg.lots['VWCE.DE']; L.compras = (L.compras || []).slice(0, n); window.__mk.render(); }, nC);
+    console.log('✓ saveback (dia 2) e round up (2, 9, 16, 23): só o valor, a data feita, ao preço desse dia');
     // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
     await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
     await page.waitForSelector('.reg-i:has-text("plano (estimado)")');

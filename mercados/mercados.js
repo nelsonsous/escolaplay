@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.39.0';
+    const VERSION = '4.40.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1563,7 +1563,7 @@
         if (!temHoje(L) || !ISO_D.test(L.at || '')) return out;
         const pm = pmOf(k), n = Math.max(1, (cfg.saveDays || []).length);
         if (pm > 0) for (const x of A.planLots(isoMais(L.at, 1), cfg.saveDays, todayLocal())) { const p = pxEm(k, x.d); if (fin(p) && p > 0) out.push({ d: x.d, e: pm / n, q: pm / n / p, t: 0 }); }
-        (L.compras || []).forEach((c, i) => { if (fin(+c.q) && +c.q !== 0 && ISO_D.test(c.d || '')) out.push({ d: c.d, e: +c.e || 0, q: +c.q, t: c.cb ? 2 : 1, i }); });
+        (L.compras || []).forEach((c, i) => { if (fin(+c.q) && +c.q !== 0 && ISO_D.test(c.d || '')) out.push({ d: c.d, e: +c.e || 0, q: +c.q, t: c.cb ? 2 : c.sb ? 3 : c.ru ? 4 : 1, i }); });
         return out.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
     }
     // a posição de hoje: o que copiaste da TR mais o que veio depois
@@ -1637,6 +1637,21 @@
             reg: regSnap(),
         };
     }
+    // 4.40: as datas do saveback (dia 2 de cada mês) e do round up (dias 2, 9, 16 e 23, como as execuções da TR), depois do
+    // dia em que se copiou o que tens da TR (as de antes já lá estão) e até hoje: a mais recente primeiro
+    function datasSbru(k, tipo) {
+        const L = lotOf(k), de = ISO_D.test(L.at || '') ? L.at : '', hj = todayLocal(), dias = tipo === 'ru' ? [23, 16, 9, 2] : [2], out = [];
+        let [y, m] = hj.split('-').map(Number);
+        for (let n = 0; n < 24 && out.length < 10; n++) {
+            for (const d of dias) {
+                const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                if (iso <= hj && (!de || iso > de)) out.push(iso);
+            }
+            m--; if (!m) { m = 12; y--; }
+            if (de && `${y}-${String(m).padStart(2, '0')}-31` <= de) break;
+        }
+        return out.slice(0, 10);
+    }
     // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
     function regSnap() {
         st.reg = st.reg || {};
@@ -1646,7 +1661,9 @@
         st.reg.k = k;
         const lista = ks.flatMap((x) => extrasOf(x).map((e) => ({ ...e, k: x }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)).slice(0, 8)
             .map((e) => ({ k: e.k, name: nameOf(e.k), d: dmy(e.d), e: Math.round(e.e * 100) / 100, q: e.q, t: e.t, i: e.i ?? -1 }));
-        return { ks: ks.map((x) => ({ k: x, name: nameOf(x) })), k, e: st.reg.e || '', d: st.reg.d || todayLocal(), q: st.reg.q || '', hoje: todayLocal(), pm: pmOf(k), qApp: posOf(k).q, lista };
+        const tipo = st.reg.tipo === 'ru' ? 'ru' : 'sb', ds = datasSbru(k, tipo);
+        return { ks: ks.map((x) => ({ k: x, name: nameOf(x) })), k, e: st.reg.e || '', d: st.reg.d || todayLocal(), q: st.reg.q || '', hoje: todayLocal(), pm: pmOf(k), qApp: posOf(k).q, lista,
+            tipo, se: st.reg.se || '', sd: ds.includes(st.reg.sd) ? st.reg.sd : ds[0] || '', datas: ds.map((v) => ({ v, l: dmy(v) })), desde: lotOf(k).at ? dmy(lotOf(k).at) : '' };
     }
     function walletHtml() {
         if (aoOk && AO.ecra && AO.ecra.carteira) try { return AO.ecra.carteira(walletSnap()); } catch (e) { console.error('ecrã Onda:', e); }
@@ -2932,6 +2949,23 @@
                 st.reg.e = ''; st.reg.d = ''; { const i = $('.reg [data-reg="e"]'); if (i) i.value = ''; }
                 setLots(k, { ...L0, compras: antes.concat({ d: dia, e: Math.round(e * 100) / 100, q: e / p }) });
                 toast(`Compra juntada: ${fmtPx(e, { decimals: 2 }, 'EUR')} de ${nameOf(k)} (${fmtQ(e / p)})`, () => setLots(k, { ...lotOf(k), compras: antes }));
+                break;
+            }
+            // 4.40: o saveback e o round up — só o valor; a data vem feita (a mais recente depois do que copiaste da TR)
+            case 'reg-tipo': if (d.v === 'sb' || d.v === 'ru') { st.reg = st.reg || {}; st.reg.tipo = d.v; st.reg.sd = ''; render(); } break;
+            case 'reg-sbru': {
+                st.reg = st.reg || {};
+                const k = st.reg.k, L0 = lotOf(k), tipo = st.reg.tipo === 'ru' ? 'ru' : 'sb', e = numPt(st.reg.se || ''), ds = datasSbru(k, tipo);
+                const dia = ds.includes(st.reg.sd) ? st.reg.sd : ds[0], nome = tipo === 'ru' ? 'Round up' : 'Saveback';
+                if (!REG[k] || !temHoje(L0)) break;
+                if (!dia) { toast(`Sem datas depois de ${dmy(L0.at)}: o que copiaste da TR já as tem.`); break; }
+                if (!(e > 0)) { toast(`Escreve o valor do ${tipo === 'ru' ? 'round up' : 'saveback'}.`); break; }
+                const p = pxEm(k, dia);
+                if (!fin(p) || p <= 0) { toast('Ainda sem o preço desse dia: tenta daqui a pouco.'); break; }
+                const antes = L0.compras || [];
+                st.reg.se = ''; st.reg.sd = ''; { const i = $('.reg [data-reg="se"]'); if (i) i.value = ''; }
+                setLots(k, { ...L0, compras: antes.concat({ d: dia, e: Math.round(e * 100) / 100, q: e / p, [tipo]: 1 }) });
+                toast(`${nome} juntado: ${fmtPx(e, { decimals: 2 }, 'EUR')} de ${nameOf(k)} a ${dmy(dia)} (${fmtQ(e / p)})`, () => setLots(k, { ...lotOf(k), compras: antes }));
                 break;
             }
             case 'reg-acerto': {

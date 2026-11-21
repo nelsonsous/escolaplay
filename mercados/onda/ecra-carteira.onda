@@ -261,6 +261,21 @@
   `" placeholder="{ Se && fin pm > pm 0.0 _nu_ps pm }"></label>`
   `<label><small>Data</small><input class="inp" type="date" data-reg="d" max="{ esc g.hoje }" value="{ esc g.d }"></label></div>`
   `<button type="button" class="btn sm reg-bt" data-act="reg-compra">+ Juntar compra</button>`
+  # 4.40: o saveback (dia 2 de cada mês) e o round up (dias 2, 9, 16 e 23, como as execuções da TR): só o valor; a data vem
+  # feita (a mais recente depois do que copiaste da TR) e escolhe-se outra se faltar uma
+  = ti g.tipo
+  `<small class="real-gt">Saveback e round up</small><div class="seg reg-tp" role="group" aria-label="Saveback ou round up">`
+  `<button type="button" data-act="reg-tipo" data-v="sb" class="{ Se eh ti $"sb" "on" }">Saveback · dia 2</button>`
+  `<button type="button" data-act="reg-tipo" data-v="ru" class="{ Se eh ti $"ru" "on" }">Round up · 2, 9, 16, 23</button></div>`
+  = ds g.datas
+  ? > quantos ds 0 {
+    `<div class="real-g2"><label><small>€</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="se" value="{ esc g.se }"></label>`
+    `<label><small>Data</small><select class="inp" data-reg="sd">`
+    = c pri ds
+    W c { `<option value="{ esc c.v }"{ Se igual c.v g.sd " selected" }>{ esc c.l }</option>` = c seg c }
+    "</select></label></div>"
+    `<button type="button" class="btn sm reg-bt" data-act="reg-sbru">+ Juntar</button>` }
+    `<p class="note">Sem datas depois de { esc g.desde }: o que copiaste da TR já as tem.</p>`
   `<small class="real-gt">Acertar com a TR (arredondamentos e cashback)</small><div class="real-g2">`
   `<label><small>Quantidade na TR</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="q" value="{ esc g.q }`
   = qa num g.qApp
@@ -274,7 +289,7 @@
     W c {
       = tp I num c.t = q num c.q
       `<div class="reg-i"><span>{ esc c.d } · { esc c.name }<small>`
-      ? == tp 0 "plano (estimado)" ? == tp 1 "compra" "acerto com a TR"
+      ? == tp 0 "plano (estimado)" ? == tp 1 "compra" ? == tp 3 "saveback" ? == tp 4 "round up" "acerto com a TR"
       `</small></span><span class="num">{ cr_eursg num c.e }<small>{ Se > q 0.0 "+" }{ _nu_intlm q 6 }</small></span>`
       Se > tp 0 { `<button type="button" class="xbtn" data-act="reg-rm" data-k="{ esc c.k }" data-i="{ _nu_ps num c.i }` 0 `" aria-label="Apagar">✕</button>` }
       "</div>" = c seg c }

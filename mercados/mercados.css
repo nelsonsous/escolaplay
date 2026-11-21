@@ -902,3 +902,6 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .pg-tema:active { transform: scale(.94); }
 /* 4.38.1: o botão começa abaixo da zona das horas do iPhone (estava por baixo dela, onde não se lhe chega) */
 /* 4.38.2: e ao meio do título «Painel», como o botão ao lado do título grande na app Música */
+/* 4.40: o saveback e o round up no «Registar» */
+.reg .reg-tp { display: flex; margin: 2px 0 8px; }
+.reg .reg-tp button { flex: 1; font-size: calc(.8rem * var(--k)); }
