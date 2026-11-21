@@ -3344,3 +3344,19 @@ título da secção), que vale para as linhas de baixo (a variação e o gráfic
 **Verificado.** Painel: as duas barras, cada uma com o seu, e as linhas pelo período dos ativos nos 600 estados;
 interface: mudar a barra dos ativos não mexe no cartão.
 
+## Iteração (Mercados 4.42.0): a poupança periódica, ajustável com botões
+
+**Pedido.** «Considerar os arredondamentos e o saveback periódicos nas análises futuras e eu ajustar com botões, de forma
+ágil, o valor poupado. Se não disser nada, considera-se que poupei os 900 € no FTSE; se disser, ajustas e fica
+materializado na data. Por norma os 900 € entram ao fim da tarde de cada dia indicado.»
+
+**Feito.** No «Registar», «Poupança periódica»: o plano (o valor por mês, repartido pelos dias do plano), o round up
+(dias 2, 9, 16 e 23) e o saveback (dia 2) contam sozinhos em cada data, ao fim da tarde (18 h) e ao preço de fecho, com
+o valor habitual — o do plano; no round up e no saveback, o que escolheres com −/+ (sem escolha, a média dos últimos
+registados). As próximas e as últimas execuções aparecem com −/+/0: o que ajustares fica nessa data (`lots.pa`, `ra`,
+`sa`); um registado nesse dia ganha. O simulador (por omissão) e a análise do Claude (o orçamento e o valor por mês do
+ativo) contam com o round up e o saveback habituais. O cartão «Hoje» continua com o plano da TR.
+
+**Verificado.** Interface: o plano no dia 2 conta sozinho; −50 € e 0 nessa execução (e sai das contas); + no round up
+habitual faz entrar os estimados; bateria 107/107.
+

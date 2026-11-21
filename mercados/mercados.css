@@ -905,3 +905,13 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 /* 4.40: o saveback e o round up no «Registar» */
 .reg .reg-tp { display: flex; margin: 2px 0 8px; }
 .reg .reg-tp button { flex: 1; font-size: calc(.8rem * var(--k)); }
+/* 4.42: a poupança periódica no «Registar»: o habitual e as execuções, com −/+/0 */
+.reg .pp { display: grid; gap: 2px; margin: 2px 0 10px; }
+.reg .pp-h, .reg .pp-l { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: calc(.86rem * var(--k)); }
+.reg .pp-h span, .reg .pp-l > span:first-child { flex: 1; min-width: 0; }
+.reg .pp-h small, .reg .pp-l small { color: var(--muted); font-size: calc(.74rem * var(--k)); margin-left: 6px; }
+.reg .pp-l { border-top: 1px solid var(--line); }
+.reg .pp-l.pp-prox { color: var(--muted); }
+.reg .pp-bs { display: inline-flex; gap: 4px; }
+.reg .pp-b { min-width: 32px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card2); color: var(--text); font-weight: 650; }
+

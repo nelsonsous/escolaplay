@@ -420,6 +420,32 @@ function proxyBody(u) {
     assert.equal(await page.locator('[data-act="reg-sbru"]').count(), 0);
     await page.evaluate((n) => { const L = window.__mk.cfg.lots['VWCE.DE']; L.compras = (L.compras || []).slice(0, n); window.__mk.render(); }, nC);
     console.log('✓ saveback (dia 2) e round up (2, 9, 16, 23): só o valor, a data feita, ao preço desse dia');
+    // 4.42: a poupança periódica — o plano (900 € por mês, no dia 2) conta sozinho, ao fim da tarde; ajusta-se data a data com
+    // −/+/0; o round up habitual (−/+) entra nas datas dele, como estimado
+    const sd0 = await page.evaluate(() => window.__mk.cfg.saveDays);
+    await page.evaluate(() => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; L.at = new Date(Date.now() - 40 * 864e5).toISOString().slice(0, 10); L.pm = 900; c.saveDays = [2]; window.__mk.render(); });
+    await page.selectOption('.reg select[data-reg="k"]', 'VWCE.DE');
+    await page.waitForSelector('.reg .pp');
+    assert.match(await page.locator('.reg .pp-h').first().textContent(), /^Plano900\s€por mês · dia 2$/);
+    const plL = page.locator('.reg .pp-l:not(.pp-prox):has-text("plano")').first();
+    const dPl = await plL.locator('[data-act="pp-aj"][data-v="-"]').getAttribute('data-d');
+    assert.ok(dPl.endsWith('-02') && dPl > isoAtras(40) && dPl <= isoAtras(0), 'o plano no dia 2, depois do que copiaste: ' + dPl);
+    assert.match(await plL.textContent(), /plano\s*estimado\s*900,00\s€/);
+    const nPl0 = await page.locator('.reg-i:has-text("plano")').count();
+    await plL.locator('[data-v="-"]').click();
+    assert.equal((await fL()).pa[dPl], 850, '− tira 50 € a essa execução');
+    assert.match(await page.locator('#mk-toast').textContent(), /^Plano a \d\d\/\d\d\/\d{4}: 850,00\s€/);
+    await page.waitForSelector('.reg-i:has-text("plano (ajustado)")', { timeout: 3000 });
+    await page.locator(`.reg .pp-l [data-act="pp-aj"][data-tp="pl"][data-d="${dPl}"][data-v="0"]`).click();
+    assert.equal((await fL()).pa[dPl], 0, '0: nesse dia não houve plano');
+    await page.waitForFunction((n) => document.querySelectorAll('.reg-i').length >= 0 && [...document.querySelectorAll('.reg-i')].filter((e) => /plano/.test(e.textContent)).length === n - 1, nPl0, { timeout: 3000 });
+    // o round up habitual: + meio euro por semana, e entra nas datas dele (2, 9, 16 e 23) como estimado
+    await page.click('.reg .pp-h [data-act="pp-hab"][data-tp="ru"][data-v="+"]');
+    assert.equal((await fL()).ruS, 0.5, '+ meio euro por semana');
+    await page.waitForSelector('.reg-i:has-text("round up (estimado)")', { timeout: 3000 });
+    if (SHOTS) await page.locator('.reg').screenshot({ path: path.join(SHOTS, '8h-carteira-poupanca.png') });
+    await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; delete L.pm; delete L.pa; delete L.ruS; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
+    console.log('✓ poupança periódica: o plano conta sozinho ao fim da tarde, −/+/0 por execução, o round up habitual');
     // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
     await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
     await page.waitForSelector('.reg-i:has-text("plano (estimado)")');
