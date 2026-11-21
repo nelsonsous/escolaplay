@@ -510,10 +510,7 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-sv.down .pf-l { stroke: var(--down); } .pf .pf-sv.down .pf-a { fill: var(--down-bg); opacity: 1; }
 .d-ext small { display: block; color: var(--muted); font-size: calc(0.75rem * var(--k)); margin-top: 2px; }
 .d-ext .alt { color: var(--muted); }
-.fan { margin: 12px 0 4px; }
-.fan .fan-h { font-weight: 700; font-size: calc(.9rem * var(--k)); margin-bottom: 4px; }
-.fan .fan-cv { display: block; width: 100%; height: 130px; }
-.fan .d-rng { margin-top: 6px; }
+.d-rng { margin: 4px 0 12px; }
 .row .r-px { display: flex; flex-direction: column; align-items: flex-end; }
 /* sem barra fixa: o estado fica por baixo do título; atualizar = puxar para baixo */
 

@@ -675,13 +675,7 @@ function proxyBody(u) {
     if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9f-ficha-bitcoin.png') });
     assert.equal(await page.locator('#d-ext').textContent(), 'Derivados (Deribit)futuros a 69 dias +1,0% sobre o preço à vista (+5,1% ao ano) · funding −0,004% por 8 h (mais alavancados a apostar na descida)');
     assert.match(await page.locator('#d-rng').textContent(), /pela volatilidade das opções \(Deribit\): 52,6% ao ano$/);
-    // o «Para onde pode ir», por baixo do gráfico: o último mês e o leque das próximas 4 semanas, com o centro pelos futuros
-    assert.match(await page.locator('#d-rng').textContent(), /a zona escura apanha 2 em cada 3 vezes, a clara 19 em 20; o centro segue os futuros \(\+5,1% ao ano\) · pela/);
-    const leque = async () => page.locator('#d-fan-cv').evaluate((c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
-    await page.locator('#d-fan').scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => { const c = document.querySelector('#d-fan-cv'); return c && c.width > 0; });
-    assert.ok(!(await page.locator('#d-fan').isHidden()) && (await leque()) > 2000, 'o leque desenhado');
-    if (SHOTS) await page.locator('#d-fan').screenshot({ path: path.join(SHOTS, '9h-leque-bitcoin.png') });
+    assert.equal(await page.locator('#d-fan').count(), 0, 'sem o gráfico do «Para onde pode ir» (só os números)');
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     // o FTSE All-World com a bolsa fechada: o VT caiu 1,5% em Nova Iorque depois do preço da noite e, depois dele, os futuros
@@ -699,9 +693,6 @@ function proxyBody(u) {
     await page.waitForTimeout(300);
     if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9g-ficha-ftse.png') });
     assert.match(await page.locator('#d-ext').textContent(), /^Abertura estimada: −\d,\d% \(±\d,\d%\)VT \(o mesmo índice, em Nova Iorque\): −1,5% desde o último preço daqui, até às \d\d:\d\d \(em euros\) · depois, futuros do S&P 500 −0,5% × 0,\d\d · margem pela história do ativo; aprende com cada abertura$/);
-    assert.match(await page.locator('#d-rng').textContent(), /; começa na abertura estimada \(−\d,\d%\) · pela volatilidade das opções: o VIX/, 'o leque parte da abertura estimada');
-    await page.locator('#d-fan').scrollIntoViewIfNeeded();
-    if (SHOTS) { await page.waitForTimeout(200); await page.locator('#d-fan').screenshot({ path: path.join(SHOTS, '9i-leque-ftse.png') }); }
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     MOCK.fechado = false;
