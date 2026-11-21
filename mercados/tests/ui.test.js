@@ -585,13 +585,24 @@ function proxyBody(u) {
     // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com
     // as moedas debaixo dela e o total — o investido total é a soma do que custou cada um
     assert.deepEqual(await page.locator('.pf .pf-gs .pf-gh').evaluate((h) => [...h.children].map((c) => c.textContent)), ['', 'Investido', 'Vale', 'Ganho']);
-    const grs = await page.locator('.pf .pf-gs .pf-gr').evaluateAll((rs) => rs.map((r) => [r.className, ...[...r.children].map((c) => c.textContent)]));
-    assert.deepEqual(grs.map((r) => [r[0], r[1]]), [['pf-gr', 'FTSE All-World'], ['pf-gr pf-gg', 'Cripto'], ['pf-gr pf-ga', 'BTC'], ['pf-gr pf-ga', 'SOL'], ['pf-gr pf-gt', 'Total']]);
+    // 4.38.2: a cripto fechada numa linha (a soma); tocar abre as moedas — e fica aberta com os preços ao vivo —; outra vez, fecha
+    const linhasPf = () => page.locator('.pf .pf-gs .pf-gr').evaluateAll((rs) => rs.map((r) => [r.className, ...[...r.children].map((c) => c.textContent)]));
+    assert.deepEqual((await linhasPf()).map((r) => [r[0], r[1]]), [['pf-gr', 'FTSE All-World'], ['pf-gr pf-gg', 'Cripto'], ['pf-gr pf-gt', 'Total']], 'a cripto fechada: uma linha');
+    await page.click('.pf .pf-gg');
+    const grs = await linhasPf();
+    assert.deepEqual(grs.map((r) => [r[0], r[1]]), [['pf-gr', 'FTSE All-World'], ['pf-gr pf-gg on', 'Cripto'], ['pf-gr pf-ga', 'BTC'], ['pf-gr pf-ga', 'SOL'], ['pf-gr pf-gt', 'Total']], 'tocar abre as moedas');
+    assert.equal(await page.evaluate(() => document.querySelector('#mk-nav [data-tab="painel"]').classList.contains('on')), true, 'tocar na tabela não sai do Painel');
+    await page.evaluate(() => { document.querySelector('#mk-body > section.pf').dataset.antes = '1'; });
+    await page.waitForFunction(() => { const s = document.querySelector('#mk-body > section.pf'); return s && !s.dataset.antes; }, null, { timeout: 8000 });
+    assert.equal(await page.locator('.pf .pf-gg.on').count(), 1, 'e fica aberta quando o cartão se redesenha ao vivo');
+    if (SHOTS) await page.locator('#mk-body > section.pf').screenshot({ path: path.join(SHOTS, '1d-carteira-aberta.png') });
     for (const r of grs) { assert.match(r[2], /^\d[\d\s ]*\s€$/, r.join(' | ')); assert.match(r[3], /^\d[\d\s ]*\s€$/); assert.match(r[4], /^[+−][\d\s ]+\s€ \([+−]?\d+,\d%\)$/); }
     const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
     assert.equal(grs[grs.length - 1][2], inv, 'o investido total');
-    assert.ok(await page.locator('.pf .pf-gs').evaluate((g) => g.scrollWidth <= g.clientWidth + 1 && g.getBoundingClientRect().right <= g.closest('.pf-b').getBoundingClientRect().right), 'a tabela cabe no cartão (390 px)');
-    console.log('✓ a tabela da carteira: investido, vale e ganho de cada um; investido total', inv);
+    assert.ok(await page.locator('.pf .pf-gs').evaluate((g) => g.scrollWidth <= g.clientWidth + 1 && g.getBoundingClientRect().right <= g.closest('.pf-cx').getBoundingClientRect().right), 'a tabela cabe no cartão (390 px)');
+    await page.click('.pf .pf-gg');
+    assert.deepEqual((await linhasPf()).map((r) => r[1]), ['FTSE All-World', 'Cripto', 'Total'], 'outra vez, fecha');
+    console.log('✓ a tabela da carteira: investido, vale e ganho de cada um; investido total', inv, '| a cripto abre e fecha (e fica como a deixei, ao vivo)');
     assert.equal(await page.locator('.pf .pf-ix').count(), 0, 'os índices ficam no Hoje e nas linhas fechadas');
     // ao abrir outra vez, a análise dos meus ativos aparece logo: o ano de fechos diários deles fica guardado no instantâneo
     const snapD = await page.evaluate(() => { const d = (JSON.parse(localStorage.getItem('mercados:snap') || '{}').D) || {}; return ['VWCE.DE', 'c:BTC', '^GSPC'].map((k) => (d[k] || []).length); });

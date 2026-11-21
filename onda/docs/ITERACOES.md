@@ -3270,3 +3270,17 @@ No browser dos testes essa zona tem 0 px, por isso não se via.
 
 **Verificado.** Interface, com a zona das horas a 54 px (como num iPhone): o botão começa abaixo dela (antes: a 4 px).
 
+## Iteração (Mercados 4.38.2): a cripto numa linha, que abre e fecha
+
+**Pedido.** «As cripto estão a ocupar muito: podes fechar e ter o total, e se abrir vejo o detalhe; fechado é só uma
+linha.»
+
+**Feito.** Na tabela da carteira, a linha da soma da cripto (e a dos fundos, quando há mais de um com cripto) abre e
+fecha as moedas: fechada por omissão, fica como o dono a deixou (st.fold, também quando o cartão se redesenha ao vivo de
+2 em 2 s). Para se poder tocar nela, o cartão passa a ser uma caixa com o botão (o total, o de hoje e o gráfico: abre a
+Carteira) e, fora dele, a tabela. Em Onda (`pn_gtab`: `es.foldPfc`, `es.foldPff`); no JS, `pfAgora` e a ação `pf-g`.
+
+**Verificado.** Painel: em cada um dos 600 estados com somas, a tabela fechada e aberta (o Painel e o cartão sozinho)
+igual à referência; interface: fechada numa linha, tocar abre (sem sair do Painel), fica aberta com o cartão redesenhado
+ao vivo, e tocar outra vez fecha.
+

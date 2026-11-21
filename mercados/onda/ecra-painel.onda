@@ -517,13 +517,18 @@
   ? > e 0.0 `<span class="num { ln_tom - v e }-t">{ pn_eurs0 - v e } ({ fm_pct1 * - / v e 1.0 100.0 })</span>` `<span class="num"></span>`
   0 }
 # as linhas de um grupo da tabela (g: 0 os fundos e as ações, 1 a cripto; n os ativos dele, v e e as somas; so: quantos
-# tem o outro grupo). Com mais de um ativo e com o outro grupo, primeiro a linha da soma, com os ativos debaixo dela
+# tem o outro grupo). Com mais de um ativo e com o outro grupo, a linha da soma, que abre e fecha os ativos dele: fechada
+# por omissão, fica como o utilizador a deixou (es.foldPfc, es.foldPff)
 : pn_gtab iiiiffi>i tb na g n v e so {
   = sub && > n 1 > so 0
-  Se sub { `<span class="pf-gr pf-gg"><b>` ? g "Cripto" "Fundos e ações" "</b>" pn_gx v e "</span>" }
-  L j na {
-    = q cr_p tb j = c @ q
-    Se == g ? ha c.cr 1 0 { `<span class="pf-gr` Se sub " pf-ga" `"><b>{ esc c.nm 0 }</b>` pn_gx * @f + q 3 @f + q 4 @f + q 5 "</span>" } }
+  = ab ? g ha es.foldPfc ha es.foldPff
+  Se sub {
+    `<span class="pf-gr pf-gg` Se ab " on" `" data-act="pf-g" data-g="{ ? g "cripto" "fundos" }" role="button" aria-expanded="{ ? ab "true" "false" }"><b>`
+    ? g "Cripto" "Fundos e ações" `<i class="pf-sx"></i></b>` pn_gx v e "</span>" }
+  Se || ~ sub ab {
+    L j na {
+      = q cr_p tb j = c @ q
+      Se == g ? ha c.cr 1 0 { `<span class="pf-gr` Se sub " pf-ga" `"><b>{ esc c.nm 0 }</b>` pn_gx * @f + q 3 @f + q 4 @f + q 5 "</span>" } } }
   0 }
 # uma casa da tabela de cima (k: 0 no total, 1 hoje, 2 o período escolhido): o nome, o valor em € (se houver) e a %
 : pn_casa iffi>i k x p temx {
@@ -572,7 +577,7 @@
       `\n        <section class="sec pf"><div class="sec-h pf-h"><h2>A minha carteira</h2><span class="pf-v num">{ pn_eurf vv }</span></div>`
       # o filtro do período, aqui em cima: vale para a carteira e para os meus ativos
       `<div class="pf-pe">{ pn_periodo }</div>`
-      `<button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-st">`
+      `<div class="pf-cx"><button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-st">`
       Se > ee 0.0 pn_casa 0 - vv ee * - / vv ee 1.0 100.0 1
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
       pn_casa 1 dd dp 1
@@ -585,14 +590,14 @@
       L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + ws k lo hi 1 }
       `"/><path class="pf-l" d="M`
       L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + vs k lo hi 1 }
-      `"/></svg><span class="pf-cap"><span>{ pn_desde es.per }</span><span class="pf-inv">investido</span><span>agora</span></span>`
-      # a tabela da carteira: o investido, o valor e o ganho de cada ativo — os fundos e as ações, depois a cripto (um grupo
-      # com mais de um ativo, e com o outro grupo, leva a linha da soma) — e o total, com mais de um ativo
-      `<span class="pf-gs"><span class="pf-gh"><b></b><span>Investido</span><span>Vale</span><span>Ganho</span></span>`
+      `"/></svg><span class="pf-cap"><span>{ pn_desde es.per }</span><span class="pf-inv">investido</span><span>agora</span></span></button>`
+      # a tabela da carteira, fora do botão: o investido, o valor e o ganho de cada ativo — os fundos e as ações, depois a
+      # cripto (um grupo com mais de um ativo, e com o outro grupo, leva a linha da soma, que o abre e fecha) — e o total
+      `<div class="pf-gs"><span class="pf-gh"><b></b><span>Investido</span><span>Vale</span><span>Ganho</span></span>`
       pn_gtab tb na 0 nn vo eo nc
       pn_gtab tb na 1 nc vc ec nn
       Se > na 1 { `<span class="pf-gr pf-gt"><b>Total</b>` pn_gx vv ee "</span>" }
-      "</span></button></section>"
+      "</div></div></section>"
       = r 1 } }
   r }
 
