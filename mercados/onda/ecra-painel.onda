@@ -89,16 +89,22 @@
   "</div>" }
 # o período da variação ((cfg.per || '1d') === v: a escolha a branco)
 : pn_per ii>i p v `<button type="button" data-per="{ crut v }" class="{ Se ? ha p eh p v mesmo v $"1d" "on" }">`
+# 4.41: a barra dos meus ativos (data-pera, es.perA), à parte da do cartão da carteira
+: pn_perA ii>i p v `<button type="button" data-pera="{ crut v }" class="{ Se ? ha p eh p v mesmo v $"1d" "on" }">`
+: pn_periodoA >i {
+  = p es.perA
+  `<div class="right seg per" role="group" aria-label="Período dos meus ativos">`
+  `{ pn_perA p $"1d" }1D</button>{ pn_perA p $"1w" }1S</button>{ pn_perA p $"1m" }1M</button>{ pn_perA p $"1y" }1A</button>{ pn_perA p $"all" }Tudo</button>`
+  "</div>" }
 : pn_periodo >i {
   = p es.per
   `<div class="right seg per" role="group" aria-label="Período da variação">`
   `{ pn_per p $"1d" }1D</button>{ pn_per p $"1w" }1S</button>{ pn_per p $"1m" }1M</button>{ pn_per p $"1y" }1A</button>{ pn_per p $"all" }Tudo</button>`
   "</div>" }
-# os meus ativos (o holdingKeys(), pela ordem dos Ajustes)
-: pn_meus i>i cm {
+# os meus ativos (o holdingKeys(), pela ordem dos Ajustes), com a sua barra do período (4.41)
+: pn_meus >i {
   = l es.mine = w A + quantos l 1 = m pn_junta l 0 w
-  # o filtro do período fica no cartão da carteira quando ele está lá
-  `\n        <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2>{ Se ~ cm pn_periodo }</div>`
+  `\n        <section class="sec"><div class="sec-h"><h2>Os meus ativos</h2>{ pn_periodoA }</div>`
   ? m pn_lista w m 2 $"hold" `<div class="empty">Escolhe em Ajustes → O que tenho.</div>`
   `{ pn_pe $"go-hold" 0 0 }</section>` }
 # a cripto que não tenho (e não retirei); com alguma retirada, a secção fica (com o Repor)
@@ -607,8 +613,8 @@
 # ===== a vista =====
 : ecra_painel i>i s {
   ! 53 s
-  = cm pn_carteira
-  pn_meus cm pn_hoje pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
+  pn_carteira
+  pn_meus pn_hoje pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
   0 }
 # só o cartão da carteira (o JS redesenha-o com os preços ao vivo, sem redesenhar o Painel todo): { pf, per }
 : ecra_pf i>i s {

@@ -3333,3 +3333,14 @@ as recebe: nada a publicar nele).
 **Verificado.** Interface: as datas (o dia 2 e os dias 2, 9, 16 e 23, a mais recente primeiro, depois do que copiaste e
 até hoje), o valor, a marca, a lista e o aviso sem datas; bateria 107/107.
 
+## Iteração (Mercados 4.41.0): uma barra do período para os meus ativos
+
+**Pedido.** «Tirando a carteira, posso querer ver outros períodos: faz sentido outra barra?»
+
+**Feito.** Duas barras: a do cartão da carteira (`cfg.per`, `data-per`) e a dos meus ativos (`cfg.perA`, `data-pera`, no
+título da secção), que vale para as linhas de baixo (a variação e o gráfico pequeno). Assim a carteira pode estar em
+«Tudo» e os ativos em 1D. No JS, o `perData(k, per)` recebe o período de quem pede; a ficha abre no período dos ativos.
+
+**Verificado.** Painel: as duas barras, cada uma com o seu, e as linhas pelo período dos ativos nos 600 estados;
+interface: mudar a barra dos ativos não mexe no cartão.
+
