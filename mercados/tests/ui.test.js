@@ -163,7 +163,7 @@ function proxyBody(u) {
     }).listen(0);
     const url = `http://127.0.0.1:${server.address().port}/escolaplay/mercados/`;
     const browser = await chromium.launch();
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1, isMobile: true, hasTouch: true, locale: 'pt-PT', timezoneId: 'Europe/Lisbon' });
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: SHOTS ? 2 : 1, isMobile: true, hasTouch: true, locale: 'pt-PT', timezoneId: 'Europe/Lisbon', colorScheme: 'dark' });
     // com capturas: ao lado de cada imagem do ecrã fica o texto que lá está (um .txt), para se ler o ecrã sem a imagem
     if (SHOTS) ctx.on('page', (p) => { const tira = p.screenshot.bind(p); p.screenshot = async (o) => { if (o && o.path) fs.writeFileSync(o.path.replace(/\.png$/, '.txt'), await p.evaluate(() => document.body.innerText)); return tira(o); }; });
     const errors = [];
@@ -541,11 +541,35 @@ function proxyBody(u) {
     await page.waitForFunction(([t0, f]) => { const t = document.querySelector('.pf .pf-v').textContent; return t === new Function('return (' + f + ')()')().txt && t !== t0; }, [pfS.txt, pfVal.toString()], { timeout: 8000 }).catch(() => {});
     const vivo = await page.evaluate((f) => [document.querySelector('.pf .pf-v').textContent, new Function('return (' + f + ')()')().txt], pfVal.toString());
     assert.ok(vivo[0] !== pfS.txt || vivo[1] === pfS.txt, 'o cartão acompanha os preços ao vivo: ' + JSON.stringify([pfS.txt, vivo]));
-    assert.match(await page.locator('.pf .pf-g').textContent(), /^[+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\) desde que compraste · hoje [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\)$/);
+    assert.match(await page.locator('.pf .pf-g').textContent(), /^[+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\) no total · hoje [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\)$/);
+    assert.match(await page.locator('.pf .pf-as').textContent(), /^FTSE All-World \d+% [+−]?\d+,\d% · BTC \d+% [+−]?\d+,\d% · SOL \d+% [+−]?\d+,\d%$/, 'cada ativo: o peso e o dia');
+    assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#mk-body > section, #mk-body > details')].slice(0, 3).map((e) => (e.tagName === 'SECTION' ? e.querySelector('h2').textContent : e.dataset.fold))), ['A minha carteira', 'hoje', 'Os meus ativos'], 'a carteira, o Hoje (o sentimento e o resumo) e os meus ativos');
     const pfLinha = await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d');
     assert.equal(pfLinha.split('L').length, 60, 'a linha do valor: 60 pontos');
     console.log('✓ a carteira no Painel:', pfS.txt, '| ganho', pfS.g.toFixed(2), '(as contas da Carteira)');
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel.png') });
+    // o dia e a noite: em Ajustes → Cores; em automático segue o iPhone (aqui, o modo do browser)
+    const tema = () => page.evaluate(() => [document.documentElement.dataset.theme, getComputedStyle(document.body).backgroundColor, document.querySelector('meta[name="theme-color"]').getAttribute('content')]);
+    assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'à noite (o iPhone em escuro): escuro');
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    assert.equal(await page.locator('[data-thm="auto"].on').count(), 1, 'por omissão, automático');
+    await page.click('[data-thm="light"]');
+    assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'Dia: claro');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.theme), 'light');
+    await page.click('#mk-nav [data-tab="painel"]');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForSelector('.pf svg.pf-sv');
+    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel-dia.png') });
+    await page.click('#mk-nav [data-tab="ajustes"]');
+    await page.click('[data-thm="auto"]');
+    assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'automático com o iPhone em escuro');
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o iPhone passa a claro: a app acompanha');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    await page.click('#mk-nav [data-tab="painel"]');
+    console.log('✓ o dia e a noite: Automático (como o iPhone), Dia e Noite');
     await page.evaluate((o) => { window.__mk.cfg.lots = o; window.__mk.render(); }, lots0);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1b-painel-completo.png'), fullPage: true });
 

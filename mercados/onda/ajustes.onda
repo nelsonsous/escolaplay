@@ -156,7 +156,12 @@
   `<button type="button" data-fs="n" class="{ Se aj_ou fs $"n" $"n" "on" }"><b>Normal</b></button>`
   `<button type="button" data-fs="l" class="{ Se aj_ou fs $"n" $"l" "on" }"><b>Grande</b></button>`
   `<button type="button" data-fs="xl" class="{ Se aj_ou fs $"n" $"xl" "on" }"><b>Muito grande</b></button>`
-  `</div>\n                    <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>\n                <div class="sw"><span>Ações e fundos em euros<br><small class="hint">como na Trade Republic</small></span><div class="seg"><button type="button" data-eur="1" class="`
+  `</div>\n                    <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>\n                <div><label>Cores</label><div class="seg prof">`
+  = th es.theme
+  `<button type="button" data-thm="auto" class="{ Se aj_ou th $"auto" $"auto" "on" }"><b>Automático</b></button>`
+  `<button type="button" data-thm="light" class="{ Se aj_ou th $"auto" $"light" "on" }"><b>Dia</b></button>`
+  `<button type="button" data-thm="dark" class="{ Se aj_ou th $"auto" $"dark" "on" }"><b>Noite</b></button>`
+  `</div>\n                    <div class="hint">Automático: claro de dia e escuro à noite, como o iPhone (Definições → Ecrã e brilho → Automático).</div></div>\n                <div class="sw"><span>Ações e fundos em euros<br><small class="hint">como na Trade Republic</small></span><div class="seg"><button type="button" data-eur="1" class="`
   = eu ha es.eur
   Se eu "on"
   `">EUR</button><button type="button" data-eur="0" class="`

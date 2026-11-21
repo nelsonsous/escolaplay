@@ -339,7 +339,7 @@ function verificar({ de, ate, seed }) {
             const cripto = CRIPTO.map((x) => x[0]), crypt = cripto.filter((k) => REG[k] && !mine.includes(k) && !hid(k)), nhc = cripto.filter(hid).length;
             const fundos = funds.filter((k) => REG[k] && !mine.includes(k));
             const pf = snap.pf;
-            const querBlocos = [(() => { if (!(pf && typeof pf === 'object' && !Array.isArray(pf) && Array.isArray(pf.ativos))) return null; return pf.ativos.some((a) => (((a.b || []).length > 0 && (a.h || []).length > 0) || (Number.isFinite(a.q) && a.q > 0 && Number.isFinite(a.cost) && a.cost > 0)) && Number.isFinite(a.px) && a.px > 0) ? 'A minha carteira' : null; })(), 'Os meus ativos', inv.length || cv ? 'hoje' : null, crypt.length || nhc ? 'Cripto' : null, fundos.length || !funds.length ? 'Fundos e ETF' : null, 'Ações que sigo', 'pn-idx', 'pn-en', c.proxy ? 'pn-fuel' : null].filter(Boolean);
+            const querBlocos = [(() => { if (!(pf && typeof pf === 'object' && !Array.isArray(pf) && Array.isArray(pf.ativos))) return null; return pf.ativos.some((a) => (((a.b || []).length > 0 && (a.h || []).length > 0) || (Number.isFinite(a.q) && a.q > 0 && Number.isFinite(a.cost) && a.cost > 0)) && Number.isFinite(a.px) && a.px > 0) ? 'A minha carteira' : null; })(), inv.length || cv ? 'hoje' : null, 'Os meus ativos', crypt.length || nhc ? 'Cripto' : null, fundos.length || !funds.length ? 'Fundos e ETF' : null, 'Ações que sigo', 'pn-idx', 'pn-en', c.proxy ? 'pn-fuel' : null].filter(Boolean);
             if (JSON.stringify(blocos) !== JSON.stringify(querBlocos)) erro(`os blocos ${JSON.stringify(blocos)} em vez de ${JSON.stringify(querBlocos)}`);
             const sec = (t) => filhos.find((e) => e.tagName === 'SECTION' && e.querySelector('h2').textContent === t);
             const dob = (f) => filhos.find((e) => e.tagName === 'DETAILS' && e.dataset.fold === f);
@@ -372,15 +372,18 @@ function verificar({ de, ate, seed }) {
                     vs.push(v);
                 }
                 const pc = vs[0] > 0 ? (vs[59] / vs[0] - 1) * 100 : 0, dp = vv - dd > 0 ? (dd / (vv - dd)) * 100 : 0, mostra = !!c.per && c.per !== '1d';
-                const v = s && s.querySelector('.pf-b .pf-v'), gg = s && s.querySelector('.pf-b .pf-g'), b = s && s.querySelector('.pf-b'), per = s && s.querySelector('.sec-h .pf-per');
+                const v = s && s.querySelector('.sec-h .pf-v'), gg = s && s.querySelector('.pf-b .pf-g'), b = s && s.querySelector('.pf-b'), as = s && s.querySelector('.pf-b .pf-as');
                 if (!v || v.textContent !== eur(vv)) erro(`a carteira: o valor ${v && v.textContent} em vez de ${eur(vv)}`);
                 const lbl = { '1w': '1 semana', '1m': '1 mês', '1y': '1 ano' }[c.per] || 'hoje';
                 if (mostra) T.carteiraPeriodo++;
-                if ((per ? per.textContent : null) !== (mostra ? `${lbl} ${mk.fmtPct(pc)}` : null) || (per && per.querySelector('b').className !== toneOf(pc) + '-t')) erro(`a carteira: o período ${per && per.outerHTML} em vez de ${lbl} ${mk.fmtPct(pc)}`);
-                const gq = (ee > 0 ? `${sgf(vv - ee)} (${mk.fmtPct((vv / ee - 1) * 100)}) desde que compraste · ` : '') + `hoje ${sgf(dd)} (${mk.fmtPct(dp)})`;
+                const gq = (ee > 0 ? `${sgf(vv - ee)} (${mk.fmtPct((vv / ee - 1) * 100)}) no total · ` : '') + `hoje ${sgf(dd)} (${mk.fmtPct(dp)})` + (mostra ? ` · ${lbl} ${mk.fmtPct(pc)}` : '');
                 if (!gg || gg.textContent !== gq) erro(`a carteira: ${gg && gg.textContent} em vez de ${gq}`);
                 const tons = gg ? [...gg.querySelectorAll(':scope > span')].map((x) => x.className) : [];
-                if (JSON.stringify(tons) !== JSON.stringify((ee > 0 ? [toneOf(vv - ee) + '-t'] : []).concat(toneOf(dd) + '-t'))) erro(`a carteira: as cores ${JSON.stringify(tons)}`);
+                if (JSON.stringify(tons) !== JSON.stringify((ee > 0 ? [toneOf(vv - ee) + '-t'] : []).concat(toneOf(dd) + '-t', mostra ? [toneOf(pc) + '-t'] : []))) erro(`a carteira: as cores ${JSON.stringify(tons)}`);
+                // cada ativo: o nome curto, o peso na carteira e a variação de hoje (com uma casa)
+                const aq = tbPf.map(({ a, u }) => { const sh = vv > 0 ? ((a.px * u) / vv) * 100 : 0, ch = a.ch === null ? 0 : typeof a.ch === 'number' ? a.ch : NaN;
+                    return `${txt(a.nm)} ${mk.fmtPx(sh, { decimals: 0 })}%` + (Number.isFinite(ch) ? ` ${mk.fmtPct1(ch)}` : ''); }).join(' · ');
+                if (!as || as.textContent !== aq) erro(`a carteira: os ativos ${as && as.textContent} em vez de ${aq}`);
                 const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l');
                 if (!b || b.dataset.tab !== 'carteira' || !sv || sv.getAttribute('class') !== 'pf-sv ' + toneOf(pc) || !pl || pl.getAttribute('d').split('L').length !== 60) erro(`a carteira: o toque ou a linha ${sv && sv.outerHTML.slice(0, 120)}`);
             } else if (sec('A minha carteira')) erro('a carteira sem nada para mostrar');
