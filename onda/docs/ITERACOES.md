@@ -3284,3 +3284,16 @@ Carteira) e, fora dele, a tabela. Em Onda (`pn_gtab`: `es.foldPfc`, `es.foldPff`
 igual à referência; interface: fechada numa linha, tocar abre (sem sair do Painel), fica aberta com o cartão redesenhado
 ao vivo, e tocar outra vez fecha.
 
+## Iteração (Mercados 4.38.3): o botão das cores, com o automático
+
+**Pedido.** «O ícone do sol mal se vê, e onde está o modo automático?»
+
+**Feito.** O botão do topo do Painel passa a mostrar o modo das cores — ◐ automático (como o iPhone), ☀ dia, ☾ noite —,
+desenhado (nítido, na cor do texto, num círculo um pouco mais claro que o fundo) em vez do símbolo ☀︎ do tipo de letra,
+que no iPhone saía fino e cinzento. Tocar passa ao seguinte (automático → dia → noite → automático) e um aviso diz qual
+ficou; se a app se reabrir para mudar a barra das horas, o aviso aparece depois de abrir. O botão fica alinhado com o
+cartão da carteira (estava encostado à borda do ecrã). O automático continua também em Ajustes → Cores.
+
+**Verificado.** Interface: o ciclo dos três modos com o aviso de cada um, a lua a branco à noite, o botão alinhado com
+o cartão; nas imagens, o ícone com quase o dobro dos píxeis claros.
+

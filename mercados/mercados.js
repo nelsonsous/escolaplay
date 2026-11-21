@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.38.2';
+    const VERSION = '4.38.3';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1385,6 +1385,13 @@
         requestAnimationFrame(() => { renderPending = false; render(); });
     }
 
+    // os três modos das cores: o nome (no aviso) e o ícone do botão do Painel (desenhado: nítido, na cor do texto)
+    const TEMA_NOME = { auto: 'automático (como o iPhone)', light: 'dia', dark: 'noite' };
+    const TEMA_ICO = {
+        auto: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path class="ch" d="M12 4a8 8 0 0 0 0 16z"/></svg>',
+        light: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>',
+        dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
+    };
     function render() {
         $$('#mk-nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === cfg.tab));
         const body = $('#mk-body');
@@ -1395,8 +1402,9 @@
         if (st.pulling) return;
         const html = cfg.tab === 'destaques' ? highlightsHtml() : cfg.tab === 'analise' ? analysisHtml() : cfg.tab === 'carteira' ? walletHtml() : cfg.tab === 'ajustes' ? settingsHtml() : panelHtml();
         const title = { destaques: 'Destaques', analise: 'Análise', carteira: 'Carteira', ajustes: 'Ajustes' }[cfg.tab] || 'Painel';
-        const dia = document.documentElement.dataset.theme === 'light';
-        const tema = cfg.tab === 'painel' ? `<button type="button" class="pg-tema" data-thm="${dia ? 'dark' : 'light'}" aria-label="${dia ? 'Modo noite (escuro)' : 'Modo dia (claro)'}">${dia ? '☾' : '☀︎'}</button>` : '';
+        // 4.38.3: o botão do topo do Painel mostra o modo das cores (◐ automático, ☀ dia, ☾ noite); tocar passa ao seguinte
+        const modo = cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : 'auto', seg = { auto: 'light', light: 'dark', dark: 'auto' }[modo];
+        const tema = cfg.tab === 'painel' ? `<button type="button" class="pg-tema" data-thm="${seg}" data-modo="${modo}" aria-label="Cores: ${TEMA_NOME[modo]}. Tocar passa a ${TEMA_NOME[seg]}">${TEMA_ICO[modo]}</button>` : '';
         body.innerHTML = `<h1 class="pg-t">${title}</h1>${tema}<div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
         renderStatus();
         drawSparks();
@@ -2808,7 +2816,15 @@
         if (d.hide) { hideAsset(d.hide, d.grp); return; }
         if (d.unhide) { const set = { crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), index: INDICES.map((i) => i.sym) }[d.unhide] || []; cfg.hidden = cfg.hidden.filter((k) => !set.includes(k)); saveCfg(); render(); toast('Lista reposta'); return; }
         if (d.fs) { cfg.fs = d.fs; applyFs(); saveCfg(); render(); return; }
-        if (d.thm) { cfg.theme = d.thm; applyTheme(); saveCfg(); render(); return; }
+        if (d.thm) {
+            // 4.38.3: o aviso do modo escolhido; se a app se reabrir para mudar a barra das horas, aparece depois de abrir
+            const aviso = 'Cores: ' + TEMA_NOME[d.thm in TEMA_NOME ? d.thm : 'auto'];
+            cfg.theme = d.thm;
+            try { sessionStorage.setItem('mk:aviso', aviso); } catch { /* sem onde guardar: fica o aviso de agora */ }
+            const reabre = applyTheme(); saveCfg(); render();
+            if (!reabre) { try { sessionStorage.removeItem('mk:aviso'); } catch { /* idem */ } toast(aviso); }
+            return;
+        }
         if (d.hold) { cfg.holdings = cfg.holdings.includes(d.hold) ? cfg.holdings.filter((x) => x !== d.hold) : cfg.holdings.concat(d.hold); saveCfg(); render(); return; }
         if (d.sday) {
             const n = +d.sday;
@@ -3048,7 +3064,7 @@
         const bar = t === 'light' ? 'default' : 'black-translucent', sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
         if (sb && sb.getAttribute('content') !== bar) {
             sb.setAttribute('content', bar);
-            if (themeOn && navigator.standalone === true) { saveCfg(); location.reload(); }
+            if (themeOn && navigator.standalone === true) { saveCfg(); location.reload(); return true; }
         }
         themeOn = true;
     }
@@ -3119,6 +3135,8 @@
         applyTheme();
         colors();
         render();
+        // o aviso das cores que ficou de antes de a app se reabrir (a mudar a barra das horas)
+        try { const a = sessionStorage.getItem('mk:aviso'); if (a) { sessionStorage.removeItem('mk:aviso'); setTimeout(() => toast(a), 400); } } catch { /* nada */ }
         startWS();
         startFinnhub();
         // se o WebSocket demorar, mostra logo um preço por REST
