@@ -582,10 +582,16 @@ function proxyBody(u) {
     assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['No total', 'Hoje'], 'a tabela de cima (no 1D, sem o período)');
     assert.match((await page.locator('.pf .pf-st .pf-c').allTextContents()).join(' | '), /^No total[+−][\d\s ]+,\d\d\s€[+−]?\d+,\d\d% \| Hoje[+−][\d\s ]+,\d\d\s€[+−]?\d+,\d\d%$/);
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
-    const grs = await page.locator('.pf .pf-gs .pf-gr').evaluateAll((rs) => rs.map((r) => [...r.children].map((c) => c.textContent)));
-    assert.equal(grs.length, 2, 'duas linhas: o FTSE e a cripto');
-    assert.deepEqual(grs.map((r) => r[0]), ['FTSE All-World', 'Cripto']);
-    for (const r of grs) { assert.match(r[1], /^[\d\s ]+,\d\d\s€$/); assert.match(r[2], /^[+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d%\)$/); }
+    // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com
+    // as moedas debaixo dela e o total — o investido total é a soma do que custou cada um
+    assert.deepEqual(await page.locator('.pf .pf-gs .pf-gh').evaluate((h) => [...h.children].map((c) => c.textContent)), ['', 'Investido', 'Vale', 'Ganho']);
+    const grs = await page.locator('.pf .pf-gs .pf-gr').evaluateAll((rs) => rs.map((r) => [r.className, ...[...r.children].map((c) => c.textContent)]));
+    assert.deepEqual(grs.map((r) => [r[0], r[1]]), [['pf-gr', 'FTSE All-World'], ['pf-gr pf-gg', 'Cripto'], ['pf-gr pf-ga', 'BTC'], ['pf-gr pf-ga', 'SOL'], ['pf-gr pf-gt', 'Total']]);
+    for (const r of grs) { assert.match(r[2], /^\d[\d\s ]*\s€$/, r.join(' | ')); assert.match(r[3], /^\d[\d\s ]*\s€$/); assert.match(r[4], /^[+−][\d\s ]+\s€ \([+−]?\d+,\d%\)$/); }
+    const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
+    assert.equal(grs[grs.length - 1][2], inv, 'o investido total');
+    assert.ok(await page.locator('.pf .pf-gs').evaluate((g) => g.scrollWidth <= g.clientWidth + 1 && g.getBoundingClientRect().right <= g.closest('.pf-b').getBoundingClientRect().right), 'a tabela cabe no cartão (390 px)');
+    console.log('✓ a tabela da carteira: investido, vale e ganho de cada um; investido total', inv);
     assert.equal(await page.locator('.pf .pf-ix').count(), 0, 'os índices ficam no Hoje e nas linhas fechadas');
     // ao abrir outra vez, a análise dos meus ativos aparece logo: o ano de fechos diários deles fica guardado no instantâneo
     const snapD = await page.evaluate(() => { const d = (JSON.parse(localStorage.getItem('mercados:snap') || '{}').D) || {}; return ['VWCE.DE', 'c:BTC', '^GSPC'].map((k) => (d[k] || []).length); });

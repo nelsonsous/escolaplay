@@ -493,8 +493,16 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-c small { color: var(--muted); font-size: calc(.7rem * var(--k)); }
 .pf .pf-c b { font-size: calc(.92rem * var(--k)); font-weight: 700; white-space: nowrap; }
 .pf .pf-c i { font-style: normal; font-size: calc(.78rem * var(--k)); font-weight: 600; }
-.pf .pf-gs { display: block; margin-top: 6px; }
-.pf .pf-gr { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline; padding: 4px 0; border-top: 1px solid var(--line); font-size: calc(.82rem * var(--k)); }
+/* 4.38: a tabela da carteira — o investido, o valor e o ganho de cada ativo, a soma de cada grupo e o total; as colunas
+   alinhadas em todas as linhas (cada linha é uma subgrelha da tabela) */
+.pf .pf-gs { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; column-gap: 10px; margin-top: 6px; }
+.pf .pf-gh, .pf .pf-gr { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; }
+.pf .pf-gh { padding: 2px 0; color: var(--muted); font-size: calc(.68rem * var(--k)); }
+.pf .pf-gh span { text-align: right; }
+.pf .pf-gr { padding: 4px 0; border-top: 1px solid var(--line); font-size: calc(.82rem * var(--k)); }
+.pf .pf-gr.pf-ga { border-top: 0; padding-top: 1px; }
+.pf .pf-gr.pf-ga b { padding-left: 10px; font-weight: 500; color: var(--muted); }
+.pf .pf-gr.pf-gt b { font-weight: 750; }
 .pf .pf-gr b { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf .pf-gr .num { text-align: right; white-space: nowrap; }
 .pf .pf-grs { display: block; margin-top: 6px; }
