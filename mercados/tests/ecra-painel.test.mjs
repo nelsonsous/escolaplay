@@ -102,7 +102,7 @@ function verificar({ de, ate, seed }) {
             p1d: 0, p1w: 0, p1m: 0, p1y: 0, pOutro: 0, oSobe: 0, oDesce: 0, oBolsa: 0, oNome: 0, oMinha: 0, grupos: 0,
             meusVazio: 0, acoesVazio: 0, fundosVazio: 0, semFundos: 0, cripto: 0, retirados: 0, aberta: 0, arrastada: 0,
             fuel: 0, fuelCarrega: 0, fuelErro: 0, semConector: 0, skel: 0, hora: 0, badgeClaude: 0, badgeAuto: 0, badgeDecisao: 0, desconto: 0, imposto: 0, litro: 0,
-            carteira: 0, carteiraGanho: 0, carteiraSemGanho: 0, carteiraPeriodo: 0 } };
+            carteira: 0, carteiraPeriodo: 0 } };
     const T = out.tipos;
     const DIA = 864e5;
     const isoDia = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -225,7 +225,7 @@ function verificar({ de, ate, seed }) {
             if (sim(0.3)) H.ex = pick([null, { quando: pick(ODD), dl: '01/12', exec: true }, { quando: 'sábado, 7 de novembro', dl: '06/11', prazo: true }, { quando: 'x', dl: pick(ODD) }, { quando: 'terça-feira, 2 de dezembro', dl: '01/12', exec: false, prazo: false }]);
             if (sim(0.2)) H.when = pick(['', '07:16', pick(ODD), 7, null]);
             if (sim(0.2)) H.old = pick([true, false, 1, 0]);
-            if (sim(0.12)) snap.pf = pick([null, [], 'x', 7, {}, { v: 'texto', g: NaN, d: null, dp: Infinity, pc: '3' }, { v: 123456789.125, g: -0.004, gp: 0.004, d: 0, dp: 0, pc: -0.004 }]);
+            if (sim(0.12)) snap.pf = pick([null, [], 'x', 7, {}, { now: 'x', ativos: 'y' }, { now: agora / 1000, ativos: [] }]);
             const html = AO.ecra.painel(snap);
             const D = new DOMParser().parseFromString(html, 'text/html');
             out.estados++; out.bytes += html.length;
@@ -338,30 +338,52 @@ function verificar({ de, ate, seed }) {
             const blocos = filhos.map((e) => (e.tagName === 'SECTION' ? e.querySelector('h2').textContent : e.dataset.fold));
             const cripto = CRIPTO.map((x) => x[0]), crypt = cripto.filter((k) => REG[k] && !mine.includes(k) && !hid(k)), nhc = cripto.filter(hid).length;
             const fundos = funds.filter((k) => REG[k] && !mine.includes(k));
-            const pf = snap.pf, temPf = !!pf && typeof pf === 'object' && !Array.isArray(pf);
-            const querBlocos = [temPf ? 'A minha carteira' : null, 'Os meus ativos', inv.length || cv ? 'hoje' : null, crypt.length || nhc ? 'Cripto' : null, fundos.length || !funds.length ? 'Fundos e ETF' : null, 'Ações que sigo', 'pn-idx', 'pn-en', c.proxy ? 'pn-fuel' : null].filter(Boolean);
+            const pf = snap.pf;
+            const querBlocos = [(() => { if (!(pf && typeof pf === 'object' && !Array.isArray(pf) && Array.isArray(pf.ativos))) return null; return pf.ativos.some((a) => (((a.b || []).length > 0 && (a.h || []).length > 0) || (Number.isFinite(a.q) && a.q > 0 && Number.isFinite(a.cost) && a.cost > 0)) && Number.isFinite(a.px) && a.px > 0) ? 'A minha carteira' : null; })(), 'Os meus ativos', inv.length || cv ? 'hoje' : null, crypt.length || nhc ? 'Cripto' : null, fundos.length || !funds.length ? 'Fundos e ETF' : null, 'Ações que sigo', 'pn-idx', 'pn-en', c.proxy ? 'pn-fuel' : null].filter(Boolean);
             if (JSON.stringify(blocos) !== JSON.stringify(querBlocos)) erro(`os blocos ${JSON.stringify(blocos)} em vez de ${JSON.stringify(querBlocos)}`);
             const sec = (t) => filhos.find((e) => e.tagName === 'SECTION' && e.querySelector('h2').textContent === t);
             const dob = (f) => filhos.find((e) => e.tagName === 'DETAILS' && e.dataset.fold === f);
-            // ---- a carteira, no topo: o valor, o ganho desde que comprou (sem ele se falta o investido), o de hoje, o do
-            // período e a linha (o canvas); tocar abre a Carteira ----
-            if (temPf) {
+            // ---- a carteira, no topo: as contas da Carteira (o cr_prep: as unidades de cada ativo pelas compras ou pelo que
+            // tem hoje), o ganho desde que comprou, o de hoje, o do período e a linha; tocar abre a Carteira ----
+            const pxAt = (h, t) => { if (t < h[0][0]) return h[0][1]; let lo = 0, hi = h.length - 1; while (lo < hi) { const md = (lo + hi + 1) >> 1; if (h[md][0] <= t) lo = md; else hi = md - 1; } return h[lo][1]; };
+            const tbPf = [];
+            if (pf && typeof pf === 'object' && !Array.isArray(pf) && Array.isArray(pf.ativos)) for (const a of pf.ativos) {
+                const b = a.b || [], h = a.h || [], tem = Number.isFinite(a.q) && a.q > 0 && Number.isFinite(a.cost) && a.cost > 0, dat = b.length > 0 && h.length > 0;
+                if (!((dat || tem) && Number.isFinite(a.px) && a.px > 0)) continue;
+                let u = 0, e = 0;
+                if (dat) for (const x of b) { u += (x[2] || 0) !== 0 ? x[2] : x[1] / pxAt(h, x[0]); e += x[1]; }
+                if (tem) { u = a.q; e = a.cost; }
+                tbPf.push({ a, u, e });
+            }
+            if (tbPf.length) {
                 T.carteira++;
-                const s = sec('A minha carteira'), num = (x) => typeof x === 'number' && Number.isFinite(x);
-                const eur = (x) => (num(x) ? mk.fmtPx(x, { decimals: 2 }, 'EUR') : '—'), eursg = (x) => (num(x) ? (x >= 0 ? '+' : '−') + mk.fmtPx(Math.abs(x), { decimals: 2 }, 'EUR') : '—');
-                const pct = (x) => (num(x) ? mk.fmtPct(x) : '—'), tom = (x) => (num(x) ? toneOf(x) : 'flat');
-                const v = s && s.querySelector('.pf-b .pf-v'), gg = s && s.querySelector('.pf-b .pf-g'), b = s && s.querySelector('.pf-b');
-                if (!v || v.textContent !== eur(pf.v)) erro(`a carteira: o valor ${v && v.textContent} em vez de ${eur(pf.v)}`);
-                const lbl = { '1w': '1 semana', '1m': '1 mês', '1y': '1 ano' }[c.per] || 'hoje', per = s && s.querySelector('.sec-h .pf-per');
-                if (num(pf.pc)) T.carteiraPeriodo++;
-                if ((per ? per.textContent : null) !== (num(pf.pc) ? `${lbl} ${mk.fmtPct(pf.pc)}` : null) || (per && per.querySelector('b').className !== tom(pf.pc) + '-t')) erro(`a carteira: o período ${per && per.outerHTML}`);
-                if (num(pf.g)) T.carteiraGanho++; else T.carteiraSemGanho++;
-                const gq = (num(pf.g) ? `${eursg(pf.g)} (${pct(pf.gp)}) desde que compraste · ` : '') + `hoje ${eursg(pf.d)} (${pct(pf.dp)})`;
+                const s = sec('A minha carteira'), eur = (x) => mk.fmtPx(x, { decimals: 2 }, 'EUR'), sgf = (x) => (x >= 0 ? '+' : '−') + eur(Math.abs(x));
+                let vv = 0, ee = 0, dd = 0;
+                for (const { a, u, e } of tbPf) {
+                    const val = a.px * u, ch = a.ch === null ? 0 : typeof a.ch === 'number' ? a.ch : NaN;
+                    vv += val; ee += e;
+                    if (Number.isFinite(ch) && ch > -100) dd += val - val / (1 + ch / 100);
+                }
+                const tf = pf.now, dias = { '1w': 7, '1m': 30, '1y': 365 }[c.per] || 1, t0 = tf - 86400 * dias, vs = [];
+                for (let k = 0; k < 60; k++) {
+                    const t = t0 + (tf - t0) * (k / 59);
+                    let v = 0;
+                    for (const { a, u } of tbPf) v += u * (Array.isArray(a.s) && a.s.length > 1 ? pxAt(a.s, t) : a.px);
+                    vs.push(v);
+                }
+                const pc = vs[0] > 0 ? (vs[59] / vs[0] - 1) * 100 : 0, dp = vv - dd > 0 ? (dd / (vv - dd)) * 100 : 0, mostra = !!c.per && c.per !== '1d';
+                const v = s && s.querySelector('.pf-b .pf-v'), gg = s && s.querySelector('.pf-b .pf-g'), b = s && s.querySelector('.pf-b'), per = s && s.querySelector('.sec-h .pf-per');
+                if (!v || v.textContent !== eur(vv)) erro(`a carteira: o valor ${v && v.textContent} em vez de ${eur(vv)}`);
+                const lbl = { '1w': '1 semana', '1m': '1 mês', '1y': '1 ano' }[c.per] || 'hoje';
+                if (mostra) T.carteiraPeriodo++;
+                if ((per ? per.textContent : null) !== (mostra ? `${lbl} ${mk.fmtPct(pc)}` : null) || (per && per.querySelector('b').className !== toneOf(pc) + '-t')) erro(`a carteira: o período ${per && per.outerHTML} em vez de ${lbl} ${mk.fmtPct(pc)}`);
+                const gq = (ee > 0 ? `${sgf(vv - ee)} (${mk.fmtPct((vv / ee - 1) * 100)}) desde que compraste · ` : '') + `hoje ${sgf(dd)} (${mk.fmtPct(dp)})`;
                 if (!gg || gg.textContent !== gq) erro(`a carteira: ${gg && gg.textContent} em vez de ${gq}`);
                 const tons = gg ? [...gg.querySelectorAll(':scope > span')].map((x) => x.className) : [];
-                if (JSON.stringify(tons) !== JSON.stringify((num(pf.g) ? [tom(pf.g) + '-t'] : []).concat(tom(pf.d) + '-t'))) erro(`a carteira: as cores ${JSON.stringify(tons)}`);
-                if (!b || b.dataset.tab !== 'carteira' || !b.querySelector('canvas.pf-cv')) erro('a carteira: o toque ou a linha');
-            }
+                if (JSON.stringify(tons) !== JSON.stringify((ee > 0 ? [toneOf(vv - ee) + '-t'] : []).concat(toneOf(dd) + '-t'))) erro(`a carteira: as cores ${JSON.stringify(tons)}`);
+                const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l');
+                if (!b || b.dataset.tab !== 'carteira' || !sv || sv.getAttribute('class') !== 'pf-sv ' + toneOf(pc) || !pl || pl.getAttribute('d').split('L').length !== 60) erro(`a carteira: o toque ou a linha ${sv && sv.outerHTML.slice(0, 120)}`);
+            } else if (sec('A minha carteira')) erro('a carteira sem nada para mostrar');
             // ---- os meus ativos e o período ----
             const sm = sec('Os meus ativos');
             if (sm) {

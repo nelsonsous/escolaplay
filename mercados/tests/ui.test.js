@@ -530,19 +530,21 @@ function proxyBody(u) {
         mk.cfg.lots = { 'VWCE.DE': { plan: '', buys: [], qty: 25.31, cost: 3800 }, 'c:BTC': { plan: '', buys: [], qty: 0.0412, cost: 3200 }, 'c:SOL': { plan: '', buys: [], qty: 12, cost: 1500 } };
         mk.render(); window.scrollTo(0, 0); return o;
     });
-    await page.waitForFunction(() => { const c = document.querySelector('.pf canvas.pf-cv'); if (!c || !c.width) return false; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 4) if (d[i]) return true; return false; });
+    await page.waitForSelector('.pf svg.pf-sv path.pf-l');
     // (desenhado e lido no mesmo instante: a cripto muda de preço a cada segundo)
-    const pfS = await page.evaluate(() => { const mk = window.__mk; mk.render(); const p = mk.pfSnap(); return { ...p, txt: mk.fmtPx(p.v, { decimals: 2 }, 'EUR'), ecra: document.querySelector('.pf .pf-v').textContent }; });
+    // (o que tem hoje, como na TR: as unidades × o preço de agora; o ganho face ao investido)
+    const pfVal = () => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); const v = a.reduce((s, x) => s + x.px * x.q, 0), e = a.reduce((s, x) => s + x.cost, 0); return { v, g: v - e, txt: mk.fmtPx(v, { decimals: 2 }, 'EUR') }; };
+    const pfS = await page.evaluate((f) => { window.__mk.render(); const r = new Function('return (' + f + ')()')(); return { ...r, ecra: document.querySelector('.pf .pf-v').textContent }; }, pfVal.toString());
     assert.equal((await page.locator('#mk-body > section').first().locator('h2').textContent()), 'A minha carteira', 'a carteira primeiro');
     assert.equal(pfS.ecra, pfS.txt);
     // e ao vivo: com o preço do Bitcoin a mudar, o cartão acompanha (redesenhado sozinho, até 2 s depois)
-    await page.waitForFunction((t0) => { const mk = window.__mk, t = document.querySelector('.pf .pf-v').textContent; return t === mk.fmtPx(mk.pfSnap().v, { decimals: 2 }, 'EUR') && t !== t0; }, pfS.txt, { timeout: 8000 }).catch(() => {});
-    const vivo = await page.evaluate(() => { const mk = window.__mk; return [document.querySelector('.pf .pf-v').textContent, mk.fmtPx(mk.pfSnap().v, { decimals: 2 }, 'EUR')]; });
+    await page.waitForFunction(([t0, f]) => { const t = document.querySelector('.pf .pf-v').textContent; return t === new Function('return (' + f + ')()')().txt && t !== t0; }, [pfS.txt, pfVal.toString()], { timeout: 8000 }).catch(() => {});
+    const vivo = await page.evaluate((f) => [document.querySelector('.pf .pf-v').textContent, new Function('return (' + f + ')()')().txt], pfVal.toString());
     assert.ok(vivo[0] !== pfS.txt || vivo[1] === pfS.txt, 'o cartão acompanha os preços ao vivo: ' + JSON.stringify([pfS.txt, vivo]));
     assert.match(await page.locator('.pf .pf-g').textContent(), /^[+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\) desde que compraste · hoje [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\)$/);
-    const pfPintado = await page.locator('.pf canvas.pf-cv').evaluate((c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
-    assert.ok(pfPintado > 100, 'a linha do valor desenhada: ' + pfPintado);
-    console.log('✓ a carteira no Painel:', pfS.txt, '| ganho', pfS.g != null ? pfS.g.toFixed(2) : '—', '| hoje', pfS.d.toFixed(2));
+    const pfLinha = await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d');
+    assert.equal(pfLinha.split('L').length, 60, 'a linha do valor: 60 pontos');
+    console.log('✓ a carteira no Painel:', pfS.txt, '| ganho', pfS.g.toFixed(2), '(as contas da Carteira)');
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel.png') });
     await page.evaluate((o) => { window.__mk.cfg.lots = o; window.__mk.render(); }, lots0);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1b-painel-completo.png'), fullPage: true });
@@ -628,6 +630,13 @@ function proxyBody(u) {
     if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9f-ficha-bitcoin.png') });
     assert.equal(await page.locator('#d-ext').textContent(), 'Derivados (Deribit)futuros a 69 dias +1,0% sobre o preço à vista (+5,1% ao ano) · funding −0,004% por 8 h (mais alavancados a apostar na descida)');
     assert.match(await page.locator('#d-rng').textContent(), /pela volatilidade das opções \(Deribit\): 52,6% ao ano$/);
+    // o «Para onde pode ir», por baixo do gráfico: o último mês e o leque das próximas 4 semanas, com o centro pelos futuros
+    assert.match(await page.locator('#d-rng').textContent(), /a zona escura apanha 2 em cada 3 vezes, a clara 19 em 20; o centro segue os futuros \(\+5,1% ao ano\) · pela/);
+    const leque = async () => page.locator('#d-fan-cv').evaluate((c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
+    await page.locator('#d-fan').scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => { const c = document.querySelector('#d-fan-cv'); return c && c.width > 0; });
+    assert.ok(!(await page.locator('#d-fan').isHidden()) && (await leque()) > 2000, 'o leque desenhado');
+    if (SHOTS) await page.locator('#d-fan').screenshot({ path: path.join(SHOTS, '9h-leque-bitcoin.png') });
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     // o FTSE All-World com a bolsa fechada: o VT caiu 1,5% em Nova Iorque depois do preço da noite e, depois dele, os futuros
@@ -645,6 +654,9 @@ function proxyBody(u) {
     await page.waitForTimeout(300);
     if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9g-ficha-ftse.png') });
     assert.match(await page.locator('#d-ext').textContent(), /^Abertura estimada: −\d,\d% \(±\d,\d%\)VT \(o mesmo índice, em Nova Iorque\): −1,5% desde o último preço daqui, até às \d\d:\d\d \(em euros\) · depois, futuros do S&P 500 −0,5% × 0,\d\d · margem pela história do ativo; aprende com cada abertura$/);
+    assert.match(await page.locator('#d-rng').textContent(), /; começa na abertura estimada \(−\d,\d%\) · pela volatilidade das opções: o VIX/, 'o leque parte da abertura estimada');
+    await page.locator('#d-fan').scrollIntoViewIfNeeded();
+    if (SHOTS) { await page.waitForTimeout(200); await page.locator('#d-fan').screenshot({ path: path.join(SHOTS, '9i-leque-ftse.png') }); }
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     MOCK.fechado = false;
@@ -1294,7 +1306,7 @@ function proxyBody(u) {
     await page.click('[data-per="1d"]');
     console.log('✓ período da variação: 1D', d1, '| 1M', m1);
     // os gráficos pequenos ficam todos na mesma coluna
-    const sparkX = await page.evaluate(() => [...document.querySelectorAll('.sec:first-of-type .sw-list canvas.spark')].map((c) => Math.round(c.getBoundingClientRect().right)));
+    const sparkX = await page.evaluate(() => [...[...document.querySelectorAll('#mk-body > section.sec')].find((s) => s.querySelector('h2').textContent === 'Os meus ativos').querySelectorAll('.sw-list canvas.spark')].map((c) => Math.round(c.getBoundingClientRect().right)));
     assert.ok(sparkX.length >= 4 && new Set(sparkX).size === 1, 'gráficos alinhados: ' + sparkX);
     const wSpark = await page.evaluate(() => Math.round(document.querySelector('.row.wide canvas.spark').getBoundingClientRect().width));
     assert.equal(wSpark, 84, 'gráfico à direita, 84 px: ' + wSpark);

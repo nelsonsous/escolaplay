@@ -3118,3 +3118,20 @@ Carteira.
 **Verificado.** Painel: 600 estados ao acaso, 188 com o cartão (com e sem o investido, com o período, valores estranhos:
 NaN, texto, listas, o arredondamento de 123 456 789,125). Interface: o valor igual ao do instantâneo, a linha
 desenhada e o cartão a acompanhar os preços ao vivo.
+
+## Iteração (Mercados 4.32.0): a carteira com as contas da Carteira, e o «Para onde pode ir»
+
+**Pedido.** «Não dá para pôr no gráfico, ou criar um gráfico abaixo, com as previsões ou os futuros?» E a carteira
+resumida mal abre a app.
+
+**Feito.**
+- **O cartão da carteira** passa a fazer as contas na Onda com o `cr_prep` da Carteira (as compras do plano, as avulsas
+  e o que tem hoje), por isso o valor e o ganho são os mesmos dos dois lados. A linha é um SVG da Onda: o valor no
+  período com as unidades de hoje.
+- **«Para onde pode ir»** na ficha, por baixo do gráfico: o último mês e o leque das próximas 4 semanas (±1 e ±1,96
+  desvios, a crescer com a raiz do tempo), a partir do preço de agora, da abertura estimada ou, na cripto, da linha dos
+  futuros.
+
+**Verificado.** Painel: 600 estados, com uma referência em JS das contas da Carteira (as unidades pelas compras ou pelo
+que tem hoje, o investido, o de hoje, a linha). Interface: o leque desenhado no Bitcoin (o centro pelos futuros) e no
+FTSE All-World com a bolsa fechada (a partir da abertura estimada).
