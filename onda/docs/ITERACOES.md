@@ -3174,3 +3174,17 @@ tanta coisa depois do gráfico.
 dos fundos e o da cripto face ao investido (sem os índices, que estão no Hoje e nas linhas fechadas).
 
 **Verificado.** Painel: 600 estados (a ordem e a linha dos grupos). Interface: a ordem e o cartão.
+
+## Iteração (Mercados 4.36.0): abrir mais depressa e o cartão arrumado
+
+**Pedido.** «Porque demora a carregar? As linhas antes e depois do gráfico podem ficar mais bem organizadas?»
+
+**Feito.**
+- **Mais depressa:** o ano de fechos diários (o que a análise precisa: o «do máximo», o veredicto) passa a pedir-se ao
+  mesmo tempo que os preços (antes, só depois deles), primeiro o que tenho e depois o resto; e o do que tenho (com o S&P
+  500) fica guardado no instantâneo, por isso, ao abrir outra vez, a análise dos meus ativos aparece logo.
+- **O cartão:** antes do gráfico, uma tabela pequena (no total, hoje e o período: o valor e a percentagem); depois, uma
+  linha para os fundos e outra para a cripto, em colunas (o nome, o valor e o ganho).
+
+**Verificado.** Painel: 600 estados (as casas da tabela, as cores e as linhas dos grupos). Interface: a tabela, os
+grupos em colunas e o histórico guardado no instantâneo.

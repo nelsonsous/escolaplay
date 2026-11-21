@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.35.0';
+    const VERSION = '4.36.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -189,6 +189,7 @@
             FUEL = s.FUEL || null;
             st.yahooAt = s.yahooAt || 0;
         }
+        if (s && s.D && typeof s.D === 'object') for (const [k, v] of Object.entries(s.D)) if (Array.isArray(v) && v.length > 1) D[k] = v;
     }
     let snapT = 0;
     function saveSnap() {
@@ -196,7 +197,9 @@
         snapT = now();
         const q = {};
         for (const [k, v] of Object.entries(Q)) if (REG[k] && !REG[k].temp) q[k] = { ...v, series: (v.series || []).slice(-120), stale: undefined };
-        store.set(SNAP, { Q: q, FUEL, yahooAt: st.yahooAt });
+        // e o ano de fechos diários do que tenho (e do S&P 500): a análise dos meus ativos aparece logo ao abrir
+        const dk = [...new Set(cfg.holdings.concat(cfg.coreFund, '^GSPC'))].filter((k) => D[k] && D[k].length > 1);
+        store.set(SNAP, { Q: q, FUEL, yahooAt: st.yahooAt, D: Object.fromEntries(dk.map((k) => [k, D[k]])) });
     }
 
     // ---------- vista da cotação: preço da noite e conversão para euros ----------
@@ -794,12 +797,12 @@
     }
 
     async function loadDaily() {
-        const jobs = [loadCryptoDaily()];
-        if (cfg.proxy) {
-            jobs.push(quotesBatch(yahooKeys(), '1y').then((list) => {
-                for (const q of list) if (!q.error && q.series && q.series.length) D[q.symbol] = q.series;
-            }).catch(() => {}));
-        }
+        const yk = yahooKeys(), pri = [...new Set(cfg.holdings.concat(cfg.coreFund, '^GSPC'))].filter((k) => yk.includes(k));
+        const guarda = (list) => { for (const q of list) if (!q.error && q.series && q.series.length) D[q.symbol] = q.series; };
+        const vista = () => { analyseAll(); scheduleRender(); };
+        const jobs = [loadCryptoDaily().then(vista)];
+        // primeiro o que tenho (a análise dos meus ativos aparece logo), depois o resto
+        if (cfg.proxy) jobs.push(quotesBatch(pri, '1y').then(guarda).catch(() => {}).then(vista).then(() => quotesBatch(yk.filter((k) => !pri.includes(k)), '1y')).then(guarda).catch(() => {}));
         await Promise.all(jobs);
         analyseAll();
         scheduleRender();
@@ -3128,9 +3131,9 @@
         // se o WebSocket demorar, mostra logo um preço por REST
         sleep(2500).then(() => { if (st.ws !== 'on' && !st.cryptoAt) cryptoREST(); });
         loadCryptoSeries();
+        loadDaily(); // ao mesmo tempo que os preços: a análise não espera por eles
         if (cfg.proxy) { loadClaude(); await pollYahoo(); loadExt(true); loadFuel(); loadCalendar(); if (cfg.tab === 'destaques') loadMovers(); }
         schedule();
-        loadDaily();
     }
 
     if ('serviceWorker' in navigator && location.protocol === 'https:') {

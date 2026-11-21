@@ -505,8 +505,19 @@
 : pn_perlbl i>i p ? eh p $"1w" "1 semana" ? eh p $"1m" "1 mês" ? eh p $"1y" "1 ano" "hoje"
 : pn_dias i>f p ? eh p $"1w" 7.0 ? eh p $"1m" 30.0 ? eh p $"1y" 365.0 1.0
 : pn_pfy fff>f v lo hi ? > hi lo + 4.0 / * 80.0 - hi v - hi lo 44.0
-# o ganho de um grupo face ao investido (v o valor, e o investido); sem o investido, o valor
-: pn_gx ff>i v e ? > e 0.0 ` <span class="{ ln_tom - v e }-t">{ pn_eursf - v e } ({ fm_pct1 * - / v e 1.0 100.0 })</span>` ` { pn_eurf v }`
+# uma linha da tabela dos grupos: o nome (impresso antes), o valor e o ganho face ao investido (sem o investido, nada)
+: pn_gx ff>i v e {
+  `<span class="num">{ pn_eurf v }</span>`
+  ? > e 0.0 `<span class="num { ln_tom - v e }-t">{ pn_eursf - v e } ({ fm_pct1 * - / v e 1.0 100.0 })</span>` `<span class="num"></span>`
+  0 }
+# uma casa da tabela de cima (k: 0 no total, 1 hoje, 2 o período escolhido): o nome, o valor em € (se houver) e a %
+: pn_casa iffi>i k x p temx {
+  `<span class="pf-c"><small>`
+  ? == k 0 "No total" ? == k 1 "Hoje" pn_perlbl es.per
+  "</small>"
+  Se temx `<b class="{ ln_tom x }-t">{ pn_eursf x }</b>`
+  `<i class="{ ln_tom p }-t">{ fm_pct p }</i></span>`
+  0 }
 # o valor desde a primeira compra, com o investido a tracejado (as contas do gráfico da Carteira: cr_vt e cr_it)
 : pn_pfhist iif>i tb na tf {
   = t0 cr_t0 tb 0 na = kk 60 = vs A kk = ws A kk = lo 0.0 = hi 0.0
@@ -551,11 +562,11 @@
       = v0 @f vs = v1 @f + vs - kk 1 = pc ? > v0 0.0 * - / v1 v0 1.0 100.0 0.0
       = d1 || ~ ha es.per eh es.per $"1d"
       `\n        <section class="sec pf"><div class="sec-h pf-h"><h2>A minha carteira</h2><span class="pf-v num">{ pn_eurf vv }</span></div>`
-      `<button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-g">`
-      Se > ee 0.0 `<span class="{ ln_tom - vv ee }-t">{ pn_eursf - vv ee } ({ fm_pct * - / vv ee 1.0 100.0 })</span> no total · `
+      `<button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-st">`
+      Se > ee 0.0 pn_casa 0 - vv ee * - / vv ee 1.0 100.0 1
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
-      `hoje <span class="{ ln_tom dd }-t">{ pn_eursf dd } ({ fm_pct dp })</span>`
-      Se ~ d1 ` · { pn_perlbl es.per } <span class="{ ln_tom pc }-t">{ fm_pct pc }</span>`
+      pn_casa 1 dd dp 1
+      Se ~ d1 pn_casa 2 pc pc 0
       "</span>"
       # o gráfico: com todas as compras com data, o valor desde a primeira e o investido; sem elas, o do período
       ? == cr_semdata tb 0 na 0 pn_pfhist tb na tf {
@@ -564,11 +575,10 @@
         ` L318 88 Z"/><path class="pf-l" d="M`
         L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + vs k lo hi 1 }
         `"/></svg>` }
-      # numa linha, o ganho do que é dos fundos (com um só, o nome dele) e o da cripto (os ativos vêm logo a seguir)
+      # a tabela dos grupos: o que é dos fundos (com um só, o nome dele) e o que é da cripto, com o valor e o ganho
       `<span class="pf-gs">`
-      Se nn { `<b>` ? == nn 1 { esc n1.nm 0 } "Fundos e ações" "</b>" pn_gx vo eo }
-      Se && nn nc " · "
-      Se nc { "<b>Cripto</b>" pn_gx vc ec }
+      Se nn { `<span class="pf-gr"><b>` ? == nn 1 { esc n1.nm 0 } "Fundos e ações" "</b>" pn_gx vo eo "</span>" }
+      Se nc { `<span class="pf-gr"><b>Cripto</b>` pn_gx vc ec "</span>" }
       "</span></button></section>" } }
   0 }
 
