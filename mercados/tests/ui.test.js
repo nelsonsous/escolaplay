@@ -661,7 +661,15 @@ function proxyBody(u) {
     assert.equal(await page.locator('.pf svg.pf-sv path.pf-i').count(), 1, 'o investido a tracejado');
     assert.equal(await page.locator('.pf .pf-cap').textContent(), 'há 24 hinvestidoagora', 'o gráfico do período escolhido (1D)');
     assert.equal(await page.locator('.pf .pf-pe .seg.per button').count(), 5, 'o filtro do período no cartão (1D, 1S, 1M, 1A e Tudo)');
-    assert.equal(await page.locator('.sec:has(h2:text-is("Os meus ativos")) .seg.per').count(), 0, 'e não repetido nos meus ativos');
+    // 4.41: os meus ativos com a sua barra (data-pera): mudá-la não mexe no cartão
+    const barraA = '.sec:has(h2:text-is("Os meus ativos")) .sec-h .seg.per';
+    assert.equal(await page.locator(barraA + ' button[data-pera]').count(), 5, 'a barra dos meus ativos (1D, 1S, 1M, 1A e Tudo)');
+    await page.click(barraA + ' [data-pera="1y"]');
+    assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.per || '1d', window.__mk.cfg.perA]), ['1d', '1y'], 'os meus ativos em 1A; o cartão fica no 1D');
+    assert.equal(await page.locator('.pf .pf-cap').textContent(), 'há 24 hinvestidoagora', 'o cartão continua no 1D');
+    assert.equal(await page.locator(barraA + ' button.on').textContent(), '1A');
+    await page.click(barraA + ' [data-pera="1d"]');
+    assert.equal(await page.evaluate(() => window.__mk.cfg.perA), '1d');
     assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#mk-body > section, #mk-body > details')].slice(0, 3).map((e) => (e.tagName === 'SECTION' ? e.querySelector('h2').textContent : e.dataset.fold))), ['A minha carteira', 'Os meus ativos', 'hoje'], 'a carteira, os meus ativos e depois a análise do Claude (o Hoje)');
     const pfLinha = await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d');
     assert.equal(pfLinha.split('L').length, 60, 'a linha do valor: 60 pontos');
@@ -1492,9 +1500,9 @@ function proxyBody(u) {
     // ações (lista fechada): ao abrir, os gráficos pequenos aparecem
     const drawn = await page.evaluate(() => [...document.querySelectorAll('.sec:has(h2) .row canvas.spark')].filter((c) => c.closest('.sec').querySelector('h2').textContent === 'Ações que sigo').map((c) => { const g = c.getContext('2d'); if (!c.width) return 0; const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) n += d[i] > 0; return n; }));
     assert.ok(drawn.length > 5 && drawn.filter((n) => n > 0).length === drawn.length, 'gráficos em todas as ações: ' + drawn.join(','));
-    // período: 1M muda a variação (dados diários) e volta a 1D
+    // período dos meus ativos (4.41, a barra deles): 1M muda a variação (dados diários) e volta a 1D
     const d1 = await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .chg').textContent();
-    await page.click('[data-per="1m"]');
+    await page.click('[data-pera="1m"]');
     await page.waitForFunction(() => window.__mk.PS['1m']['c:BTC'], null, { timeout: 15000 });
     await page.evaluate(() => window.__mk.render());
     const m1 = await page.locator('.sec:has(h2:text("Os meus ativos")) .row[data-key="c:BTC"] .chg').textContent();
@@ -1518,7 +1526,7 @@ function proxyBody(u) {
     assert.ok(axis.every((t) => /^\d\d:\d\d$/.test(t)), '15 min: horas na linha do tempo ' + axis.join(' '));
     await page.click('[data-act="close"] >> nth=-1');
     await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
-    await page.click('[data-per="1d"]');
+    await page.click('[data-pera="1d"]');
     // com 1A no Painel, os Destaques continuam a mostrar a variação do dia, mesmo com preços ao vivo
     await page.click('[data-per="1y"]');
     await page.click('#mk-nav [data-tab="destaques"]');

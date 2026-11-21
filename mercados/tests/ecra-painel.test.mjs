@@ -121,6 +121,8 @@ function verificar({ de, ate, seed }) {
             set('owner', pick([true, false, false]));
             set('claude', pick([true, false]));
             set('per', pick(['1d', '1d', '1w', '1m', '1y', 'all', undefined, '', 'x', 7]));
+            // 4.41: o período dos meus ativos, à parte (pelo número do estado: não mexe nos sorteios dos outros)
+            set('perA', ['1d', '1w', '1m', '1y', 'all'][i % 5]);
             set('sort', pick(['up', 'down', 'mkt', 'name', 'mine', 'chg', undefined, 'x']));
             set('profile', pick(['prud', 'bal', 'dyn', undefined, 'x']));
             set('strategy', pick(['etfcrypto', 'etfcrypto', 'mix', 'mix', undefined]));
@@ -249,7 +251,7 @@ function verificar({ de, ate, seed }) {
                 const x = sa.get(k), q = Q[k] || {};
                 if (!x) { erro(`instantâneo: falta ${k}`); continue; }
                 if (x.name !== nameOf(k)) erro(`instantâneo ${k}: nome`);
-                if (!Object.is(x.pc, mk.perData(k).pct)) erro(`instantâneo ${k}: pc`);
+                if (!Object.is(x.pc, mk.perData(k, mk.cfg.perA || '1d').pct)) erro(`instantâneo ${k}: pc`);
                 if (x.mkt !== mktOf(k)) erro(`instantâneo ${k}: mkt`);
                 const pl = REG[k].perLitre && Q[k] ? AO.usdGalToEurL(q.price, Q['EURUSD=X'] && Q['EURUSD=X'].price) : undefined;
                 if (!Object.is(x.pl, pl)) erro(`instantâneo ${k}: €/L`);
@@ -323,7 +325,7 @@ function verificar({ de, ate, seed }) {
                 if (skel) T.skel++;
                 const pxq = skel ? '0000,00' : mk.fmtPx(q.price, a, q.currency);
                 if (!px || px.className !== (skel ? 'px skel' : 'px') || px.textContent !== pxq) erro(`${k}: o preço ${px && px.outerHTML} em vez de ${pxq}`);
-                const pc = mk.perData(k).pct, ch = row.querySelector('.r-px .chg');
+                const pc = mk.perData(k, mk.cfg.perA || '1d').pct, ch = row.querySelector('.r-px .chg');
                 if (!ch || ch.textContent !== mk.fmtPct(pc) || ch.className !== 'chg ' + toneOf(pc)) erro(`${k}: a variação ${ch && ch.outerHTML} em vez de ${mk.fmtPct(pc)}`);
             };
             const linhas = (cont, ks, md, g, onde) => {
@@ -432,14 +434,17 @@ function verificar({ de, ate, seed }) {
             // ---- os meus ativos e o período ----
             const sm = sec('Os meus ativos');
             if (sm) {
-                // o filtro do período: no cartão da carteira quando ele lá está, senão aqui
-                const sp = tbPf.length ? sec('A minha carteira') : sm;
-                if (tbPf.length && sm.querySelector('.seg.per')) erro('o período repetido nos meus ativos');
-                const pr = sp ? [...sp.querySelectorAll(tbPf.length ? '.pf-pe .seg.per button' : '.sec-h .seg.per button')].map((b) => [b.dataset.per, b.textContent, b.className]) : [];
+                // 4.41: duas barras do período — a do cartão da carteira (cfg.per, data-per) e a dos meus ativos (cfg.perA,
+                // data-pera), cada uma com o seu
+                const perq = (x) => [['1d', '1D'], ['1w', '1S'], ['1m', '1M'], ['1y', '1A'], ['all', 'Tudo']].map(([v, l]) => [v, l, x === v ? 'on' : '']);
                 const p = c.per || '1d';
+                if (tbPf.length) {
+                    const pr = [...sec('A minha carteira').querySelectorAll('.pf-pe .seg.per button')].map((b) => [b.dataset.per, b.textContent, b.className]);
+                    if (JSON.stringify(pr) !== JSON.stringify(perq(p))) erro(`o período do cartão ${JSON.stringify(pr)}`);
+                }
+                const pa = [...sm.querySelectorAll('.sec-h .seg.per button')].map((b) => [b.dataset.pera, b.textContent, b.className]);
+                if (JSON.stringify(pa) !== JSON.stringify(perq(c.perA || '1d'))) erro(`o período dos meus ativos ${JSON.stringify(pa)}`);
                 T[p === '1d' ? 'p1d' : p === '1w' ? 'p1w' : p === '1m' ? 'p1m' : p === '1y' ? 'p1y' : p === 'all' ? 'pTudo' : 'pOutro']++;
-                const prq = [['1d', '1D'], ['1w', '1S'], ['1m', '1M'], ['1y', '1A'], ['all', 'Tudo']].map(([v, l]) => [v, l, p === v ? 'on' : '']);
-                if (JSON.stringify(pr) !== JSON.stringify(prq)) erro(`o período ${JSON.stringify(pr)}`);
                 const l = sm.querySelector(':scope > .list.sw-list'), e = sm.querySelector(':scope > .empty');
                 if (mine.length ? !l || e : l || !e || e.textContent !== 'Escolhe em Ajustes → O que tenho.') erro('os meus: a lista ou o vazio');
                 if (!mine.length) T.meusVazio++;
@@ -466,7 +471,7 @@ function verificar({ de, ate, seed }) {
                 const chq = [['up', '↑ Sobe'], ['down', '↓ Desce'], ['mkt', 'Bolsa'], ['name', 'Nome'], ['mine', 'Minha']].map(([v, l]) => [v, l, sortBy === v ? 'on' : '']);
                 if (JSON.stringify(ch) !== JSON.stringify(chq)) erro(`a ordem: ${JSON.stringify(ch)}`);
                 const st0 = watch.filter((k) => REG[k]);
-                const pc = (k) => { const v = mk.perData(k).pct; return fin(v) ? v : null; };
+                const pc = (k) => { const v = mk.perData(k, mk.cfg.perA || '1d').pct; return fin(v) ? v : null; };
                 if (sortBy === 'up' || sortBy === 'mkt') st0.sort((a, b) => (pc(b) ?? -1e9) - (pc(a) ?? -1e9));
                 else if (sortBy === 'down') st0.sort((a, b) => (pc(a) ?? 1e9) - (pc(b) ?? 1e9));
                 else if (sortBy === 'name') st0.sort((a, b) => nameOf(a).localeCompare(nameOf(b), 'pt'));
@@ -487,7 +492,7 @@ function verificar({ de, ate, seed }) {
                 pe(sx, 'go-add', null, 0, 'ações');
             }
             // ---- as linhas fechadas no fim: o resumo (os três primeiros com a variação no período) e as linhas ----
-            const resumo = (ks) => ks.filter((k) => fin(mk.perData(k).pct)).slice(0, 3).map((k) => `${nameOf(k)} ${mk.fmtPct(mk.perData(k).pct)}`).join(' · ');
+            const resumo = (ks) => ks.filter((k) => fin(mk.perData(k, mk.cfg.perA || '1d').pct)).slice(0, 3).map((k) => `${nameOf(k)} ${mk.fmtPct(mk.perData(k, mk.cfg.perA || '1d').pct)}`).join(' · ');
             const fecha = (f, titulo, todos, md, u) => {
                 const d = dob(f);
                 if (!d) return;

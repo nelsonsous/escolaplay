@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.40.0';
+    const VERSION = '4.41.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1259,10 +1259,11 @@
         return { X, Y, w, h, g, lo, hi };
     }
     const PER_DAYS = { '1w': 7, '1m': 30, '1y': 365 };
+    // 4.41: o período dos meus ativos, à parte do do cartão da carteira
+    const perA = () => cfg.perA || '1d';
     // 1S e 1M: as mesmas séries da ficha (de 30 min / 1 h; cripto 1 h / 4 h), para o gráfico pequeno e a % baterem certo
     const PS = { '1w': {}, '1m': {} }, psAt = { '1w': 0, '1m': 0 };
-    async function loadPerSeries() {
-        const per = cfg.per;
+    async function loadPerSeries(per) {
         if (!PS[per] || now() - psAt[per] < 5 * 60 * 1000) return;
         psAt[per] = now();
         const range = per === '1w' ? '5d' : '1mo';
@@ -1271,13 +1272,14 @@
         await Promise.all(jobs);
         drawSparks(); scheduleRender();
     }
-    function perData(k) {
+    // 4.41: o período vem de quem pede — o cartão da carteira (cfg.per) ou os meus ativos (cfg.perA)
+    function perData(k, per) {
         const q = qv(k);
-        const days = PER_DAYS[cfg.per];
+        const days = PER_DAYS[per];
         const day = { pct: q.changePct, series: q.series, base: REG[k] && REG[k].kind === 'crypto' ? null : q.prevClose };
         // 4.39: «Tudo» — desde a 1.ª compra deste ativo (sem compras com data, desde o início da carteira; sem nenhuma, 1 ano),
         // pelos fechos de 5 anos e do último ano, como na Carteira
-        if (cfg.per === 'all') {
+        if (per === 'all') {
             const b = buysOf(k), t0 = b.length ? b[0][0] : pfInicio() || now() / 1000 - 365 * 86400;
             const w = LH[k] || [], d = D[k] || [], cut = d.length ? d[0][0] : Infinity;
             const h = w.filter((p) => p[0] < cut).concat(d).filter((p) => fin(p[1]) && p[1] > 0);
@@ -1290,7 +1292,7 @@
             if (tq > series[series.length - 1][0]) series.push([tq, q.price]);
             return { pct: (q.price / ref - 1) * 100, series, base: ref };
         }
-        const ps = PS[cfg.per] && PS[cfg.per][k];
+        const ps = PS[per] && PS[per][k];
         if (days && ps && ps.length > 1 && fin(q.price)) {
             const f = q.fx || 1, series = ps.map(([t, v]) => [t, v * f]), tq = q.time || now() / 1000;
             if (tq > series[series.length - 1][0]) series.push([tq, q.price]);
@@ -1321,7 +1323,7 @@
         loadLong(comp);
         const ti = pfInicio();
         return { now: now() / 1000, t0: ti, dl: ti ? dmy(new Date(ti * 1000).toISOString().slice(0, 10)) : '', ativos: keys.map((k) => {
-            const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k);
+            const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k, cfg.per);
             // o nome curto (o símbolo na cripto; sem a moeda, o «(Acc)» e o «UCITS ETF» nos fundos)
             const nm = REG[k].kind === 'crypto' ? REG[k].sym : nameOf(k).replace(/\s*\(.*\)\s*$/, '').replace(/\s+(USD|EUR|UCITS|ETF|Acc|Dist)\b.*$/i, '').trim() || k;
             return { k, nm, cr: REG[k].kind === 'crypto', px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: q.changePct,
@@ -1342,13 +1344,13 @@
         pfT = setTimeout(() => { pfT = 0; if (!st.touching) pfAgora(); }, 2000);
     }
     function drawSparks() {
-        if (PS[cfg.per]) loadPerSeries();
+        for (const pe of [cfg.per, perA()]) if (PS[pe]) loadPerSeries(pe);
         for (const cv of $$('canvas.spark')) {
             const k = cv.dataset.key;
-            const p = perData(k);
+            const p = perData(k, perA());
             if (!p.series || p.series.length < 2) continue;
             // poucos pontos: por ordem, para não desenhar retas longas
-            drawLine(cv, p.series, { tone: toneOf(p.pct), base: p.base, pad: 3, width: 1.5, byIndex: cfg.per !== '1d' || p.series.length < 12 });
+            drawLine(cv, p.series, { tone: toneOf(p.pct), base: p.base, pad: 3, width: 1.5, byIndex: perA() !== '1d' || p.series.length < 12 });
         }
     }
 
@@ -1368,7 +1370,7 @@
                 }
             }
             const c = el.querySelector('.chg');
-            if (c) { const pc = el.dataset.chg === 'day' ? q.changePct : perData(k).pct; c.className = 'chg ' + toneOf(pc); c.textContent = fmtPct(pc); }
+            if (c) { const pc = el.dataset.chg === 'day' ? q.changePct : perData(k, perA()).pct; c.className = 'chg ' + toneOf(pc); c.textContent = fmtPct(pc); }
         }
         liveTail(k);
         if (sheetKey === k && SHORT_R[sheetRange] && sheetPts && sheetPts.length && fin(raw.price)) {
@@ -1700,7 +1702,7 @@
         const dname = cfg.distrito && DISTRITOS ? (DISTRITOS.find((d) => String(d.id) === String(cfg.distrito)) || {}).name : '';
         const mname = cfg.municipio && MUNIC[cfg.distrito] ? (MUNIC[cfg.distrito].find((m) => String(m.id) === String(cfg.municipio)) || {}).name : '';
         return {
-            proxy: cfg.proxy, fiat: cfg.fiat, per: cfg.per, sort: cfg.sort, swipe: st.swipe,
+            proxy: cfg.proxy, fiat: cfg.fiat, per: cfg.per, perA: perA(), sort: cfg.sort, swipe: st.swipe,
             mine, watch: cfg.watch, funds: cfg.funds, hidden: cfg.hidden,
             crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), indices: INDICES.map((i) => i.sym), mktOrder: MKT_ORDER,
             foldHoje: fold('hoje'), foldIdx: fold('pn-idx'), foldEn: fold('pn-en'), foldFuel: fold('pn-fuel'), foldPfc: fold('pf-cripto'), foldPff: fold('pf-fundos'),
@@ -1709,7 +1711,7 @@
                 // sem o Claude, a etiqueta dos meus ativos é a da decisão consolidada (a mesma da ficha)
                 const my = mine.includes(k), cl = my ? claudeFor(k) : null, dec = my && !cl && ad ? decOf(k) : null, tg = pxTag(k, q);
                 return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), unit: a.unit, dec: a.decimals, pts: a.points,
-                    px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k).pct, t: tg.t, tt: tg.tt,
+                    px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k, perA()).pct, t: tg.t, tt: tg.tt,
                     pl: a.perLitre && Q[k] ? A.usdGalToEurL(Q[k].price, eu) : undefined, mkt: mktOf(k), nr: rank ? rank.get(nameOf(k)) : undefined,
                     an: r ? { d: d ? { dd: d.dd, score: d.score } : d, adv: ad ? { key: ad.key, action: ad.action } : ad, L: h ? (h.long || h.mid || {}).score : undefined } : r,
                     cl: cl ? { key: cl.key, action: cl.action } : cl, dk: dec ? dec.key : undefined, tax: my && a.kind === 'crypto' ? taxLine(k) : undefined };
@@ -2196,7 +2198,7 @@
     function openSheet(k, tempName, ut) {
         if (!REG[k]) REG[k] = { key: k, kind: ut === 'etf' ? 'fund' : 'stock', ut, sym: k, name: tempName || k, temp: true };
         // abre no mesmo período escolhido no Painel (1D, 1S, 1M, 1A)
-        sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y', all: '5y' }[cfg.per] || '1d'; sheetPts = null;
+        sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y', all: '5y' }[perA()] || '1d'; sheetPts = null;
         loadConsensus(k);
         if (REG[k] && REG[k].kind === 'crypto') loadCryptoGlobal(); // o Fear & Greed, para o sentimento da decisão
         const sh = $('#mk-sheet');
@@ -2810,7 +2812,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-thm],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv],[data-hzset]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-thm],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-pera],[data-fuel],[data-mv],[data-hzset]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { irPara(d.tab); return; }
@@ -2851,6 +2853,7 @@
         }
         if (d.fuel) { openFuelSheet(+d.fuel); return; }
         if (d.per) { cfg.per = d.per; saveCfg(); render(); return; }
+        if (d.pera) { cfg.perA = d.pera; saveCfg(); render(); return; }
         if (d.hide) { hideAsset(d.hide, d.grp); return; }
         if (d.unhide) { const set = { crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), index: INDICES.map((i) => i.sym) }[d.unhide] || []; cfg.hidden = cfg.hidden.filter((k) => !set.includes(k)); saveCfg(); render(); toast('Lista reposta'); return; }
         if (d.fs) { cfg.fs = d.fs; applyFs(); saveCfg(); render(); return; }
