@@ -892,6 +892,7 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 
 /* ---------- 4.37: o dia e a noite à mão, no topo do Painel ---------- */
 #mk-body { position: relative; }
-.pg-tema { position: absolute; top: calc(var(--safe-t) + 4px); right: 2px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.pg-tema { position: absolute; top: calc(var(--safe-t) + 16px); right: 2px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
 .pg-tema:active { transform: scale(.94); }
 /* 4.38.1: o botão começa abaixo da zona das horas do iPhone (estava por baixo dela, onde não se lhe chega) */
+/* 4.38.2: e ao meio do título «Painel», como o botão ao lado do título grande na app Música */

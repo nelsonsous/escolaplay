@@ -624,6 +624,14 @@ function proxyBody(u) {
     const btTopo = await page.evaluate(() => { window.scrollTo(0, 0); const h = document.documentElement; h.style.setProperty('--safe-t', '54px'); const r = document.querySelector('#mk-body > .pg-tema').getBoundingClientRect(); h.style.removeProperty('--safe-t'); return Math.round(r.top); });
     assert.ok(btTopo >= 54, 'o botão do dia e da noite abaixo da zona das horas (no iPhone): começa em ' + btTopo + ' px');
     assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'light');
+    // 4.38.2: e ao meio do título (com a faixa das horas de um iPhone, 47 px), dentro do ecrã
+    const btLado = await page.evaluate(() => {
+        document.documentElement.style.setProperty('--safe-t', '47px');
+        const b = document.querySelector('#mk-body > .pg-tema').getBoundingClientRect(), t = document.querySelector('#mk-body > .pg-t').getBoundingClientRect();
+        document.documentElement.style.removeProperty('--safe-t');
+        return { desvio: Math.round(Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2)), dentro: b.right <= innerWidth };
+    });
+    assert.ok(btLado.desvio <= 8 && btLado.dentro, 'o botão do dia e da noite ao meio do título: ' + JSON.stringify(btLado));
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o botão do Painel: dia');
     // 4.37.3: a barra das horas do iPhone também clara de dia («default», horas a escuro) e a faixa por trás dela clara
