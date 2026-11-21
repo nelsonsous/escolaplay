@@ -691,6 +691,9 @@ details.more > summary { padding: 14px 18px; min-height: 52px; }
     background: var(--card2); color: var(--text); display: grid; place-items: center; cursor: pointer; transition: transform .1s; }
 .pg-tema svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .pg-tema:active { transform: scale(.94); }
+/* 1.28.2: em automático, um «A» pequeno no canto do botão (o ícone é o das cores em uso: o sol de dia, a lua à noite) */
+.pg-tema-a { position: absolute; right: -3px; bottom: -3px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--text); color: var(--bg);
+    font-size: 10px; font-weight: 800; line-height: 17px; text-align: center; box-shadow: 0 0 0 2px var(--bg); }
 .pg-t.pg-t-tema { padding-right: 50px; }
 
 /* o dia: branco e preto, plano (como a Música de dia); a cor continua só para estados e dados */
