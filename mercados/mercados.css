@@ -662,6 +662,8 @@ details.hl-mood { margin-bottom: 24px; }
 .an-f > .grp-h:first-of-type { margin-top: 2px; }
 /* como a Música: a zona das horas do iPhone é uma faixa preta fixa (o que desliza passa por baixo dela, não das horas) */
 body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top: 0; height: var(--safe-t); pointer-events: none; background: #000; }
+/* 4.37.3: de dia a faixa é clara (no iPhone a barra passa a «default», com as horas a escuro: ver applyTheme) */
+:root[data-theme="light"] body::before { background: var(--bg); }
 /* 4.9: o Painel simples, como a Análise e os Destaques (e a Música): o período e a ordem a branco, em pílulas de 36 px; o
    cartão Hoje compacto — de onde vem, as 3 linhas do Claude e a próxima execução; o resto numa dobra, como as outras —; os
    índices, a energia e os combustíveis em linhas fechadas no fim, com uma linha de resumo */
