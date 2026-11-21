@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.38.4';
+    const VERSION = '4.39.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1275,6 +1275,21 @@
         const q = qv(k);
         const days = PER_DAYS[cfg.per];
         const day = { pct: q.changePct, series: q.series, base: REG[k] && REG[k].kind === 'crypto' ? null : q.prevClose };
+        // 4.39: «Tudo» — desde a 1.ª compra deste ativo (sem compras com data, desde o início da carteira; sem nenhuma, 1 ano),
+        // pelos fechos de 5 anos e do último ano, como na Carteira
+        if (cfg.per === 'all') {
+            const b = buysOf(k), t0 = b.length ? b[0][0] : pfInicio() || now() / 1000 - 365 * 86400;
+            const w = LH[k] || [], d = D[k] || [], cut = d.length ? d[0][0] : Infinity;
+            const h = w.filter((p) => p[0] < cut).concat(d).filter((p) => fin(p[1]) && p[1] > 0);
+            if (h.length < 2 || !fin(q.price)) return day;
+            const f = q.fx || 1;
+            let i = h.findIndex((p) => p[0] > t0);
+            if (i < 0) i = h.length;
+            const ref = h[Math.max(0, i - 1)][1] * f, series = h.slice(Math.max(0, i - 1)).map(([t, v]) => [t, v * f]);
+            const tq = q.time || now() / 1000;
+            if (tq > series[series.length - 1][0]) series.push([tq, q.price]);
+            return { pct: (q.price / ref - 1) * 100, series, base: ref };
+        }
         const ps = PS[cfg.per] && PS[cfg.per][k];
         if (days && ps && ps.length > 1 && fin(q.price)) {
             const f = q.fx || 1, series = ps.map(([t, v]) => [t, v * f]), tq = q.time || now() / 1000;
@@ -1295,11 +1310,17 @@
     // as mesmas contas da Carteira (o cr_prep da Onda: as compras do plano, as avulsas e o que tem hoje): o valor de hoje, o
     // ganho face ao investido, o de hoje (ch, a variação de cada ativo) e o do período escolhido, e a linha do valor no
     // período (as unidades de hoje × o preço em cada instante: s, a série do período em euros). null sem nada na Carteira.
+    // o início da carteira: a 1.ª compra com data (0 sem nenhuma) — onde começa o «Tudo»
+    function pfInicio() {
+        const ts = cfg.holdings.filter((k) => REG[k]).map((k) => buysOf(k)).filter((b) => b.length).map((b) => b[0][0]);
+        return ts.length ? Math.min(...ts) : 0;
+    }
     function pfSnap() {
         const keys = cfg.holdings.filter((k) => REG[k]), comp = keys.filter((k) => buysOf(k).length || temHoje(lotOf(k)));
         if (!comp.length) return null;
         loadLong(comp);
-        return { now: now() / 1000, ativos: keys.map((k) => {
+        const ti = pfInicio();
+        return { now: now() / 1000, t0: ti, dl: ti ? dmy(new Date(ti * 1000).toISOString().slice(0, 10)) : '', ativos: keys.map((k) => {
             const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k);
             // o nome curto (o símbolo na cripto; sem a moeda, o «(Acc)» e o «UCITS ETF» nos fundos)
             const nm = REG[k].kind === 'crypto' ? REG[k].sym : nameOf(k).replace(/\s*\(.*\)\s*$/, '').replace(/\s+(USD|EUR|UCITS|ETF|Acc|Dist)\b.*$/i, '').trim() || k;
@@ -2158,7 +2179,7 @@
     function openSheet(k, tempName, ut) {
         if (!REG[k]) REG[k] = { key: k, kind: ut === 'etf' ? 'fund' : 'stock', ut, sym: k, name: tempName || k, temp: true };
         // abre no mesmo período escolhido no Painel (1D, 1S, 1M, 1A)
-        sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y' }[cfg.per] || '1d'; sheetPts = null;
+        sheetKey = k; sheetRange = { '1w': '5d', '1m': '1mo', '1y': '1y', all: '5y' }[cfg.per] || '1d'; sheetPts = null;
         loadConsensus(k);
         if (REG[k] && REG[k].kind === 'crypto') loadCryptoGlobal(); // o Fear & Greed, para o sentimento da decisão
         const sh = $('#mk-sheet');

@@ -102,7 +102,7 @@ function verificar({ de, ate, seed }) {
             p1d: 0, p1w: 0, p1m: 0, p1y: 0, pOutro: 0, oSobe: 0, oDesce: 0, oBolsa: 0, oNome: 0, oMinha: 0, grupos: 0,
             meusVazio: 0, acoesVazio: 0, fundosVazio: 0, semFundos: 0, cripto: 0, retirados: 0, aberta: 0, arrastada: 0,
             fuel: 0, fuelCarrega: 0, fuelErro: 0, semConector: 0, skel: 0, hora: 0, badgeClaude: 0, badgeAuto: 0, badgeDecisao: 0, desconto: 0, imposto: 0, litro: 0,
-            carteira: 0, carteiraPeriodo: 0, carteiraSoma: 0 } };
+            carteira: 0, carteiraPeriodo: 0, carteiraSoma: 0, pTudo: 0 } };
     const T = out.tipos;
     const DIA = 864e5;
     const isoDia = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -120,7 +120,7 @@ function verificar({ de, ate, seed }) {
             set('eur', false); // o qv devolve a cotação tal e qual (as contas dos euros são do JS, antes do instantâneo)
             set('owner', pick([true, false, false]));
             set('claude', pick([true, false]));
-            set('per', pick(['1d', '1d', '1w', '1m', '1y', undefined, '', 'x', 7]));
+            set('per', pick(['1d', '1d', '1w', '1m', '1y', 'all', undefined, '', 'x', 7]));
             set('sort', pick(['up', 'down', 'mkt', 'name', 'mine', 'chg', undefined, 'x']));
             set('profile', pick(['prud', 'bal', 'dyn', undefined, 'x']));
             set('strategy', pick(['etfcrypto', 'etfcrypto', 'mix', 'mix', undefined]));
@@ -370,14 +370,16 @@ function verificar({ de, ate, seed }) {
                     vv += val; ee += e;
                     if (Number.isFinite(ch) && ch > -100) dd += val - val / (1 + ch / 100);
                 }
-                const tf = pf.now, dias = { '1w': 7, '1m': 30, '1y': 365 }[c.per] || 1, t0 = tf - 86400 * dias, vs = [];
+                // (4.39: no «Tudo», desde a 1.ª compra — pf.t0; sem ela, 1 ano)
+                const tu = c.per === 'all', ta = tu ? Number(pf.t0) : 0;
+                const tf = pf.now, dias = { '1w': 7, '1m': 30, '1y': 365, all: 365 }[c.per] || 1, t0 = ta > 0 ? ta : tf - 86400 * dias, vs = [];
                 for (let k = 0; k < 60; k++) {
                     const t = t0 + (tf - t0) * (k / 59);
                     let v = 0;
                     for (const { a, u, dat } of tbPf) v += u * (Array.isArray(a.s) && a.s.length > 1 ? pxAt(a.s, t) : dat ? pxAt(a.h, t) : a.px);
                     vs.push(v);
                 }
-                const pc = vs[0] > 0 ? (vs[59] / vs[0] - 1) * 100 : 0, dp = vv - dd > 0 ? (dd / (vv - dd)) * 100 : 0, mostra = !!c.per && c.per !== '1d';
+                const pc = vs[0] > 0 ? (vs[59] / vs[0] - 1) * 100 : 0, dp = vv - dd > 0 ? (dd / (vv - dd)) * 100 : 0, mostra = !!c.per && c.per !== '1d' && !tu;
                 const v = s && s.querySelector('.sec-h .pf-v'), gg = s && s.querySelector('.pf-b .pf-st'), b = s && s.querySelector('.pf-b');
                 if (!v || v.textContent !== eur(vv)) erro(`a carteira: o valor ${v && v.textContent} em vez de ${eur(vv)}`);
                 const lbl = { '1w': '1 semana', '1m': '1 mês', '1y': '1 ano' }[c.per] || 'hoje';
@@ -424,7 +426,7 @@ function verificar({ de, ate, seed }) {
                 if (s && (s.querySelector('.pf-ix') || s.querySelector('.pf-gl'))) erro('a carteira: sem os índices nem os grupos em linhas');
                 // o gráfico do período escolhido: o valor e o investido a tracejado (60 pontos cada), na cor do período
                 const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l'), pi = sv && sv.querySelector('path.pf-i');
-                const cap = s && s.querySelector('.pf-cap'), capq = ({ '1w': 'há 1 semana', '1m': 'há 1 mês', '1y': 'há 1 ano' }[c.per] || 'há 24 h') + 'investidoagora';
+                const cap = s && s.querySelector('.pf-cap'), capq = (tu && ta > 0 ? 'desde ' + txt(pf.dl) : { '1w': 'há 1 semana', '1m': 'há 1 mês', '1y': 'há 1 ano', all: 'há 1 ano' }[c.per] || 'há 24 h') + 'investidoagora';
                 if (!b || b.dataset.tab !== 'carteira' || !sv || sv.getAttribute('class') !== 'pf-sv ' + toneOf(pc) || !pl || pl.getAttribute('d').split('L').length !== 60 || !pi || pi.getAttribute('d').split('L').length !== 60 || !cap || cap.textContent !== capq) erro(`a carteira: o toque ou o gráfico ${sv && sv.outerHTML.slice(0, 120)}`);
             } else if (sec('A minha carteira')) erro('a carteira sem nada para mostrar');
             // ---- os meus ativos e o período ----
@@ -435,8 +437,8 @@ function verificar({ de, ate, seed }) {
                 if (tbPf.length && sm.querySelector('.seg.per')) erro('o período repetido nos meus ativos');
                 const pr = sp ? [...sp.querySelectorAll(tbPf.length ? '.pf-pe .seg.per button' : '.sec-h .seg.per button')].map((b) => [b.dataset.per, b.textContent, b.className]) : [];
                 const p = c.per || '1d';
-                T[p === '1d' ? 'p1d' : p === '1w' ? 'p1w' : p === '1m' ? 'p1m' : p === '1y' ? 'p1y' : 'pOutro']++;
-                const prq = [['1d', '1D'], ['1w', '1S'], ['1m', '1M'], ['1y', '1A']].map(([v, l]) => [v, l, p === v ? 'on' : '']);
+                T[p === '1d' ? 'p1d' : p === '1w' ? 'p1w' : p === '1m' ? 'p1m' : p === '1y' ? 'p1y' : p === 'all' ? 'pTudo' : 'pOutro']++;
+                const prq = [['1d', '1D'], ['1w', '1S'], ['1m', '1M'], ['1y', '1A'], ['all', 'Tudo']].map(([v, l]) => [v, l, p === v ? 'on' : '']);
                 if (JSON.stringify(pr) !== JSON.stringify(prq)) erro(`o período ${JSON.stringify(pr)}`);
                 const l = sm.querySelector(':scope > .list.sw-list'), e = sm.querySelector(':scope > .empty');
                 if (mine.length ? !l || e : l || !e || e.textContent !== 'Escolhe em Ajustes → O que tenho.') erro('os meus: a lista ou o vazio');

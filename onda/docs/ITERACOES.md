@@ -3306,3 +3306,16 @@ uma linha — «Hoje −81,50 € (−1,96%)» — e, fora do 1D, o do período 
 
 **Verificado.** Painel: a linha de cima igual à referência nos 600 estados; interface: só o de hoje, numa linha.
 
+## Iteração (Mercados 4.39.0): «Tudo» no filtro do Painel
+
+**Pedido.** «Porque num gráfico já passei o investido e noutro nunca?» (a Carteira desde a 1.ª compra; o 1A só os últimos
+12 meses) — «Sim, podes adicionar Tudo; ou 5A ou 10A? Tudo fica melhor?»
+
+**Feito.** «Tudo» em vez de 5A ou 10A (a carteira tem 21 meses: 5A ou 10A seriam anos a zero; o «Tudo» cresce com ela).
+No cartão, o gráfico desde a 1.ª compra, como na Carteira («desde dd/mm/aaaa»; sem compras com data, 1 ano), sem a casa
+do período (o ganho no total está no Total da tabela). Nos meus ativos, cada um desde a 1.ª compra dele (pelos fechos de
+5 anos e do último ano, como na Carteira). A ficha abre nos 5A.
+
+**Verificado.** Painel: o «Tudo» entre os estados aleatórios, igual à referência (o gráfico, a legenda e sem a casa do
+período); interface: o cartão desde a 1.ª compra, 60 pontos na linha, os cinco botões a caber no ecrã.
+
