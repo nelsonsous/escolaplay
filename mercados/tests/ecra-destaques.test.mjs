@@ -422,9 +422,9 @@ test('Destaques: a app desenha-os com a Onda (e, se a Onda falhar, um aviso curt
     assert.equal(r.logs, 1, 'e o erro na consola');
 });
 
-test('como a Música: a zona das horas é uma faixa preta fixa e a app abre no topo', async () => {
+test('como a Música: a zona das horas é uma faixa fixa, clara como o fundo (cores de dia), e a app abre no topo', async () => {
     const r = await page.evaluate(() => { const s = getComputedStyle(document.body, '::before'); return { pos: s.position, cor: s.backgroundColor, z: s.zIndex, top: s.top, ev: s.pointerEvents, sr: history.scrollRestoration }; });
-    assert.deepEqual(r, { pos: 'fixed', cor: 'rgb(0, 0, 0)', z: '15', top: '0px', ev: 'none', sr: 'manual' });
+    assert.deepEqual(r, { pos: 'fixed', cor: 'rgb(255, 255, 255)', z: '15', top: '0px', ev: 'none', sr: 'manual' });
 });
 
 test('Destaques: desempenho (mediana de 50 desenhos no Chromium)', async () => {

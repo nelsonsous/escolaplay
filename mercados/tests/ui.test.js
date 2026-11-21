@@ -20,6 +20,30 @@ async function fichaInteira(page, nome) {
     await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, nome) });
     await solta(false);
 }
+// o tema de dia: todo o texto à vista tem contraste com o fundo (apanha as cores «só de noite» que sobrem: texto claro
+// em fundo claro). O fundo de cada texto é o do primeiro elemento (ele ou um acima) com fundo quase opaco.
+async function legivel(page, onde) {
+    const mal = await page.evaluate(() => {
+        const lum = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+        const rgba = (s) => { const m = (s.match(/[\d.]+/g) || ['0', '0', '0']).map(Number); return [m[0], m[1], m[2], m.length > 3 ? m[3] : 1]; };
+        const fundo = (el) => { for (let e = el; e; e = e.parentElement) { const c = rgba(getComputedStyle(e).backgroundColor); if (c[3] > 0.6) return c.slice(0, 3); } return [255, 255, 255]; };
+        const out = [];
+        for (const el of document.querySelectorAll('#mk-body *, #mk-nav *')) {
+            if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+            const r = el.getBoundingClientRect();
+            if (!r.width || !r.height) continue;
+            const cs = getComputedStyle(el);
+            if (cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+            const c = rgba(cs.color);
+            if (c[3] < 0.5) continue;
+            const a = lum(c.slice(0, 3)), b = lum(fundo(el));
+            const cr = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+            if (cr < 3) out.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]} «${el.textContent.trim().slice(0, 24)}» ${cr.toFixed(1)}`);
+        }
+        return out;
+    });
+    assert.deepEqual(mal, [], `${onde}: texto sem contraste com o fundo`);
+}
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 
 function rnd(seed) { let s = seed % 2147483647 || 1; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
@@ -194,6 +218,16 @@ function proxyBody(u) {
     await page.reload();
     await page.waitForFunction(() => document.querySelector('[data-key="c:BTC"] .px') && /€/.test(document.querySelector('[data-key="c:BTC"] .px').textContent));
     assert.ok(await page.locator('.banner').isVisible(), 'aviso do conector');
+    // cores de dia: fundo claro, texto escuro, e a faixa de cima (a zona das horas do iPhone) clara como o resto; a barra
+    // do browser (theme-color) e o esquema de cores dizem o mesmo; no iPhone, a barra de estado fica «default» (horas escuras)
+    const dia = await page.evaluate(() => ({
+        fundo: getComputedStyle(document.body).backgroundColor, texto: getComputedStyle(document.body).color,
+        faixa: getComputedStyle(document.body, '::before').backgroundColor, nav: getComputedStyle(document.getElementById('mk-nav')).backgroundColor,
+        barra: document.querySelector('meta[name="theme-color"]').content, esquema: document.querySelector('meta[name="color-scheme"]').content,
+        estado: document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content, cs: getComputedStyle(document.documentElement).colorScheme,
+    }));
+    assert.deepEqual(dia, { fundo: 'rgb(255, 255, 255)', texto: 'rgb(0, 0, 0)', faixa: 'rgb(255, 255, 255)', nav: 'rgba(255, 255, 255, 0.92)', barra: '#ffffff', esquema: 'light', estado: 'default', cs: 'light' }, 'cores de dia');
+    await legivel(page, 'painel');
     assert.match(await page.locator('#mk-status').textContent(), /Cripto ao vivo/);
     console.log('✓ sem conector: cripto ao vivo', await page.locator('[data-key="c:BTC"] .px').first().textContent());
     await page.close();
@@ -226,6 +260,7 @@ function proxyBody(u) {
     const orc0 = await page.evaluate(() => window.__mk.cfg.budget);
     await page.click('#mk-nav [data-tab="carteira"]');
     await page.waitForSelector('.sim');
+    await legivel(page, 'carteira');
     const campo = async (k, v) => { await page.evaluate(([k, v]) => { const i = document.querySelector(`.sim [data-cfg="${k}"]`); i.value = String(v); i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }, [k, v]); };
     await page.evaluate(() => { window.__mk.cfg.budget = 900; }); // o plano dos Ajustes
     await campo('simBudget', 900);
@@ -389,6 +424,7 @@ function proxyBody(u) {
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '8-carteira.png'), fullPage: true });
     await page.evaluate((b) => { Object.assign(window.__mk.cfg, { budget: b, simGoal: 0, simYears: 20 }); delete window.__mk.cfg.lots['VWCE.DE']; delete window.__mk.cfg.lots['c:ETH']; }, orc0);
     await page.click('#mk-nav [data-tab="ajustes"]');
+    await legivel(page, 'ajustes');
     const firstW = await page.evaluate(() => window.__mk.cfg.watch[0]), secondW = await page.evaluate(() => window.__mk.cfg.watch[1]);
     await page.click(`[data-mv="${secondW}"][data-dir="top"]`);
     assert.deepEqual(await page.evaluate(() => window.__mk.cfg.watch.slice(0, 2)), [secondW, firstW], '⤒ põe no topo');
@@ -508,6 +544,7 @@ function proxyBody(u) {
     // linhas do Painel (o porquê numa linha pequena: o motivo do Claude ou a notícia) e o resto em linhas fechadas no fim
     await page.click('#mk-nav [data-tab="destaques"]');
     await page.waitForFunction(() => document.querySelectorAll('.hl-row .hl-w').length >= 4);
+    await legivel(page, 'destaques');
     assert.equal(await page.locator('[data-lim]').count(), 0, 'sem filtros de ±X%');
     assert.deepEqual(await page.locator('#mk-body .sec-h h2').allTextContents(), ['Os meus ativos hoje', 'Mais sobem', 'Mais caem'], 'uma lista por secção');
     const mineH = await page.locator('.sec:has(h2:text-is("Os meus ativos hoje")) .row .r-name').allTextContents();
@@ -549,6 +586,7 @@ function proxyBody(u) {
     // não analisou no fim, com o sinal automático, marcado "auto"); o resto em linhas fechadas no fim
     await page.click('#mk-nav [data-tab="analise"]');
     await page.waitForSelector('.chips [data-filter="plan"].on');
+    await legivel(page, 'análise');
     const lst = '.an-list';
     const planRows = await page.locator(lst + ' .row').evaluateAll((els) => els.map((e) => e.dataset.open));
     assert.ok(planRows.length >= 8 && planRows.every((k) => /^c:|\.DE$/.test(k)), 'filtro ETF + cripto: ' + planRows);
