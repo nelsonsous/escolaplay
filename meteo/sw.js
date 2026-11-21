@@ -3,7 +3,7 @@
 // O domínio é partilhado com a EscolaPlay e a Mercados (/escolaplay/): este SW só mexe nas
 // caches "meteo-*" e só trata pedidos dentro da sua pasta (/escolaplay/meteo/).
 // A previsão, o radar (RainViewer) e o conector (outros domínios) nunca passam por aqui.
-const CACHE = 'meteo-v54'; // 1.28.1 — o botão das cores com o automático; a faixa das horas branca de dia
+const CACHE = 'meteo-v55'; // 1.28.2 — o botão das cores mostra as cores em uso (sol de dia, lua à noite; «A» em automático)
 const ASSETS = [
     './', './index.html', './meteo.css', './meteo.js', './api.js', './format.js', './icons.js', './charts.js', './sky.js', './chuva.js', './onda/chuva-wasm.js', './onda/ceu-glsl.js', '../onda/rt/gestos-onda.js', './manifest.webmanifest',
     './lib/data.js', './lib/engine.js', './lib/learn.js', './lib/marine.js', './lib/sources.js', './lib/stats.js', './lib/analysis.js', './lib/radar.js', './lib/png.js', './lib/avisos.js',

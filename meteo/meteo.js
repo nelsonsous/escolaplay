@@ -17,7 +17,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.28.1';
+const VERSION = '1.28.2';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -250,8 +250,8 @@ function applyFs() {
 // já a acertou (como nos Mercados 4.37.3).
 const mqLight = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: light)') : null;
 let themeOn = false;
-// 1.28.1: os três modos das cores (como nos Mercados 4.38.3): o nome (no aviso) e o ícone do botão do Agora
-const TEMA_NOME = { auto: 'automático (como o iPhone)', light: 'dia', dark: 'noite' }, TEMA_ICO = { auto: 'contrast', light: 'sun', dark: 'moon' };
+// 1.28.1: os três modos das cores (como nos Mercados 4.38.3): o nome, no aviso e no botão do Agora
+const TEMA_NOME = { auto: 'automático (como o iPhone)', light: 'dia', dark: 'noite' };
 const themeNow = () => (cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : mqLight?.matches ? 'light' : 'dark');
 function applyTheme() {
     const t = themeNow();
@@ -403,10 +403,11 @@ function render() {
     if (act && body.contains(act) && act.matches('input')) { renderStatus(); return; }
     const v = { dias: viewDays, satelite: viewSat, analise: viewAnalysis, ajustes: viewSettings }[cfg.tab] || viewNow;
     const { title, html } = v();
-    // 1.28.1: o botão do topo do Agora mostra o modo das cores (◐ automático, sol dia, lua noite); tocar passa ao seguinte
-    // (como nos Mercados 4.38.3)
+    // 1.28.2: o botão do topo do Agora mostra as cores em vigor — o sol de dia, a lua à noite —, com um «A» pequeno em
+    // automático (o ◐ da 1.28.1 parecia uma lua, mesmo de dia); tocar passa ao modo seguinte: automático → dia → noite
     const modo = cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : 'auto', seg = { auto: 'light', light: 'dark', dark: 'auto' }[modo];
-    const tema = cfg.tab === 'agora' ? `<button type="button" class="pg-tema" data-thm="${seg}" data-modo="${modo}" aria-label="Cores: ${TEMA_NOME[modo]}. Tocar passa a ${TEMA_NOME[seg]}">${ui(TEMA_ICO[modo])}</button>` : '';
+    const dia = document.documentElement.dataset.theme === 'light', agora = modo === 'auto' ? `automático, agora ${dia ? 'dia' : 'noite'}` : TEMA_NOME[modo];
+    const tema = cfg.tab === 'agora' ? `<button type="button" class="pg-tema" data-thm="${seg}" data-modo="${modo}" aria-label="Cores: ${agora}. Tocar passa a ${TEMA_NOME[seg]}">${ui(dia ? 'sun' : 'moon')}${modo === 'auto' ? '<span class="pg-tema-a" aria-hidden="true">A</span>' : ''}</button>` : '';
     body.innerHTML = `<h1 class="pg-t${tema ? ' pg-t-tema' : ''}">${title}</h1>${tema}<div class="pg-st" id="mt-status" aria-live="polite"></div>${html}`;
     renderStatus();
     mount();
@@ -1112,7 +1113,7 @@ function viewSettings() {
     // 1.28: as cores à vista (o dia e a noite); o botão do sol e da lua no topo do Agora faz o mesmo
     const thm = cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : 'auto';
     h += `<section class="sec" id="cores"><div class="sec-h"><h2>Cores</h2></div><div class="form"><div><div class="seg thm" role="group" aria-label="Cores">${[['auto', 'Automático'], ['light', 'Dia'], ['dark', 'Noite']].map(([v, l]) => `<button type="button" data-thm="${v}" class="${thm === v ? 'on' : ''}" aria-pressed="${thm === v}">${l}</button>`).join('')}</div>
-        <div class="hint">Dia é claro e Noite é escuro. Automático segue o iPhone (Definições → Ecrã e brilho). O botão do topo do Agora mostra o modo (◐ automático, sol, lua) e cada toque passa ao seguinte.</div></div></div></section>`;
+        <div class="hint">Dia é claro e Noite é escuro. Automático segue o iPhone (Definições → Ecrã e brilho). O botão do topo do Agora mostra as cores em uso (sol de dia, lua à noite, com «A» em Automático) e cada toque passa ao modo seguinte.</div></div></div></section>`;
     h += `<section class="sec" id="partilhar"><div class="sec-h"><h2>Partilhar</h2></div><div class="form"><button type="button" class="btn pri blk" data-act="share">${ui('share')}Partilhar a Meteo</button>
         <div class="hint">Envia o endereço e como instalar (iPhone e Android). Grátis e sem conta.</div></div></section>`;
     h += meHtml();

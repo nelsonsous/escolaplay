@@ -226,8 +226,9 @@ Com as animações desligadas (ou sem WebAssembly), as barras SVG de sempre.
 ## O dia e a noite (1.28)
 
 **Ajustes → Cores**: Automático (segue o iPhone: claro de dia e escuro à noite, se o iPhone estiver assim), Dia (claro) e
-Noite (escuro); o **botão das cores**, no topo do Agora (abaixo da faixa das horas, ao meio do título), mostra o modo
-(◐ automático, sol dia, lua noite) e cada toque passa ao seguinte, com o aviso «Cores: …» (1.28.1, como nos Mercados 4.38.3).
+Noite (escuro); o **botão das cores**, no topo do Agora (abaixo da faixa das horas, ao meio do título), mostra as cores em
+uso — o sol de dia, a lua à noite, com um «A» pequeno em Automático (1.28.2) — e cada toque passa ao modo seguinte
+(automático → dia → noite), com o aviso «Cores: …» (1.28.1, como nos Mercados 4.38.3).
 Como nos Mercados (4.33–4.38): a barra das horas do iPhone vai com as cores — «default» (horas a escuro) de dia e
 «black-translucent» (horas a branco, por cima do preto) à noite. O iPhone só a lê ao abrir a página: o `index.html` acerta-a
 antes de pintar (lê `meteo:v1`) e, na app instalada, mudar volta a abrir a página. A faixa das horas é preta à noite e

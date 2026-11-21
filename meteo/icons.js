@@ -125,7 +125,6 @@ const UI = {
   gauge: '<path d="M4.3 17a8.5 8.5 0 1 1 15.4 0"/><path d="M12 15.5l3.6-5"/><circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none"/>',
   eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
-  contrast: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none"/>',
   moon: '<path d="M19.8 14.6A8 8 0 1 1 9.4 4.2a6.4 6.4 0 0 0 10.4 10.4z"/>',
   cloud: '<path d="M7.2 18.5h9.6a4.2 4.2 0 0 0 .6-8.4 6 6 0 0 0-11.5 1.6 3.4 3.4 0 0 0 1.3 6.8z"/>',
   bolt: '<path d="M13 2.5L5.5 13.5H11l-1 8 7.5-11H12z"/>',
