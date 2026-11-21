@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.37.2';
+    const VERSION = '4.37.3';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -3039,7 +3039,17 @@
         colors(); vivaCores = false;
         const m = document.querySelector('meta[name="theme-color"]');
         if (m) m.setAttribute('content', getComputedStyle(el).getPropertyValue('--bg').trim() || (t === 'light' ? '#ffffff' : '#000000'));
+        // 4.37.3: a barra das horas do iPhone também clara de dia — «default» (horas a escuro, sobre claro) no dia e
+        // «black-translucent» (horas a branco, sobre a faixa preta) à noite. O iPhone só a lê ao abrir a página: na app
+        // instalada, mudar o dia e a noite volta a abri-la (a escolha fica guardada antes); ao arrancar, o index.html já a acertou
+        const bar = t === 'light' ? 'default' : 'black-translucent', sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (sb && sb.getAttribute('content') !== bar) {
+            sb.setAttribute('content', bar);
+            if (themeOn && navigator.standalone === true) { saveCfg(); location.reload(); }
+        }
+        themeOn = true;
     }
+    let themeOn = false; // o primeiro applyTheme (ao arrancar) nunca recarrega
     if (mqClaro && mqClaro.addEventListener) mqClaro.addEventListener('change', () => { if (cfg.theme !== 'light' && cfg.theme !== 'dark') { applyTheme(); render(); if (sheetKey && !$('#mk-sheet').hidden) renderSheet(); } });
     function applyFs() { document.documentElement.dataset.fs = ['n', 'l', 'xl'].includes(cfg.fs) ? cfg.fs : 'n'; }
     // ---------- ordenar a lista que sigo: arrastar pela pega ≡ (ou ⤒ para o topo) ----------

@@ -568,9 +568,13 @@ function proxyBody(u) {
     assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'light');
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['light', 'rgb(255, 255, 255)', '#fff'], 'o botão do Painel: dia');
+    // 4.37.3: a barra das horas do iPhone também clara de dia («default», horas a escuro) e a faixa por trás dela clara
+    const barra = () => page.evaluate(() => [document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').getAttribute('content'), getComputedStyle(document.body, '::before').backgroundColor]);
+    assert.deepEqual(await barra(), ['default', 'rgb(255, 255, 255)'], 'a barra de cima também clara de dia');
     assert.equal(await page.locator('#mk-body > .pg-tema').getAttribute('data-thm'), 'dark');
     await page.click('#mk-body > .pg-tema');
     assert.deepEqual(await tema(), ['dark', 'rgb(0, 0, 0)', '#000'], 'e volta a noite');
+    assert.deepEqual(await barra(), ['black-translucent', 'rgb(0, 0, 0)'], 'à noite a faixa preta, com as horas a branco');
     await page.evaluate(() => { window.__mk.cfg.theme = 'auto'; window.__mk.render(); });
     await page.click('#mk-nav [data-tab="ajustes"]');
     assert.equal(await page.locator('[data-thm="auto"].on').count(), 1, 'por omissão, automático');
