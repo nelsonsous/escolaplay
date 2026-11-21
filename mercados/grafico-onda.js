@@ -60,7 +60,9 @@
         pinta() {
             if (!X || !cv || !cv.isConnected) return;
             const cw = Math.max(2, Math.round(cv.clientWidth * escala)), ch = Math.max(2, Math.round(cv.clientHeight * escala));
-            if (cw !== w || ch !== h || !img) { w = cw; h = ch; cv.width = w; cv.height = h; img = ctx.createImageData(w, h); sujo = true; }
+            // (também se outro código mudou o tamanho do canvas: o «A carregar…» da ficha desenha com a escala do ecrã, ×3 no
+            // iPhone, e o gráfico ficava a ocupar só 2/3 dele)
+            if (cw !== w || ch !== h || !img || cv.width !== w || cv.height !== h) { w = cw; h = ch; cv.width = w; cv.height = h; img = ctx.createImageData(w, h); sujo = true; }
             if (sujo) {
                 const t0 = performance.now();
                 const end = X.gdesenha(g, BigInt(w), BigInt(h));

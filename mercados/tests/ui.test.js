@@ -708,6 +708,23 @@ function proxyBody(u) {
     await page.evaluate(() => window.__mk.pollYahoo());
     await page.waitForFunction(() => window.__mk.Q['VWCE.DE'].open === true);
     await page.evaluate(() => { const mk = window.__mk; delete mk.pj.pend['VWCE.DE']; mk.render(); });
+    // a ficha num ecrã ×3 (o iPhone): ao mudar de período o gráfico continua a ocupar a área toda, e os 9 períodos cabem
+    await page.evaluate(() => Object.defineProperty(window, 'devicePixelRatio', { value: 3, configurable: true }));
+    await page.locator('.row[data-open="VWCE.DE"]:visible').first().click();
+    await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && document.querySelector('#d-load').hidden);
+    for (const r of ['6mo', '1mo', '5y']) {
+        await page.click(`.ranges [data-range="${r}"]`);
+        await page.waitForFunction(() => document.querySelector('#d-load').hidden);
+        await page.waitForTimeout(300);
+        const tam = await page.evaluate(() => { const c = document.querySelector('#d-cv'); return [c.width, Math.round(c.clientWidth * 2), c.height, Math.round(c.clientHeight * 2)]; });
+        assert.deepEqual([tam[0], tam[2]], [tam[1], tam[3]], `${r}: o gráfico na escala dele (não fica em 2/3 do canvas)`);
+    }
+    const linha = await page.evaluate(() => { const r = document.querySelector('.ranges').getBoundingClientRect(), b = [...document.querySelectorAll('.ranges button')].map((x) => x.getBoundingClientRect()); return [b.length, b.every((x) => x.right <= r.right + 0.5 && x.left >= r.left - 0.5)]; });
+    assert.deepEqual(linha, [9, true], 'os 9 períodos cabem (o 5A à vista)');
+    if (SHOTS) await page.locator('#mk-sheet-card').screenshot({ path: path.join(SHOTS, '9j-ficha-5anos-x3.png') });
+    await page.evaluate(() => { delete window.devicePixelRatio; }); // volta a escala verdadeira deste ecrã
+    await page.click('[data-act="close"] >> nth=-1');
+    await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
     console.log('✓ fora de horas: Palantir', await tagP.textContent(), '| SAP', tS, '→', pj.tag, '(β', beta.us.toFixed(2) + ') | FTSE All-World', tagF, '(VT −1,5% e futuros) | intervalos e derivados');
 
     // destaques: simples como a Análise — o sentimento numa linha (com os índices do dia), uma lista por secção com as

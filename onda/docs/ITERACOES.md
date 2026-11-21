@@ -3206,3 +3206,14 @@ filtro do 1D, 1S, 1A pode ir para cima e aplicar-se também ao gráfico da carte
 
 **Verificado.** Painel: 600 estados (o filtro no sítio certo, o gráfico do período com o investido e a legenda).
 Interface: o filtro no cartão e não repetido, o botão do dia e da noite, e o histórico guardado.
+
+## Iteração (Mercados 4.37.1): o gráfico da ficha com a área toda e o 5A à vista
+
+**Pedido.** «Porque é que agora não tem 5 anos, e porque é que, ao filtrar, o gráfico fica com menos área?»
+
+**Feito.** O gráfico vivo (`grafico-onda.js`) refaz o seu tamanho também quando outro código mexeu no canvas: o «A
+carregar…» da ficha desenha com a escala do ecrã (×3 no iPhone) e o gráfico, com a dele (×2), ficava em 2/3 da área ao
+mudar de período. Os 9 períodos cabem numa linha (o 5A ficava escondido à direita, a deslizar).
+
+**Verificado.** Interface: num ecrã ×3, ao mudar para 6M, 1M e 5A, o canvas fica na escala do gráfico (com o motor
+antigo, o teste falha em 6M); e os 9 períodos dentro da linha.
