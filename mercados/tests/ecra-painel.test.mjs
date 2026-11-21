@@ -339,7 +339,7 @@ function verificar({ de, ate, seed }) {
             const cripto = CRIPTO.map((x) => x[0]), crypt = cripto.filter((k) => REG[k] && !mine.includes(k) && !hid(k)), nhc = cripto.filter(hid).length;
             const fundos = funds.filter((k) => REG[k] && !mine.includes(k));
             const pf = snap.pf;
-            const querBlocos = [(() => { if (!(pf && typeof pf === 'object' && !Array.isArray(pf) && Array.isArray(pf.ativos))) return null; return pf.ativos.some((a) => (((a.b || []).length > 0 && (a.h || []).length > 0) || (Number.isFinite(a.q) && a.q > 0 && Number.isFinite(a.cost) && a.cost > 0)) && Number.isFinite(a.px) && a.px > 0) ? 'A minha carteira' : null; })(), inv.length || cv ? 'hoje' : null, 'Os meus ativos', crypt.length || nhc ? 'Cripto' : null, fundos.length || !funds.length ? 'Fundos e ETF' : null, 'Ações que sigo', 'pn-idx', 'pn-en', c.proxy ? 'pn-fuel' : null].filter(Boolean);
+            const querBlocos = [(() => { if (!(pf && typeof pf === 'object' && !Array.isArray(pf) && Array.isArray(pf.ativos))) return null; return pf.ativos.some((a) => (((a.b || []).length > 0 && (a.h || []).length > 0) || (Number.isFinite(a.q) && a.q > 0 && Number.isFinite(a.cost) && a.cost > 0)) && Number.isFinite(a.px) && a.px > 0) ? 'A minha carteira' : null; })(), 'Os meus ativos', inv.length || cv ? 'hoje' : null, crypt.length || nhc ? 'Cripto' : null, fundos.length || !funds.length ? 'Fundos e ETF' : null, 'Ações que sigo', 'pn-idx', 'pn-en', c.proxy ? 'pn-fuel' : null].filter(Boolean);
             if (JSON.stringify(blocos) !== JSON.stringify(querBlocos)) erro(`os blocos ${JSON.stringify(blocos)} em vez de ${JSON.stringify(querBlocos)}`);
             const sec = (t) => filhos.find((e) => e.tagName === 'SECTION' && e.querySelector('h2').textContent === t);
             const dob = (f) => filhos.find((e) => e.tagName === 'DETAILS' && e.dataset.fold === f);
@@ -387,13 +387,11 @@ function verificar({ de, ate, seed }) {
                     g.v += val; g.e += e; g.d += Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; g.n++;
                     if (!a.cr) g.a = a;
                 }
-                const gx = (g) => (g.e > 0 ? ` ${sgf(g.v - g.e)} (${mk.fmtPct1((g.v / g.e - 1) * 100)})` : '') + ` · hoje ${mk.fmtPct1(g.v - g.d > 0 ? (g.d / (g.v - g.d)) * 100 : 0)}`;
-                const gq2 = [gr.o.n ? `${gr.o.n === 1 ? txt(gr.o.a.nm) : 'Fundos e ações'} ${eur(gr.o.v)}${gx(gr.o)}` : null, gr.c.n ? `Cripto ${eur(gr.c.v)}${gx(gr.c)}` : null].filter(Boolean);
-                const gls = s ? [...s.querySelectorAll('.pf-gl')].map((x) => x.textContent) : [];
-                if (JSON.stringify(gls) !== JSON.stringify(gq2)) erro(`a carteira: os grupos ${JSON.stringify(gls)} em vez de ${JSON.stringify(gq2)}`);
-                // os principais índices do dia
-                const ixq = (Array.isArray(pf.ix) ? pf.ix : []).filter((x) => x && typeof x.c === 'number' && Number.isFinite(x.c)).map((x) => `${txt(x.n)} ${mk.fmtPct1(x.c)}`).join(' · '), ixe = s && s.querySelector('.pf-ix');
-                if ((ixe ? ixe.textContent : '') !== ixq) erro(`a carteira: os índices ${ixe && ixe.textContent} em vez de ${ixq}`);
+                const gx = (g) => (g.e > 0 ? ` ${sgf(g.v - g.e)} (${mk.fmtPct1((g.v / g.e - 1) * 100)})` : ` ${eur(g.v)}`);
+                const gq2 = [gr.o.n ? `${gr.o.n === 1 ? txt(gr.o.a.nm) : 'Fundos e ações'}${gx(gr.o)}` : null, gr.c.n ? `Cripto${gx(gr.c)}` : null].filter(Boolean).join(' · ');
+                const gse = s && s.querySelector('.pf-gs');
+                if (!gse || gse.textContent !== gq2) erro(`a carteira: os grupos ${gse && gse.textContent} em vez de ${gq2}`);
+                if (s && (s.querySelector('.pf-ix') || s.querySelector('.pf-gl'))) erro('a carteira: sem os índices nem os grupos em linhas');
                 // o gráfico: com todas as compras datadas, o valor desde a primeira e o investido a tracejado; sem isso, o do período
                 const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l'), pi = sv && sv.querySelector('path.pf-i'), hist = tbPf.every((x) => x.dat);
                 if (hist) T.carteiraHist = (T.carteiraHist || 0) + 1;

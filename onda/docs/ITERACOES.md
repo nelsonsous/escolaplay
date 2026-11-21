@@ -3164,3 +3164,13 @@ ações (com um só, o nome dele) e a cripto — cada um com o valor, o ganho fa
 
 **Verificado.** Painel: 600 estados, com a referência em JS dos grupos, dos índices e do gráfico (com e sem datas).
 Interface: o FTSE All-World e a cripto separados, os índices e o investido a tracejado.
+
+## Iteração (Mercados 4.35.0): os meus ativos antes da análise, o cartão mais curto
+
+**Pedido.** Os meus ativos antes da análise do Claude; e, com eles logo a seguir, o cartão da carteira não precisa de
+tanta coisa depois do gráfico.
+
+**Feito.** A ordem volta a ser a carteira, os meus ativos e o Hoje. No cartão, depois do gráfico, uma linha só: o ganho
+dos fundos e o da cripto face ao investido (sem os índices, que estão no Hoje e nas linhas fechadas).
+
+**Verificado.** Painel: 600 estados (a ordem e a linha dos grupos). Interface: a ordem e o cartão.
