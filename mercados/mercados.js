@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.41.0';
+    const VERSION = '4.42.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1489,10 +1489,11 @@
         return { v, cp: v > 0 ? vc / v : 0 };
     }
     // o «Por mês» do simulador é só dele (mexer nele não muda o plano dos Ajustes); sem valor próprio, segue o plano
-    const simBudget = () => (Number.isFinite(cfg.simBudget) ? cfg.simBudget : budgetOf());
+    // (4.42: por omissão, o plano mais o round up e o saveback habituais)
+    const simBudget = () => (Number.isFinite(cfg.simBudget) ? cfg.simBudget : poupMes());
     function walletSnap() {
         const ch = carteiraHoje(), real = ch.v > 0 && !cfg.simStartManual;
-        const mexido = (ch.v > 0 && !!cfg.simStartManual) || (Number.isFinite(cfg.simBudget) && cfg.simBudget !== budgetOf());
+        const mexido = (ch.v > 0 && !!cfg.simStartManual) || (Number.isFinite(cfg.simBudget) && cfg.simBudget !== poupMes());
         return { budget: simBudget(), mexido, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund),
             start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap() };
     }
@@ -1560,12 +1561,54 @@
         for (const [tt, v] of histOf(k)) { if (tt <= t) p = v; else break; }
         return fin(p) && p > 0 ? p : pxEur(k);
     }
+    // 4.42: a poupança periódica — o plano (o valor por mês, repartido pelos dias do plano), o round up (dias 2, 9, 16 e 23)
+    // e o saveback (dia 2). Cada execução conta ao fim da tarde desse dia (18 h), ao preço de fecho, com o valor habitual;
+    // ajusta-se data a data com −/+/0 (lots.pa, lots.ra, lots.sa: {dia: €}); um registado nesse dia (o «Registar») ganha
+    const FIM_TARDE = 18;
+    const feito = (iso) => iso < todayLocal() || (iso === todayLocal() && new Date().getHours() >= FIM_TARDE);
+    const PP_MAPA = { pl: 'pa', ru: 'ra', sb: 'sa' }, PP_PASSO = { pl: 50, ru: 0.5, sb: 1 };
+    // o habitual do round up (€ por semana) e do saveback (€ por mês): o escolhido, senão a média dos últimos 4 registados
+    function habitual(k, tp) {
+        const L = lotOf(k), v = tp === 'ru' ? L.ruS : L.sbM;
+        if (v !== undefined && v !== null && v !== '' && fin(+v) && +v >= 0) return +v;
+        const r = (L.compras || []).filter((c) => c[tp] && +c.e > 0).slice(-4);
+        return r.length ? Math.round((r.reduce((s, c) => s + +c.e, 0) / r.length) * 100) / 100 : 0;
+    }
+    // as datas de cada um entre de (exclusive) e ate (inclusive): o plano pelos dias dele; o round up e o saveback pelos da TR
+    function agendaPP(k, tp, de, ate) {
+        if (tp === 'pl') return pmOf(k) > 0 || Object.keys(lotOf(k).pa || {}).length ? A.planLots(isoMais(de, 1), cfg.saveDays, ate).map((x) => x.d) : [];
+        const dias = tp === 'ru' ? [2, 9, 16, 23] : [2], out = [];
+        let [y, m] = de.split('-').map(Number);
+        for (let n = 0; n < 240; n++) {
+            const mm = String(m).padStart(2, '0');
+            if (`${y}-${mm}-01` > ate) break;
+            for (const d of dias) { const iso = `${y}-${mm}-${String(d).padStart(2, '0')}`; if (iso > de && iso <= ate) out.push(iso); }
+            m++; if (m > 12) { m = 1; y++; }
+        }
+        return out;
+    }
+    // o valor de uma execução: o ajustado nesse dia, senão o habitual (o plano: o valor por mês a dividir pelos dias)
+    function valorPP(k, tp, d) {
+        const aj = (lotOf(k)[PP_MAPA[tp]] || {})[d];
+        if (aj !== undefined && aj !== null && fin(+aj)) return { e: +aj, aj: 1 };
+        return { e: tp === 'pl' ? pmOf(k) / Math.max(1, (cfg.saveDays || []).length) : habitual(k, tp), aj: 0 };
+    }
+    // o round up e o saveback habituais num mês (para as contas do futuro: o simulador e a análise do Claude)
+    const extrasMes = (k) => (temHoje(lotOf(k)) ? habitual(k, 'ru') * 52 / 12 + habitual(k, 'sb') : 0);
+    const poupMes = () => budgetOf() + cfg.holdings.filter((k) => REG[k]).reduce((s, k) => s + extrasMes(k), 0);
     function extrasOf(k) {
         const L = lotOf(k), out = [];
         if (!temHoje(L) || !ISO_D.test(L.at || '')) return out;
-        const pm = pmOf(k), n = Math.max(1, (cfg.saveDays || []).length);
-        if (pm > 0) for (const x of A.planLots(isoMais(L.at, 1), cfg.saveDays, todayLocal())) { const p = pxEm(k, x.d); if (fin(p) && p > 0) out.push({ d: x.d, e: pm / n, q: pm / n / p, t: 0 }); }
         (L.compras || []).forEach((c, i) => { if (fin(+c.q) && +c.q !== 0 && ISO_D.test(c.d || '')) out.push({ d: c.d, e: +c.e || 0, q: +c.q, t: c.cb ? 2 : c.sb ? 3 : c.ru ? 4 : 1, i }); });
+        // a poupança periódica, nos dias já feitos (ao fim da tarde) e sem um registado desse tipo (4.42)
+        for (const tp of ['pl', 'ru', 'sb']) {
+            const reg = new Set(tp === 'pl' ? [] : (L.compras || []).filter((c) => c[tp]).map((c) => c.d));
+            for (const d of agendaPP(k, tp, L.at, todayLocal())) {
+                if (reg.has(d) || !feito(d)) continue;
+                const v = valorPP(k, tp, d), p = pxEm(k, d);
+                if (v.e > 0 && fin(p) && p > 0) out.push({ d, e: v.e, q: v.e / p, t: tp === 'pl' ? 0 : tp === 'sb' ? 5 : 6, aj: v.aj });
+            }
+        }
         return out.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
     }
     // a posição de hoje: o que copiaste da TR mais o que veio depois
@@ -1581,7 +1624,9 @@
         const o = Object.fromEntries(Object.entries(cfg.lots).map(([k, L]) => {
             const hz = owns(k) || L.hz ? hzOf(k) : undefined;
             if (!REG[k] || !temHoje(L)) return [k, { ...L, ...(hz ? { hz } : {}) }];
-            const P = posOf(k); return [k, { ...L, qty: Math.round(P.q * 1e8) / 1e8, cost: Math.round(P.c * 100) / 100, ...(hz ? { hz } : {}) }];
+            // (4.42: o valor por mês deste ativo com o round up e o saveback habituais)
+            const P = posOf(k), ex = extrasMes(k);
+            return [k, { ...L, qty: Math.round(P.q * 1e8) / 1e8, cost: Math.round(P.c * 100) / 100, ...(ex > 0 ? { pm: Math.round((pmOf(k) + ex) * 100) / 100 } : {}), ...(hz ? { hz } : {}) }];
         }));
         for (const k of cfg.holdings) if (!o[k] && REG[k]) o[k] = { plan: '', buys: [], hz: hzOf(k) };
         // o que tem primeiro (o conector guarda até 60 ativos)
@@ -1589,7 +1634,8 @@
         return Object.fromEntries(ks.map((k) => [k, o[k]]));
     };
     // o plano dos Ajustes: quanto investe por mês e a parte da cripto (o Claude parte daqui, não de um valor fixo)
-    const planoEnvio = () => ({ budget: budgetOf(), cryptoPct: etfCrypto() ? +cfg.cryptoPct || 0 : 0 });
+    // (4.42: com o round up e o saveback habituais, a contar para o plano do Claude; em cêntimos só quando os há)
+    const planoEnvio = () => { const b = poupMes(); return { budget: b === budgetOf() ? b : Math.round(b * 100) / 100, cryptoPct: etfCrypto() ? +cfg.cryptoPct || 0 : 0 }; };
     // em que prazo tem o ativo (curto, médio ou longo; escolhe-se na Carteira): o que tem, por omissão, longo
     const HZ_OK = ['short', 'mid', 'long'];
     const hzOf = (k) => { const h = (cfg.lots[k] || {}).hz; return HZ_OK.includes(h) ? h : owns(k) ? 'long' : ''; };
@@ -1662,10 +1708,23 @@
         const k = ks.includes(st.reg.k) ? st.reg.k : ks.includes(cfg.coreFund) ? cfg.coreFund : ks[0];
         st.reg.k = k;
         const lista = ks.flatMap((x) => extrasOf(x).map((e) => ({ ...e, k: x }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)).slice(0, 8)
-            .map((e) => ({ k: e.k, name: nameOf(e.k), d: dmy(e.d), e: Math.round(e.e * 100) / 100, q: e.q, t: e.t, i: e.i ?? -1 }));
+            .map((e) => ({ k: e.k, name: nameOf(e.k), d: dmy(e.d), e: Math.round(e.e * 100) / 100, q: e.q, t: e.t, aj: e.aj || 0, i: e.i ?? -1 }));
         const tipo = st.reg.tipo === 'ru' ? 'ru' : 'sb', ds = datasSbru(k, tipo);
+        // 4.42: a poupança periódica deste ativo — as próximas (até 3) e as últimas (até 6) execuções, para ajustar
+        const hjP = todayLocal(), deP = [lotOf(k).at, isoMais(hjP, -45)].filter((x) => ISO_D.test(x || '')).sort().pop(), ppL = [];
+        for (const tp of ['pl', 'ru', 'sb']) {
+            const regs = tp === 'pl' ? [] : (lotOf(k).compras || []).filter((c) => c[tp]);
+            for (const dd of agendaPP(k, tp, deP, isoMais(hjP, 35))) {
+                const r = regs.filter((c) => c.d === dd);
+                const v = r.length ? { e: r.reduce((s, c) => s + (+c.e || 0), 0), aj: 0, reg: 1 } : { ...valorPP(k, tp, dd), reg: 0 };
+                if (!v.reg && !v.aj && !(v.e > 0)) continue;
+                ppL.push({ d: dd, l: dmy(dd), tp, e: Math.round(v.e * 100) / 100, aj: v.aj, reg: v.reg, feito: feito(dd) ? 1 : 0 });
+            }
+        }
+        ppL.sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : a.tp < b.tp ? -1 : 1));
+        const pp = { pm: pmOf(k), dias: (cfg.saveDays || []).join(', '), ru: habitual(k, 'ru'), sb: habitual(k, 'sb'), linhas: ppL.filter((x) => !x.feito).slice(-3).concat(ppL.filter((x) => x.feito).slice(0, 6)) };
         return { ks: ks.map((x) => ({ k: x, name: nameOf(x) })), k, e: st.reg.e || '', d: st.reg.d || todayLocal(), q: st.reg.q || '', hoje: todayLocal(), pm: pmOf(k), qApp: posOf(k).q, lista,
-            tipo, se: st.reg.se || '', sd: ds.includes(st.reg.sd) ? st.reg.sd : ds[0] || '', datas: ds.map((v) => ({ v, l: dmy(v) })), desde: lotOf(k).at ? dmy(lotOf(k).at) : '' };
+            pp, tipo, se: st.reg.se || '', sd: ds.includes(st.reg.sd) ? st.reg.sd : ds[0] || '', datas: ds.map((v) => ({ v, l: dmy(v) })), desde: lotOf(k).at ? dmy(lotOf(k).at) : '' };
     }
     function walletHtml() {
         if (aoOk && AO.ecra && AO.ecra.carteira) try { return AO.ecra.carteira(walletSnap()); } catch (e) { console.error('ecrã Onda:', e); }
@@ -2955,6 +3014,23 @@
                 break;
             }
             // 4.40: o saveback e o round up — só o valor; a data vem feita (a mais recente depois do que copiaste da TR)
+            // 4.42: a poupança periódica — o habitual do round up e do saveback, e o valor de cada execução (−/+/0)
+            case 'pp-hab': {
+                const k = (st.reg || {}).k, L0 = lotOf(k), tp = d.tp;
+                if (!REG[k] || !temHoje(L0) || (tp !== 'ru' && tp !== 'sb')) break;
+                const novo = Math.max(0, Math.round((habitual(k, tp) + (d.v === '+' ? 1 : -1) * PP_PASSO[tp]) * 100) / 100);
+                setLots(k, { ...L0, [tp === 'ru' ? 'ruS' : 'sbM']: novo });
+                break;
+            }
+            case 'pp-aj': {
+                const k = (st.reg || {}).k, L0 = lotOf(k), tp = d.tp, dia = d.d;
+                if (!REG[k] || !temHoje(L0) || !PP_MAPA[tp] || !ISO_D.test(dia || '')) break;
+                const antes = L0[PP_MAPA[tp]], atual = valorPP(k, tp, dia).e;
+                const novo = d.v === '0' ? 0 : Math.max(0, Math.round((atual + (d.v === '+' ? 1 : -1) * PP_PASSO[tp]) * 100) / 100);
+                setLots(k, { ...L0, [PP_MAPA[tp]]: { ...(antes || {}), [dia]: novo } });
+                toast(`${tp === 'pl' ? 'Plano' : tp === 'ru' ? 'Round up' : 'Saveback'} a ${dmy(dia)}: ${fmtPx(novo, { decimals: 2 }, 'EUR')}`, () => setLots(k, { ...lotOf(k), [PP_MAPA[tp]]: antes }));
+                break;
+            }
             case 'reg-tipo': if (d.v === 'sb' || d.v === 'ru') { st.reg = st.reg || {}; st.reg.tipo = d.v; st.reg.sd = ''; render(); } break;
             case 'reg-sbru': {
                 st.reg = st.reg || {};
@@ -3011,7 +3087,7 @@
                 const k = t.dataset.k, d = +t.dataset.d || 0, rg = t.parentElement && t.parentElement.querySelector('.sim-rg'), mn = rg ? +rg.min : 0;
                 // o «Já tens» parte do valor da carteira; mexer nele passa a valor à mão
                 if (k === 'simStart' && !cfg.simStartManual) { cfg.simStart = Math.round(carteiraHoje().v) || +cfg.simStart || 0; cfg.simStartManual = true; }
-                if (k === 'simBudget' && !Number.isFinite(cfg.simBudget)) cfg.simBudget = budgetOf();
+                if (k === 'simBudget' && !Number.isFinite(cfg.simBudget)) cfg.simBudget = poupMes();
                 const v = (+cfg[k] || 0) + d;
                 cfg[k] = k === 'simYears' ? Math.min(60, Math.max(1, Math.round(v || 20))) : Math.max(mn, v);
                 saveCfg(); render(); break;

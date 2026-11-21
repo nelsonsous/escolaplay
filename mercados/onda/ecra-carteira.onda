@@ -276,6 +276,29 @@
     "</select></label></div>"
     `<button type="button" class="btn sm reg-bt" data-act="reg-sbru">+ Juntar</button>` }
     `<p class="note">Sem datas depois de { esc g.desde }: o que copiaste da TR já as tem.</p>`
+  # 4.42: a poupança periódica — o habitual do round up e do saveback (−/+) e as próximas e últimas execuções (o plano, o
+  # round up e o saveback), cada uma ajustável com −/+/0; contam ao fim da tarde do dia, ao preço de fecho
+  = pp g.pp
+  Se ha pp {
+    `<small class="real-gt">Poupança periódica</small><div class="pp">`
+    `<div class="pp-h"><span>Plano</span><b class="num">{ _nu_moeda num pp.pm 0 $"EUR" }</b><small>por mês{ Se ha pp.dias { " · dia " esc pp.dias } }</small></div>`
+    `<div class="pp-h"><span>Round up</span><b class="num">{ _nu_moeda num pp.ru 2 $"EUR" }</b><small>por semana</small>`
+    `<button type="button" class="pp-b" data-act="pp-hab" data-tp="ru" data-v="-" aria-label="Menos">−</button><button type="button" class="pp-b" data-act="pp-hab" data-tp="ru" data-v="+" aria-label="Mais">+</button></div>`
+    `<div class="pp-h"><span>Saveback</span><b class="num">{ _nu_moeda num pp.sb 2 $"EUR" }</b><small>por mês</small>`
+    `<button type="button" class="pp-b" data-act="pp-hab" data-tp="sb" data-v="-" aria-label="Menos">−</button><button type="button" class="pp-b" data-act="pp-hab" data-tp="sb" data-v="+" aria-label="Mais">+</button></div>`
+    = c pri pp.linhas
+    W c {
+      `<div class="pp-l{ Se ~ ha c.feito " pp-prox" }"><span>{ esc c.l } · `
+      ? eh c.tp $"pl" "plano" ? eh c.tp $"ru" "round up" "saveback"
+      `<small>`
+      ? ha c.reg "registado" ? ~ ha c.feito "ao fim da tarde" ? ha c.aj "ajustado" "estimado"
+      `</small></span><b class="num">{ _nu_moeda num c.e 2 $"EUR" }</b>`
+      Se ~ ha c.reg {
+        `<span class="pp-bs"><button type="button" class="pp-b" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="-" aria-label="Menos">−</button>`
+        `<button type="button" class="pp-b" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="+" aria-label="Mais">+</button>`
+        `<button type="button" class="pp-b pp-0" data-act="pp-aj" data-tp="{ esc c.tp }" data-d="{ esc c.d }" data-v="0" aria-label="Não houve">0</button></span>` }
+      "</div>" = c seg c }
+    "</div>" }
   `<small class="real-gt">Acertar com a TR (arredondamentos e cashback)</small><div class="real-g2">`
   `<label><small>Quantidade na TR</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="q" value="{ esc g.q }`
   = qa num g.qApp
@@ -289,9 +312,9 @@
     W c {
       = tp I num c.t = q num c.q
       `<div class="reg-i"><span>{ esc c.d } · { esc c.name }<small>`
-      ? == tp 0 "plano (estimado)" ? == tp 1 "compra" ? == tp 3 "saveback" ? == tp 4 "round up" "acerto com a TR"
+      ? == tp 0 { ? ha c.aj "plano (ajustado)" "plano (estimado)" } ? == tp 1 "compra" ? == tp 3 "saveback" ? == tp 4 "round up" ? == tp 5 "saveback (estimado)" ? == tp 6 "round up (estimado)" "acerto com a TR"
       `</small></span><span class="num">{ cr_eursg num c.e }<small>{ Se > q 0.0 "+" }{ _nu_intlm q 6 }</small></span>`
-      Se > tp 0 { `<button type="button" class="xbtn" data-act="reg-rm" data-k="{ esc c.k }" data-i="{ _nu_ps num c.i }` 0 `" aria-label="Apagar">✕</button>` }
+      Se && > tp 0 < tp 5 { `<button type="button" class="xbtn" data-act="reg-rm" data-k="{ esc c.k }" data-i="{ _nu_ps num c.i }` 0 `" aria-label="Apagar">✕</button>` }
       "</div>" = c seg c }
     "</div>" }
   "</div>" }
