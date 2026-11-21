@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.37.1';
+    const VERSION = '4.37.2';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -546,53 +546,10 @@
             el.innerHTML = `Derivados (Deribit)<small>${esc(ps.join(' · '))}</small>`;
         }
         el.hidden = !e && !pr && !(dv && (fin(dv.funding8h) || dv.basis));
-        const x = rangeOf(k), fan = $('#d-fan'), fb = fanBase(k);
-        if (fan) fan.hidden = !x;
+        const x = rangeOf(k);
+        if (rg) rg.hidden = !x;
         if (rg && x) rg.innerHTML = `Intervalo provável (2 em cada 3 vezes): ${x.h.map((h) => `${h.l} <b class="num">${fmtPx(h.lo, a, q.currency)}–${fmtPx(h.hi, a, q.currency)}</b>`).join(' · ')}`
-            + `<small>no gráfico: a zona escura apanha 2 em cada 3 vezes, a clara 19 em 20${fb.mu ? `; o centro segue os futuros (${fmtPct1(fb.ann)} ao ano)` : ''}${fb.pr ? `; começa na abertura estimada (${fmtPct1(fb.pr.p)})` : ''} · pela volatilidade ${esc(x.src)}</small>`;
-        if (x) requestAnimationFrame(drawFan);
-    }
-    // o ponto de partida do «Para onde pode ir»: o preço de agora (fora de horas, o desse negócio; com a bolsa fechada, a
-    // abertura estimada) e, na cripto, a inclinação dos futuros (a base ao ano)
-    function fanBase(k) {
-        const a = REG[k], q = qv(k), f = q.fx || 1, e = extOf(k), pr = !e ? projOf(k) : null;
-        const P = e ? e.price * f : q.price, dv = a && a.kind === 'crypto' && DERIV ? DERIV[a.sym] : null, ann = dv && dv.basis && fin(dv.basis.ann) ? dv.basis.ann : null;
-        return { P, P0: pr ? P * (1 + pr.p / 100) : P, pr, ann, mu: ann != null && ann > -99 ? Math.log(1 + ann / 100) / 365 : 0 };
-    }
-    // o gráfico do «Para onde pode ir»: o último mês (a linha) e as próximas 4 semanas (o leque: ±1 e ±1,96 desvios, a
-    // crescer com a raiz do tempo, à volta do preço de partida ou, na cripto, da linha dos futuros)
-    function drawFan() {
-        const cv = $('#d-fan-cv'), k = sheetKey, x = k && REG[k] ? rangeOf(k) : null, c = cv && x ? setupCanvas(cv) : null;
-        if (!c) return;
-        const { g, w, h } = c, a = REG[k], q = qv(k), f = q.fx || 1, b = fanBase(k), T = 30, now0 = now() / 1000;
-        const sd = (t) => (x.v / 100) * Math.sqrt(t / 365), at = (t, z) => b.P0 * Math.exp(b.mu * t + z * sd(t));
-        const dd = D[k] || [], tz = dd.length ? dd[dd.length - 1][0] : now0; // o último mês dos fechos (a contar do último)
-        const hist = dd.filter((p) => p[0] >= tz - 31 * 86400 && fin(p[1])).map((p) => p[1] * f);
-        if (fin(b.P)) hist.push(b.P);
-        if (hist.length < 2 || !fin(b.P0)) return;
-        const xl = w * 0.34, xr = w - 52, yT = 8, yB = h - 18;
-        const lo = Math.min(...hist, at(T, -1.96)), hi = Math.max(...hist, at(T, 1.96));
-        const Y = (v) => yT + ((hi - v) / Math.max(1e-12, hi - lo)) * (yB - yT), X = (t) => xl + (t / T) * (xr - xl);
-        for (const [z, al] of [[1.96, 0.13], [1, 0.27]]) {
-            g.beginPath();
-            for (let i = 0; i <= 48; i++) { const t = (T * i) / 48; g.lineTo(X(t), Y(at(t, z))); }
-            for (let i = 48; i >= 0; i--) { const t = (T * i) / 48; g.lineTo(X(t), Y(at(t, -z))); }
-            g.closePath(); g.globalAlpha = al; g.fillStyle = COL.accent; g.fill(); g.globalAlpha = 1;
-        }
-        g.setLineDash([4, 3]); g.lineWidth = 1; g.strokeStyle = COL.muted;
-        g.beginPath(); g.moveTo(X(0), Y(b.P0)); g.lineTo(X(T), Y(at(T, 0))); g.stroke();
-        g.beginPath(); g.moveTo(xl, yT); g.lineTo(xl, yB); g.stroke();
-        g.setLineDash([]);
-        g.lineWidth = 1.6; g.strokeStyle = COL.text; g.beginPath();
-        hist.forEach((v, i) => { const xx = (i / (hist.length - 1)) * xl; if (i) g.lineTo(xx, Y(v)); else g.moveTo(xx, Y(v)); });
-        g.stroke();
-        if (b.pr) { g.strokeStyle = COL[b.pr.p >= 0 ? 'up' : 'down']; g.beginPath(); g.moveTo(xl, Y(b.P)); g.lineTo(xl + 4, Y(b.P0)); g.stroke(); }
-        g.fillStyle = COL.text; g.beginPath(); g.arc(xl, Y(b.P0), 3, 0, 7); g.fill();
-        g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'left';
-        g.fillText(fmtPx(at(T, 1), a, q.currency), xr + 4, Y(at(T, 1)) + 3); g.fillText(fmtPx(at(T, -1), a, q.currency), xr + 4, Y(at(T, -1)) + 3);
-        g.textAlign = 'center'; g.textBaseline = 'top';
-        for (const [t, l] of [[-30, 'há 1 mês'], [0, 'hoje'], [7, '+1 sem.'], [T, '+1 mês']]) g.fillText(l, t < 0 ? 22 : Math.min(w - 22, X(t)), yB + 4);
-        g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+            + `<small>pela volatilidade ${esc(x.src)}</small>`;
     }
     const dateLbl = (sec, withTime) => new Date(sec * 1000).toLocaleString('pt-PT', withTime ? { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -2511,7 +2468,7 @@
             <div class="d-tip" id="d-tip"></div>
             <div class="d-chart"><canvas id="d-cv"></canvas><div class="d-axis num" id="d-axis"></div><div class="loading" id="d-load">A carregar…</div></div>
             <div class="ranges">${RANGE_LBL.map(([v, l]) => `<button type="button" data-range="${v}" class="${sheetRange === v ? 'on' : ''}">${l}</button>`).join('')}</div>
-            <div class="fan" id="d-fan" hidden><div class="fan-h">Para onde pode ir</div><canvas id="d-fan-cv" class="fan-cv" aria-label="O intervalo provável para as próximas 4 semanas"></canvas><div class="d-ext d-rng" id="d-rng"></div></div>
+            <div class="d-ext d-rng" id="d-rng" hidden></div>
             ${perfRow(k, q)}
             ${dec ? AO.ecra.decisao(decSnap(k, q, dec)) + decFold(k, q) : cl ? `${claudeBox(k, q)}<details class="auto sh-auto" data-fold="sheet-auto" ${foldAttr('sheet-auto')}><summary>Sinais automáticos (algoritmo)<small>regras fixas: tendência, momento, desconto</small></summary>
                 ${techBox(k)}${discountBox(k, q)}</details>` : ''}

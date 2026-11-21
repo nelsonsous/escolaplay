@@ -3217,3 +3217,12 @@ mudar de período. Os 9 períodos cabem numa linha (o 5A ficava escondido à dir
 
 **Verificado.** Interface: num ecrã ×3, ao mudar para 6M, 1M e 5A, o canvas fica na escala do gráfico (com o motor
 antigo, o teste falha em 6M); e os 9 períodos dentro da linha.
+
+## Iteração (Mercados 4.37.2): sem o gráfico do «Para onde pode ir»
+
+**Pedido.** «O gráfico do "Para onde pode ir" não vale de muito.»
+
+**Feito.** Sai o leque (era só um cone à volta do preço: não dizia mais do que os três números). Fica a linha do
+intervalo provável (amanhã, 1 semana, 1 mês) com a fonte da volatilidade, por baixo dos períodos.
+
+**Verificado.** Interface: sem o gráfico e com os números (o VIX nas ações e nos fundos, a Deribit na cripto).
