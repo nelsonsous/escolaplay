@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.32.0';
+    const VERSION = '4.33.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1254,6 +1254,7 @@
     function colors() {
         const cs = getComputedStyle(document.documentElement);
         for (const n of ['up', 'down', 'flat', 'line', 'muted', 'text', 'accent', 'bg2']) COL[n] = cs.getPropertyValue('--' + n).trim();
+        COL.theme = document.documentElement.dataset.theme || 'dark';
     }
     function setupCanvas(cv) {
         const dpr = Math.min(window.devicePixelRatio || 1, 3);
@@ -1335,7 +1336,9 @@
         loadLong(comp);
         return { now: now() / 1000, ativos: keys.map((k) => {
             const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k);
-            return { k, px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: q.changePct,
+            // o nome curto (o símbolo na cripto; sem a moeda, o «(Acc)» e o «UCITS ETF» nos fundos)
+            const nm = REG[k].kind === 'crypto' ? REG[k].sym : nameOf(k).replace(/\s*\(.*\)\s*$/, '').replace(/\s+(USD|EUR|UCITS|ETF|Acc|Dist)\b.*$/i, '').trim() || k;
+            return { k, nm, px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: q.changePct,
                 s: (pd.series || []).filter((x) => fin(x[1])).map(([t, v]) => [t, v * f]) };
         }) };
     }
@@ -2095,7 +2098,7 @@
             budget: +cfg.budget, pmSum: pmSum(), strategy: cfg.strategy, funds: cfg.funds.map(nm), coreFund: cfg.coreFund, cryptoPct: +cfg.cryptoPct, cryptoMix: cfg.cryptoMix,
             crypto: CRYPTO.map((c) => nm('c:' + c.id)), holdings: cfg.holdings, profile: cfg.profile, saveDays: cfg.saveDays, jid: cfg.jid,
             owner: cfg.owner, claude: cfg.claude, others: st.others, stats: STATS, runAt: r && r.at ? dtLbl(r.at) : '', share: shareLink(), meus: myList().map(nameOf),
-            fs: cfg.fs, eur: cfg.eur, fiat: cfg.fiat, alertPct: +cfg.alertPct, alertScope: cfg.alertScope,
+            fs: cfg.fs, theme: cfg.theme, eur: cfg.eur, fiat: cfg.fiat, alertPct: +cfg.alertPct, alertScope: cfg.alertScope,
             notifOk: nOk, notifPerm: nOk ? Notification.permission : undefined, notify: cfg.notify, quiet: cfg.quiet,
             distritos: DISTRITOS, distrito: cfg.distrito, munic: MUNIC[cfg.distrito], municipio: cfg.municipio, watch: cfg.watch.map(nm),
         };
@@ -2140,6 +2143,8 @@
             <div class="form">
                 <div><label>Tamanho da letra</label><div class="seg prof">${[['n', 'Normal'], ['l', 'Grande'], ['xl', 'Muito grande']].map(([v, l]) => `<button type="button" data-fs="${v}" class="${(cfg.fs || 'n') === v ? 'on' : ''}"><b>${l}</b></button>`).join('')}</div>
                     <div class="hint">Segue também o tamanho de texto do iPhone (Definições → Ecrã e brilho → Tamanho do texto).</div></div>
+                <div><label>Cores</label><div class="seg prof">${[['auto', 'Automático'], ['light', 'Dia'], ['dark', 'Noite']].map(([v, l]) => `<button type="button" data-thm="${v}" class="${(cfg.theme || 'auto') === v ? 'on' : ''}"><b>${l}</b></button>`).join('')}</div>
+                    <div class="hint">Automático: claro de dia e escuro à noite, como o iPhone (Definições → Ecrã e brilho → Automático).</div></div>
                 <div class="sw"><span>Ações e fundos em euros<br><small class="hint">como na Trade Republic</small></span><div class="seg"><button type="button" data-eur="1" class="${cfg.eur ? 'on' : ''}">EUR</button><button type="button" data-eur="0" class="${cfg.eur ? '' : 'on'}">Moeda local</button></div></div>
                 <div class="sw"><span>Moeda das cripto</span><div class="seg"><button type="button" data-fiat="EUR" class="${cfg.fiat === 'EUR' ? 'on' : ''}">EUR</button><button type="button" data-fiat="USD" class="${cfg.fiat === 'USD' ? 'on' : ''}">USD</button></div></div>
                 <div><label for="f-lim">Avisar quando algo sobe ou cai mais de</label>
@@ -2775,7 +2780,7 @@
     }
 
     document.addEventListener('click', (ev) => {
-        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv],[data-hzset]');
+        const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-thm],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-fuel],[data-mv],[data-hzset]');
         if (!t) return;
         const d = t.dataset;
         if (d.tab) { irPara(d.tab); return; }
@@ -2819,6 +2824,7 @@
         if (d.hide) { hideAsset(d.hide, d.grp); return; }
         if (d.unhide) { const set = { crypto: CRYPTO.map((c) => 'c:' + c.id), energy: ENERGY.map((e) => e.sym), index: INDICES.map((i) => i.sym) }[d.unhide] || []; cfg.hidden = cfg.hidden.filter((k) => !set.includes(k)); saveCfg(); render(); toast('Lista reposta'); return; }
         if (d.fs) { cfg.fs = d.fs; applyFs(); saveCfg(); render(); return; }
+        if (d.thm) { cfg.theme = d.thm; applyTheme(); saveCfg(); render(); return; }
         if (d.hold) { cfg.holdings = cfg.holdings.includes(d.hold) ? cfg.holdings.filter((x) => x !== d.hold) : cfg.holdings.concat(d.hold); saveCfg(); render(); return; }
         if (d.sday) {
             const n = +d.sday;
@@ -3040,6 +3046,18 @@
     setInterval(() => { if (!document.hidden) loadCalendar(); }, 6 * 60 * 60000);
     setInterval(() => { if (!document.hidden) loadClaude(); }, 60 * 60000);
 
+    // o dia e a noite: claro ou escuro, escolhido em Ajustes ou, em automático, como o iPhone (o index.html já o põe antes
+    // do primeiro desenho, para não piscar)
+    const mqClaro = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+    function applyTheme() {
+        const t = cfg.theme === 'light' || cfg.theme === 'dark' ? cfg.theme : mqClaro && mqClaro.matches ? 'light' : 'dark', el = document.documentElement;
+        if (el.dataset.theme === t && COL.bg2) return;
+        el.dataset.theme = t;
+        colors(); vivaCores = false;
+        const m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', getComputedStyle(el).getPropertyValue('--bg').trim() || (t === 'light' ? '#ffffff' : '#000000'));
+    }
+    if (mqClaro && mqClaro.addEventListener) mqClaro.addEventListener('change', () => { if (cfg.theme !== 'light' && cfg.theme !== 'dark') { applyTheme(); render(); if (sheetKey && !$('#mk-sheet').hidden) renderSheet(); } });
     function applyFs() { document.documentElement.dataset.fs = ['n', 'l', 'xl'].includes(cfg.fs) ? cfg.fs : 'n'; }
     // ---------- ordenar a lista que sigo: arrastar pela pega ≡ (ou ⤒ para o topo) ----------
     function moveTo(arr, i, j) {
@@ -3102,6 +3120,7 @@
         if (AO) AO.ready.then(() => { aoOk = true; analyseAll(); scheduleRender(); }).catch((e) => { aoFalhou = true; scheduleRender(); console.error('motor Onda:', e); });
         cfg.tab = 'painel';
         applyFs();
+        applyTheme();
         colors();
         render();
         startWS();

@@ -478,11 +478,13 @@ a.st-row { text-decoration: none; color: inherit; }
 .row .r-t { display: block; order: 3; color: var(--faint); font-size: calc(.68rem * var(--k)); font-weight: 500; line-height: 1.2; }
 .row .r-t.up { color: var(--up); font-weight: 650; } .row .r-t.down { color: var(--down); font-weight: 650; }
 .d-ext { font-size: calc(0.853rem * var(--k)); margin: 2px 0 6px; }
-.pf .pf-per { margin-left: auto; color: var(--muted); font-size: calc(.8rem * var(--k)); }
-.pf .pf-b { display: block; width: 100%; padding: 12px 12px 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--card, var(--bg2)); color: inherit; text-align: left; cursor: pointer; }
-.pf .pf-v { display: block; font-size: calc(2rem * var(--k)); font-weight: 800; letter-spacing: -.02em; }
-.pf .pf-g { display: block; margin-top: 2px; color: var(--muted); font-size: calc(.85rem * var(--k)); }
-.pf .pf-sv { display: block; width: 100%; height: 64px; margin-top: 8px; overflow: visible; }
+.pf .pf-h { align-items: baseline; margin-bottom: 4px; }
+.pf .pf-h .pf-v { margin-left: auto; font-size: calc(1.45rem * var(--k)); font-weight: 800; letter-spacing: -.02em; }
+.pf .pf-b { display: block; width: 100%; padding: 8px 10px 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--card, var(--bg2)); color: inherit; text-align: left; cursor: pointer; }
+.pf .pf-g { display: block; color: var(--muted); font-size: calc(.8rem * var(--k)); }
+.pf .pf-sv { display: block; width: 100%; height: 38px; margin-top: 4px; overflow: visible; }
+.pf .pf-as { display: block; margin-top: 4px; color: var(--muted); font-size: calc(.74rem * var(--k)); line-height: 1.35; }
+.pf .pf-as span { white-space: nowrap; } .pf .pf-as i { font-style: normal; font-weight: 600; }
 .pf .pf-sv .pf-l { fill: none; stroke: var(--flat); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .pf .pf-sv .pf-a { fill: var(--line); opacity: .35; }
 .pf .pf-sv.up .pf-l { stroke: var(--up); } .pf .pf-sv.up .pf-a { fill: var(--up-bg); opacity: 1; }
@@ -823,3 +825,24 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .fg-h .fg-l { fill: none; stroke: #f59e0b; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .fg-h .fg-b { stroke: var(--line); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
 .fg-h em { display: flex; justify-content: space-between; font-style: normal; color: var(--muted); font-size: calc(.72rem * var(--k)); }
+
+/* ---------- 4.33: o dia (claro) e a noite (escuro): automático como o iPhone, ou escolhido em Ajustes → Cores ---------- */
+:root[data-theme="light"] {
+    --bg: #fff; --bg2: #f2f2f7; --card: #fff; --card2: #f2f2f7; --line: #e5e5ea;
+    --text: #000; --muted: #6e6e73; --faint: #8e8e93;
+    --up: #1a9b4b; --up-bg: rgba(26, 155, 75, .12); --down: #d70015; --down-bg: rgba(215, 0, 21, .1);
+    --flat: #8e8e93; --flat-bg: rgba(142, 142, 147, .14); --accent: #c27c0e; --accent2: #007aff;
+    color-scheme: light;
+}
+:root[data-theme="light"] .mk-nav { background: rgba(255, 255, 255, .92); border-top-color: var(--line); }
+:root[data-theme="light"] .mk-nav button.on { color: #000; }
+:root[data-theme="light"] .mk-sheet-bg { background: rgba(0, 0, 0, .3); }
+:root[data-theme="light"] .row:active { background: #f2f2f7; }
+:root[data-theme="light"] .btn.pri, :root[data-theme="light"] .chips button.on, :root[data-theme="light"] .seg.per button.on, :root[data-theme="light"] .seg.hz button.on { background: #000; color: #fff; }
+:root[data-theme="light"] .seg button.on { background: #fff; color: #000; box-shadow: 0 1px 3px rgba(0, 0, 0, .18); }
+:root[data-theme="light"] .adv-txt, :root[data-theme="light"] .dnotes, :root[data-theme="light"] details.how ul, :root[data-theme="light"] .banner p { color: #3a3a3c; }
+:root[data-theme="light"] .adv-why b { color: #000; }
+:root[data-theme="light"] .ideas.cl .m-l, :root[data-theme="light"] .an-src.cl b, :root[data-theme="light"] .hj-src.cl b { color: #a6532d; }
+:root[data-theme="light"] .adv-alg.diff, :root[data-theme="light"] .alg-diff, :root[data-theme="light"] .dec-desde.novo { color: #8a5a00; border-left-color: #8a5a00; }
+:root[data-theme="light"] .sim-otim { stroke: #16a34a; }
+:root[data-theme="light"] .mk-toast { box-shadow: 0 8px 30px rgba(0, 0, 0, .18); }

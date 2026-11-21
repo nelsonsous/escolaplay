@@ -3135,3 +3135,19 @@ resumida mal abre a app.
 **Verificado.** Painel: 600 estados, com uma referência em JS das contas da Carteira (as unidades pelas compras ou pelo
 que tem hoje, o investido, o de hoje, a linha). Interface: o leque desenhado no Bitcoin (o centro pelos futuros) e no
 FTSE All-World com a bolsa fechada (a partir da abertura estimada).
+
+## Iteração (Mercados 4.33.0): a carteira compacta, o Hoje no topo e o dia e a noite
+
+**Pedido.** «O que aparecia antes em cima, se era pessimista e o resumo, eu gostava; a carteira não pode ser otimizada no
+ecrã inicial para ter mais informação e ser mais pequena? E as cores, pode haver a cor do dia e da noite?»
+
+**Feito.**
+- **O cartão da carteira**, compacto: o valor na linha do título; o ganho no total, o de hoje e o do período numa linha;
+  a linha do valor baixa; e cada ativo com o peso na carteira e a variação do dia.
+- **O Hoje** (o sentimento do mercado e o resumo do Claude) logo a seguir ao cartão, antes dos meus ativos.
+- **O dia e a noite**: Ajustes → Cores (Automático, Dia, Noite; a vista `aj_pref` e a referência em JS com a mesma
+  saída). Em automático segue o iPhone e muda com ele; o `index.html` põe o tema antes do primeiro desenho.
+
+**Verificado.** Painel: 600 estados (a ordem com o Hoje, o cartão compacto e os ativos com o peso e o dia). Ajustes: a
+paridade com as Cores. Interface: Dia, Noite e Automático (com o browser a passar de escuro a claro), e o fundo e a
+cor da barra de cima em cada um.

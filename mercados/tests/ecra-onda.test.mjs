@@ -86,6 +86,7 @@ function correr({ de, ate, seed }) {
             c.saveDays = pick([[2], [2], [2, 16], [9, 23], [2, 9, 16, 23], [16], [], ['2'], [2, '9'], [NaN], [23, 2], [2, 9, 16]]);
             set('jid', pick(['j-abc123', '3f2c9a10-1b2c-4d5e-8f90-1234567890ab', '<x>&"\'', '']));
             set('fs', pick(['n', 'l', 'xl', undefined, '', 'q']));
+            set('theme', pick(['auto', 'light', 'dark', undefined, '', 'x']));
             set('eur', pick([true, false, undefined, 1, 0]));
             set('fiat', pick(['EUR', 'USD', undefined, 'GBP']));
             set('alertPct', pick([0, 2, 3, 4, 4, 5, 8, 10, '4', 7, NaN, undefined, -0, '', null, '10']));

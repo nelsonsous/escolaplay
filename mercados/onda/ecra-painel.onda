@@ -527,23 +527,31 @@
         Se || == k 0 > v hi = hi v }
       = v0 @f vs = v1 @f + vs - kk 1 = pc ? > v0 0.0 * - / v1 v0 1.0 100.0 0.0
       = d1 || ~ ha es.per eh es.per $"1d"
-      `\n        <section class="sec pf"><div class="sec-h"><h2>A minha carteira</h2>`
-      Se ~ d1 `<span class="pf-per">{ pn_perlbl es.per } <b class="{ ln_tom pc }-t">{ fm_pct pc }</b></span>`
-      `</div><button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-v num">{ pn_eurf vv }</span><span class="pf-g">`
-      Se > ee 0.0 `<span class="{ ln_tom - vv ee }-t">{ pn_eursf - vv ee } ({ fm_pct * - / vv ee 1.0 100.0 })</span> desde que compraste · `
+      # compacto: o valor na linha do título; o ganho, o de hoje e o do período numa linha; a linha do valor, baixa; e
+      # cada ativo com o peso na carteira e a variação de hoje
+      `\n        <section class="sec pf"><div class="sec-h pf-h"><h2>A minha carteira</h2><span class="pf-v num">{ pn_eurf vv }</span></div>`
+      `<button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-g">`
+      Se > ee 0.0 `<span class="{ ln_tom - vv ee }-t">{ pn_eursf - vv ee } ({ fm_pct * - / vv ee 1.0 100.0 })</span> no total · `
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
-      `hoje <span class="{ ln_tom dd }-t">{ pn_eursf dd } ({ fm_pct dp })</span></span>`
-      `<svg class="pf-sv { ln_tom pc }" viewBox="0 0 320 64" preserveAspectRatio="none" aria-hidden="true"><path class="pf-a" d="M2 64`
+      `hoje <span class="{ ln_tom dd }-t">{ pn_eursf dd } ({ fm_pct dp })</span>`
+      Se ~ d1 ` · { pn_perlbl es.per } <span class="{ ln_tom pc }-t">{ fm_pct pc }</span>`
+      `</span><svg class="pf-sv { ln_tom pc }" viewBox="0 0 320 64" preserveAspectRatio="none" aria-hidden="true"><path class="pf-a" d="M2 64`
       L k kk ` L{ _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 }{ P 32 }{ _nu_fixo pn_pfy @f + vs k lo hi 1 }`
       ` L318 64 Z"/><path class="pf-l" d="M`
       L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + vs k lo hi 1 }
-      `"/></svg></button></section>` } }
+      `"/></svg><span class="pf-as">`
+      L j na {
+        = q cr_p tb j = c @ q = ch num c.ch = sh ? > vv 0.0 * / * @f + q 3 @f + q 4 vv 100.0 0.0
+        `{ Se j " · " }<span>{ esc c.nm } { _nu_intl sh 0 }%`
+        Se fin ch ` <i class="{ ln_tom ch }-t">{ fm_pct1 ch }</i>`
+        "</span>" }
+      `</span></button></section>` } }
   0 }
 
 # ===== a vista =====
 : ecra_painel i>i s {
   ! 53 s
-  pn_carteira pn_meus pn_hoje pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
+  pn_carteira pn_hoje pn_meus pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
   0 }
 # só o cartão da carteira (o JS redesenha-o com os preços ao vivo, sem redesenhar o Painel todo): { pf, per }
 : ecra_pf i>i s {
