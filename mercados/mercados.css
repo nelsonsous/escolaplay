@@ -444,7 +444,7 @@ a.st-row { text-decoration: none; color: inherit; }
 /* períodos do gráfico: deslizam na horizontal */
 .ranges { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
 .ranges::-webkit-scrollbar { display: none; }
-.ranges button { flex: 0 0 auto; min-width: 46px; padding: 7px 10px; }
+.ranges button { flex: 1 1 0; min-width: 32px; padding: 7px 0; }
 /* rendimentos por período */
 .perf { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 12px; overflow: hidden; margin: 0 0 14px; }
 .perf div { background: var(--card); padding: 8px 10px; }
