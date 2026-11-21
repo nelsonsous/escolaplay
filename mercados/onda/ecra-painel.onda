@@ -92,7 +92,7 @@
 : pn_periodo >i {
   = p es.per
   `<div class="right seg per" role="group" aria-label="Período da variação">`
-  `{ pn_per p $"1d" }1D</button>{ pn_per p $"1w" }1S</button>{ pn_per p $"1m" }1M</button>{ pn_per p $"1y" }1A</button>`
+  `{ pn_per p $"1d" }1D</button>{ pn_per p $"1w" }1S</button>{ pn_per p $"1m" }1M</button>{ pn_per p $"1y" }1A</button>{ pn_per p $"all" }Tudo</button>`
   "</div>" }
 # os meus ativos (o holdingKeys(), pela ordem dos Ajustes)
 : pn_meus i>i cm {
@@ -503,8 +503,9 @@
 # no período com as unidades de hoje (s: a série do período em euros; sem ela, o preço de agora). Tocar abre a Carteira.
 : pn_eurf f>i x _nu_moeda x 2 $"EUR"
 : pn_eursf f>i x { ? >= x 0.0 P '+ { P 226 P 136 P 146 0 } _nu_moeda Ab x 2 $"EUR" }
-: pn_perlbl i>i p ? eh p $"1w" "1 semana" ? eh p $"1m" "1 mês" ? eh p $"1y" "1 ano" "hoje"
-: pn_dias i>f p ? eh p $"1w" 7.0 ? eh p $"1m" 30.0 ? eh p $"1y" 365.0 1.0
+: pn_perlbl i>i p ? eh p $"1w" "1 semana" ? eh p $"1m" "1 mês" ? eh p $"1y" "1 ano" ? eh p $"all" "desde o início" "hoje"
+# os dias do período (no «Tudo», sem a 1.ª compra com data: 1 ano)
+: pn_dias i>f p ? eh p $"1w" 7.0 ? eh p $"1m" 30.0 ? || eh p $"1y" eh p $"all" 365.0 1.0
 : pn_pfy fff>f v lo hi ? > hi lo + 4.0 / * 80.0 - hi v - hi lo 44.0
 # euros sem cêntimos (na tabela da carteira, para caberem as quatro colunas no iPhone)
 : pn_eur0 f>i x _nu_moeda x 0 $"EUR"
@@ -539,7 +540,7 @@
   `<i class="{ ln_tom p }-t">{ fm_pct p }</i></span>`
   0 }
 # o valor desde a primeira compra, com o investido a tracejado (as contas do gráfico da Carteira: cr_vt e cr_it)
-: pn_desde i>i p ? eh p $"1w" "há 1 semana" ? eh p $"1m" "há 1 mês" ? eh p $"1y" "há 1 ano" "há 24 h"
+: pn_desde i>i p ? eh p $"1w" "há 1 semana" ? eh p $"1m" "há 1 mês" ? || eh p $"1y" eh p $"all" "há 1 ano" "há 24 h"
 # no instante t, o ativo (a linha p da tabela do cr_prep): as unidades e o investido (com datas, os das compras até t;
 # sem elas, os de hoje) e o preço (s, a série do período; sem ela, os fechos diários ou o preço de agora)
 : pn_ut if>f p t ? || ~ @ + p 7 >= t @f + p 6 @f + p 4 {
@@ -562,7 +563,9 @@
         ? ha c.cr { = vc + vc val = ec + ec e = dc + dc dv = nc + nc 1 } { = vo + vo val = eo + eo e = dz + dz dv = nn + nn 1 } }
       # o período escolhido (1D, 1S, 1M, 1A) em 60 instantes: o valor (com as unidades de cada instante), o investido e,
       # para a percentagem do período, o valor só pelo mercado (com as unidades de hoje)
-      = kk 60 = vs A kk = ws A kk = ms A kk = sv A na = t0 - tf * 86400.0 pn_dias es.per
+      # (4.39: no «Tudo», desde a 1.ª compra — p.t0, como na Carteira)
+      = tu eh es.per $"all" = ta ? tu num p.t0 0.0
+      = kk 60 = vs A kk = ws A kk = ms A kk = sv A na = t0 ? > ta 0.0 ta - tf * 86400.0 pn_dias es.per
       L j na { = c @ cr_p tb j ! + sv j ? > quantos c.s 1 cr_vec c.s 0 }
       = lo 0.0 = hi 0.0
       L k kk {
@@ -581,7 +584,7 @@
       # numa linha: o de hoje e, fora do 1D, o do período (o ganho no total está no Total da tabela, em baixo — 4.38.4)
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
       pn_casa 1 dd dp 1
-      Se ~ d1 pn_casa 2 pc pc 0
+      Se && ~ d1 ~ tu pn_casa 2 pc pc 0
       "</span>"
       # o gráfico do período: o valor e o investido a tracejado
       `<svg class="pf-sv { ln_tom pc }" viewBox="0 0 320 88" preserveAspectRatio="none" aria-hidden="true"><path class="pf-a" d="M2 88`
@@ -590,7 +593,7 @@
       L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + ws k lo hi 1 }
       `"/><path class="pf-l" d="M`
       L k kk { Se k " L" _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 P 32 _nu_fixo pn_pfy @f + vs k lo hi 1 }
-      `"/></svg><span class="pf-cap"><span>{ pn_desde es.per }</span><span class="pf-inv">investido</span><span>agora</span></span></button>`
+      `"/></svg><span class="pf-cap"><span>{ ? && tu > ta 0.0 { "desde " esc p.dl 0 } pn_desde es.per }</span><span class="pf-inv">investido</span><span>agora</span></span></button>`
       # a tabela da carteira, fora do botão: o investido, o valor e o ganho de cada ativo — os fundos e as ações, depois a
       # cripto (um grupo com mais de um ativo, e com o outro grupo, leva a linha da soma, que o abre e fecha) — e o total
       `<div class="pf-gs"><span class="pf-gh"><b></b><span>Investido</span><span>Vale</span><span>Ganho</span></span>`

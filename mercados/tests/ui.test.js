@@ -605,13 +605,27 @@ function proxyBody(u) {
     await page.click('.pf .pf-gg');
     assert.deepEqual((await linhasPf()).map((r) => r[1]), ['FTSE All-World', 'Cripto', 'Total'], 'outra vez, fecha');
     console.log('✓ a tabela da carteira: investido, vale e ganho de cada um; investido total', inv, '| a cripto abre e fecha (e fica como a deixei, ao vivo)');
+    // 4.39: «Tudo» — o cartão desde a 1.ª compra (como na Carteira), sem a casa do período (o ganho no total está no Total);
+    // os meus ativos desde a 1.ª compra de cada um
+    await page.click('.pf .pf-pe [data-per="all"]');
+    await page.waitForFunction(() => /^(desde \d\d\/\d\d\/\d{4}|há 1 ano)investidoagora$/.test((document.querySelector('.pf .pf-cap') || {}).textContent || ''));
+    const capTudo = await page.locator('.pf .pf-cap').textContent();
+    assert.equal(await page.evaluate(() => window.__mk.cfg.per), 'all');
+    assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['Hoje'], 'Tudo: sem a casa do período');
+    assert.equal(await page.locator('.pf .pf-pe .seg.per button.on').textContent(), 'Tudo');
+    assert.equal((await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d')).split('L').length, 60, 'a linha do valor desde o início: 60 pontos');
+    assert.ok(await page.locator('.pf .pf-pe .seg.per').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && e.scrollWidth <= e.clientWidth + 1; }), 'os cinco botões cabem no ecrã');
+    if (SHOTS) await page.locator('#mk-body > section.pf').screenshot({ path: path.join(SHOTS, '1e-carteira-tudo.png') });
+    await page.click('.pf .pf-pe [data-per="1d"]');
+    await page.waitForFunction(() => ((document.querySelector('.pf .pf-cap') || {}).textContent || '').startsWith('há 24 h'));
+    console.log('✓ Tudo:', capTudo.replace('investidoagora', ''));
     assert.equal(await page.locator('.pf .pf-ix').count(), 0, 'os índices ficam no Hoje e nas linhas fechadas');
     // ao abrir outra vez, a análise dos meus ativos aparece logo: o ano de fechos diários deles fica guardado no instantâneo
     const snapD = await page.evaluate(() => { const d = (JSON.parse(localStorage.getItem('mercados:snap') || '{}').D) || {}; return ['VWCE.DE', 'c:BTC', '^GSPC'].map((k) => (d[k] || []).length); });
     assert.ok(snapD.every((n) => n > 100), 'o histórico guardado: ' + snapD);
     assert.equal(await page.locator('.pf svg.pf-sv path.pf-i').count(), 1, 'o investido a tracejado');
     assert.equal(await page.locator('.pf .pf-cap').textContent(), 'há 24 hinvestidoagora', 'o gráfico do período escolhido (1D)');
-    assert.equal(await page.locator('.pf .pf-pe .seg.per button').count(), 4, 'o filtro do período no cartão');
+    assert.equal(await page.locator('.pf .pf-pe .seg.per button').count(), 5, 'o filtro do período no cartão (1D, 1S, 1M, 1A e Tudo)');
     assert.equal(await page.locator('.sec:has(h2:text-is("Os meus ativos")) .seg.per').count(), 0, 'e não repetido nos meus ativos');
     assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#mk-body > section, #mk-body > details')].slice(0, 3).map((e) => (e.tagName === 'SECTION' ? e.querySelector('h2').textContent : e.dataset.fold))), ['A minha carteira', 'Os meus ativos', 'hoje'], 'a carteira, os meus ativos e depois a análise do Claude (o Hoje)');
     const pfLinha = await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d');
