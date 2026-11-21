@@ -3297,3 +3297,12 @@ cartão da carteira (estava encostado à borda do ecrã). O automático continua
 **Verificado.** Interface: o ciclo dos três modos com o aviso de cada um, a lua a branco à noite, o botão alinhado com
 o cartão; nas imagens, o ícone com quase o dobro dos píxeis claros.
 
+## Iteração (Mercados 4.38.4): o de hoje numa linha, sem o «No total» repetido
+
+**Pedido.** «O No total já aparece em baixo e a variação de hoje não precisa de ocupar tanto.»
+
+**Feito.** No cartão da carteira sai o «No total» de cima (o ganho no total está no Total da tabela). O de hoje passa a
+uma linha — «Hoje −81,50 € (−1,96%)» — e, fora do 1D, o do período ao lado; o gráfico sobe.
+
+**Verificado.** Painel: a linha de cima igual à referência nos 600 estados; interface: só o de hoje, numa linha.
+
