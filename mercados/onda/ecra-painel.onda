@@ -496,8 +496,33 @@
         Se && ~ cv na { `<p class="note">Evitar por agora: ` L i na { Se i ", " esc _ar_get @ + @ + b 9 @ + @ + b 10 i $"name" } ".</p>" } }
     "</div></details>" } }
 
+# ===== a carteira, no topo (como na TR, mal se abre) =====
+# es.pf (o pfSnap do JS; null sem quantidades na Carteira): o valor (v), o ganho face ao investido (g, gp: null se falta o
+# investido de algum), o de hoje (d, dp) e o do período escolhido (pc: null em 1D); a linha do valor é o canvas pf-cv,
+# desenhado pelo JS. Tocar abre a Carteira.
+: pn_eurn i>i n ? ln_fin n _nu_moeda @f + n 1 2 $"EUR" "—"
+: pn_eursn i>i n ? ln_fin n { = x @f + n 1 ? >= x 0.0 P '+ { P 226 P 136 P 146 0 } _nu_moeda Ab x 2 $"EUR" } "—"
+: pn_tomn i>i n ? ln_fin n ln_tom @f + n 1 "flat"
+: pn_perlbl i>i p ? eh p $"1w" "1 semana" ? eh p $"1m" "1 mês" ? eh p $"1y" "1 ano" "hoje"
+: pn_carteira >i {
+  = p es.pf
+  Se == tipo p 7 {
+    = pc p.pc = g p.g
+    `
+        <section class="sec pf"><div class="sec-h"><h2>A minha carteira</h2>`
+    Se ln_fin pc `<span class="pf-per">{ pn_perlbl es.per } <b class="{ ln_tom @f + pc 1 }-t">{ fm_pct @f + pc 1 }</b></span>`
+    `</div><button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-v num">{ pn_eurn p.v }</span><span class="pf-g">`
+    Se ln_fin g `<span class="{ pn_tomn g }-t">{ pn_eursn g } ({ fm_pctv p.gp })</span> desde que compraste · `
+    `hoje <span class="{ pn_tomn p.d }-t">{ pn_eursn p.d } ({ fm_pctv p.dp })</span></span><canvas class="pf-cv"></canvas></button></section>` }
+  0 }
+
 # ===== a vista =====
 : ecra_painel i>i s {
   ! 53 s
-  pn_meus pn_hoje pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
+  pn_carteira pn_meus pn_hoje pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
+  0 }
+# só o cartão da carteira (o JS redesenha-o com os preços ao vivo, sem redesenhar o Painel todo): { pf, per }
+: ecra_pf i>i s {
+  ! 53 s
+  pn_carteira
   0 }

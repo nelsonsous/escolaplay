@@ -523,7 +523,28 @@ function proxyBody(u) {
     assert.match(nv, /€/, 'ações americanas em euros: ' + nv);
     assert.match(await page.locator('.row[data-key="NOVO-B.CO"] .px').first().textContent(), /€/, 'coroas dinamarquesas em euros');
     console.log('✓ fundos e euros: VWCE', fund, '| Nvidia', nv);
+    // a carteira no topo do Painel (as quantidades registadas na Carteira): o valor, o ganho, o de hoje e a linha desenhada
+    // (as quantidades de teste: o que tem no FTSE All-World, no Bitcoin e na Solana, com o investido)
+    const lots0 = await page.evaluate(() => {
+        const mk = window.__mk, o = mk.cfg.lots;
+        mk.cfg.lots = { 'VWCE.DE': { plan: '', buys: [], qty: 25.31, cost: 3800 }, 'c:BTC': { plan: '', buys: [], qty: 0.0412, cost: 3200 }, 'c:SOL': { plan: '', buys: [], qty: 12, cost: 1500 } };
+        mk.render(); window.scrollTo(0, 0); return o;
+    });
+    await page.waitForFunction(() => { const c = document.querySelector('.pf canvas.pf-cv'); if (!c || !c.width) return false; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 4) if (d[i]) return true; return false; });
+    // (desenhado e lido no mesmo instante: a cripto muda de preço a cada segundo)
+    const pfS = await page.evaluate(() => { const mk = window.__mk; mk.render(); const p = mk.pfSnap(); return { ...p, txt: mk.fmtPx(p.v, { decimals: 2 }, 'EUR'), ecra: document.querySelector('.pf .pf-v').textContent }; });
+    assert.equal((await page.locator('#mk-body > section').first().locator('h2').textContent()), 'A minha carteira', 'a carteira primeiro');
+    assert.equal(pfS.ecra, pfS.txt);
+    // e ao vivo: com o preço do Bitcoin a mudar, o cartão acompanha (redesenhado sozinho, até 2 s depois)
+    await page.waitForFunction((t0) => { const mk = window.__mk, t = document.querySelector('.pf .pf-v').textContent; return t === mk.fmtPx(mk.pfSnap().v, { decimals: 2 }, 'EUR') && t !== t0; }, pfS.txt, { timeout: 8000 }).catch(() => {});
+    const vivo = await page.evaluate(() => { const mk = window.__mk; return [document.querySelector('.pf .pf-v').textContent, mk.fmtPx(mk.pfSnap().v, { decimals: 2 }, 'EUR')]; });
+    assert.ok(vivo[0] !== pfS.txt || vivo[1] === pfS.txt, 'o cartão acompanha os preços ao vivo: ' + JSON.stringify([pfS.txt, vivo]));
+    assert.match(await page.locator('.pf .pf-g').textContent(), /^[+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\) desde que compraste · hoje [+−][\d\s ]+,\d\d\s€ \([+−]?\d+,\d\d%\)$/);
+    const pfPintado = await page.locator('.pf canvas.pf-cv').evaluate((c) => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; });
+    assert.ok(pfPintado > 100, 'a linha do valor desenhada: ' + pfPintado);
+    console.log('✓ a carteira no Painel:', pfS.txt, '| ganho', pfS.g != null ? pfS.g.toFixed(2) : '—', '| hoje', pfS.d.toFixed(2));
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1-painel.png') });
+    await page.evaluate((o) => { window.__mk.cfg.lots = o; window.__mk.render(); }, lots0);
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, '1b-painel-completo.png'), fullPage: true });
 
     // fora de horas: a Palantir negoceia antes da abertura (−20%): na linha, na ficha e no gráfico de hoje, mais claro; a SAP

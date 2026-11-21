@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.30.0';
+    const VERSION = '4.31.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1283,7 +1283,56 @@
         if (!series.length || tq > series[series.length - 1][0]) series.push([tq, q.price]);
         return { pct: (q.price / ref - 1) * 100, series, base: ref };
     }
+    // ---------- a carteira no Painel (como na TR, mal se abre) ----------
+    // o valor de hoje (as quantidades da Carteira × o preço em euros), o ganho face ao investido, a variação de hoje e a do
+    // período escolhido (1D, 1S, 1M, 1A); null sem quantidades na Carteira
+    const pfKeys = () => cfg.holdings.filter((k) => REG[k] && posOf(k).q > 0 && fin(pxEur(k)));
+    // a linha do valor no período, com as quantidades de hoje: 80 pontos; em cada um, o último preço de cada ativo
+    function pfSerie() {
+        const ss = pfKeys().map((k) => { const p = perData(k), f = fxPara(qv(k)); return { q: posOf(k).q, s: (p.series || []).filter((x) => fin(x[1])).map(([t, v]) => [t, v * f]) }; })
+            .filter((x) => x.s.length > 1);
+        if (!ss.length) return null;
+        const t1 = now() / 1000, t0 = t1 - (PER_DAYS[cfg.per] || 1) * 86400, N = 80, out = [];
+        for (let i = 0; i < N; i++) {
+            const t = t0 + ((t1 - t0) * i) / (N - 1);
+            let v = 0;
+            for (const x of ss) { let j = x.s.length - 1; while (j > 0 && x.s[j][0] > t) j--; v += x.q * x.s[j][1]; }
+            out.push([t, v]);
+        }
+        return out;
+    }
+    function pfSnap() {
+        const ks = pfKeys();
+        if (!ks.length) return null;
+        let v = 0, c = 0, d = 0, semCusto = false;
+        for (const k of ks) {
+            const P = posOf(k), e = P.q * pxEur(k), ch = qv(k).changePct;
+            v += e;
+            if (P.c > 0) c += P.c; else semCusto = true;
+            if (fin(ch) && ch > -100) d += e - e / (1 + ch / 100);
+        }
+        const s = cfg.per !== '1d' ? pfSerie() : null;
+        return { v, g: semCusto ? null : v - c, gp: semCusto || !(c > 0) ? null : (v / c - 1) * 100, d, dp: v - d > 0 ? (d / (v - d)) * 100 : null,
+            pc: s && s[0][1] > 0 ? (s[s.length - 1][1] / s[0][1] - 1) * 100 : null };
+    }
+    function drawPf() {
+        const pc = $('canvas.pf-cv'), s = pc ? pfSerie() : null;
+        if (s) drawLine(pc, s, { tone: toneOf((s[s.length - 1][1] / s[0][1] - 1) * 100), base: s[0][1], pad: 4, width: 2 });
+    }
+    // a carteira ao vivo: com os preços a mudar (a cripto a cada segundo), o cartão redesenha-se sozinho (pela Onda, no
+    // máximo a cada 2 s), sem redesenhar o Painel todo
+    let pfT = 0;
+    function pfSoon() {
+        if (pfT) return;
+        pfT = setTimeout(() => {
+            pfT = 0;
+            const el = $('#mk-body > section.pf');
+            if (!el || st.touching || !aoOk || !AO.ecra || !AO.ecra.pf) return;
+            try { const h = AO.ecra.pf({ pf: pfSnap(), per: cfg.per }).trim(); if (h) { el.outerHTML = h; drawPf(); } } catch (e) { console.error('ecrã Onda:', e); }
+        }, 2000);
+    }
     function drawSparks() {
+        drawPf();
         if (PS[cfg.per]) loadPerSeries();
         for (const cv of $$('canvas.spark')) {
             const k = cv.dataset.key;
@@ -1296,6 +1345,7 @@
 
     // ---------- atualização ao vivo de um cartão ----------
     function patchLive(k, prev) {
+        if (cfg.tab === 'painel' && cfg.holdings.includes(k) && posOf(k).q > 0) pfSoon();
         const raw = Q[k];
         const q = qv(k);
         for (const el of $$(`[data-key="${CSS.escape(k)}"]`)) {
@@ -1624,7 +1674,7 @@
                     an: r ? { d: d ? { dd: d.dd, score: d.score } : d, adv: ad ? { key: ad.key, action: ad.action } : ad, L: h ? (h.long || h.mid || {}).score : undefined } : r,
                     cl: cl ? { key: cl.key, action: cl.action } : cl, dk: dec ? dec.key : undefined, tax: my && a.kind === 'crypto' ? taxLine(k) : undefined };
             }),
-            hoje: hojeSnap(),
+            hoje: hojeSnap(), pf: pfSnap(),
             fuel: FUEL ? { fuels: FUEL.fuels } : FUEL, fuelErr: st.fuelErr, dname, mname,
         };
     }
@@ -3063,6 +3113,6 @@
         // de cada ativo, o imposto da cripto), e o estado dos combustíveis
         panelSnap, panelHtml, perData, claudeFor, taxLine, decIn, decOf, pedirAnalise, clWhen, decSnapOf: (k) => { const d = decOf(k); return d ? decSnap(k, qv(k), d) : null; }, get fuel() { return FUEL; }, set fuel(v) { FUEL = v; },
         // fora de horas (antes da abertura, depois do fecho) e a estimativa para a abertura, com o que aprende
-        EXT, S5, extOf, betaOf, projOf, pxTag, pjResolve, rangeOf, volOf, pollYahoo, get pj() { return pjLoad(); }, get deriv() { return DERIV; } };
+        EXT, S5, extOf, betaOf, projOf, pxTag, pjResolve, rangeOf, volOf, pollYahoo, pfSnap, pfSerie, get pj() { return pjLoad(); }, get deriv() { return DERIV; } };
     boot();
 })();

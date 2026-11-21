@@ -478,6 +478,11 @@ a.st-row { text-decoration: none; color: inherit; }
 .row .r-t { display: block; order: 3; color: var(--faint); font-size: calc(.68rem * var(--k)); font-weight: 500; line-height: 1.2; }
 .row .r-t.up { color: var(--up); font-weight: 650; } .row .r-t.down { color: var(--down); font-weight: 650; }
 .d-ext { font-size: calc(0.853rem * var(--k)); margin: 2px 0 6px; }
+.pf .pf-per { margin-left: auto; color: var(--muted); font-size: calc(.8rem * var(--k)); }
+.pf .pf-b { display: block; width: 100%; padding: 12px 12px 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--card, var(--bg2)); color: inherit; text-align: left; cursor: pointer; }
+.pf .pf-v { display: block; font-size: calc(2rem * var(--k)); font-weight: 800; letter-spacing: -.02em; }
+.pf .pf-g { display: block; margin-top: 2px; color: var(--muted); font-size: calc(.85rem * var(--k)); }
+.pf .pf-cv { display: block; width: 100%; height: 64px; margin-top: 8px; }
 .d-ext small { display: block; color: var(--muted); font-size: calc(0.75rem * var(--k)); margin-top: 2px; }
 .d-ext .alt { color: var(--muted); }
 .row .r-px { display: flex; flex-direction: column; align-items: flex-end; }

@@ -101,7 +101,8 @@ function verificar({ de, ate, seed }) {
             execucao: 0, semValores: 0, prazo: 0, diaDeAgir: 0, comTotal: 0, semTotal: 0, outros: 0, porque: 0, riscos: 0, agenda: 0, notas: 0, evitar: 0, mexe: 0, sentimento: 0, semHoje: 0,
             p1d: 0, p1w: 0, p1m: 0, p1y: 0, pOutro: 0, oSobe: 0, oDesce: 0, oBolsa: 0, oNome: 0, oMinha: 0, grupos: 0,
             meusVazio: 0, acoesVazio: 0, fundosVazio: 0, semFundos: 0, cripto: 0, retirados: 0, aberta: 0, arrastada: 0,
-            fuel: 0, fuelCarrega: 0, fuelErro: 0, semConector: 0, skel: 0, hora: 0, badgeClaude: 0, badgeAuto: 0, badgeDecisao: 0, desconto: 0, imposto: 0, litro: 0 } };
+            fuel: 0, fuelCarrega: 0, fuelErro: 0, semConector: 0, skel: 0, hora: 0, badgeClaude: 0, badgeAuto: 0, badgeDecisao: 0, desconto: 0, imposto: 0, litro: 0,
+            carteira: 0, carteiraGanho: 0, carteiraSemGanho: 0, carteiraPeriodo: 0 } };
     const T = out.tipos;
     const DIA = 864e5;
     const isoDia = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -199,6 +200,8 @@ function verificar({ de, ate, seed }) {
             // as compras de cripto (o imposto aos 365 dias)
             c.lots = {};
             for (const k of ['c:BTC', 'c:ETH', 'c:SOL']) if (sim(0.3)) c.lots[k] = { plan: pick(['', isoDia(agora - 500 * DIA)]), buys: [{ d: isoDia(agora - pick([30, 400, 800]) * DIA), e: 100 }] };
+            // as quantidades da Carteira (o resumo no topo do Painel): umas com o investido, outras sem, e valores estranhos
+            for (const k of c.holdings) if (sim(0.45)) c.lots[k] = { ...(c.lots[k] || { plan: '', buys: [] }), qty: pick([0.5, 2, 25.31, '3', 0, -1, 'x']), cost: pick([100, 3800.5, 4200, 0, undefined, 'y']) };
             // ---- os combustíveis ----
             const fl = () => (sim(0.15) ? { id: 9, name: pick(['Gasóleo', pick(ODD)]), error: pick(['HTTP 500', pick(ODD)]) } : { id: pick([2101, 3201, '<x>', undefined]), name: pick(['Gasóleo simples', 'Gasolina simples 95', pick(ODD)]),
                 n: pick([3012, 2987, 12345, 1, 0, null, undefined, NaN, 1e21]), avg: pick([1.611, 1.751, null]), median: pick([1.599, 1.739, 1.0005, NaN, undefined]), max: pick([1.899, 2.049, Infinity]),
@@ -222,6 +225,7 @@ function verificar({ de, ate, seed }) {
             if (sim(0.3)) H.ex = pick([null, { quando: pick(ODD), dl: '01/12', exec: true }, { quando: 'sábado, 7 de novembro', dl: '06/11', prazo: true }, { quando: 'x', dl: pick(ODD) }, { quando: 'terça-feira, 2 de dezembro', dl: '01/12', exec: false, prazo: false }]);
             if (sim(0.2)) H.when = pick(['', '07:16', pick(ODD), 7, null]);
             if (sim(0.2)) H.old = pick([true, false, 1, 0]);
+            if (sim(0.12)) snap.pf = pick([null, [], 'x', 7, {}, { v: 'texto', g: NaN, d: null, dp: Infinity, pc: '3' }, { v: 123456789.125, g: -0.004, gp: 0.004, d: 0, dp: 0, pc: -0.004 }]);
             const html = AO.ecra.painel(snap);
             const D = new DOMParser().parseFromString(html, 'text/html');
             out.estados++; out.bytes += html.length;
@@ -334,10 +338,30 @@ function verificar({ de, ate, seed }) {
             const blocos = filhos.map((e) => (e.tagName === 'SECTION' ? e.querySelector('h2').textContent : e.dataset.fold));
             const cripto = CRIPTO.map((x) => x[0]), crypt = cripto.filter((k) => REG[k] && !mine.includes(k) && !hid(k)), nhc = cripto.filter(hid).length;
             const fundos = funds.filter((k) => REG[k] && !mine.includes(k));
-            const querBlocos = ['Os meus ativos', inv.length || cv ? 'hoje' : null, crypt.length || nhc ? 'Cripto' : null, fundos.length || !funds.length ? 'Fundos e ETF' : null, 'Ações que sigo', 'pn-idx', 'pn-en', c.proxy ? 'pn-fuel' : null].filter(Boolean);
+            const pf = snap.pf, temPf = !!pf && typeof pf === 'object' && !Array.isArray(pf);
+            const querBlocos = [temPf ? 'A minha carteira' : null, 'Os meus ativos', inv.length || cv ? 'hoje' : null, crypt.length || nhc ? 'Cripto' : null, fundos.length || !funds.length ? 'Fundos e ETF' : null, 'Ações que sigo', 'pn-idx', 'pn-en', c.proxy ? 'pn-fuel' : null].filter(Boolean);
             if (JSON.stringify(blocos) !== JSON.stringify(querBlocos)) erro(`os blocos ${JSON.stringify(blocos)} em vez de ${JSON.stringify(querBlocos)}`);
             const sec = (t) => filhos.find((e) => e.tagName === 'SECTION' && e.querySelector('h2').textContent === t);
             const dob = (f) => filhos.find((e) => e.tagName === 'DETAILS' && e.dataset.fold === f);
+            // ---- a carteira, no topo: o valor, o ganho desde que comprou (sem ele se falta o investido), o de hoje, o do
+            // período e a linha (o canvas); tocar abre a Carteira ----
+            if (temPf) {
+                T.carteira++;
+                const s = sec('A minha carteira'), num = (x) => typeof x === 'number' && Number.isFinite(x);
+                const eur = (x) => (num(x) ? mk.fmtPx(x, { decimals: 2 }, 'EUR') : '—'), eursg = (x) => (num(x) ? (x >= 0 ? '+' : '−') + mk.fmtPx(Math.abs(x), { decimals: 2 }, 'EUR') : '—');
+                const pct = (x) => (num(x) ? mk.fmtPct(x) : '—'), tom = (x) => (num(x) ? toneOf(x) : 'flat');
+                const v = s && s.querySelector('.pf-b .pf-v'), gg = s && s.querySelector('.pf-b .pf-g'), b = s && s.querySelector('.pf-b');
+                if (!v || v.textContent !== eur(pf.v)) erro(`a carteira: o valor ${v && v.textContent} em vez de ${eur(pf.v)}`);
+                const lbl = { '1w': '1 semana', '1m': '1 mês', '1y': '1 ano' }[c.per] || 'hoje', per = s && s.querySelector('.sec-h .pf-per');
+                if (num(pf.pc)) T.carteiraPeriodo++;
+                if ((per ? per.textContent : null) !== (num(pf.pc) ? `${lbl} ${mk.fmtPct(pf.pc)}` : null) || (per && per.querySelector('b').className !== tom(pf.pc) + '-t')) erro(`a carteira: o período ${per && per.outerHTML}`);
+                if (num(pf.g)) T.carteiraGanho++; else T.carteiraSemGanho++;
+                const gq = (num(pf.g) ? `${eursg(pf.g)} (${pct(pf.gp)}) desde que compraste · ` : '') + `hoje ${eursg(pf.d)} (${pct(pf.dp)})`;
+                if (!gg || gg.textContent !== gq) erro(`a carteira: ${gg && gg.textContent} em vez de ${gq}`);
+                const tons = gg ? [...gg.querySelectorAll(':scope > span')].map((x) => x.className) : [];
+                if (JSON.stringify(tons) !== JSON.stringify((num(pf.g) ? [tom(pf.g) + '-t'] : []).concat(tom(pf.d) + '-t'))) erro(`a carteira: as cores ${JSON.stringify(tons)}`);
+                if (!b || b.dataset.tab !== 'carteira' || !b.querySelector('canvas.pf-cv')) erro('a carteira: o toque ou a linha');
+            }
             // ---- os meus ativos e o período ----
             const sm = sec('Os meus ativos');
             if (sm) {

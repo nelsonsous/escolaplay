@@ -451,7 +451,7 @@ const anfitriao = String.raw`(function (root) {
     }
     // o HTML da vista nome (uma função da Onda: ajustes.onda…) para o instantâneo
     function vista(nome, snap) { const k = k0(), r = arvore(k, snap); k.vai(() => k.ex[nome](BigInt(r))); return k.saida(); }
-    const ecra = { ajustes: (snap) => vista('ajustes', snap), analise: (snap) => vista('ecra_analise', snap), destaques: (snap) => vista('ecra_destaques', snap), painel: (snap) => vista('ecra_painel', snap), carteira: (snap) => vista('ecra_carteira', snap), decisao: (snap) => vista('ecra_decisao', snap), fixa };
+    const ecra = { ajustes: (snap) => vista('ajustes', snap), analise: (snap) => vista('ecra_analise', snap), destaques: (snap) => vista('ecra_destaques', snap), painel: (snap) => vista('ecra_painel', snap), pf: (snap) => vista('ecra_pf', snap), carteira: (snap) => vista('ecra_carteira', snap), decisao: (snap) => vista('ecra_decisao', snap), fixa };
 
     // ---------- a decisão consolidada (decisao.onda) ----------
     // list: [{ cl, an, tec, news }] → [null | { fam, forte, p, conf, manda, key, n, favor, contra, f: [fontes] }]
