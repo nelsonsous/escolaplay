@@ -913,6 +913,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.deepEqual(await tema(), NOITE, 'em Automático, com o iPhone em escuro: a noite');
     assert.equal(await page.locator('#cores [data-thm="auto"].on').count(), 1, 'Cores: Automático por omissão');
     await page.click('#cores [data-thm="light"]');
+    await toastIs(/^Cores: dia/);
     assert.deepEqual(await tema(), DIA, 'Dia: claro, com a barra das horas clara (horas a escuro)');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('meteo:v1')).theme), 'light', 'a escolha fica guardada (o index.html lê-a ao abrir)');
     await noOverflow('Ajustes (dia)');
@@ -939,8 +940,9 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     else assert.deepEqual(baixos, { agora: [], dias: [], satelite: [], analise: [], ajustes: [], folha: [] }, 'de dia, textos que se leem mal');
     // o botão do topo do Agora: abaixo da faixa das horas de um iPhone (47 px), ao meio do título e sem tocar no nome do local
     await tab('agora');
-    const btTema = page.locator('#mt-body > .pg-tema');
-    assert.equal(await btTema.getAttribute('data-thm'), 'dark', 'de dia, o botão da lua (passa a noite)');
+    // 1.28.1: o botão mostra o modo das cores (◐ automático, sol dia, lua noite) e tocar passa ao seguinte (como nos Mercados)
+    const modoTema = () => page.evaluate(() => { const b = document.querySelector('#mt-body > .pg-tema'); return [b.dataset.modo, b.dataset.thm, b.querySelector('path[fill="currentColor"]') ? 'meio' : b.querySelector('circle') ? 'sol' : 'lua']; });
+    assert.deepEqual(await modoTema(), ['light', 'dark', 'sol'], 'de dia: o sol, e tocar passa a noite');
     const posTema = await page.evaluate(() => {
         window.scrollTo(0, 0);
         const h = document.documentElement; h.style.setProperty('--safe-t', '47px');
@@ -950,21 +952,29 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         return out;
     });
     assert.deepEqual(posTema, { faixa: ['rgb(0, 0, 0)', '47px'], abaixo: true, aoMeio: true, folga: true, dentro: true }, 'o botão do dia e da noite à vista no iPhone (e a faixa das horas preta, se ficar a barra da noite)');
-    await btTema.click();
-    assert.deepEqual(await tema(), NOITE, 'o botão da lua: a noite');
-    assert.equal(await page.locator('#mt-body > .pg-tema').getAttribute('data-thm'), 'light', 'à noite, o botão do sol');
-    assert.equal(await page.locator('#mt-body > .pg-tema').getAttribute('aria-label'), 'Modo dia (claro)');
-    // Automático segue o iPhone, também com a app aberta
+    await page.click('#mt-body > .pg-tema');
+    await toastIs(/^Cores: noite/);
+    assert.deepEqual(await tema(), NOITE, 'tocar: a noite');
+    assert.deepEqual(await modoTema(), ['dark', 'auto', 'lua'], 'à noite: a lua, e tocar passa a automático');
+    assert.equal(await page.locator('#mt-body > .pg-tema').getAttribute('aria-label'), 'Cores: noite. Tocar passa a automático (como o iPhone)');
+    await page.click('#mt-body > .pg-tema');
+    await toastIs(/^Cores: automático \(como o iPhone\)/);
+    assert.deepEqual(await modoTema(), ['auto', 'light', 'meio'], 'o automático (◐): segue o iPhone, e tocar passa a dia');
+    assert.equal(await page.evaluate(() => window.__mt.cfg.theme), 'auto');
+    assert.deepEqual(await tema(), NOITE, 'em automático, com o iPhone em escuro: a noite');
+    const faixa = () => page.evaluate(() => getComputedStyle(document.body, '::before').backgroundColor);
+    assert.equal(await faixa(), 'rgb(0, 0, 0)', 'à noite, a faixa das horas preta');
+    // Automático segue o iPhone, também com a app aberta; de dia a faixa das horas é branca (sem a barra escura)
     await tab('ajustes');
-    await page.click('#cores [data-thm="auto"]');
-    assert.deepEqual(await tema(), NOITE);
+    assert.equal(await page.locator('#cores [data-thm="auto"].on').count(), 1, 'em Ajustes também');
     await page.emulateMedia({ colorScheme: 'light' });
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     assert.deepEqual(await tema(), DIA, 'o iPhone passa a claro: a app também');
+    assert.equal(await faixa(), 'rgb(255, 255, 255)', 'de dia, com o iPhone em claro: a faixa das horas branca, como nos Mercados');
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     assert.equal(await page.evaluate(() => window.__mt.cfg.theme), 'auto');
-    console.log('✓ o dia e a noite: Cores (Automático, Dia, Noite), o botão do Agora abaixo das horas, a barra do iPhone e de dia tudo a ler-se');
+    console.log('✓ o dia e a noite: Cores (Automático, Dia, Noite), o botão do Agora com os três modos (abaixo das horas), a barra do iPhone, a faixa branca de dia e tudo a ler-se');
     // 1.27: uma 2.ª análise (Braga): as notificações escolhem os locais, que chegam juntos numa só
     places.push({ id: 'braga', name: 'Braga', lat: 41.5454, lon: -8.4265, mine: true, kind: 'guest', status: 'active', createdAt: NOW });
     await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
@@ -1209,6 +1219,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     await Promise.all([page.waitForEvent('load'), page.click('#mt-body > .pg-tema')]);
     await page.waitForFunction(() => !window.__antes && document.querySelector('#mt-body > .pg-tema'));
     assert.deepEqual(await tema(), DIA, 'na app instalada: aberta de novo, já de dia e com a barra clara');
+    await toastIs(/^Cores: dia/); // o aviso do modo escolhido aparece depois de abrir
     console.log('✓ na app instalada, mudar o dia e a noite abre a página de novo com a barra das horas certa');
 
     assert.deepEqual(unexpected, [], 'sem pedidos à rede real');
