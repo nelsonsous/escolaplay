@@ -3103,3 +3103,18 @@ meu FTSE e os meus ativos.» Os futuros do FTSE All-World existem (FTAW, Eurex),
 cenários iguais (cinco novos: entradas estranhas e repetidas, o `-0.000` do toFixed, o conector antigo, o tempo
 esgotado). Interface: o gémeo com o euro parado e a subir, os futuros a seguir, o FTSE All-World com a Xetra fechada
 (o VT −1,5% e os futuros), os intervalos (o VIX, a Deribit, a história) e os derivados na ficha do Bitcoin.
+
+## Iteração (Mercados 4.31.0): a carteira no topo do Painel
+
+**Pedido.** «A página inicial podia mostrar a minha carteira resumida — o ganho, a perda, o valor e um gráfico pequeno —
+mal abra.»
+
+**Feito.** O cartão `pn_carteira` no topo do Painel (o `es.pf`, do `pfSnap`): o valor de hoje (as quantidades da
+Carteira × o preço em euros), o ganho face ao investido (sem ele se falta o investido de algum ativo), o de hoje e o do
+período escolhido, e a linha do valor no período (o `pfSerie`: 80 pontos com as quantidades de hoje, desenhada pelo
+JS). Ao vivo: com os preços a mudar, o JS pede só o cartão à Onda (`ecra_pf`, no máximo a cada 2 s). Tocar abre a
+Carteira.
+
+**Verificado.** Painel: 600 estados ao acaso, 188 com o cartão (com e sem o investido, com o período, valores estranhos:
+NaN, texto, listas, o arredondamento de 123 456 789,125). Interface: o valor igual ao do instantâneo, a linha
+desenhada e o cartão a acompanhar os preços ao vivo.
