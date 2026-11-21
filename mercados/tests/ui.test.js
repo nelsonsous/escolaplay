@@ -684,7 +684,7 @@ function proxyBody(u) {
     // 4.39: «Tudo» — o cartão desde a 1.ª compra (como na Carteira), sem a casa do período (o ganho no total está no Total);
     // os meus ativos desde a 1.ª compra de cada um
     await page.click('.pf .pf-pe [data-per="all"]');
-    await page.waitForFunction(() => /^(desde \d\d\/\d\d\/\d{4}|há 1 ano)investidoagora$/.test((document.querySelector('.pf .pf-cap') || {}).textContent || ''));
+    await page.waitForFunction(() => /^(desde \d\d\/\d\d\/\d{4}|há 1 ano)(investido)?agora$/.test((document.querySelector('.pf .pf-cap') || {}).textContent || ''));
     const capTudo = await page.locator('.pf .pf-cap').textContent();
     assert.equal(await page.evaluate(() => window.__mk.cfg.per), 'all');
     assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['Hoje'], 'Tudo: sem a casa do período');
@@ -694,20 +694,21 @@ function proxyBody(u) {
     if (SHOTS) await page.locator('#mk-body > section.pf').screenshot({ path: path.join(SHOTS, '1e-carteira-tudo.png') });
     await page.click('.pf .pf-pe [data-per="1d"]');
     await page.waitForFunction(() => ((document.querySelector('.pf .pf-cap') || {}).textContent || '').startsWith('há 24 h'));
-    console.log('✓ Tudo:', capTudo.replace('investidoagora', ''));
+    console.log('✓ Tudo:', capTudo.replace(/(investido)?agora$/, ''));
     assert.equal(await page.locator('.pf .pf-ix').count(), 0, 'os índices ficam no Hoje e nas linhas fechadas');
     // ao abrir outra vez, a análise dos meus ativos aparece logo: o ano de fechos diários deles fica guardado no instantâneo
     const snapD = await page.evaluate(() => { const d = (JSON.parse(localStorage.getItem('mercados:snap') || '{}').D) || {}; return ['VWCE.DE', 'c:BTC', '^GSPC'].map((k) => (d[k] || []).length); });
     assert.ok(snapD.every((n) => n > 100), 'o histórico guardado: ' + snapD);
-    assert.equal(await page.locator('.pf svg.pf-sv path.pf-i').count(), 1, 'o investido a tracejado');
-    assert.equal(await page.locator('.pf .pf-cap').textContent(), 'há 24 hinvestidoagora', 'o gráfico do período escolhido (1D)');
+    // 4.44: no 1D o investido (8500 €) fica longe do valor (9711 €): a escala só com o valor, sem o tracejado
+    assert.deepEqual(await page.locator('.pf svg.pf-sv').evaluate((sv) => [sv.dataset.esc, sv.querySelectorAll('path.pf-i').length]), ['valor', 0], 'o de hoje na escala dele');
+    assert.equal(await page.locator('.pf .pf-cap').textContent(), 'há 24 hagora', 'o gráfico do período escolhido (1D)');
     assert.equal(await page.locator('.pf .pf-pe .seg.per button').count(), 5, 'o filtro do período no cartão (1D, 1S, 1M, 1A e Tudo)');
     // 4.41: os meus ativos com a sua barra (data-pera): mudá-la não mexe no cartão
     const barraA = '.sec:has(h2:text-is("Os meus ativos")) .sec-h .seg.per';
     assert.equal(await page.locator(barraA + ' button[data-pera]').count(), 5, 'a barra dos meus ativos (1D, 1S, 1M, 1A e Tudo)');
     await page.click(barraA + ' [data-pera="1y"]');
     assert.deepEqual(await page.evaluate(() => [window.__mk.cfg.per || '1d', window.__mk.cfg.perA]), ['1d', '1y'], 'os meus ativos em 1A; o cartão fica no 1D');
-    assert.equal(await page.locator('.pf .pf-cap').textContent(), 'há 24 hinvestidoagora', 'o cartão continua no 1D');
+    assert.equal(await page.locator('.pf .pf-cap').textContent(), 'há 24 hagora', 'o cartão continua no 1D');
     assert.equal(await page.locator(barraA + ' button.on').textContent(), '1A');
     await page.click(barraA + ' [data-pera="1d"]');
     assert.equal(await page.evaluate(() => window.__mk.cfg.perA), '1d');

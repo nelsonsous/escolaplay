@@ -428,8 +428,8 @@ function verificar({ de, ate, seed }) {
                 if (s && (s.querySelector('.pf-ix') || s.querySelector('.pf-gl'))) erro('a carteira: sem os índices nem os grupos em linhas');
                 // o gráfico do período escolhido: o valor e o investido a tracejado (60 pontos cada), na cor do período
                 const sv = b && b.querySelector('svg.pf-sv'), pl = sv && sv.querySelector('path.pf-l'), pi = sv && sv.querySelector('path.pf-i');
-                const cap = s && s.querySelector('.pf-cap'), capq = (tu && ta > 0 ? 'desde ' + txt(pf.dl) : { '1w': 'há 1 semana', '1m': 'há 1 mês', '1y': 'há 1 ano', all: 'há 1 ano' }[c.per] || 'há 24 h') + 'investidoagora';
-                if (!b || b.dataset.tab !== 'carteira' || !sv || sv.getAttribute('class') !== 'pf-sv ' + toneOf(pc) || !pl || pl.getAttribute('d').split('L').length !== 60 || !pi || pi.getAttribute('d').split('L').length !== 60 || !cap || cap.textContent !== capq) erro(`a carteira: o toque ou o gráfico ${sv && sv.outerHTML.slice(0, 120)}`);
+                const cap = s && s.querySelector('.pf-cap'), capq = (tu && ta > 0 ? 'desde ' + txt(pf.dl) : { '1w': 'há 1 semana', '1m': 'há 1 mês', '1y': 'há 1 ano', all: 'há 1 ano' }[c.per] || 'há 24 h') + (pi ? 'investido' : '') + 'agora';
+                if (!b || b.dataset.tab !== 'carteira' || !sv || sv.getAttribute('class') !== 'pf-sv ' + toneOf(pc) || !pl || pl.getAttribute('d').split('L').length !== 60 || (pi && pi.getAttribute('d').split('L').length !== 60) || sv.dataset.esc !== (pi ? 'tudo' : 'valor') || !cap || cap.textContent !== capq) erro(`a carteira: o toque ou o gráfico ${sv && sv.outerHTML.slice(0, 120)}`);
             } else if (sec('A minha carteira')) erro('a carteira sem nada para mostrar');
             // ---- os meus ativos e o período ----
             const sm = sec('Os meus ativos');
@@ -742,6 +742,18 @@ test(`Painel: as listas, cada linha, a ordem, o cartão Hoje e as linhas fechada
     // cobertura: os ramos todos apareceram muitas vezes
     for (const [k, v] of Object.entries(tot.tipos)) assert.ok(v >= ESTADOS / 40, `poucos estados do tipo ${k}: ${v}`);
     assert.deepEqual(erros, []);
+});
+
+test('Painel: a escala do cartão (4.44) — com o investido longe, só o valor (o de hoje vê-se); perto, os dois', async () => {
+    const r = await page.evaluate(() => {
+        const AO = window.AnaliseOnda, agora = Date.now() / 1000;
+        const pf = (cost) => ({ now: agora, t0: 0, dl: '', ativos: [{ k: 'VWCE.DE', nm: 'FTSE All-World', cr: false, px: 100, h: [], b: [], q: 10, cost, ch: 0.5,
+            s: [[agora - 86400, 99], [agora - 43200, 100.6], [agora, 100]] }] });
+        const ver = (cost) => { const d = new DOMParser().parseFromString(AO.ecra.pf({ pf: pf(cost), per: '1d' }), 'text/html'); const sv = d.querySelector('svg.pf-sv'); return [sv.dataset.esc, !!sv.querySelector('path.pf-i'), d.querySelector('.pf-cap').textContent]; };
+        return [ver(2000), ver(1003)];
+    });
+    assert.deepEqual(r[0], ['valor', false, 'há 24 hagora'], 'o investido (2000 €) longe do valor (perto de 1000 €): só o valor');
+    assert.deepEqual(r[1], ['tudo', true, 'há 24 hinvestidoagora'], 'perto: os dois');
 });
 
 test('Painel: a app desenha-o com a Onda (e, se a Onda falhar, um aviso curto); a vista não mexe no estado', async () => {

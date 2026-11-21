@@ -3386,3 +3386,15 @@ a análise do Claude) contam 4 round ups por mês.
 **Verificado.** Interface: o valor de cada data; a média de 2,24 € e 12 € (7,12 €, ~342 € por ano) e o campo a
 sugeri-la; + e ✕ numa data da lista; o plano e o round up habitual como antes; bateria 107/107.
 
+## Iteração (Mercados 4.44.0): o gráfico do cartão na escala do valor
+
+**Pedido.** «O gráfico só de hoje não devia ter outra escala?» (no 1D, a linha do valor ficava rasa em baixo: a escala ia
+do valor, 4065 €, ao investido, 6432 €).
+
+**Feito.** Quando o investido fica longe — a escala com os dois seria mais de 3 vezes a do valor —, o gráfico fica só
+com o valor (vê-se o de hoje) e o tracejado do investido não se desenha (nem a legenda); perto (ou com o valor a mexer
+muito, no 1A e no Tudo), ficam os dois. Em Onda (`pn_carteira`: `ci`, `data-esc`).
+
+**Verificado.** Painel: a escala com o investido longe (só o valor) e perto (os dois), e a legenda e o tracejado coerentes
+nos 600 estados; interface: o 1D só com o valor; bateria 108/108.
+
