@@ -471,15 +471,54 @@ function proxyBody(u) {
         const l2 = await page.evaluate(() => window.__mk.pprAtivos());
         assert.ok(Math.abs(un(l2[1]) - 12.5) < 1e-9 && Math.abs(un(l2[0]) - un(l[0])) < 1e-12, 'o Dinâmico com 12,5 unidades; a Proteção como estava');
         assert.ok(l2[1].b.every((b, i) => Math.abs(b[2] / l[1].b[i][2] - 12.5 / un(l[1])) < 1e-9), 'na mesma proporção');
+        // 4.48: tão longe dos prémios registados, falta alguma entrega: o aviso, e o ganho não se mostra
+        await page.waitForSelector('section.ppr .ppr-av', { timeout: 3000 });
+        assert.match(await page.locator('section.ppr .ppr-av').textContent(), /^A MyFidelidade tem mais .+ do que dão os prémios registados: falta alguma entrega extra\?/);
+        assert.equal(await page.locator('section.ppr .sim-st b').nth(1).textContent(), '—', 'sem o ganho');
         await escP('uc', '');
         assert.ok(Math.abs(un((await page.evaluate(() => window.__mk.pprAtivos()))[1]) - un(l[1])) < 1e-12, 'vazio: volta à conta');
+        await page.waitForFunction(() => !document.querySelector('section.ppr .ppr-av'), null, { timeout: 3000 });
+        // um acerto pequeno (2 % a mais) é só acerto: sem aviso
+        await escP('uc', String(Math.round(un(l[1]) * 1.02 * 1e4) / 1e4).replace('.', ','));
+        assert.equal(await page.locator('section.ppr .ppr-av').count(), 0, 'sem aviso');
+        assert.notEqual(await page.locator('section.ppr .sim-st b').nth(1).textContent(), '—');
+        await escP('uc', '');
         // tudo no Dinâmico: só uma componente; uma percentagem acima de 100 não entra
         await escP('din', '100');
         assert.deepEqual((await page.evaluate(() => window.__mk.pprAtivos())).map((a) => a.k), ['ppr:7615']);
         await escP('din', '140');
         assert.equal(await page.evaluate(() => window.__mk.cfg.ppr.din), 100, '140 % não entra');
         await escP('din', '70');
-        console.log('✓ PPR Evoluir: escreve-se o PPR; os prémios de cada mês ao valor do dia útil seguinte; acerto com as unidades da Fidelidade');
+        // 4.48: uma entrega extra (data e valor) entra como um prémio: o investido sobe, e as unidades ao valor do dia útil seguinte
+        {
+            const dx = isoAtras(50), n0 = (await page.evaluate(() => window.__mk.pprAtivos()))[0].b.length;
+            await page.locator('section.ppr details.ppr-ed').evaluate((d) => { d.open = true; });
+            await page.locator('section.ppr [data-pprx="d"]').fill(dx);
+            await page.locator('section.ppr [data-pprx="e"]').fill('500');
+            await page.click('section.ppr [data-act="ppr-add"]');
+            await page.waitForFunction(() => ((window.__mk.cfg.ppr || {}).ex || []).length === 1, null, { timeout: 3000 });
+            assert.deepEqual(await page.evaluate(() => window.__mk.cfg.ppr.ex), [[dx, 500]], 'a entrega guardada');
+            const l3 = await page.evaluate(() => window.__mk.pprAtivos());
+            assert.equal(l3[0].b.length, n0 + 1, 'mais um prémio');
+            const bx = l3[1].b.find((b) => new Date(b[0] * 1000).toISOString().slice(0, 10) === dx && Math.abs(b[1] - 350) < 1e-9), qx = S['7615'].d.find((r) => r[0] > dx);
+            assert.ok(bx && Math.abs(bx[2] - 350 / qx[1]) < 1e-9, 'o Dinâmico: 70 % dos 500 €, ao valor do dia útil seguinte');
+            await page.waitForFunction((t) => document.querySelector('section.ppr .sim-st b').textContent === t, eurT(60 * ds.length + 500), { timeout: 3000 });
+            assert.match(await page.locator('section.ppr .ppr-x').textContent(), /500,00\s€/);
+            // com as unidades da MyFidelidade, a divisão da entrega é a que as faz bater (aqui, a meias): o resto fica sem aviso
+            const vuP = (d) => S['7614'].d.find((r) => r[0] > d)[1];
+            await escP('ur', String(Math.round((ds.reduce((a, d) => a + 18 / vuP(d), 0) + 250 / vuP(dx)) * 1e6) / 1e6).replace('.', ','));
+            const l4 = await page.evaluate(() => window.__mk.pprAtivos());
+            const exDe = (a) => a.b.filter((b) => new Date(b[0] * 1000).toISOString().slice(0, 10) === dx && b[1] > 100).map((b) => b[1]);
+            assert.ok(Math.abs(exDe(l4[0])[0] - 250) < 0.05 && Math.abs(exDe(l4[1])[0] - 250) < 0.05, 'a entrega a meias: ' + exDe(l4[0]) + ' / ' + exDe(l4[1]));
+            assert.ok(l4[0].b.filter((b) => b[1] < 100).every((b) => Math.abs(b[1] - 18) < 1e-9), 'os prémios do mês com a divisão do plano');
+            assert.equal(await page.locator('section.ppr .ppr-av').count(), 0, 'sem aviso');
+            await escP('ur', '');
+            if (SHOTS) await page.locator('section.ppr details.ppr-ed').screenshot({ path: path.join(SHOTS, '8i-carteira-ppr-entregas.png') });
+            await page.click('section.ppr [data-act="ppr-rm"][data-i="0"]');
+            await page.waitForFunction(() => ((window.__mk.cfg.ppr || {}).ex || []).length === 0, null, { timeout: 3000 });
+            assert.equal(await page.locator('section.ppr .ppr-x').count(), 0, '✕ apaga');
+        }
+        console.log('✓ PPR Evoluir: escreve-se o PPR; os prémios de cada mês ao valor do dia útil seguinte; entregas extra; acerto e aviso');
     }
     // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
     await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });

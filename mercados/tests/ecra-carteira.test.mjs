@@ -224,6 +224,30 @@ test('carteira: o PPR Evoluir (4.47) — as duas componentes como dois ativos, c
         assert.deepEqual(d.ed, [['pm', '75'], ['din', '60'], ['de', '2025-08-20'], ['ur', ''], ['uc', '']], 'o editor com o que escreveste');
         assert.equal(d.aberto, false, 'com o PPR feito, o editor fica fechado');
         assert.ok(d.antes, 'antes do simulador');
+        // 4.48: as entregas extra no editor (cada uma com ✕) e a linha para juntar outra (com o rascunho)
+        {
+            const ex = [{ d: '2025-12-15', l: '15/12/2025', e: 600 }, { d: '2026-03-02', l: '02/03/2026', e: 50.5 }];
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'X', start: 0, years: 20, goal: 0, ppr: { ...ppr, ed: 1, ex, xd: '2026-11-01', xe: '20' } })}</body>`);
+            const e = await pg.evaluate(() => ({ l: [...document.querySelectorAll('section.ppr .ppr-x')].map((x) => [x.querySelector('span').textContent, x.querySelector('b').textContent, x.querySelector('[data-act="ppr-rm"]').dataset.i]),
+                x: [...document.querySelectorAll('section.ppr [data-pprx]')].map((i) => [i.dataset.pprx, i.value]), j: !!document.querySelector('section.ppr [data-act="ppr-add"]') }));
+            const e2 = (x) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(x);
+            assert.deepEqual(e.l, [['15/12/2025', e2(600), '0'], ['02/03/2026', e2(50.5), '1']], 'as entregas extra, pela ordem');
+            assert.deepEqual(e.x, [['d', '2026-11-01'], ['e', '20']], 'o rascunho da próxima');
+            assert.ok(e.j, 'o botão de juntar');
+        }
+        // 4.48: a MyFidelidade longe dos prémios registados: o aviso, e sem o ganho (nem o por ano, nem o de cada componente)
+        {
+            const aviso = 'A MyFidelidade tem mais 664 € do que dão os prémios registados: falta alguma entrega extra? Junta-a em «O teu PPR» para veres o investido e o ganho certos.';
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'X', start: 0, years: 20, goal: 0, ppr: { ...ppr, aviso } })}</body>`);
+            const a = await pg.evaluate(() => { const r = document.querySelector('section.ppr'); return { av: r.querySelector('.ppr-av').textContent, rng: !!r.querySelector('.sim-rng'), big: r.querySelector('.sim-big b').textContent,
+                st: [...r.querySelectorAll('.sim-st b')].map((b) => [b.textContent, b.className]), chg: r.querySelectorAll('.real-l .chg').length, g: !!r.querySelector('svg.real-g') }; });
+            assert.equal(a.av, aviso);
+            assert.equal(a.rng, false, 'sem o ganho por baixo do valor');
+            assert.equal(a.big, eur(V), 'o valor continua');
+            assert.deepEqual(a.st, [[eur(E), 'num'], ['—', 'num'], ['—', 'num']], 'o investido; o ganho e o por ano: —');
+            assert.equal(a.chg, 0, 'sem o ganho de cada componente');
+            assert.ok(a.g, 'o gráfico continua');
+        }
         // sem nada, a carregar ou sem os valores: a frase certa, sem gráfico, e o editor aberto
         for (const [x, re] of [[{}, /Põe desde quando pagas/], [{ loading: 1 }, /A carregar os valores da Fidelidade/], [{ erro: 'Não consegui ler os valores da Fidelidade agora. Tenta mais tarde.' }, /Não consegui ler/]]) {
             await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, ppr: { now: T, at: '', loading: 0, erro: '', ed: 1, cfg: { de: '', pm: 0, din: 0, ur: 0, uc: 0 }, ativos: [], ...x } })}</body>`);
