@@ -140,6 +140,13 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## A abertura estimada no cartão da carteira (4.60.0)
+
+Com a bolsa fechada, o cartão «A minha carteira» diz, por baixo do «Hoje», a abertura estimada: a dos fundos e ações fora
+de horas (o gémeo em Nova Iorque e, depois dele, os futuros do S&P 500 e do Nikkei — a mesma da linha de cada um), pelo
+valor de cada um, e o que dá em euros. Os futuros dos EUA reabrem ao domingo às 23 h (de Portugal): a partir daí, a
+estimativa da segunda-feira vai mudando com eles (a app pede-os a cada 2 minutos, aberta).
+
 ## O Fundo Viva desde o ano que escolhes (4.59.0)
 
 Em «O teu Fundo Viva», «Desde (ano)»: o ano a ano e o gráfico começam nesse ano. Os anos sem os teus valores da declaração

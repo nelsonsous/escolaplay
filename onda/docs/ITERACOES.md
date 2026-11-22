@@ -3623,3 +3623,17 @@ subiu nesse ano, sem as contribuições; uma nota di-lo. O ganho desde esse ano 
 **Verificado.** Carteira: os anos estimados com ≈, o ganho com ≈, a nota e o campo; interface: com «Desde» 2024 e sem o
 valor de 31/12/2023, o 2024 estima-se com as UP de 31/12/2024, o gráfico começa a 31/12/2023; sem «Desde», como antes.
 
+## Iteração (Mercados 4.60.0): a abertura estimada no cartão da carteira
+
+**Pedido.** «Às 23 h de Portugal abrem os mercados de futuros, já podemos saber. Aparece evidente na app como vai ser o
+dia?»
+
+**Visto.** A estimativa já existia (o gémeo VT e os futuros do S&P 500 e do Nikkei, corrigida pelas aberturas passadas),
+mas só na linha de cada fundo («abre ≈ +0,4%», pequeno) e na ficha.
+
+**Feito.** No cartão «A minha carteira», por baixo do «Hoje», «Abertura estimada: +0,4% (+3 €)» — a dos fundos e ações
+fora de horas, pelo valor de cada um, e o que dá em euros, a verde ou a vermelho.
+
+**Verificado.** Interface: com a bolsa fechada e o FTSE com lote, o cartão mostra a abertura estimada igual à da linha do
+FTSE (só ele fora de horas), com a cor certa.
+

@@ -601,6 +601,8 @@
       Se ha p.fech `<small class="pf-fech">bolsa fechada</small>`
       Se && ~ d1 ~ tu pn_casa 2 pc pc 0
       "</span>"
+      # 4.60: a abertura estimada da bolsa (o gémeo e os futuros), à vista: a mesma da linha de cada fundo, e em euros
+      Se ha p.abL `<span class="pf-abre { ? >= num p.abP 0.0 "up-t" "down-t" }">{ esc p.abL }</span>`
       # o gráfico do período: o valor e o investido a tracejado
       `<svg class="pf-sv { ln_tom pc }" data-esc="{ ? ci "tudo" "valor" }" viewBox="0 0 320 88" preserveAspectRatio="none" aria-hidden="true"><path class="pf-a" d="M2 88`
       L k kk ` L{ _nu_fixo + 2.0 / * 316.0 F k F - kk 1 1 }{ P 32 }{ _nu_fixo pn_pfy @f + vs k lo hi 1 }`
