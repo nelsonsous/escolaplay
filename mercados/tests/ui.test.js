@@ -142,7 +142,7 @@ function proxyBody(u) {
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
     // 4.51: o Fundo Viva — os fins de ano e o de «hoje»
-    if (p === '/futuro') return { dia: '2026-11-23', f: { 'FUNDO VIVA': { up: 18.3484, d: [['2023-12-31', 16.1857], ['2024-12-31', 17.0496], ['2025-12-31', 18.2705], ['2026-11-23', 18.3484]] } } };
+    if (p === '/futuro') return { dia: '2026-11-23', f: { 'FUNDO VIVA': { up: 18.3484, d: [['2023-12-31', 16.1857], ['2024-12-31', 17.0496], ['2025-12-31', 18.2705], ['2026-11-23', 18.3484]], ini: ['1992-11-27', 4.99] } } };
     if (p === '/ppr') {
         // 4.47: os valores diários das unidades do PPR (só os dias úteis), desde o «de»: a Proteção devagar, o Dinâmico mais depressa
         const d = [];
@@ -480,6 +480,8 @@ function proxyBody(u) {
         assert.equal(await page.locator('section.ppr .sim-st b').first().textContent(), eurT(60 * ds.length), 'investido: os prémios');
         assert.equal(await page.locator('section.ppr .real-l .row').count(), 2);
         assert.match(await page.locator('section.ppr .sec-h .sub').textContent(), /^Fidelidade · valores de \d\d\/\d\d\/\d{4}$/);
+        // 4.55: as comissões do PPR — se resgatasses hoje (−0,5 % nos primeiros 5 anos)
+        assert.match(await page.locator('section.ppr .ppr-custos').textContent(), new RegExp(`se resgatasses hoje, recebias ${eurT(V * 0.995).replace(/\s/g, '\\s')}, antes do imposto`));
         if (SHOTS) await page.locator('section.ppr').screenshot({ path: path.join(SHOTS, '8h-carteira-ppr.png') });
         // 4.53: ano a ano — um ano por coluna (desde o do 1.º prémio) e, somados, os totais dão o ganho
         {
@@ -564,6 +566,9 @@ function proxyBody(u) {
         assert.equal(await page.locator('section.fut .sim-hit').count(), 4, 'o dedo: uma data por ponto');
         assert.equal(await page.locator('section.fut .sim-hit').last().getAttribute('data-tx'), `Hoje: ${eurT(567.3069 * 18.3484)}`);
         assert.deepEqual(await page.locator('section.fut .ppr-anos tr').allTextContents(), ['2026 (até hoje)+0,4\u00a0%', '2025+7,2\u00a0%', '2024+5,3\u00a0%'].map((x) => x.replace(/\u00a0/g, ' ')), 'ano a ano');
+        // 4.55: desde o início do fundo (por ano) e as comissões
+        assert.match(await page.locator('section.fut .sim-st').textContent(), /Desde 1992 \(por ano\)\+3,9\s%/);
+        assert.match(await page.locator('section.fut .fut-custos').textContent(), /1,82 % em 2025/);
         if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j-carteira-fundo-viva.png') });
         console.log('✓ Fundo Viva: as tuas UP × o valor da UP da Futuro; este ano, o ano passado e o gráfico');
         // 4.52: o simulador para o PPR ou o Fundo Viva — cada um com os seus valores; os dos ativos ficam como estavam

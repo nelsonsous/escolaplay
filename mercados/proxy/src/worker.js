@@ -36,9 +36,9 @@
 // para só aceitar pedidos vindos da tua app.
 
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
-import { pdfTexto, parseFuturo, FUT_ANOS } from './futuro.js';
+import { pdfTexto, parseFuturo, FUT_ANOS, FUT_REND, FUT_INI } from './futuro.js';
 
-const VERSION = '1.16.0';
+const VERSION = '1.17.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -650,7 +650,7 @@ async function futuro(url, env) {
     const out = {};
     for (const [nome, x] of Object.entries(f)) {
         const m = new Map([...(FUT_ANOS[nome] || []), ...(h[nome] || []), [dia, x.up]]);
-        out[nome] = { up: x.up, d: [...m].sort((a, b) => (a[0] < b[0] ? -1 : 1)) };
+        out[nome] = { up: x.up, d: [...m].sort((a, b) => (a[0] < b[0] ? -1 : 1)), anos: FUT_REND[nome] || [], ini: FUT_INI[nome] || null };
     }
     return { body: { dia, f: out }, ttl: 3 * 3600 };
 }

@@ -3548,3 +3548,21 @@ O «Em 2025» dos quadros passa para a tabela.
 
 **Verificado.** Carteira: a tabela, o mais recente primeiro; interface: os anos do conector.
 
+## Iteração (Mercados 4.55.0, conector 1.17.0): o Fundo Viva desde o início, e as comissões
+
+**Pedido.** «Quero ver desde o início e considerar as comissões.»
+
+**Visto.** A Futuro só publica os relatórios dos últimos anos; o documento informativo do fundo (no site do Montepio, abril
+de 2026) tem o rendimento anual oficial de 2016 a 2025 (lido pela posição de cada valor no gráfico do PDF), o valor da UP
+no início (4,99 € a 27/11/1992) e as comissões. As da Fidelidade estão nas condições pré-contratuais do PPR Evoluir.
+
+**Feito.** Conector 1.17.0: a história do Fundo Viva começa no início do fundo (1992) e tem os fins de ano desde 2015 (para
+trás de 2021, pelos rendimentos oficiais), e vai com o rendimento anual oficial e o início. Na app: o gráfico desde 1992,
+o «Ano a ano» com os rendimentos oficiais (2016 a 2025) e este ano pela UP, «Desde 1992 (por ano)» (+3,9 %), e as
+comissões — no Fundo Viva (1,82 % em 2025 já descontados; reembolso 1 % só no 1.º ano de cada entrega; quando se pode
+reembolsar) e no PPR (a gestão do Dinâmico já descontada; o resgate a 0,5 % nos primeiros 5 anos, fora das condições
+legais, e quanto se receberia hoje).
+
+**Verificado.** Conector: os fins de ano de 2015 a 2020 dão os rendimentos oficiais; publicado (1.17.0). Carteira e
+interface: desde 1992, as comissões do Fundo Viva e do PPR (e o valor de resgate de hoje).
+

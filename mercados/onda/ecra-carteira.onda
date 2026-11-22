@@ -390,7 +390,9 @@
       `<div class="r-sub">{ _nu_intl @f + p 4 4 } un. × { _nu_moeda @f + p 3 2 $"EUR" } · investido { cs_eur e }</div></div>`
       `<div class="r-px num"><span class="px">{ cs_eur v }</span>{ Se ~ av `<span class="chg { ? >= v e "up" "down" }">{ cr_pc - / v e 1.0 }</span>` }</div></div>` }
     "</div>"
-    Se && ~ av ha r.anos cr_pprano r }
+    Se && ~ av ha r.anos cr_pprano r
+    # 4.55: as comissões (as de gestão, já no valor das unidades; o resgate)
+    Se ha r.custos `<p class="note ppr-custos">{ esc r.custos }</p>` }
   cr_ppred r
   "</section>" }
 # 4.53: ano a ano — o ganho de cada componente (e o total) em cada ano, com a % da unidade nesse ano
@@ -470,13 +472,17 @@
     `<div class="stats sim-st">`
     `<div><small>As tuas UP</small><b class="num">{ _nu_intl num c.up 4 }</b></div>`
     `<div><small>Valor da UP</small><b class="num">{ _nu_moeda num r.up 4 $"EUR" }</b></div>`
+    # 4.55: desde o início do fundo, por ano
+    Se ha r.iniL `<div><small>{ esc r.iniL }</small><b class="num { ? >= num r.iniP 0.0 "up-t" "down-t" }">{ cr_pc num r.iniP }</b></div>`
     "</div>"
     # 4.54: ano a ano — a % do valor da UP em cada ano (o mais recente primeiro)
     = a pri r.anos
     Se a {
       `<div class="ppr-anos"><small class="real-gt">Ano a ano (o valor da UP)</small><table class="sim-tab"><tbody>`
       W a { = p num a.p `<tr><td>{ esc a.l }</td><td class="num"><b class="{ ? >= p 0.0 "up-t" "down-t" }">{ cr_pc p }</b></td></tr>` = a seg a }
-      "</tbody></table></div>" } }
+      "</tbody></table></div>" }
+    # 4.55: as comissões do fundo
+    Se ha r.custos `<p class="note fut-custos">{ esc r.custos }</p>` }
   `<details class="how fut-ed" data-fold="fut-ed"{ Se ha r.ed " open" }><summary>O teu Fundo Viva</summary><div class="real-in">`
   `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label></div>`
   `<p class="note">As UP (unidades) estão na NetFuturo, ou na Declaração de Benefícios de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12. O valor da UP vem do site da Futuro, todos os dias úteis; o que escreves aqui fica só no teu iPhone. Quando entrarem contribuições, atualiza as UP.</p>`

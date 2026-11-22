@@ -634,7 +634,14 @@ test('/futuro: o valor da UP dos fundos da Futuro, do PDF protegido das cotaçõ
     assert.equal(r.status, 200);
     const b = await r.json();
     assert.equal(b.dia, '2026-11-23');
-    assert.deepEqual(b.f['FUNDO VIVA'], { up: 18.3484, d: [['2021-12-31', 16.9157], ['2022-12-31', 15.0428], ['2023-12-31', 16.1857], ['2024-12-31', 17.0496], ['2025-12-31', 18.2705], ['2026-11-20', 18.3301], ['2026-11-23', 18.3484]] });
+    const fv = b.f['FUNDO VIVA'];
+    assert.equal(fv.up, 18.3484);
+    assert.deepEqual(fv.d.slice(0, 2), [['1992-11-27', 4.99], ['2015-12-31', 15.0387]], 'desde o início do fundo');
+    assert.deepEqual(fv.d.slice(-4), [['2024-12-31', 17.0496], ['2025-12-31', 18.2705], ['2026-11-20', 18.3301], ['2026-11-23', 18.3484]]);
+    assert.deepEqual([fv.anos.length, fv.anos[0], fv.anos[9]], [10, [2016, 0.0045], [2025, 0.0716]], 'o rendimento anual oficial');
+    assert.deepEqual(fv.ini, ['1992-11-27', 4.99]);
+    // os fins de ano de 2015 a 2020 (para trás de 2021) dão os rendimentos oficiais
+    for (const [y, p] of fv.anos.filter(([y]) => y <= 2021)) { const a = fv.d.find((r) => r[0] === `${y - 1}-12-31`)[1], z = fv.d.find((r) => r[0] === `${y}-12-31`)[1]; assert.ok(Math.abs(z / a - 1 - p) < 2e-5, `${y}: ${z / a - 1} vs ${p}`); }
     assert.deepEqual(JSON.parse(kv.get('fut:h'))['FUNDO VIVA'].slice(-1), [['2026-11-23', 18.3484]], 'o dia guardado');
     assert.match(r.headers.get('cache-control'), /s-maxage=10800/);
     assert.equal((await worker.fetch(new Request('https://w.test/futuro?f=x%3Cy'), env, null)).status, 400, 'só nomes de fundos');
