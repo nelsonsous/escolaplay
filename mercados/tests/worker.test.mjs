@@ -47,6 +47,18 @@ test('parseChart calcula variação e limpa nulos', () => {
     assert.throws(() => parseChart({ chart: { result: null, error: { description: 'No data found' } } }, '1d'), /No data/);
 });
 
+test('parseChart: a sessão da bolsa e o fuso (1.18.0)', () => {
+    const c = chart('SAP.DE', 110, 100), m = c.chart.result[0].meta;
+    m.exchangeTimezoneName = 'Europe/Berlin';
+    m.currentTradingPeriod = { regular: { start: 1763712000, end: 1763742600 } };
+    const q = parseChart(c, '1d');
+    assert.deepEqual(q.sess, [1763712000, 1763742600]);
+    assert.equal(q.tz, 'Europe/Berlin');
+    delete m.currentTradingPeriod; delete m.exchangeTimezoneName;
+    const q2 = parseChart(c, '1d');
+    assert.deepEqual([q2.sess, q2.tz, q2.open], [null, null, null], 'sem a sessão do Yahoo');
+});
+
 test('/quotes devolve várias cotações e erros por símbolo', async () => {
     const calls = mockFetch((u) => {
         if (u.includes('/v8/finance/chart/BAD')) return res({ chart: { result: null, error: { description: 'Not Found' } } }, 404);

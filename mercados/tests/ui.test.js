@@ -860,6 +860,49 @@ function proxyBody(u) {
         await page.evaluate((v) => { const mk = window.__mk; for (const [s, t] of v) mk.Q[s].time = t; mk.render(); }, antes);
         console.log('✓ «Hoje» só com o que mexeu hoje (a bolsa fechada fica de fora) e o dia na linha');
     }
+    // 4.61: a sessão de cada ativo (fora a cripto) — aberta até quando, ou fechada e quando abre: hoje, amanhã ou o dia, à
+    // mesma hora local da bolsa (sem o fim de semana, com a mudança da hora pelo meio; os futuros abrem ao domingo à noite)
+    {
+        const r = await page.evaluate(() => {
+            const mk = window.__mk, H = (iso) => Date.parse(iso) / 1000, S = (a, b, tz) => ({ sess: [H(a), H(b)], tz });
+            const seg = S('2026-11-23T07:00:00Z', '2026-11-23T21:00:00Z', 'Europe/Berlin');
+            return {
+                aberta: mk.sessaoDe(seg, H('2026-11-23T12:00:00Z')),
+                antes: mk.sessaoDe(seg, H('2026-11-23T05:00:00Z')),
+                depois: mk.sessaoDe(seg, H('2026-11-23T21:30:00Z')),
+                fds: mk.sessaoDe(S('2026-11-20T07:00:00Z', '2026-11-20T21:00:00Z', 'Europe/Berlin'), H('2026-11-22T12:00:00Z')),
+                verao: mk.sessaoDe(S('2026-03-27T08:00:00Z', '2026-03-27T16:30:00Z', 'Europe/Berlin'), H('2026-03-28T12:00:00Z')),
+                futuros: mk.sessaoDe(S('2026-11-19T23:00:00Z', '2026-11-20T22:00:00Z', 'America/New_York'), H('2026-11-21T12:00:00Z')),
+                semHoras: [mk.sessaoDe({ open: false }), mk.sessaoDe({ open: true }), mk.sessaoDe({})],
+                txt: [mk.sesTxt({ on: 1 }), mk.sesTxt({ on: 0 }), mk.sesTxt(null)],
+                // os futuros (CME): de domingo às 18 h a sexta às 17 h de Nova Iorque, com a pausa das 17 h às 18 h
+                cme: ['2026-11-21T12:00:00Z', '2026-11-22T20:00:00Z', '2026-11-22T23:30:00Z', '2026-11-25T22:30:00Z', '2026-11-25T15:00:00Z', '2026-11-27T23:00:00Z']
+                    .map((x) => mk.sessaoDe({ symbol: 'ES=F', sess: [H(x) - 3600, H(x) + 3600] }, H(x))),
+            };
+        });
+        const H = (iso) => Date.parse(iso) / 1000;
+        assert.deepEqual(r.aberta, { on: 1, fecha: H('2026-11-23T21:00:00Z') });
+        assert.deepEqual(r.antes, { on: 0, abre: H('2026-11-23T07:00:00Z') });
+        assert.deepEqual(r.depois, { on: 0, abre: H('2026-11-24T07:00:00Z') }, 'depois de fechar: o dia seguinte');
+        assert.deepEqual(r.fds, { on: 0, abre: H('2026-11-23T07:00:00Z') }, 'de sexta para segunda');
+        assert.deepEqual(r.verao, { on: 0, abre: H('2026-03-30T07:00:00Z') }, 'a hora de verão pelo meio: as 9 h de Berlim');
+        assert.deepEqual(r.futuros, { on: 0, abre: H('2026-11-22T23:00:00Z') }, 'os futuros: domingo às 18 h de Nova Iorque');
+        assert.deepEqual(r.semHoras, [{ on: 0 }, { on: 1 }, null]);
+        assert.deepEqual(r.txt, ['aberta', 'fechada', '']);
+        assert.deepEqual(r.cme, [{ on: 0, abre: H('2026-11-22T23:00:00Z') }, { on: 0, abre: H('2026-11-22T23:00:00Z') }, { on: 1, fecha: H('2026-11-23T22:00:00Z') },
+            { on: 0, abre: H('2026-11-25T23:00:00Z') }, { on: 1, fecha: H('2026-11-25T22:00:00Z') }, { on: 0, abre: H('2026-11-29T23:00:00Z') }], 'os futuros: sábado, domingo antes e depois das 18 h, a pausa, a meio do dia, sexta à noite');
+        // na linha: o FTSE aberto (até quando) e fechado (quando abre); a cripto sem a sessão
+        const syms = await page.evaluate(() => ['VWCE.DE'].concat(window.__mk.REG['VWCE.DE'].live || []));
+        const pomSes = (a, b) => page.evaluate(([ss, a, b]) => { const mk = window.__mk, t = Date.now() / 1000; for (const s of ss) if (mk.Q[s]) { mk.Q[s].sess = [t + a, t + b]; mk.Q[s].tz = 'Europe/Berlin'; } mk.render(); }, [syms, a, b]);
+        await pomSes(-3600, 3600);
+        await page.waitForFunction(() => { const e = document.querySelector('.row[data-key="VWCE.DE"] .r-ses'); return e && e.classList.contains('on') && /^aberta até \d\d:\d\d$/.test(e.textContent); }, null, { timeout: 3000 });
+        await pomSes(-30 * 3600, -20 * 3600);
+        await page.waitForFunction(() => { const e = document.querySelector('.row[data-key="VWCE.DE"] .r-ses'); return e && !e.classList.contains('on') && /^abre (amanhã |(dom|seg|ter|qua|qui|sex|sáb)\. )?às \d\d:\d\d$/.test(e.textContent); }, null, { timeout: 3000 });
+        if (SHOTS) await page.locator('.row[data-key="VWCE.DE"]').first().screenshot({ path: path.join(SHOTS, '8a2-linha-sessao.png') });
+        assert.equal(await page.locator('.row[data-key="c:BTC"] .r-ses').count(), 0, 'a cripto não tem sessão');
+        await page.evaluate((ss) => { const mk = window.__mk; for (const s of ss) if (mk.Q[s]) { delete mk.Q[s].sess; delete mk.Q[s].tz; } mk.render(); }, syms);
+        console.log('✓ a sessão de cada ativo: aberta até quando, ou quando abre');
+    }
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
     // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com
     // as moedas debaixo dela e o total — o investido total é a soma do que custou cada um

@@ -41,7 +41,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 
 | Pedido | Devolve | Cache no CDN |
 |---|---|---|
-| `/quotes?symbols=BZ=F,AAPL&range=1d` | cotação, variação, máx./mín., série (até 40 símbolos; `range` = 1d, 5d, 1mo, 6mo, 1y, 5y) | 15 s a 1 h |
+| `/quotes?symbols=BZ=F,AAPL&range=1d` | cotação, variação, máx./mín., série e a sessão da bolsa com o fuso (1.18.0) (até 40 símbolos; `range` = 1d, 5d, 1mo, 6mo, 1y, 5y) | 15 s a 1 h |
 | `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
 | `/calendar?symbols=NVDA,EDP.LS` | próximos resultados e datas de dividendo (Yahoo) | 6 h |
@@ -139,6 +139,15 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
 - `node mercados/proxy/recuperar-historico.mjs` copia o que ainda está no KV (a 16/11: 13 conselhos desde 05/11 e o diário
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
+
+## Aberta ou fechada, e quando abre (4.61.0 e conector 1.18.0)
+
+Em cada linha de ação, fundo, índice ou energia (a cripto não fecha), por baixo do nome: «● aberta até 17:30» ou «○ abre
+seg. às 08:00» (às 08:00, amanhã às 08:00). A sessão vem do conector (a normal da bolsa do último preço, a de hoje ou a
+última, e o fuso dela): fechada, abre à mesma hora local da bolsa no dia seguinte sem fim de semana — pelo fim da sessão,
+por isso os futuros abrem ao domingo à noite —, com a mudança da hora pelo meio. Os futuros (=F) seguem a CME: de domingo às 18 h a sexta às 17 h de Nova Iorque (23 h a
+22 h em Portugal), com a pausa diária de uma hora (o Yahoo dá o dia inteiro). Os feriados não entram. Nos fundos com o
+preço da noite, a sessão é a de Munique (gettex). A previsão, fechada, continua à direita («abre ≈ +0,4%»).
 
 ## A abertura estimada no cartão da carteira (4.60.0)
 

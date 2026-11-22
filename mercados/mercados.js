@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.60.0';
+    const VERSION = '4.61.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -231,6 +231,47 @@
     const diaLocal = (t) => { const d = new Date(t * 1000); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
     const mexeuHoje = (k, q) => (REG[k] && REG[k].kind === 'crypto') || !fin(+(q || {}).time) || diaLocal(+q.time) >= todayLocal();
     const diaDe = (t) => { const d = diaLocal(t); return d === isoMais(todayLocal(), -1) ? 'ontem' : ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'][new Date(d + 'T12:00:00Z').getUTCDay()]; };
+    // 4.61: a sessão da bolsa do último preço (do conector: a de hoje ou a última, e o fuso dela): aberta (até quando) ou
+    // fechada (e quando abre: à mesma hora local da bolsa, no dia seguinte sem fim de semana — pelo fim da sessão, que nos
+    // futuros abre ao domingo à noite —, com a mudança da hora pelo meio; os feriados não). Sem a sessão, o aberto do conector.
+    const TZF = new Map();
+    const tzParts = (tz, s) => {
+        let f = TZF.get(tz);
+        if (!f) { f = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }); TZF.set(tz, f); }
+        return Object.fromEntries(f.formatToParts(s * 1000).map((x) => [x.type, x.value]));
+    };
+    const tzOff = (tz, s) => { const p = tzParts(tz, s); return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - s * 1000) / 1000; };
+    // os futuros (CME Globex): de domingo às 18 h a sexta às 17 h de Nova Iorque, com a pausa das 17 h às 18 h (o Yahoo dá o
+    // dia inteiro como sessão)
+    function sessaoFut(t = now() / 1000) {
+        const tz = 'America/New_York', p = tzParts(tz, t), wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), h = (+p.hour % 24) + +p.minute / 60;
+        const mid = t - ((+p.hour % 24) * 3600 + +p.minute * 60 + +p.second);
+        const at = (dd, hh) => { const c = mid + dd * 86400 + hh * 3600; return c - (tzOff(tz, c) - tzOff(tz, t)); };
+        if (wd === 6) return { on: 0, abre: at(1, 18) };
+        if (wd === 0) return h < 18 ? { on: 0, abre: at(0, 18) } : { on: 1, fecha: at(1, 17) };
+        if (wd === 5) return h < 17 ? { on: 1, fecha: at(0, 17) } : { on: 0, abre: at(2, 18) };
+        return h < 17 ? { on: 1, fecha: at(0, 17) } : h < 18 ? { on: 0, abre: at(0, 18) } : { on: 1, fecha: at(1, 17) };
+    }
+    function sessaoDe(q, t = now() / 1000) {
+        if (q && /=F$/.test(q.symbol || '')) { try { return sessaoFut(t); } catch { return null; } }
+        const S = q && Array.isArray(q.sess) ? q.sess : null;
+        if (!S || !fin(S[0]) || !fin(S[1]) || S[1] <= S[0] || S[1] - S[0] > 86400) return q && typeof q.open === 'boolean' ? { on: q.open ? 1 : 0 } : null;
+        if (t >= S[0] && t < S[1]) return { on: 1, fecha: S[1] };
+        if (t < S[0]) return { on: 0, abre: S[0] };
+        try {
+            const tz = q.tz || 'UTC', len = S[1] - S[0];
+            let c = S[0];
+            for (let i = 0; i < 14 && (c <= t || /^(Sat|Sun)/.test(tzParts(tz, c + len - 1).weekday)); i++) c += 86400;
+            return { on: 0, abre: c - (tzOff(tz, c) - tzOff(tz, S[0])) };
+        } catch { return { on: 0 }; }
+    }
+    function sesTxt(se, t = now() / 1000) {
+        if (!se) return '';
+        if (se.on) return se.fecha ? `aberta até ${hhmm(se.fecha)}` : 'aberta';
+        if (!se.abre) return 'fechada';
+        const d = diaLocal(se.abre), h = diaLocal(t);
+        return `abre ${d === h ? '' : d === isoMais(h, 1) ? 'amanhã ' : ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'][new Date(se.abre * 1000).getDay()] + ' '}às ${hhmm(se.abre)}`;
+    }
     function liveOf(k) {
         const a = REG[k], q0 = Q[k];
         let best = null;
@@ -252,7 +293,7 @@
             // a variação do dia é face ao fecho da véspera na Xetra: o «fecho anterior» que o Yahoo dá para Munique e
             // Düsseldorf é muitas vezes um negócio solto (ex.: 168,44 € em Munique com a Xetra a fechar a 167,42 €)
             const pcl = fin(q0.prevClose) ? q0.prevClose : lv.prevClose;
-            q = { ...q0, price: lv.price, time: lv.time, open: lv.open, series, venue: VENUE[lv.sym.split('.').pop()] || lv.sym, prevClose: pcl,
+            q = { ...q0, price: lv.price, time: lv.time, open: lv.open, sess: lv.sess || q0.sess, tz: lv.tz || q0.tz, series, venue: VENUE[lv.sym.split('.').pop()] || lv.sym, prevClose: pcl,
                 change: fin(pcl) ? lv.price - pcl : null, changePct: fin(pcl) ? (lv.price / pcl - 1) * 100 : q0.changePct };
         }
         if (!cfg.eur || !q.currency || q.currency === 'EUR') return q;
@@ -2023,6 +2064,8 @@
                 const my = mine.includes(k), cl = my ? claudeFor(k) : null, dec = my && !cl && ad ? decOf(k) : null, tg = pxTag(k, q);
                 return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), unit: a.unit, dec: a.decimals, pts: a.points,
                     px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k, perA()).pct, t: tg.t, tt: tg.tt,
+                    // 4.61: a sessão (fora a cripto): aberta até quando, ou quando abre
+                    ...(() => { const se = a.kind === 'crypto' ? null : sessaoDe(q); return { ses: sesTxt(se), on: se && se.on ? 1 : 0 }; })(),
                     dia: perA() === '1d' && fin(+q.time) && !mexeuHoje(k, q) ? diaDe(+q.time) : '',
                     pl: a.perLitre && Q[k] ? A.usdGalToEurL(Q[k].price, eu) : undefined, mkt: mktOf(k), nr: rank ? rank.get(nameOf(k)) : undefined,
                     an: r ? { d: d ? { dd: d.dd, score: d.score } : d, adv: ad ? { key: ad.key, action: ad.action } : ad, L: h ? (h.long || h.mid || {}).score : undefined } : r,
@@ -3620,7 +3663,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas
