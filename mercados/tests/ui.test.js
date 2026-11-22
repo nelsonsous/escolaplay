@@ -558,6 +558,27 @@ function proxyBody(u) {
         assert.match(await page.locator('section.fut .sim-st').textContent(), /Em 2025.*\+7,2\s%/);
         if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j-carteira-fundo-viva.png') });
         console.log('✓ Fundo Viva: as tuas UP × o valor da UP da Futuro; este ano, o ano passado e o gráfico');
+        // 4.52: o simulador para o PPR ou o Fundo Viva — cada um com os seus valores; os dos ativos ficam como estavam
+        const ativos0 = await page.evaluate(() => { const c = window.__mk.cfg; return [c.simBudget, c.simStart, c.simYears]; });
+        await page.waitForSelector('.sim .sim-alvo [data-v="ppr"]');
+        assert.deepEqual(await page.locator('.sim .sim-alvo button').allTextContents(), ['Ativos', 'PPR', 'Fundo Viva']);
+        await page.click('.sim .sim-alvo [data-v="ppr"]');
+        await page.waitForSelector('.sim .sim-alvo [data-v="ppr"].on');
+        const vP = await page.evaluate(() => window.__mk.pprAtivos().reduce((a, x) => a + x.px * x.b.reduce((q, r) => q + r[2], 0), 0));
+        assert.equal(await page.locator('.sim [data-out="simStart"]').textContent(), eurT(Math.round(vP)), 'já tens: o PPR de hoje');
+        assert.equal(await page.locator('.sim [data-out="simBudget"]').textContent(), eurT(60), 'por mês: o prémio do PPR');
+        assert.match(await page.locator('.sim .sim-split').textContent(), /30 % Proteção · 70 % Dinâmico/);
+        assert.match(await page.locator('.sim .sim-st').textContent(), /Imposto no resgate \(8 %\)/);
+        await page.click('.sim [data-act="sim-step"][data-k="simBudget"][data-d="50"]');
+        await page.waitForFunction(() => ((window.__mk.cfg.simX || {}).ppr || {}).simBudget === 110, null, { timeout: 3000 });
+        await page.click('.sim .sim-alvo [data-v="viva"]');
+        await page.waitForSelector('.sim .sim-alvo [data-v="viva"].on');
+        assert.equal(await page.locator('.sim [data-out="simStart"]').textContent(), eurT(Math.round(567.3069 * 18.3484)), 'já tens: o Fundo Viva de hoje');
+        assert.equal(await page.locator('.sim .sim-st small').count(), 3, 'sem imposto');
+        await page.click('.sim .sim-alvo [data-v="ativos"]');
+        assert.deepEqual(await page.evaluate(() => { const c = window.__mk.cfg; return [c.simBudget, c.simStart, c.simYears]; }), ativos0, 'os dos ativos ficam como estavam');
+        if (SHOTS) await page.locator('.sim').screenshot({ path: path.join(SHOTS, '8k-simulador-alvos.png') });
+        console.log('✓ simulador: os ativos, o PPR ou o Fundo Viva, cada um com os seus valores');
     }
     // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
     await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });

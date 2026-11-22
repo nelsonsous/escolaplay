@@ -7,8 +7,9 @@
 # O imposto, se vender tudo no fim: cada compra paga pela idade (ações e ETF: 28 % até 2 anos, 25,2 % de 2 a 5, 22,4 % de
 # 5 a 8, 19,6 % com 8 ou mais; a cripto com 1 ano ou mais está isenta, antes paga 28 %).
 
-# a taxa por ano da classe q (0 ações, 1 cripto) no cenário s (0 pessimista, 1 base, 2 otimista), e por mês
-: cs_tx ii>f s q ? == q 0 ? == s 0 0.03 ? == s 1 0.06 0.09 ? == s 0 0.0 ? == s 1 0.10 0.25
+# a taxa por ano da classe q (0 ações, 1 cripto) no cenário s (0 pessimista, 1 base, 2 otimista), e por mês; 4.52: com
+# es.tx (o PPR, o Fundo Viva: [pessimista A, B, base A, B, otimista A, B]), as dele
+: cs_tx ii>f s q { = t es.tx ? ha t _ar_num idx t + * 2 s q ? == q 0 ? == s 0 0.03 ? == s 1 0.06 0.09 ? == s 0 0.0 ? == s 1 0.10 0.25 }
 : cs_mes f>f r - Pw + 1.0 r / 1.0 12.0 1.0
 # a parte em cripto do que já se tem (c0: a da carteira real); sem ela, a do plano (c)
 : cs_c0 f>f c { = v num es.c0 ? && fin v && >= v 0.0 <= v 1.0 v c }
@@ -468,14 +469,20 @@
   Se < y 1 = y 20
   Se > y 60 = y 60
   = n * y 12
-  `\n        <section class="sec sim"><div class="sec-h"><h2>Simulador</h2><span class="sub">o teu plano daqui a uns anos</span></div>`
+  `\n        <section class="sec sim"><div class="sec-h"><h2>Simulador</h2><span class="sub">{ ? ha es.sub esc es.sub "o teu plano daqui a uns anos" }</span></div>`
+  # 4.52: o que simular — os ativos, o PPR ou o Fundo Viva (cada um com os seus valores, cenários e imposto)
+  = al pri es.alvos
+  Se al {
+    `<div class="seg sim-alvo" role="group" aria-label="O que simular">`
+    W al { `<button type="button" data-act="sim-alvo" data-v="{ esc al.v }"{ Se ha al.on ` class="on"` }>{ esc al.l }</button>` = al seg al }
+    "</div>" }
   # os controlos (gravam ao largar: data-cfg; − e + num passo)
   `<div class="sim-ctl">`
   # quando os valores se afastam da carteira ou do plano dos Ajustes: um botão repõe tudo de uma vez
-  Se ha es.mexido `<button type="button" class="btn sm sim-repor" data-act="sim-carteira">↺ { ? ha es.temReal "Usar a tua carteira e o teu plano" "Usar o teu plano" }</button>`
+  Se ha es.mexido `<button type="button" class="btn sm sim-repor" data-act="sim-carteira">↺ { ? ha es.repor esc es.repor ? ha es.temReal "Usar a tua carteira e o teu plano" "Usar o teu plano" }</button>`
   cs_ctl $"simBudget" $"Por mês" m 0.0 Mx 3000.0 m 50.0 0
-  cs_ctl $"simStart" ? ha es.startReal $"Já tens (a tua carteira)" $"Já investido" st 0.0 Mx 200000.0 st 1000.0 0
-  Se ha es.startReal `<p class="note sim-real">O valor de hoje da tua carteira, com a divisão real: { _nu_intl * 100.0 cs_c0 c 0 } % em cripto. O dinheiro novo segue o plano.</p>`
+  cs_ctl $"simStart" ? eh es.alvo $"ppr" $"Já tens (o teu PPR)" ? eh es.alvo $"viva" $"Já tens (o teu Fundo Viva)" ? ha es.startReal $"Já tens (a tua carteira)" $"Já investido" st 0.0 Mx 200000.0 st 1000.0 0
+  Se ha es.startReal { ? ha es.notaReal `<p class="note sim-real">{ esc es.notaReal }</p>` `<p class="note sim-real">O valor de hoje da tua carteira, com a divisão real: { _nu_intl * 100.0 cs_c0 c 0 } % em cripto. O dinheiro novo segue o plano.</p>` }
   cs_ctl $"simYears" $"Anos" F y 1.0 Mx 40.0 F y 1.0 1
   cs_ctl $"simGoal" $"Objetivo" g 0.0 Mx 1000000.0 g 10000.0 2
   "</div>"
@@ -490,18 +497,20 @@
     `<div class="sim-big"><small>Daqui a { N y }{ ? == y 1 " ano" " anos" }, no cenário base{ Se h ", em euros de hoje" }</small><b class="num">{ cs_eur vb }</b>`
     `<div class="sim-rng">entre { cs_eur vp } e { cs_eur vo }</div>`
     `<div class="sim-split">{ Se > m 0.0 `{ cs_eur m } por mês · ` }`
-    `{ ? > c 0.0 { `{ _nu_intl * 100.0 - 1.0 c 0 } % { esc es.core } · { _nu_intl * 100.0 c 0 } % cripto` 0 } { `100 % { esc es.core }` 0 } }</div></div>`
+    `{ ? > c 0.0 { `{ _nu_intl * 100.0 - 1.0 c 0 } % { esc es.core } · { _nu_intl * 100.0 c 0 } % { ? ha es.nB esc es.nB "cripto" }` 0 } { `100 % { esc es.core }` 0 } }</div></div>`
     cs_graf h y n m c st g
     `<div class="sim-tip" id="sim-tip">Arrasta o dedo no gráfico para ver cada ano.</div>`
     `<div class="sim-leg"><span><i class="o"></i>otimista</span><span><i class="b"></i>base</span><span><i class="p"></i>pessimista</span><span><i class="v"></i>investido</span></div>`
     # o resumo: investido, ganho, o outro valor (de hoje ou do futuro), imposto no fim
-    = imp / cs_imp n m c st cs_df h n
+    # 4.52: o imposto — o das ações e da cripto (es.imp 0), o do PPR no resgate (1: 8 % das mais-valias) ou nenhum (2)
+    = im ? ha es.imp I num es.imp 0
+    = imp ? == im 1 / * 0.08 Mx 0.0 - cs_val 1 n m c st + st * m F n cs_df h n / cs_imp n m c st cs_df h n
     `<div class="stats sim-st">`
     `<div><small>Investes{ Se h ", em euros de hoje" }</small><b class="num">{ cs_eur inv }</b></div>`
     `<div><small>Ganho{ ? h " real" " (base)" }</small><b class="num up-t">{ cs_eur - vb inv }</b></div>`
     ? h `<div><small>Valor no futuro</small><b class="num">{ cs_eur cs_val 1 n m c st }</b></div>`
       `<div><small>Em euros de hoje</small><b class="num">{ cs_eur / vb Pw 1.02 F y }</b></div>`
-    `<div><small>Imposto se venderes tudo</small><b class="num">{ cs_eur imp }</b></div>`
+    Se ~ == im 2 `<div><small>{ ? == im 1 "Imposto no resgate (8 %)" "Imposto se venderes tudo" }</small><b class="num">{ cs_eur imp }</b></div>`
     "</div>"
     # o objetivo (em euros de hoje, se é assim que se mostra)
     Se > g 0.0 {
@@ -521,9 +530,13 @@
     cs_linha y h m c st 0.0
     "</tbody></table></div>"
     `<details class="how" data-fold="sim-how"{ Se ha es.howOpen " open" }><summary>Como é feita a conta</summary><ul>`
-    "<li>Mês a mês: o que já tens rende e entra o valor do plano, dividido como no plano do mês.</li>"
-    "<li>Ações (o fundo núcleo): 3 % por ano no pessimista, 6 % no base e 9 % no otimista. As ações do mundo renderam cerca de 8 % por ano nos últimos 50 anos, antes da inflação.</li>"
-    "<li>Cripto: 0 %, 10 % e 25 % por ano. Pode também cair muito mais.</li>"
-    "<li>Em euros de hoje: tudo dividido pela inflação de 2 % por ano até à data — é o que esse dinheiro compra hoje.</li>"
-    "<li>Imposto, se venderes tudo no fim: cada compra paga pela idade — 28 % até 2 anos, 25,2 % de 2 a 5, 22,4 % de 5 a 8 e 19,6 % com 8 ou mais; a cripto com 1 ano ou mais está isenta.</li>"
+    # 4.52: as linhas do que se simula (o PPR, o Fundo Viva), ou as dos ativos
+    = x pri es.como
+    ? x { W x { `<li>{ esc x }</li>` = x seg x } 0 } {
+      "<li>Mês a mês: o que já tens rende e entra o valor do plano, dividido como no plano do mês.</li>"
+      "<li>Ações (o fundo núcleo): 3 % por ano no pessimista, 6 % no base e 9 % no otimista. As ações do mundo renderam cerca de 8 % por ano nos últimos 50 anos, antes da inflação.</li>"
+      "<li>Cripto: 0 %, 10 % e 25 % por ano. Pode também cair muito mais.</li>"
+      "<li>Em euros de hoje: tudo dividido pela inflação de 2 % por ano até à data — é o que esse dinheiro compra hoje.</li>"
+      "<li>Imposto, se venderes tudo no fim: cada compra paga pela idade — 28 % até 2 anos, 25,2 % de 2 a 5, 22,4 % de 5 a 8 e 19,6 % com 8 ou mais; a cripto com 1 ano ou mais está isenta.</li>"
+      0 }
     "</ul></details></section>" } }
