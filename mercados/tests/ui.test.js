@@ -565,29 +565,42 @@ function proxyBody(u) {
         assert.match(await page.locator('section.fut .sim-rng').textContent(), /^\+0,4\s%\seste ano$/);
         assert.equal(await page.locator('section.fut .sim-hit').count(), 4, 'o dedo: uma data por ponto');
         assert.equal(await page.locator('section.fut .sim-hit').last().getAttribute('data-tx'), `Hoje: ${eurT(567.3069 * 18.3484)}`);
-        assert.deepEqual(await page.locator('section.fut .ppr-anos tr').allTextContents(), ['2026 (até hoje)+0,4\u00a0%', '2025+7,2\u00a0%', '2024+5,3\u00a0%'].map((x) => x.replace(/\u00a0/g, ' ')), 'ano a ano');
-        // 4.55: desde o início do fundo (por ano) e as comissões
-        assert.match(await page.locator('section.fut .sim-st').textContent(), /Desde 1992 \(por ano\)\+3,9\s%/);
+        // 4.58: o ano a ano é o do teu dinheiro — sem os teus anos, a frase para os juntar; e as comissões (4.55)
+        assert.match(await page.locator('section.fut .fut-sem').textContent(), /junta os teus anos/);
+        assert.equal(await page.locator('section.fut .fut-anos').count(), 0);
         assert.match(await page.locator('section.fut .fut-custos').textContent(), /1,82 % em 2025/);
-        // 4.57: desde que aderiste — o gráfico, o ano a ano e o rendimento por ano a partir daí (o valor da UP desse dia entre os
-        // dois fins de ano à volta); sem a data, como antes
+        // 4.58: o teu dinheiro em cada ano — juntam-se os teus anos (da declaração: o valor a 31/12 e as contribuições); cada
+        // ano é o valor no fim, menos o do início, menos o que entrou, e a % é sobre o que lá tinhas (o que entrou a meio do ano)
         {
             await page.evaluate(() => { window.__mk.st.fold['fut-ed'] = true; window.__mk.render(); });
-            await page.locator('section.fut [data-fut="de"]').fill('2024-06-15');
-            await page.waitForFunction(() => (window.__mk.cfg.fut || {}).de === '2024-06-15', null, { timeout: 3000 });
-            await page.waitForFunction(() => /Desde 06\/2024/.test(document.querySelector('section.fut .sim-st').textContent), null, { timeout: 3000 });
-            assert.deepEqual(await page.locator('section.fut .ppr-anos tr').allTextContents(), ['2026 (até hoje)+0,4\u00a0%', '2025+7,2\u00a0%', '2024 (desde 06/2024)+2,9\u00a0%'].map((x) => x.replace(/\u00a0/g, ' ')), 'ano a ano desde que aderiu');
-            assert.match(await page.locator('section.fut .sim-st').textContent(), /Desde 06\/2024 \(por ano\)\+4,3\s%/);
-            assert.equal(await page.locator('section.fut .sim-hit').count(), 4, 'o gráfico desde a adesão');
-            assert.equal(await page.locator('section.fut .sim-t').nth(2).textContent(), '06/2024');
-            assert.match(await page.locator('section.fut .sim-hit').first().getAttribute('data-tx'), /^15\/06\/2024: /);
-            assert.equal(await page.locator('section.fut .sim-rng').textContent().then((x) => x.replace(/\s/g, ' ')), '+0,4 % este ano');
-            assert.equal(await page.locator('section.fut .fut-ini').count(), 0, 'sem estimativa');
-            if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j2-fundo-viva-desde.png') });
-            await page.locator('section.fut [data-fut="de"]').fill('');
-            await page.waitForFunction(() => !('de' in (window.__mk.cfg.fut || {})), null, { timeout: 3000 });
-            await page.waitForFunction(() => /Desde 1992 \(por ano\)/.test(document.querySelector('section.fut .sim-st').textContent), null, { timeout: 3000 });
-            console.log('✓ Fundo Viva desde que aderiste (o gráfico, o ano a ano e por ano); sem a data, desde 1992');
+            for (const [a, v, c] of [['2023', '9000', ''], ['2024', '9600', '90'], ['2025', '10300,00', '100']]) {
+                await page.locator('section.fut [data-futx="a"]').fill(a);
+                await page.locator('section.fut [data-futx="v"]').fill(v);
+                await page.locator('section.fut [data-futx="c"]').fill(c);
+                await page.click('section.fut [data-act="fut-add"]');
+                await page.waitForFunction((y) => ((window.__mk.cfg.fut || {}).anos || []).some((r) => r[0] === y), +a, { timeout: 3000 });
+            }
+            assert.deepEqual(await page.evaluate(() => window.__mk.cfg.fut.anos), [[2023, 9000, null], [2024, 9600, 90], [2025, 10300, 100]]);
+            await page.waitForSelector('section.fut .fut-anos');
+            const vh = 567.3069 * 18.3484, lin = [['2026 (até hoje)', vh - 10300, 10300], ['2025', 600, 9650], ['2024', 510, 9045]];
+            const sp = (x) => x.replace(/\s/g, ' '), eur0 = (x) => (x >= 0 ? '+' : '−') + eurT(Math.abs(x));
+            const pc1 = (x) => (x >= 0 ? '+' : '−') + new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(x) * 100) + ' %';
+            assert.deepEqual((await page.locator('section.fut .fut-anos tr').allTextContents()).map(sp), lin.map(([l, g, b]) => sp(l + eur0(g) + pc1(g / b))), 'o teu dinheiro, ano a ano');
+            const pa = lin.reduce((q, [, g, b]) => q * (1 + g / b), 1) ** (365.25 / 1058) - 1, ganho = lin.reduce((q, [, g]) => q + Math.round(g * 100) / 100, 0);
+            assert.deepEqual((await page.locator('section.fut .sim-st > div').allTextContents()).slice(2).map(sp), [sp(`Ganho desde 2024${eur0(ganho)}`), sp(`Por ano${pc1(pa)}`)]);
+            assert.equal(sp(await page.locator('section.fut .sim-rng').textContent()), sp(`${pc1((vh - 10300) / 10300)} este ano`));
+            assert.equal(await page.locator('section.fut .sim-hit').count(), 4, 'o gráfico: os teus 31/12 e, depois, as UP × o valor da UP');
+            assert.equal(sp(await page.locator('section.fut .sim-hit').first().getAttribute('data-tx')), sp(`31/12/2023: ${eurT(9000)}`));
+            assert.equal(await page.locator('section.fut .sim-t').nth(2).textContent(), '12/2023');
+            assert.equal(await page.locator('section.fut .fut-x').count(), 3);
+            if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j2-fundo-viva-o-teu-dinheiro.png') });
+            // apagar o 1.º ano: o ano a ano começa no seguinte
+            await page.click('section.fut .fut-x [data-act="fut-rm"] >> nth=0');
+            await page.waitForFunction(() => window.__mk.cfg.fut.anos.length === 2, null, { timeout: 3000 });
+            assert.deepEqual(await page.locator('section.fut .fut-anos tr td:first-child').allTextContents(), ['2026 (até hoje)', '2025']);
+            await page.evaluate(() => { delete window.__mk.cfg.fut.anos; window.__mk.render(); });
+            await page.waitForSelector('section.fut .fut-sem');
+            console.log('✓ Fundo Viva: o teu dinheiro ano a ano (os teus anos da declaração) e o ganho por ano');
         }
         if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j-carteira-fundo-viva.png') });
         console.log('✓ Fundo Viva: as tuas UP × o valor da UP da Futuro; este ano, o ano passado e o gráfico');

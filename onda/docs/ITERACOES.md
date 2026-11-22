@@ -3594,3 +3594,18 @@ Antes de 2015 só há o valor do início do fundo: aí o valor do dia é estimad
 **Verificado.** Carteira: o campo da data e a nota da estimativa; interface: com 15/06/2024, o ano a ano (2024 desde
 06/2024 +2,9 %), «Desde 06/2024 (por ano)» +4,3 %, o gráfico desde 06/2024; ao apagar a data, «Desde 1992» outra vez.
 
+## Iteração (Mercados 4.58.0): o Fundo Viva — o que cresceu o teu dinheiro em cada ano
+
+**Pedido.** «Só quero ver, relativo ao meu investimento, o que cresceu ao ano.»
+
+**Feito.** Em «O teu Fundo Viva», a lista dos teus anos (da Declaração de Benefícios de Reforma: o valor a 31/12 e as
+contribuições), com ✕ e a linha para juntar outro. Com ela, «Ano a ano (o teu dinheiro)»: em cada ano, o valor a 31/12,
+menos o do ano anterior, menos o que entrou, em € e em % (sobre o que lá tinhas; o que entrou conta a meio do ano); este
+ano, até hoje. Por cima, «Ganho desde …» e «Por ano» (as % encadeadas). O gráfico usa os teus valores a 31/12. Saíram o
+«Desde 1992 (por ano)», o ano a ano do valor da UP e a data de adesão da 4.57.0 (os teus anos dizem desde quando). Sem os
+teus anos, uma frase diz o que juntar.
+
+**Verificado.** Carteira: o ano a ano, o ganho e por ano, a lista dos teus anos e a linha para juntar; sem eles, a frase.
+Interface: juntam-se 2023, 2024 e 2025; o ano a ano, o ganho, por ano e «este ano» batem com as contas; o gráfico começa a
+31/12/2023; ao apagar 2023, o ano a ano começa em 2025.
+
