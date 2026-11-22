@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.52.0';
+    const VERSION = '4.53.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1844,8 +1844,32 @@
                 ? `As unidades que escreveste valem mais ${fmtPx(dv, { decimals: 0 }, 'EUR')} do que dão os prémios registados: falta alguma entrega extra? Junta-a em «O teu PPR» para veres o investido e o ganho certos.`
                 : `As unidades que escreveste valem menos ${fmtPx(-dv, { decimals: 0 }, 'EUR')} do que dão os prémios registados: confirma-as na MyFidelidade («Carteira do seguro», as UP de cada componente) — ou falhou algum prémio.`;
         }
+        // 4.53: ano a ano — quanto rendeu cada componente em cada ano: o valor no fim, menos o do início, menos o que entrou
+        // (somados, os anos dão o ganho todo); a % é a da unidade nesse ano (no 1.º, desde a 1.ª compra). Com aviso, não.
+        let anos = null;
+        if (l.length && !aviso) {
+            const fimAno = (y) => Date.UTC(y, 11, 31, 23, 59, 59) / 1000, tNow = now() / 1000;
+            const pxAt = (h, t) => { let r = h[0][1]; for (const [ti, p] of h) { if (ti > t) break; r = p; } return r; };
+            const t1 = Math.min(...l.map((x) => x.b[0][0])), y0 = new Date(t1 * 1000).getUTCFullYear(), yN = new Date(tNow * 1000).getUTCFullYear();
+            const cab = [], linhas = l.map((x) => ({ n: x.name, c: [] })), tot = { n: 'Total', t: 1, c: [] };
+            for (let y = y0; y <= yN; y++) {
+                const a = fimAno(y - 1), z = y < yN ? fimAno(y) : tNow;
+                let gt = 0;
+                cab.push(String(y));
+                l.forEach((x, i) => {
+                    const u0 = x.b.reduce((q, r) => q + (r[0] <= a ? r[2] : 0), 0), u1 = x.b.reduce((q, r) => q + (r[0] <= z ? r[2] : 0), 0);
+                    const cin = x.b.reduce((q, r) => q + (r[0] > a && r[0] <= z ? r[1] : 0), 0), p1 = y < yN ? pxAt(x.h, z) : x.px;
+                    const b1 = x.b.find((r) => r[0] > a), p0 = u0 > 0 ? pxAt(x.h, a) : b1 ? (x.h.find((r) => r[0] > b1[0]) || x.h[x.h.length - 1])[1] : p1;
+                    const g = u1 * p1 - (u0 > 0 ? u0 * pxAt(x.h, a) : 0) - cin;
+                    gt += g;
+                    linhas[i].c.push({ g: Math.round(g * 100) / 100, p: p0 > 0 ? p1 / p0 - 1 : 0, tp: 1 });
+                });
+                tot.c.push({ g: Math.round(gt * 100) / 100 });
+            }
+            anos = { cab, linhas: linhas.concat(tot), nota: `Em ${y0}, desde ${dmy(new Date(t1 * 1000).toISOString().slice(0, 10))}; em ${yN}, até ${s ? dmy(s[s.length - 1][0]) : 'hoje'} (o último valor da Fidelidade). A % é a da unidade de cada componente nesse ano.` };
+        }
         const x = st.pprx || {};
-        return { now: now() / 1000, ativos: l, at: l.length && s ? dmy(s[s.length - 1][0]) : '', loading: pprVai && !l.length ? 1 : 0, erro: l.length ? '' : pprErr, aviso,
+        return { now: now() / 1000, anos, ativos: l, at: l.length && s ? dmy(s[s.length - 1][0]) : '', loading: pprVai && !l.length ? 1 : 0, erro: l.length ? '' : pprErr, aviso,
             ed: (ed === undefined ? !l.length : ed) ? 1 : 0, cfg: { de: P.de || '', pm: +P.pm || 0, din: +P.din || 0, ur: +P.ur || 0, uc: +P.uc || 0 },
             ex: (Array.isArray(P.ex) ? P.ex : []).map((e) => ({ d: String(e[0] || ''), l: ISO_D.test(e[0] || '') ? dmy(e[0]) : '?', e: +e[1] || 0 })), xd: x.d || '', xe: x.e || '' };
     }
