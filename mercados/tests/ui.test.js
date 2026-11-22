@@ -563,7 +563,7 @@ function proxyBody(u) {
         assert.match(await page.locator('section.fut .sim-rng').textContent(), /^\+0,4\s%\seste ano$/);
         assert.equal(await page.locator('section.fut .sim-hit').count(), 4, 'o dedo: uma data por ponto');
         assert.equal(await page.locator('section.fut .sim-hit').last().getAttribute('data-tx'), `Hoje: ${eurT(567.3069 * 18.3484)}`);
-        assert.match(await page.locator('section.fut .sim-st').textContent(), /Em 2025.*\+7,2\s%/);
+        assert.deepEqual(await page.locator('section.fut .ppr-anos tr').allTextContents(), ['2026 (até hoje)+0,4\u00a0%', '2025+7,2\u00a0%', '2024+5,3\u00a0%'].map((x) => x.replace(/\u00a0/g, ' ')), 'ano a ano');
         if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j-carteira-fundo-viva.png') });
         console.log('✓ Fundo Viva: as tuas UP × o valor da UP da Futuro; este ano, o ano passado e o gráfico');
         // 4.52: o simulador para o PPR ou o Fundo Viva — cada um com os seus valores; os dos ativos ficam como estavam

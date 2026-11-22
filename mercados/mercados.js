@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.53.0';
+    const VERSION = '4.54.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1882,13 +1882,16 @@
         if (!(u > 0) || !d.length) return base;
         const ts = (iso) => Date.parse(iso + 'T12:00:00Z') / 1000, up = d[d.length - 1][1], ult = d[d.length - 1][0], ano = +ult.slice(0, 4);
         const fimAno = (y) => { const x = d.filter((r) => r[0] <= `${y}-12-31`).pop(); return x && x[0] >= `${y}-12-01` ? x[1] : null; };
-        const f1 = fimAno(ano - 1), f2 = fimAno(ano - 2);
+        const f1 = fimAno(ano - 1);
         const vs = d.map((r) => r[1] * u), lo0 = Math.min(...vs), hi0 = Math.max(...vs), pad = (hi0 - lo0) * 0.08 || hi0 * 0.02, lo = lo0 - pad, hi = hi0 + pad;
         const t0 = ts(d[0][0]), tf = ts(ult), X = (t) => 34 + 296 * (tf > t0 ? (t - t0) / (tf - t0) : 1), Y = (v) => 186 - (172 * (v - lo)) / (hi - lo);
         const pts = d.map((r, i) => ({ x: Math.round(X(ts(r[0])) * 10) / 10, y: Math.round(Y(vs[i]) * 10) / 10 }));
         // o dedo: um quadro por data, até a meio da vizinha
         const hits = pts.map((p, i) => { const a = i ? (pts[i - 1].x + p.x) / 2 : 34, b = i < pts.length - 1 ? (p.x + pts[i + 1].x) / 2 : 330; return { x: Math.round(a * 10) / 10, w: Math.max(0.5, Math.round((b - a) * 10) / 10), cx: p.x, tx: `${i === d.length - 1 ? 'Hoje' : dmy(d[i][0])}: ${fmtPx(vs[i], { decimals: 0 }, 'EUR')}` }; });
-        return { ...base, at: dmy(ult), vv: u * up, up, ytd: f1 ? up / f1 - 1 : 0, anoL: f1 && f2 ? `Em ${ano - 1}` : '', ano: f1 && f2 ? f1 / f2 - 1 : 0, pts, hits, lo, hi, d0: dmy(d[0][0]).slice(3) };
+        // 4.54: ano a ano — a % do valor da UP em cada ano (o mais recente primeiro; o deste ano, até hoje)
+        const anos = [];
+        for (let y = ano; y > +d[0][0].slice(0, 4); y--) { const a0 = fimAno(y - 1), a1 = y === ano ? up : fimAno(y); if (a0 && a1) anos.push({ l: y === ano ? `${y} (até hoje)` : String(y), p: a1 / a0 - 1 }); }
+        return { ...base, at: dmy(ult), vv: u * up, up, ytd: f1 ? up / f1 - 1 : 0, anos, pts, hits, lo, hi, d0: dmy(d[0][0]).slice(3) };
     }
     // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
     function regSnap() {
