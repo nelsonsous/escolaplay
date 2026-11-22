@@ -494,8 +494,8 @@ function proxyBody(u) {
         await escP('uc', '');
         assert.ok(Math.abs(un((await page.evaluate(() => window.__mk.pprAtivos()))[1]) - un(l[1])) < 1e-12, 'vazio: volta à conta');
         await page.waitForFunction(() => !document.querySelector('section.ppr .ppr-av'), null, { timeout: 3000 });
-        // um acerto pequeno (2 % a mais) é só acerto: sem aviso
-        await escP('uc', String(Math.round(un(l[1]) * 1.02 * 1e4) / 1e4).replace('.', ','));
+        // um acerto pequeno (1 % a mais no Dinâmico) é só acerto: sem aviso
+        await escP('uc', String(Math.round(un(l[1]) * 1.01 * 1e4) / 1e4).replace('.', ','));
         assert.equal(await page.locator('section.ppr .ppr-av').count(), 0, 'sem aviso');
         assert.notEqual(await page.locator('section.ppr .sim-st b').nth(1).textContent(), '—');
         await escP('uc', '');

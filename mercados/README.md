@@ -162,7 +162,7 @@ Na Carteira, abaixo de «A tua carteira»: quanto vale hoje o PPR Evoluir, o gan
 no dia de «Desde», o prémio divide-se pelas duas componentes e compra unidades ao valor do dia útil seguinte (como a
 Fidelidade fez com o 1.º prémio); as entregas extra (além do mensal) juntam-se com a data e o valor (4.48.0) — com as unidades da MyFidelidade, a divisão
 delas é a que as faz bater (pode não ser a do plano). Para acertar, as unidades de hoje da
-MyFidelidade corrigem a conta na mesma proporção; se ficarem longe (mais de 5 % no valor) dos prémios registados, falta
+MyFidelidade corrigem a conta na mesma proporção; se ficarem longe (mais de 2 % no valor; 4.51.1) dos prémios registados, falta
 alguma entrega: a app di-lo e não mostra o ganho, que ficaria errado. As UP escrevem-se como a MyFidelidade as mostra
 («Carteira do seguro»), não as da conta da app (4.50.0).
 Os valores diários das unidades vêm do site da Fidelidade pelo conector (`/ppr`, públicos, em cache 3 h).
