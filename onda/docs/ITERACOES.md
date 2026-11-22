@@ -3510,3 +3510,19 @@ Com as duas entregas, a diferença é de 0,05 %.
 **Verificado.** O caso do dono: com uma entrega em falta, o aviso (e sem ganho); com as duas, sem aviso e +82 €;
 interface e bateria iguais.
 
+## Iteração (Mercados 4.52.0): o simulador para os ativos, o PPR ou o Fundo Viva
+
+**Pedido.** «E uma calculadora para ver a evolução em anos? Ter a opção de simular para os ativos, para o Viva ou para
+o Fidelidade.»
+
+**Feito.** O Simulador da Carteira ganha, em cima, a escolha Ativos · PPR · Fundo Viva (estes quando estão preenchidos).
+Cada um com os seus valores (já tens: o valor de hoje dele; por mês: o prémio do PPR, ou as contribuições do Fundo Viva;
+anos e objetivo), guardados à parte (cfg.simX; os dos ativos ficam onde estavam). Na Onda, o simulador continua o mesmo:
+os cenários vêm do instantâneo (es.tx: PPR — Proteção 1/2/2,5 %, Dinâmico 2/5/8 %; Fundo Viva 1/4/6 %), o imposto também
+(es.imp: o das ações e da cripto, o do PPR — 8 % das mais-valias no resgate — ou nenhum), e as linhas de «Como é feita a
+conta».
+
+**Verificado.** Carteira: o PPR (o base com as taxas dele, a divisão, o imposto de 8 %) e o Fundo Viva (um fundo, sem
+imposto), conferidos com uma conta à parte; interface: escolher o PPR e o Fundo Viva, o «já tens» de cada um, o «por mês»
+guardado à parte, e os dos ativos iguais.
+

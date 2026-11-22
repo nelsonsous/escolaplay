@@ -140,6 +140,13 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## Simulador: os ativos, o PPR ou o Fundo Viva (4.52.0)
+
+No Simulador da Carteira escolhe-se o que simular — os ativos, o PPR ou o Fundo Viva (estes dois quando estão
+preenchidos). Cada um tem os seus valores (o que já tem hoje, por mês, anos, objetivo; os dos ativos ficam onde estavam),
+os seus cenários por ano (PPR: Proteção 1/2/2,5 % e Dinâmico 2/5/8 %; Fundo Viva: 1/4/6 %) e o seu imposto (PPR: 8 % das
+mais-valias no resgate nas condições legais; Fundo Viva: não entra, depende de como se recebe).
+
 ## Fundo Viva (Futuro, 4.51.0 e conector 1.16.0)
 
 Na Carteira, abaixo do PPR: quanto valem hoje as tuas UP do Fundo Viva (o fundo de pensões da Futuro), quanto rendeu

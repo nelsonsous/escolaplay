@@ -290,3 +290,37 @@ test('carteira: o Fundo Viva (4.51) — as tuas UP × o valor da UP, o ano e o g
         }
     } finally { await br.close(); }
 });
+
+test('carteira: o simulador para o PPR e o Fundo Viva (4.52) — os cenários, o imposto e as linhas de cada um', async () => {
+    await AO.ready;
+    const mesr = (r) => (1 + r) ** (1 / 12) - 1;
+    const val = (tx, s, n, m, c, st, c0) => { const ra = mesr(tx[2 * s]), rb = mesr(tx[2 * s + 1]); let a = st * (1 - c0), b = st * c0; for (let i = 0; i < n; i++) { a = a * (1 + ra) + m * (1 - c); b = b * (1 + rb) + m * c; } return a + b; };
+    const tx = [0.01, 0.02, 0.02, 0.05, 0.025, 0.08], alvos = [{ v: 'ativos', l: 'Ativos', on: 0 }, { v: 'ppr', l: 'PPR', on: 1 }, { v: 'viva', l: 'Fundo Viva', on: 0 }];
+    const ppr = { budget: 100, cp: 56, core: 'Proteção', nB: 'Dinâmico', start: 2432, c0: 0.55, startReal: true, temReal: true, years: 15, goal: 0, alvo: 'ppr', imp: 1, tx, sub: 'o teu PPR daqui a uns anos', repor: 'Usar o teu PPR', notaReal: 'O valor de hoje do teu PPR.', como: ['Linha um.', 'Linha dois.'], alvos };
+    const br = await chromium.launch(), pg = await br.newPage();
+    try {
+        await pg.setContent(`<body>${AO.ecra.carteira(ppr)}</body>`);
+        const d = await pg.evaluate(() => { const r = document.querySelector('.sim'), t = (e) => (e ? e.textContent.trim() : null);
+            return { sub: t(r.querySelector('.sec-h .sub')), seg: [...r.querySelectorAll('.sim-alvo button')].map((b) => [b.dataset.v, b.textContent, b.className]), big: t(r.querySelector('.sim-big b')), split: t(r.querySelector('.sim-split')),
+                st: [...r.querySelectorAll('.sim-st div')].map((x) => [t(x.querySelector('small')), t(x.querySelector('b'))]), como: [...r.querySelectorAll('.how li')].map((x) => x.textContent), nota: t(r.querySelector('.sim-real')),
+                lbl: [...r.querySelectorAll('.sim-ch span')].map((x) => x.textContent) }; });
+        const n = 15 * 12, vb = val(tx, 1, n, 100, 0.56, 2432, 0.55), inv = 2432 + 100 * n;
+        assert.equal(d.sub, 'o teu PPR daqui a uns anos');
+        assert.deepEqual(d.seg, [['ativos', 'Ativos', ''], ['ppr', 'PPR', 'on'], ['viva', 'Fundo Viva', '']], 'o que simular');
+        assert.equal(d.big, eur(vb), 'o base, com as taxas do PPR');
+        assert.equal(d.split, `${eur(100)} por mês · 44 % Proteção · 56 % Dinâmico`);
+        assert.deepEqual(d.st.map((x) => x[0]), ['Investes', 'Ganho (base)', 'Em euros de hoje', 'Imposto no resgate (8 %)']);
+        assert.equal(d.st[3][1], eur(0.08 * (vb - inv)), 'o imposto do PPR: 8 % das mais-valias');
+        assert.deepEqual(d.como, ['Linha um.', 'Linha dois.']);
+        assert.equal(d.nota, 'O valor de hoje do teu PPR.');
+        assert.equal(d.lbl[1], 'Já tens (o teu PPR)');
+        // o Fundo Viva: um só fundo, sem imposto (3 quadros)
+        const viva = { ...ppr, cp: 0, c0: 0, core: 'Fundo Viva', nB: '', alvo: 'viva', imp: 2, tx: [0.01, 0, 0.04, 0, 0.06, 0], start: 10409, budget: 0, years: 21, alvos: alvos.map((x) => ({ ...x, on: x.v === 'viva' ? 1 : 0 })) };
+        await pg.setContent(`<body>${AO.ecra.carteira(viva)}</body>`);
+        const v = await pg.evaluate(() => { const r = document.querySelector('.sim'), t = (e) => (e ? e.textContent.trim() : null); return { big: t(r.querySelector('.sim-big b')), split: t(r.querySelector('.sim-split')), st: [...r.querySelectorAll('.sim-st small')].map((x) => x.textContent), lbl: [...r.querySelectorAll('.sim-ch span')].map((x) => x.textContent)[1] }; });
+        assert.equal(v.big, eur(val(viva.tx, 1, 21 * 12, 0, 0, 10409, 0)));
+        assert.equal(v.split, '100 % Fundo Viva');
+        assert.deepEqual(v.st, ['Investes', 'Ganho (base)', 'Em euros de hoje'], 'sem imposto');
+        assert.equal(v.lbl, 'Já tens (o teu Fundo Viva)');
+    } finally { await br.close(); }
+});

@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.51.1';
+    const VERSION = '4.52.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1535,11 +1535,51 @@
     // o «Por mês» do simulador é só dele (mexer nele não muda o plano dos Ajustes); sem valor próprio, segue o plano
     // (4.42: por omissão, o plano mais o round up e o saveback habituais)
     const simBudget = () => (Number.isFinite(cfg.simBudget) ? cfg.simBudget : poupMes());
+    // 4.52: o simulador para os ativos, o PPR ou o Fundo Viva — cada um com os seus valores (os dos ativos ficam onde
+    // estavam; os outros em cfg.simX), o que vale hoje, o que entra por mês, os cenários e o imposto
+    function simAlvos() {
+        const l = [{ v: 'ativos', l: 'Ativos' }];
+        if (pprAtivos().length) l.push({ v: 'ppr', l: 'PPR' });
+        if (+(cfg.fut || {}).up > 0 && FUTD && Array.isArray(FUTD.d) && FUTD.d.length) l.push({ v: 'viva', l: 'Fundo Viva' });
+        return l;
+    }
+    const simAlvo = () => (simAlvos().some((x) => x.v === cfg.simAlvo) ? cfg.simAlvo : 'ativos');
+    const simC = () => { const a = simAlvo(); if (a === 'ativos') return cfg; cfg.simX = cfg.simX || {}; return (cfg.simX[a] = cfg.simX[a] || {}); };
+    function simHoje() {
+        const a = simAlvo();
+        if (a === 'ppr') {
+            const l = pprAtivos(), vs = l.map((x) => x.px * x.b.reduce((q, r) => q + r[2], 0)), v = vs.reduce((q, x) => q + x, 0), di = l.findIndex((x) => x.k === 'ppr:7615');
+            return { v, cp: v > 0 && di >= 0 ? vs[di] / v : 0 };
+        }
+        if (a === 'viva') { const d = FUTD.d; return { v: (+cfg.fut.up || 0) * d[d.length - 1][1], cp: 0 }; }
+        return carteiraHoje();
+    }
+    const simPm = () => { const a = simAlvo(); return a === 'ppr' ? +(cfg.ppr || {}).pm || 0 : a === 'viva' ? 0 : poupMes(); };
+    // os cenários por ano [pessimista A, B, base A, B, otimista A, B] (A: o fundo principal; B: a outra parte, a % do plano)
+    const SIM_ALVO = {
+        ppr: { core: 'Proteção', nB: 'Dinâmico', imp: 1, tx: [0.01, 0.02, 0.02, 0.05, 0.025, 0.08], sub: 'o teu PPR daqui a uns anos', repor: 'Usar o teu PPR',
+            nota: 'O valor de hoje do teu PPR, com a divisão de hoje entre a Proteção e o Dinâmico. Os prémios novos seguem a divisão do plano.',
+            como: ['Mês a mês: o que já tens rende e entra o prémio, dividido como no teu plano (Proteção e Dinâmico).',
+                'Proteção: 1 % por ano no pessimista, 2 % no base e 2,5 % no otimista (o último ano deu 1,8 %).',
+                'Dinâmico (ações, já com os custos): 2 %, 5 % e 8 % por ano (os últimos 3 anos deram 6,3 % por ano). Num ano mau pode cair muito mais.',
+                'Em euros de hoje: tudo dividido pela inflação de 2 % por ano até à data — é o que esse dinheiro compra hoje.',
+                'Imposto no resgate, nas condições legais (por exemplo, na reforma): 8 % das mais-valias. Fora delas, paga-se mais e devolve-se o benefício do IRS.'] },
+        viva: { core: 'Fundo Viva', imp: 2, tx: [0.01, 0, 0.04, 0, 0.06, 0], sub: 'o teu Fundo Viva daqui a uns anos', repor: 'Usar o teu Fundo Viva',
+            nota: 'O valor de hoje das tuas UP do Fundo Viva. Põe em «Por mês» as contribuições (as tuas e as da empresa), se as houver.',
+            como: ['Mês a mês: o que já tens rende e entram as contribuições por mês (as tuas e as da empresa).',
+                'Fundo Viva (misto, já com os custos de 1,8 % por ano): 1 % por ano no pessimista, 4 % no base e 6 % no otimista. De 2022 a 2025 deu −11,1 %, +7,6 %, +5,3 % e +7,2 %.',
+                'Em euros de hoje: tudo dividido pela inflação de 2 % por ano até à data — é o que esse dinheiro compra hoje.',
+                'O imposto depende de como recebes na reforma (pensão ou capital): não entra aqui.'] },
+    };
     function walletSnap() {
-        const ch = carteiraHoje(), real = ch.v > 0 && !cfg.simStartManual;
-        const mexido = (ch.v > 0 && !!cfg.simStartManual) || (Number.isFinite(cfg.simBudget) && cfg.simBudget !== poupMes());
-        return { budget: simBudget(), mexido, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund),
-            start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap(), ppr: pprSnap(), fut: futSnap() };
+        const a = simAlvo(), C = simC(), ch = simHoje(), real = ch.v > 0 && !C.simStartManual, pm0 = simPm(), X = SIM_ALVO[a] || {}, al = simAlvos();
+        const mexido = (ch.v > 0 && !!C.simStartManual) || (Number.isFinite(C.simBudget) && C.simBudget !== pm0);
+        return { budget: Number.isFinite(C.simBudget) ? C.simBudget : pm0, mexido,
+            cp: a === 'ativos' ? (etfCrypto() ? +cfg.cryptoPct || 0 : 0) : a === 'ppr' ? Math.min(100, Math.max(0, +(cfg.ppr || {}).din || 0)) : 0, core: a === 'ativos' ? nameOf(cfg.coreFund) : X.core,
+            start: real ? Math.round(ch.v) : +C.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +C.simYears || 20, goal: +C.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'],
+            ...(a === 'ativos' ? {} : { alvo: a, nB: X.nB || '', imp: X.imp, tx: X.tx, sub: X.sub, repor: X.repor, notaReal: X.nota, como: X.como }),
+            alvos: al.length > 1 ? al.map((x) => ({ ...x, on: x.v === a ? 1 : 0 })) : [],
+            real: realSnap(), ppr: pprSnap(), fut: futSnap() };
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
     const LH = {}, lhAt = {}, lhVai = new Set();
@@ -3209,14 +3249,15 @@
                 break;
             }
             case 'sim-hoje': cfg.simHoje = t.dataset.v === '1'; saveCfg(); render(); break;
-            case 'sim-carteira': cfg.simStartManual = false; cfg.simBudget = null; saveCfg(); render(); break;
+            case 'sim-alvo': cfg.simAlvo = t.dataset.v; saveCfg(); render(); break;
+            case 'sim-carteira': { const C = simC(); C.simStartManual = false; C.simBudget = null; saveCfg(); render(); break; }
             case 'sim-step': {
-                const k = t.dataset.k, d = +t.dataset.d || 0, rg = t.parentElement && t.parentElement.querySelector('.sim-rg'), mn = rg ? +rg.min : 0;
-                // o «Já tens» parte do valor da carteira; mexer nele passa a valor à mão
-                if (k === 'simStart' && !cfg.simStartManual) { cfg.simStart = Math.round(carteiraHoje().v) || +cfg.simStart || 0; cfg.simStartManual = true; }
-                if (k === 'simBudget' && !Number.isFinite(cfg.simBudget)) cfg.simBudget = poupMes();
-                const v = (+cfg[k] || 0) + d;
-                cfg[k] = k === 'simYears' ? Math.min(60, Math.max(1, Math.round(v || 20))) : Math.max(mn, v);
+                const k = t.dataset.k, d = +t.dataset.d || 0, rg = t.parentElement && t.parentElement.querySelector('.sim-rg'), mn = rg ? +rg.min : 0, C = simC();
+                // o «Já tens» parte do valor de hoje (a carteira, o PPR ou o Fundo Viva); mexer nele passa a valor à mão
+                if (k === 'simStart' && !C.simStartManual) { C.simStart = Math.round(simHoje().v) || +C.simStart || 0; C.simStartManual = true; }
+                if (k === 'simBudget' && !Number.isFinite(C.simBudget)) C.simBudget = simPm();
+                const v = (+C[k] || 0) + d;
+                C[k] = k === 'simYears' ? Math.min(60, Math.max(1, Math.round(v || 20))) : Math.max(mn, v);
                 saveCfg(); render(); break;
             }
         }
@@ -3292,9 +3333,11 @@
             setLots(k, L); return;
         }
         if (t.dataset && t.dataset.cfg) {
-            if (t.dataset.cfg === 'simStart') cfg.simStartManual = true; // mexeu à mão: deixa de seguir a carteira
+            // 4.52: os do simulador vão para o que se simula (os ativos, o PPR ou o Fundo Viva)
+            const C = ['simBudget', 'simStart', 'simYears', 'simGoal'].includes(t.dataset.cfg) ? simC() : cfg;
+            if (t.dataset.cfg === 'simStart') C.simStartManual = true; // mexeu à mão: deixa de seguir o valor de hoje
             if (['budget', 'cryptoPct'].includes(t.dataset.cfg)) postLotsSoon(); // o Claude parte do valor do plano
-            cfg[t.dataset.cfg] = ['alertPct', 'budget', 'simBudget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
+            C[t.dataset.cfg] = ['alertPct', 'budget', 'simBudget', 'simStart', 'simGoal'].includes(t.dataset.cfg) ? Math.max(0, +t.value || 0) : t.dataset.cfg === 'simYears' ? Math.min(60, Math.max(1, Math.round(+t.value || 20))) : t.value;
             saveCfg();
             if (t.dataset.cfg === 'distrito') { cfg.municipio = ''; saveCfg(); FUEL = null; loadFuel(); render(); }
             if (t.dataset.cfg === 'municipio') { FUEL = null; loadFuel(); }
