@@ -45,7 +45,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
 | `/calendar?symbols=NVDA,EDP.LS` | próximos resultados e datas de dividendo (Yahoo) | 6 h |
-| `/futuro?f=FUNDO VIVA` | o valor da UP dos fundos de pensões da Futuro, do PDF público das cotações (desencriptado: palavra-passe vazia), com o histórico guardado no KV (um valor por dia) e os fins de ano dos relatórios (1.16.0) | 3 h |
+| `/futuro?f=FUNDO VIVA` | o valor da UP dos fundos de pensões da Futuro, do PDF público das cotações (desencriptado: palavra-passe vazia), com o histórico guardado no KV (um valor por dia), os fins de ano desde 2015 e o início do fundo (1992), e o rendimento anual oficial (1.16.0; 1.17.0) | 3 h |
 | `/ppr?f=7614,7615&de=AAAA-MM-DD` | o valor diário das unidades do PPR Evoluir da Fidelidade (7614 Proteção, 7615 Dinâmico), desde o dia `de` — públicos no site da Fidelidade (1.15.0) | 3 h |
 | `/derivs?c=BTC,ETH,SOL,XRP` | derivados da cripto (Deribit): a volatilidade das opções a 30 dias (BTC, ETH), o funding dos perpétuos por 8 h e a base do futuro a ~3 meses, ao ano (1.14.0) | 5 min |
 | `/ext?symbols=TSLA,NVDA` | antes da abertura e depois do fecho (ações dos EUA): `kind` (`pre`, `post` ou null com a bolsa aberta), preço, variação face ao fecho e a série de 5 min (1.13.0) | 2 min |

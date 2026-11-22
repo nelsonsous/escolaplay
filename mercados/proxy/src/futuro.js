@@ -162,5 +162,10 @@ export function parseFuturo(texto, nomes) {
     }
     return { dia: md ? `${md[3]}-${md[2]}-${md[1]}` : null, f };
 }
-// os fins de ano dos relatórios anuais (o valor da UP a 31/12), para o gráfico ter história antes dos dias guardados
-export const FUT_ANOS = { 'FUNDO VIVA': [['2021-12-31', 16.9157], ['2022-12-31', 15.0428], ['2023-12-31', 16.1857], ['2024-12-31', 17.0496], ['2025-12-31', 18.2705]] };
+// a história do fundo antes dos dias guardados: o início (27/11/1992, 4,99 € — documento informativo), os fins de ano dos
+// relatórios anuais (2021 a 2025) e, para trás de 2021, os que dão os rendimentos anuais oficiais (2015 a 2020, 1.17.0)
+export const FUT_ANOS = { 'FUNDO VIVA': [['1992-11-27', 4.99], ['2015-12-31', 15.0387], ['2016-12-31', 15.1064], ['2017-12-31', 16.1366], ['2018-12-31', 15.2265], ['2019-12-31', 16.1706], ['2020-12-31', 16.4358],
+    ['2021-12-31', 16.9157], ['2022-12-31', 15.0428], ['2023-12-31', 16.1857], ['2024-12-31', 17.0496], ['2025-12-31', 18.2705]] };
+// o rendimento anual oficial, já com os custos (documento informativo do fundo, abril de 2026), e o início do fundo
+export const FUT_REND = { 'FUNDO VIVA': [[2016, 0.0045], [2017, 0.0682], [2018, -0.0564], [2019, 0.062], [2020, 0.0164], [2021, 0.0292], [2022, -0.111], [2023, 0.0762], [2024, 0.0529], [2025, 0.0716]] };
+export const FUT_INI = { 'FUNDO VIVA': ['1992-11-27', 4.99] };

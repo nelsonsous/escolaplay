@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.54.0';
+    const VERSION = '4.55.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -515,6 +515,8 @@
     // ---------- o Fundo Viva (Futuro, 4.51): o valor da UP de cada dia útil, pelo conector (/futuro) ----------
     // As tuas UP (cfg.fut.up) ficam só aqui; do conector vem o valor público da UP (o PDF da Futuro) e o histórico.
     const FUT_N = 'FUNDO VIVA';
+    // 4.55: as comissões do Fundo Viva (documento informativo do fundo, abril de 2026; os custos de 2025, da declaração anual)
+    const FUT_CUSTOS = 'Os valores já descontam os custos do fundo: 1,82 % em 2025 (a gestão, até 1,75 % por ano, o depósito, até 0,10 %, e outros). Sem comissão de subscrição nem de transferência; no reembolso, 1 % só no 1.º ano de cada entrega (depois, 0 %). Só se reembolsa na pré-reforma ou na reforma, a partir dos 65 anos, ou por invalidez, desemprego de longa duração ou doença grave.';
     let FUTD = null, futVai = false, futErr = '', futTry = 0;
     try { FUTD = JSON.parse(localStorage.getItem('mk:fut') || 'null'); } catch { FUTD = null; }
     async function loadFUT(force) {
@@ -525,7 +527,7 @@
         try {
             const r = await px(`/futuro?f=${encodeURIComponent(FUT_N)}`, 25000), x = r && r.f && r.f[FUT_N];
             if (!x || !Array.isArray(x.d) || !x.d.length) throw new Error('sem valores');
-            FUTD = { at: now(), dia: r.dia, d: x.d }; futErr = '';
+            FUTD = { at: now(), dia: r.dia, d: x.d, anos: Array.isArray(x.anos) ? x.anos : [], ini: Array.isArray(x.ini) ? x.ini : null }; futErr = '';
             try { localStorage.setItem('mk:fut', JSON.stringify(FUTD)); } catch { /* sem espaço: fica só em memória */ }
         } catch { futErr = 'Não consegui ler os valores da Futuro agora. Tenta mais tarde.'; }
         futVai = false;
@@ -1868,8 +1870,16 @@
             }
             anos = { cab, linhas: linhas.concat(tot), nota: `Em ${y0}, desde ${dmy(new Date(t1 * 1000).toISOString().slice(0, 10))}; em ${yN}, até ${s ? dmy(s[s.length - 1][0]) : 'hoje'} (o último valor da Fidelidade). A % é a da unidade de cada componente nesse ano.` };
         }
+        // 4.55: as comissões — as de gestão já estão no valor das unidades; o resgate custa 0,5 % nos primeiros 5 anos, fora das
+        // condições legais (o «valor de resgate» da MyFidelidade)
+        let custos = '';
+        if (l.length) {
+            const fim5 = `${+P.de.slice(0, 4) + 5}${P.de.slice(4)}`, vv = l.reduce((a, y) => a + y.px * y.b.reduce((q, r) => q + r[2], 0), 0);
+            custos = 'Os valores já descontam a gestão do Dinâmico (até 1,5 % por ano; a Proteção não tem); não há comissão de subscrição. '
+                + (todayLocal() < fim5 ? `No resgate, fora das condições legais, há 0,5 % até ${dmy(fim5)}: se resgatasses hoje, recebias ${fmtPx(vv * 0.995, { decimals: 0 }, 'EUR')}, antes do imposto.` : 'O resgate já não tem comissão.');
+        }
         const x = st.pprx || {};
-        return { now: now() / 1000, anos, ativos: l, at: l.length && s ? dmy(s[s.length - 1][0]) : '', loading: pprVai && !l.length ? 1 : 0, erro: l.length ? '' : pprErr, aviso,
+        return { now: now() / 1000, anos, custos, ativos: l, at: l.length && s ? dmy(s[s.length - 1][0]) : '', loading: pprVai && !l.length ? 1 : 0, erro: l.length ? '' : pprErr, aviso,
             ed: (ed === undefined ? !l.length : ed) ? 1 : 0, cfg: { de: P.de || '', pm: +P.pm || 0, din: +P.din || 0, ur: +P.ur || 0, uc: +P.uc || 0 },
             ex: (Array.isArray(P.ex) ? P.ex : []).map((e) => ({ d: String(e[0] || ''), l: ISO_D.test(e[0] || '') ? dmy(e[0]) : '?', e: +e[1] || 0 })), xd: x.d || '', xe: x.e || '' };
     }
@@ -1888,10 +1898,17 @@
         const pts = d.map((r, i) => ({ x: Math.round(X(ts(r[0])) * 10) / 10, y: Math.round(Y(vs[i]) * 10) / 10 }));
         // o dedo: um quadro por data, até a meio da vizinha
         const hits = pts.map((p, i) => { const a = i ? (pts[i - 1].x + p.x) / 2 : 34, b = i < pts.length - 1 ? (p.x + pts[i + 1].x) / 2 : 330; return { x: Math.round(a * 10) / 10, w: Math.max(0.5, Math.round((b - a) * 10) / 10), cx: p.x, tx: `${i === d.length - 1 ? 'Hoje' : dmy(d[i][0])}: ${fmtPx(vs[i], { decimals: 0 }, 'EUR')}` }; });
-        // 4.54: ano a ano — a % do valor da UP em cada ano (o mais recente primeiro; o deste ano, até hoje)
-        const anos = [];
-        for (let y = ano; y > +d[0][0].slice(0, 4); y--) { const a0 = fimAno(y - 1), a1 = y === ano ? up : fimAno(y); if (a0 && a1) anos.push({ l: y === ano ? `${y} (até hoje)` : String(y), p: a1 / a0 - 1 }); }
-        return { ...base, at: dmy(ult), vv: u * up, up, ytd: f1 ? up / f1 - 1 : 0, anos, pts, hits, lo, hi, d0: dmy(d[0][0]).slice(3) };
+        // 4.54: ano a ano — a % de cada ano (o mais recente primeiro; o deste ano, até hoje); 4.55: a oficial (já com os
+        // custos) nos anos que a têm, a do valor da UP nos outros; e desde o início do fundo, por ano
+        const of = new Map((FUTD.anos || []).map((x) => [+x[0], +x[1]])), anos = [];
+        for (let y = ano; y > +d[0][0].slice(0, 4); y--) {
+            if (y !== ano && of.has(y)) { anos.push({ l: String(y), p: of.get(y) }); continue; }
+            const a0 = fimAno(y - 1), a1 = y === ano ? up : fimAno(y);
+            if (a0 && a1) anos.push({ l: y === ano ? `${y} (até hoje)` : String(y), p: a1 / a0 - 1 });
+        }
+        const ini = FUTD.ini, nIni = ini ? (ts(ult) - ts(ini[0])) / (365.25 * 86400) : 0;
+        return { ...base, at: dmy(ult), vv: u * up, up, ytd: f1 ? up / f1 - 1 : 0, anos, pts, hits, lo, hi, d0: dmy(d[0][0]).slice(3),
+            ...(ini && nIni > 1 ? { iniL: `Desde ${ini[0].slice(0, 4)} (por ano)`, iniP: (up / ini[1]) ** (1 / nIni) - 1 } : {}), custos: FUT_CUSTOS };
     }
     // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
     function regSnap() {
