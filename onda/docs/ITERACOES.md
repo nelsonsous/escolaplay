@@ -3456,3 +3456,14 @@ prémios registados, a secção diz quanto falta (ou sobra) e não mostra o ganh
 **Verificado.** Carteira: a lista das entregas e o aviso (sem ganho); interface: juntar e apagar uma entrega (o investido e
 as unidades dela), o aviso com as unidades longe e o acerto pequeno sem aviso.
 
+## Iteração (Mercados 4.49.0): as listas da poupança periódica não crescem à vista
+
+**Pedido.** «Com o passar dos meses isto não vai crescer muito em termos de listagem?» — sim: o round up mostrava até 48
+datas e o plano e o saveback até 12 cada (com meio ano de história, 41 linhas e quase 1900 px).
+
+**Feito.** À vista, a próxima e as últimas (o round up: 4, um mês; o plano e o saveback: 2); as outras numa dobra fechada
+por omissão, «Mais antigas · N» (fica como a deixares), onde continuam a editar-se e a contar.
+
+**Verificado.** Interface: com 200 dias de história, 5 + 3 + 3 linhas à vista e o resto na dobra, fechada; abrir fica
+aberto; o teste da poupança (escrever, ✕, a média) igual.
+

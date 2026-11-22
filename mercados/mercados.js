@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.48.0';
+    const VERSION = '4.49.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1803,12 +1803,14 @@
         const eurP = (x, dd) => fmtPx(x, { decimals: dd }, 'EUR');
         const lst = (tp) => {
             const ds = agendaPP(k, tp, deP, isoMais(hjP, tp === 'ru' ? 8 : 31)), sug = tp === 'pl' ? pmOf(k) / nPl : habitual(k, tp);
-            const linhas = ds.filter((x) => !feito(x)).slice(0, 1).concat(ds.filter((x) => feito(x)).reverse().slice(0, tp === 'ru' ? 48 : 12))
-                .map((dd) => { const v = valorPP(k, tp, dd); return { d: dd, l: dmy(dd), ins: v.aj, e: v.aj ? Math.round(v.e * 100) / 100 : 0, sug: Math.round(sug * 100) / 100, feito: feito(dd) ? 1 : 0 }; });
+            // 4.49: à vista, a próxima e as últimas (o round up: um mês; o plano e o saveback: 2); as mais antigas numa dobra fechada
+            const linha = (dd) => { const v = valorPP(k, tp, dd); return { d: dd, l: dmy(dd), ins: v.aj, e: v.aj ? Math.round(v.e * 100) / 100 : 0, sug: Math.round(sug * 100) / 100, feito: feito(dd) ? 1 : 0 }; };
+            const feitas = ds.filter((x) => feito(x)).reverse().slice(0, tp === 'ru' ? 48 : 12), ver = tp === 'ru' ? 4 : 2;
+            const linhas = ds.filter((x) => !feito(x)).slice(0, 1).concat(feitas.slice(0, ver)).map(linha), mais = feitas.slice(ver).map(linha);
             const ent = entradas(k, tp);
             const info = tp === 'pl' ? `${eurP(pmOf(k), 0)} por mês${(cfg.saveDays || []).length ? ' · dia ' + cfg.saveDays.join(' e ') : ''}`
                 : ent.length ? `média ${eurP(sug, 2)} · ~${eurP(Math.round(sug * (tp === 'ru' ? 48 : 12)), 0)} por ano` : 'escreve o valor da TR em cada data';
-            return { tp, nome: tp === 'pl' ? 'Plano' : tp === 'ru' ? 'Round up · dias 2, 9, 16 e 23' : 'Saveback · dia 2', info, aberto: st.fold['pp-' + tp] === false ? 0 : 1, linhas };
+            return { tp, nome: tp === 'pl' ? 'Plano' : tp === 'ru' ? 'Round up · dias 2, 9, 16 e 23' : 'Saveback · dia 2', info, aberto: st.fold['pp-' + tp] === false ? 0 : 1, linhas, mais, maisAberto: st.fold['ppm-' + tp] ? 1 : 0 };
         };
         const pp = { desde: dmy(deP), pl: pmOf(k) > 0 ? lst('pl') : null, ru: lst('ru'), sb: lst('sb') };
         return { ks: ks.map((x) => ({ k: x, name: nameOf(x) })), k, e: st.reg.e || '', d: st.reg.d || todayLocal(), q: st.reg.q || '', hoje: todayLocal(), pm: pmOf(k), qApp: posOf(k).q, lista, pp };
