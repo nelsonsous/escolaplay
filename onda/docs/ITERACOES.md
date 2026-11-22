@@ -3481,3 +3481,21 @@ números ímpar, o último quadro ocupa a linha toda.
 
 **Verificado.** Interface: o ✕ dentro da linha da entrega, o último quadro com a largura da grelha, o aviso novo.
 
+## Iteração (Mercados 4.51.0, conector 1.16.0): o Fundo Viva (Futuro) na Carteira
+
+**Pedido.** «Coloca lá também para ver o gráfico do NetFuturo» — o fundo de pensões da Futuro (o plano da Roff, hoje
+Inetum), cujo portal está em baixo.
+
+**Visto.** A Futuro só publica o valor da UP do dia, num PDF (cotacoes.pdf) protegido com a palavra-passe vazia (RC4 de
+128 bits, PDF 1.4), com o texto em fontes com tabelas ToUnicode. Os relatórios anuais dão o valor da UP a 31/12.
+
+**Feito.** O conector 1.16.0 (`/futuro`, em futuro.js): MD5 e RC4 para desencriptar, DecompressionStream para
+descomprimir, as tabelas das fontes para ler o texto, e o valor da UP de cada fundo pedido; o histórico guarda-se no KV,
+um valor por dia, e começa nos fins de ano dos relatórios (2021 a 2025). Na Carteira, a secção «Fundo Viva»: vale hoje
+(as tuas UP × o valor da UP), este ano, o ano passado e o gráfico com o dedo; as UP escrevem-se em «O teu Fundo Viva».
+E o PPR: depois de uma falha do conector sem valores guardados, já não volta a pedir sem parar (5 min).
+
+**Verificado.** Conector: o PDF real (em tests/fixtures) dá o Fundo Viva a 18,3484 € para 23/11/2026, o MD5 confere
+com o do Node, a rota guarda o dia; publicado (1.16.0) e no ar. Carteira: a secção com as contas e o gráfico; interface:
+escrever as UP, o valor, este ano, o ano passado e o dedo.
+

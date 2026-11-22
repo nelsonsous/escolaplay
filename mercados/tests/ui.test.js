@@ -141,6 +141,8 @@ function proxyBody(u) {
     if (p === '/health') return { ok: true };
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
+    // 4.51: o Fundo Viva — os fins de ano e o de «hoje»
+    if (p === '/futuro') return { dia: '2026-11-23', f: { 'FUNDO VIVA': { up: 18.3484, d: [['2023-12-31', 16.1857], ['2024-12-31', 17.0496], ['2025-12-31', 18.2705], ['2026-11-23', 18.3484]] } } };
     if (p === '/ppr') {
         // 4.47: os valores diários das unidades do PPR (só os dias úteis), desde o «de»: a Proteção devagar, o Dinâmico mais depressa
         const d = [];
@@ -538,6 +540,24 @@ function proxyBody(u) {
             assert.equal(await page.locator('section.ppr .ppr-x').count(), 0, '✕ apaga');
         }
         console.log('✓ PPR Evoluir: escreve-se o PPR; os prémios de cada mês ao valor do dia útil seguinte; entregas extra; acerto e aviso');
+    }
+    // 4.51: o Fundo Viva — escrevem-se as UP; o valor da UP vem do conector (/futuro): vale hoje, este ano e o gráfico
+    {
+        await page.evaluate(() => { delete window.__mk.cfg.fut; window.__mk.render(); });
+        await page.waitForSelector('section.fut details.fut-ed[open]');
+        assert.match(await page.locator('section.fut .empty').textContent(), /Põe as tuas UP do Fundo Viva/);
+        const x = page.locator('section.fut [data-fut="up"]');
+        await x.fill('567,3069'); await x.evaluate((e) => e.blur());
+        await page.waitForFunction(() => (window.__mk.cfg.fut || {}).up === 567.3069, null, { timeout: 3000 });
+        await page.waitForSelector('section.fut .sim-big b', { timeout: 8000 });
+        const eurT = (v) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(v);
+        assert.equal(await page.locator('section.fut .sim-big b').textContent(), eurT(567.3069 * 18.3484), 'vale hoje');
+        assert.match(await page.locator('section.fut .sim-rng').textContent(), /^\+0,4\s%\seste ano$/);
+        assert.equal(await page.locator('section.fut .sim-hit').count(), 4, 'o dedo: uma data por ponto');
+        assert.equal(await page.locator('section.fut .sim-hit').last().getAttribute('data-tx'), `Hoje: ${eurT(567.3069 * 18.3484)}`);
+        assert.match(await page.locator('section.fut .sim-st').textContent(), /Em 2025.*\+7,2\s%/);
+        if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j-carteira-fundo-viva.png') });
+        console.log('✓ Fundo Viva: as tuas UP × o valor da UP da Futuro; este ano, o ano passado e o gráfico');
     }
     // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
     await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });

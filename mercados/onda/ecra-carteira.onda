@@ -416,10 +416,52 @@
   `<p class="note">Todos os meses, no dia de «Desde», o prémio divide-se pelas duas componentes e compra unidades ao valor do dia útil seguinte, como faz a Fidelidade. Os valores das unidades vêm do site da Fidelidade, todos os dias úteis; o que escreves aqui fica só no teu iPhone. As entregas extra contam com a divisão do plano ou, com as UP da MyFidelidade, com a que as faz bater. Para acertar, copia da MyFidelidade («Carteira do seguro») as UP de cada componente — as de cima são as contas da app.</p>`
   "</div></details>" }
 
+# 4.51: o Fundo Viva (Futuro) — as tuas UP × o valor da UP de cada dia (do PDF da Futuro, pelo conector). r: { at, loading,
+# erro, ed, cfg: {up}, vv, up, ytd, ano, anoL, pts: [{x, y}], hits: [{x, w, cx, tx}], lo, hi, d0 }
+: cr_futg i>i r {
+  `<svg class="sim-g real-g" viewBox="0 0 340 208" role="img" aria-label="Evolução do Fundo Viva: arrasta para ver cada data">`
+  `<path class="real-a" d="M34 186` = c pri r.pts
+  W c { ` L{ _nu_fixo num c.x 1 }{ P 32 }{ _nu_fixo num c.y 1 }` = c seg c }
+  ` L330 186 Z"/><path class="real-v" d="M` = c pri r.pts = k 0
+  W c { Se k " L" _nu_fixo num c.x 1 P 32 _nu_fixo num c.y 1 = k 1 = c seg c }
+  `"/>`
+  `<text class="sim-t" x="30" y="18" text-anchor="end">{ _nu_compacto num r.hi }</text>`
+  `<text class="sim-t" x="30" y="189" text-anchor="end">{ _nu_compacto num r.lo }</text>`
+  `<text class="sim-t" x="34" y="203">{ esc r.d0 }</text>`
+  `<text class="sim-t" x="330" y="203" text-anchor="end">hoje</text>`
+  `<line class="sim-cur" x1="-9" x2="-9" y1="10" y2="186"/>`
+  = c pri r.hits
+  W c {
+    `<rect class="sim-hit" x="{ _nu_fixo num c.x 1 }" y="0" width="{ _nu_fixo num c.w 1 }" height="208" data-x="{ _nu_fixo num c.cx 1 }" data-tx="{ esc c.tx }"/>`
+    = c seg c }
+  "</svg>" }
+: cr_fut i>i r {
+  `\n        <section class="sec fut"><div class="sec-h"><h2>Fundo Viva</h2><span class="sub">Futuro{ Se ha r.at ` · valores de { esc r.at }` }</span></div>`
+  = vv num r.vv = c r.cfg
+  ? ~ > vv 0.0 {
+    ? ha r.loading `<div class="empty">A carregar os valores da Futuro…</div>`
+      ? ha r.erro `<div class="empty">{ esc r.erro }</div>`
+        `<div class="empty">Põe as tuas UP do Fundo Viva para veres quanto vale hoje e a evolução.</div>` } {
+    = ytd num r.ytd
+    `<div class="sim-big"><small>Vale hoje</small><b class="num">{ cs_eur vv }</b>`
+    `<div class="sim-rng { ? >= ytd 0.0 "up-t" "down-t" }">{ cr_pc ytd } este ano</div></div>`
+    cr_futg r
+    `<div class="sim-tip">Arrasta o dedo no gráfico para ver cada data.</div>`
+    `<div class="stats sim-st">`
+    `<div><small>As tuas UP</small><b class="num">{ _nu_intl num c.up 4 }</b></div>`
+    `<div><small>Valor da UP</small><b class="num">{ _nu_moeda num r.up 4 $"EUR" }</b></div>`
+    Se ha r.anoL `<div><small>{ esc r.anoL }</small><b class="num { ? >= num r.ano 0.0 "up-t" "down-t" }">{ cr_pc num r.ano }</b></div>`
+    "</div>" }
+  `<details class="how fut-ed" data-fold="fut-ed"{ Se ha r.ed " open" }><summary>O teu Fundo Viva</summary><div class="real-in">`
+  `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label></div>`
+  `<p class="note">As UP (unidades) estão na NetFuturo, ou na Declaração de Benefícios de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12. O valor da UP vem do site da Futuro, todos os dias úteis; o que escreves aqui fica só no teu iPhone. Quando entrarem contribuições, atualiza as UP.</p>`
+  "</div></details></section>" }
+
 : ecra_carteira i>i s {
   ! 53 s
   = rl es.real Se ha rl cr_real rl
   = pr es.ppr Se ha pr cr_ppr pr
+  = fu es.fut Se ha fu cr_fut fu
   = m cs_num $"budget" = st cs_num $"start" = g cs_num $"goal" = h ha es.hoje
   = c / Mn 100.0 cs_num $"cp" 100.0
   = y I cs_num $"years"

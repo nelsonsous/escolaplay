@@ -2,6 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, cleanPlano, parseCryptoGlobal, cleanSyms, parseExt, parseDerivs, deribitExpiry, parsePPR } from '../proxy/src/worker.js';
+import { md5, pdfTexto, parseFuturo } from '../proxy/src/futuro.js';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -616,4 +619,25 @@ test('/ppr: o valor diário das unidades do PPR Evoluir, do site da Fidelidade (
     assert.equal((await call('/ppr?de=ontem')).status, 400);
     mockFetch(() => res({}, 500));
     assert.equal((await call('/ppr?f=7614&de=2025-06-28')).status, 502);
+});
+
+test('/futuro: o valor da UP dos fundos da Futuro, do PDF protegido das cotações (1.16.0)', async () => {
+    for (const x of ['', 'a', 'abc', 'x'.repeat(55), 'y'.repeat(56), 'z'.repeat(64), 'w'.repeat(1000)]) assert.equal(Buffer.from(md5(new TextEncoder().encode(x))).toString('hex'), createHash('md5').update(x).digest('hex'), 'md5 de ' + x.length);
+    const pdf = readFileSync(new URL('./fixtures/futuro-cotacoes.pdf', import.meta.url));
+    const t = await pdfTexto(new Uint8Array(pdf));
+    assert.deepEqual(parseFuturo(t, ['FUNDO VIVA', 'PPR 5 ESTRELAS', 'NÃO HÁ']), { dia: '2026-11-23', f: { 'FUNDO VIVA': { up: 18.3484, valor: 55424742.96, unidades: 3020679.5 }, 'PPR 5 ESTRELAS': { up: 29.1848, valor: 310859765.8, unidades: 10651435.82 } } });
+    // a rota: o PDF, o histórico no KV (um valor por dia) e os fins de ano dos relatórios
+    const kv = new Map(), env = { JOURNAL: { get: async (k) => (kv.has(k) ? JSON.parse(kv.get(k)) : null), put: async (k, v) => { kv.set(k, v); } } };
+    kv.set('fut:h', JSON.stringify({ 'FUNDO VIVA': [['2026-11-20', 18.3301]] }));
+    mockFetch((u) => (u === 'https://www.futuro-sa.pt/files/cotacoes.pdf' ? new Response(pdf) : res({}, 404)));
+    const r = await worker.fetch(new Request('https://w.test/futuro?f=FUNDO%20VIVA'), env, null);
+    assert.equal(r.status, 200);
+    const b = await r.json();
+    assert.equal(b.dia, '2026-11-23');
+    assert.deepEqual(b.f['FUNDO VIVA'], { up: 18.3484, d: [['2021-12-31', 16.9157], ['2022-12-31', 15.0428], ['2023-12-31', 16.1857], ['2024-12-31', 17.0496], ['2025-12-31', 18.2705], ['2026-11-20', 18.3301], ['2026-11-23', 18.3484]] });
+    assert.deepEqual(JSON.parse(kv.get('fut:h'))['FUNDO VIVA'].slice(-1), [['2026-11-23', 18.3484]], 'o dia guardado');
+    assert.match(r.headers.get('cache-control'), /s-maxage=10800/);
+    assert.equal((await worker.fetch(new Request('https://w.test/futuro?f=x%3Cy'), env, null)).status, 400, 'só nomes de fundos');
+    mockFetch(() => res({}, 500));
+    assert.equal((await worker.fetch(new Request('https://w.test/futuro?f=FUNDO%20VIVA&z=1'), env, null)).status, 502);
 });
