@@ -3467,3 +3467,17 @@ por omissão, «Mais antigas · N» (fica como a deixares), onde continuam a edi
 **Verificado.** Interface: com 200 dias de história, 5 + 3 + 3 linhas à vista e o resto na dobra, fechada; abrir fica
 aberto; o teste da poupança (escrever, ✕, a média) igual.
 
+## Iteração (Mercados 4.50.0): o acerto do PPR, mais claro, e o ✕ no sítio
+
+**Visto (capturas do dono).** Nas unidades do acerto ficaram as da conta da app (6,8792 e 7,8421), não as da MyFidelidade
+(9,87 e 10,43 UP): o valor ficou nos 1767 € e a entrega de 550 € foi toda para o Dinâmico (a divisão que fazia bater
+aquelas unidades). E o ✕ da entrega extra aparecia por cima dos números (o `.dt-x` é absoluto, feito para os campos de
+data), com uma célula cinzenta vazia ao lado (3 quadros numa grelha de 2).
+
+**Feito.** Os campos passam a «UP na Proteção / no Dinâmico», com «da MyFidelidade» por dentro, e a nota diz onde estão
+(«Carteira do seguro») e que as de cima são as contas da app; o aviso fala das unidades escritas («valem mais/menos X €
+do que dão os prémios registados») e, quando valem menos, manda confirmá-las. O ✕ fica na sua linha; numa grelha de
+números ímpar, o último quadro ocupa a linha toda.
+
+**Verificado.** Interface: o ✕ dentro da linha da entrega, o último quadro com a largura da grelha, o aviso novo.
+

@@ -409,10 +409,11 @@
   `<div class="real-g2"><label><small>Data</small><input class="inp" type="date" data-pprx="d" value="{ esc r.xd }"></label>`
   `<label><small>€</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-pprx="e" value="{ esc r.xe }" placeholder="0"></label></div>`
   `<button type="button" class="btn sm ppr-junta" data-act="ppr-add">Juntar entrega extra</button>`
-  `<small class="real-gt">Acertar com a Fidelidade (opcional)</small><div class="real-g2">`
-  `<label><small>Unidades na Proteção</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-ppr="ur" value="{ cr_campo c $"ur" 0 }"></label>`
-  `<label><small>Unidades no Dinâmico</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-ppr="uc" value="{ cr_campo c $"uc" 0 }"></label></div>`
-  `<p class="note">Todos os meses, no dia de «Desde», o prémio divide-se pelas duas componentes e compra unidades ao valor do dia útil seguinte, como faz a Fidelidade. Os valores das unidades vêm do site da Fidelidade, todos os dias úteis; o que escreves aqui fica só no teu iPhone. As entregas extra contam com a divisão do plano ou, com as unidades da MyFidelidade, com a que as faz bater: para acertar, copia de lá as unidades de cada componente.</p>`
+  # 4.50: as UP da MyFidelidade («Carteira do seguro»), não as da conta da app (as de cima)
+  `<small class="real-gt">Acertar: as UP da MyFidelidade (opcional)</small><div class="real-g2">`
+  `<label><small>UP na Proteção</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-ppr="ur" value="{ cr_campo c $"ur" 0 }" placeholder="da MyFidelidade"></label>`
+  `<label><small>UP no Dinâmico</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-ppr="uc" value="{ cr_campo c $"uc" 0 }" placeholder="da MyFidelidade"></label></div>`
+  `<p class="note">Todos os meses, no dia de «Desde», o prémio divide-se pelas duas componentes e compra unidades ao valor do dia útil seguinte, como faz a Fidelidade. Os valores das unidades vêm do site da Fidelidade, todos os dias úteis; o que escreves aqui fica só no teu iPhone. As entregas extra contam com a divisão do plano ou, com as UP da MyFidelidade, com a que as faz bater. Para acertar, copia da MyFidelidade («Carteira do seguro») as UP de cada componente — as de cima são as contas da app.</p>`
   "</div></details>" }
 
 : ecra_carteira i>i s {

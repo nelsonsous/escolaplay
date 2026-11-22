@@ -935,4 +935,8 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .ppr .ppr-av { color: var(--down); }
 /* 4.49: as datas mais antigas da poupança periódica, numa dobra fechada */
 .reg .pp-mais > summary { display: flex; align-items: center; min-height: 34px; border-top: 1px solid var(--line); color: var(--muted); font-size: calc(.8rem * var(--k)); cursor: pointer; }
+/* 4.50: o ✕ das entregas extra fica na sua linha (o .dt-x é absoluto, feito para os campos de data); e numa grelha de
+   números com um número ímpar de quadros, o último ocupa a linha toda (sem a célula cinzenta vazia) */
+.ppr-x .dt-x { position: static; transform: none; flex: none; }
+.stats > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
 

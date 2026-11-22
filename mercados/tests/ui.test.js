@@ -487,7 +487,7 @@ function proxyBody(u) {
         assert.ok(l2[1].b.every((b, i) => Math.abs(b[2] / l[1].b[i][2] - 12.5 / un(l[1])) < 1e-9), 'na mesma proporção');
         // 4.48: tão longe dos prémios registados, falta alguma entrega: o aviso, e o ganho não se mostra
         await page.waitForSelector('section.ppr .ppr-av', { timeout: 3000 });
-        assert.match(await page.locator('section.ppr .ppr-av').textContent(), /^A MyFidelidade tem mais .+ do que dão os prémios registados: falta alguma entrega extra\?/);
+        assert.match(await page.locator('section.ppr .ppr-av').textContent(), /^As unidades que escreveste valem mais .+ do que dão os prémios registados: falta alguma entrega extra\?/);
         assert.equal(await page.locator('section.ppr .sim-st b').nth(1).textContent(), '—', 'sem o ganho');
         await escP('uc', '');
         assert.ok(Math.abs(un((await page.evaluate(() => window.__mk.pprAtivos()))[1]) - un(l[1])) < 1e-12, 'vazio: volta à conta');
@@ -518,6 +518,11 @@ function proxyBody(u) {
             assert.ok(bx && Math.abs(bx[2] - 350 / qx[1]) < 1e-9, 'o Dinâmico: 70 % dos 500 €, ao valor do dia útil seguinte');
             await page.waitForFunction((t) => document.querySelector('section.ppr .sim-st b').textContent === t, eurT(60 * ds.length + 500), { timeout: 3000 });
             assert.match(await page.locator('section.ppr .ppr-x').textContent(), /500,00\s€/);
+            // 4.50: o ✕ na linha da entrega (não por cima dos números) e, com 3 quadros, o último a ocupar a linha toda
+            const lx = await page.locator('section.ppr .ppr-x').boundingBox(), bx2 = await page.locator('section.ppr .ppr-x .dt-x').boundingBox();
+            assert.ok(bx2.y >= lx.y - 1 && bx2.y + bx2.height <= lx.y + lx.height + 1 && bx2.x + bx2.width <= lx.x + lx.width + 1, 'o ✕ na linha da entrega');
+            const gs = await page.locator('section.ppr .sim-st').boundingBox(), ul = await page.locator('section.ppr .sim-st > div:last-child').boundingBox();
+            assert.ok(Math.abs(ul.width - gs.width) < 4, 'o último quadro ocupa a linha toda');
             // com as unidades da MyFidelidade, a divisão da entrega é a que as faz bater (aqui, a meias): o resto fica sem aviso
             const vuP = (d) => S['7614'].d.find((r) => r[0] > d)[1];
             await escP('ur', String(Math.round((ds.reduce((a, d) => a + 18 / vuP(d), 0) + 250 / vuP(dx)) * 1e6) / 1e6).replace('.', ','));
