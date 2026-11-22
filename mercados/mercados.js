@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.56.0';
+    const VERSION = '4.57.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1893,12 +1893,22 @@
     // hoje, este ano, o ano passado e o gráfico (já em coordenadas do desenho: 34..330 × 186..14)
     function futSnap() {
         loadFUT();
-        const P = cfg.fut || {}, u = +P.up || 0, d = FUTD && Array.isArray(FUTD.d) ? FUTD.d : [], ed = st.fold['fut-ed'];
-        const base = { at: '', loading: futVai && !d.length ? 1 : 0, erro: d.length ? '' : futErr, ed: (ed === undefined ? !(u > 0 && d.length) : ed) ? 1 : 0, cfg: { up: u }, vv: 0 };
-        if (!(u > 0) || !d.length) return base;
-        const ts = (iso) => Date.parse(iso + 'T12:00:00Z') / 1000, up = d[d.length - 1][1], ult = d[d.length - 1][0], ano = +ult.slice(0, 4);
-        const fimAno = (y) => { const x = d.filter((r) => r[0] <= `${y}-12-31`).pop(); return x && x[0] >= `${y}-12-01` ? x[1] : null; };
-        const f1 = fimAno(ano - 1);
+        const P = cfg.fut || {}, u = +P.up || 0, dF = FUTD && Array.isArray(FUTD.d) ? FUTD.d : [], ed = st.fold['fut-ed'], de = ISO_D.test(P.de || '') ? P.de : '';
+        const base = { at: '', loading: futVai && !dF.length ? 1 : 0, erro: dF.length ? '' : futErr, ed: (ed === undefined ? !(u > 0 && dF.length) : ed) ? 1 : 0, cfg: { up: u, de }, vv: 0 };
+        if (!(u > 0) || !dF.length) return base;
+        const ts = (iso) => Date.parse(iso + 'T12:00:00Z') / 1000, up = dF[dF.length - 1][1], ult = dF[dF.length - 1][0], ano = +ult.slice(0, 4);
+        const fimAno = (y) => { const x = dF.filter((r) => r[0] <= `${y}-12-31`).pop(); return x && x[0] >= `${y}-12-01` ? x[1] : null; };
+        // 4.57: desde que aderiste (sem a data, desde o início do fundo) — o valor da UP nesse dia: o do dia ou, entre os dois à
+        // volta, em progressão geométrica (estimado se distam mais de um ano: antes de 2015 só há o do início do fundo)
+        const upAt = (iso) => {
+            const i = dF.findIndex((r) => r[0] >= iso);
+            if (i < 0) return { v: up };
+            if (!i || dF[i][0] === iso) return { v: dF[i][1] };
+            const [a, va] = dF[i - 1], [b, vb] = dF[i];
+            return { v: va * (vb / va) ** ((ts(iso) - ts(a)) / (ts(b) - ts(a))), est: ts(b) - ts(a) > 400 * 86400 ? [a, b] : null };
+        };
+        const dd = de > dF[0][0] ? de : '', u0 = dd ? upAt(dd) : null, d = dd ? [[dd, u0.v], ...dF.filter((r) => r[0] > dd)] : dF;
+        const f1 = dd > `${ano - 1}-12-31` ? u0.v : fimAno(ano - 1);
         const vs = d.map((r) => r[1] * u), lo0 = Math.min(...vs), hi0 = Math.max(...vs), pad = (hi0 - lo0) * 0.08 || hi0 * 0.02, lo = lo0 - pad, hi = hi0 + pad;
         const t0 = ts(d[0][0]), tf = ts(ult), X = (t) => 34 + 296 * (tf > t0 ? (t - t0) / (tf - t0) : 1), Y = (v) => 186 - (172 * (v - lo)) / (hi - lo);
         const pts = d.map((r, i) => ({ x: Math.round(X(ts(r[0])) * 10) / 10, y: Math.round(Y(vs[i]) * 10) / 10 }));
@@ -1906,15 +1916,21 @@
         const hits = pts.map((p, i) => { const a = i ? (pts[i - 1].x + p.x) / 2 : 34, b = i < pts.length - 1 ? (p.x + pts[i + 1].x) / 2 : 330; return { x: Math.round(a * 10) / 10, w: Math.max(0.5, Math.round((b - a) * 10) / 10), cx: p.x, tx: `${i === d.length - 1 ? 'Hoje' : dmy(d[i][0])}: ${fmtPx(vs[i], { decimals: 0 }, 'EUR')}` }; });
         // 4.54: ano a ano — a % de cada ano (o mais recente primeiro; o deste ano, até hoje); 4.55: a oficial (já com os
         // custos) nos anos que a têm, a do valor da UP nos outros; e desde o início do fundo, por ano
-        const of = new Map((FUTD.anos || []).map((x) => [+x[0], +x[1]])), anos = [];
-        for (let y = ano; y > +d[0][0].slice(0, 4); y--) {
+        const of = new Map((FUTD.anos || []).map((x) => [+x[0], +x[1]])), anos = [], yDe = dd ? +dd.slice(0, 4) : 0;
+        for (let y = ano; y > (yDe ? yDe - 1 : +dF[0][0].slice(0, 4)); y--) {
+            // 4.57: o ano em que aderiste, desde esse dia (não, se o valor da UP desse dia é estimado)
+            if (y === yDe) { const a1 = y === ano ? up : fimAno(y); if (a1 && !u0.est && dd.slice(5) !== '12-31') anos.push({ l: `${y} (desde ${dmy(dd).slice(3)})`, p: a1 / u0.v - 1 }); continue; }
             if (y !== ano && of.has(y)) { anos.push({ l: String(y), p: of.get(y) }); continue; }
             const a0 = fimAno(y - 1), a1 = y === ano ? up : fimAno(y);
             if (a0 && a1) anos.push({ l: y === ano ? `${y} (até hoje)` : String(y), p: a1 / a0 - 1 });
         }
-        const ini = FUTD.ini, nIni = ini ? (ts(ult) - ts(ini[0])) / (365.25 * 86400) : 0;
+        const ini = dd ? [dd, u0.v] : FUTD.ini, nIni = ini ? (ts(ult) - ts(ini[0])) / (365.25 * 86400) : 0, mDe = dd ? dmy(dd).slice(3) : '';
+        // 4.57: desde que aderiste — por ano (com menos de um ano, o todo); sem a data, desde o início do fundo
+        const iniX = dd ? (nIni >= 1 ? { iniL: `Desde ${mDe} (por ano)`, iniP: (up / u0.v) ** (1 / nIni) - 1 } : nIni > 0 ? { iniL: `Desde ${mDe}`, iniP: up / u0.v - 1 } : {})
+            : ini && nIni > 1 ? { iniL: `Desde ${ini[0].slice(0, 4)} (por ano)`, iniP: (up / ini[1]) ** (1 / nIni) - 1 } : {};
+        const iniN = dd && u0.est ? `O valor da UP em ${mDe} é estimado: o ritmo médio de ${dmy(u0.est[0])} a ${dmy(u0.est[1])} (não há valores pelo meio).` : '';
         return { ...base, at: dmy(ult), vv: u * up, up, ytd: f1 ? up / f1 - 1 : 0, anos, pts, hits, lo, hi, d0: dmy(d[0][0]).slice(3),
-            ...(ini && nIni > 1 ? { iniL: `Desde ${ini[0].slice(0, 4)} (por ano)`, iniP: (up / ini[1]) ** (1 / nIni) - 1 } : {}), custos: FUT_CUSTOS };
+            ...iniX, iniN, custos: FUT_CUSTOS };
     }
     // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
     function regSnap() {
@@ -3346,7 +3362,11 @@
         // 4.51: o Fundo Viva — as tuas UP (vazio tira a secção dos números)
         if (t.dataset && t.dataset.fut) {
             const txt = String(t.value || '').trim(), P = { ...(cfg.fut || {}) };
-            if (!txt) delete P.up;
+            if (t.dataset.fut === 'de') {
+                if (txt && !(ISO_D.test(txt) && txt <= todayLocal())) { toast('Escolhe a data em que aderiste (até hoje).'); return; }
+                if (txt) P.de = txt; else delete P.de;
+                t.blur();
+            } else if (!txt) delete P.up;
             else { const v = numPt(txt); if (!(v > 0)) { toast('Escreve as UP (unidades) do Fundo Viva.'); return; } P.up = v; }
             cfg.fut = P; saveCfg(); loadFUT(true); render(); return;
         }

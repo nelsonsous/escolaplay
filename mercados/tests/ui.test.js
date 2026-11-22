@@ -569,6 +569,26 @@ function proxyBody(u) {
         // 4.55: desde o início do fundo (por ano) e as comissões
         assert.match(await page.locator('section.fut .sim-st').textContent(), /Desde 1992 \(por ano\)\+3,9\s%/);
         assert.match(await page.locator('section.fut .fut-custos').textContent(), /1,82 % em 2025/);
+        // 4.57: desde que aderiste — o gráfico, o ano a ano e o rendimento por ano a partir daí (o valor da UP desse dia entre os
+        // dois fins de ano à volta); sem a data, como antes
+        {
+            await page.evaluate(() => { window.__mk.st.fold['fut-ed'] = true; window.__mk.render(); });
+            await page.locator('section.fut [data-fut="de"]').fill('2024-06-15');
+            await page.waitForFunction(() => (window.__mk.cfg.fut || {}).de === '2024-06-15', null, { timeout: 3000 });
+            await page.waitForFunction(() => /Desde 06\/2024/.test(document.querySelector('section.fut .sim-st').textContent), null, { timeout: 3000 });
+            assert.deepEqual(await page.locator('section.fut .ppr-anos tr').allTextContents(), ['2026 (até hoje)+0,4\u00a0%', '2025+7,2\u00a0%', '2024 (desde 06/2024)+2,9\u00a0%'].map((x) => x.replace(/\u00a0/g, ' ')), 'ano a ano desde que aderiu');
+            assert.match(await page.locator('section.fut .sim-st').textContent(), /Desde 06\/2024 \(por ano\)\+4,3\s%/);
+            assert.equal(await page.locator('section.fut .sim-hit').count(), 4, 'o gráfico desde a adesão');
+            assert.equal(await page.locator('section.fut .sim-t').nth(2).textContent(), '06/2024');
+            assert.match(await page.locator('section.fut .sim-hit').first().getAttribute('data-tx'), /^15\/06\/2024: /);
+            assert.equal(await page.locator('section.fut .sim-rng').textContent().then((x) => x.replace(/\s/g, ' ')), '+0,4 % este ano');
+            assert.equal(await page.locator('section.fut .fut-ini').count(), 0, 'sem estimativa');
+            if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j2-fundo-viva-desde.png') });
+            await page.locator('section.fut [data-fut="de"]').fill('');
+            await page.waitForFunction(() => !('de' in (window.__mk.cfg.fut || {})), null, { timeout: 3000 });
+            await page.waitForFunction(() => /Desde 1992 \(por ano\)/.test(document.querySelector('section.fut .sim-st').textContent), null, { timeout: 3000 });
+            console.log('✓ Fundo Viva desde que aderiste (o gráfico, o ano a ano e por ano); sem a data, desde 1992');
+        }
         if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j-carteira-fundo-viva.png') });
         console.log('✓ Fundo Viva: as tuas UP × o valor da UP da Futuro; este ano, o ano passado e o gráfico');
         // 4.52: o simulador para o PPR ou o Fundo Viva — cada um com os seus valores; os dos ativos ficam como estavam

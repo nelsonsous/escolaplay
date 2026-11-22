@@ -140,6 +140,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## O Fundo Viva desde que aderiste (4.57.0)
+
+Em «O teu Fundo Viva», «Desde (quando aderiste)»: com a data, o gráfico, o ano a ano e o rendimento por ano contam a partir
+dela, e não do início do fundo (1992). O valor da UP nesse dia é o do dia ou, entre os dois à volta, em progressão
+geométrica; antes de 2015 só há o do início do fundo, e a app diz que é estimado (e não mostra esse 1.º ano).
+
 ## O «Hoje» com a bolsa fechada (4.56.0)
 
 O «Hoje» do cartão da carteira conta só o que mexeu hoje: ao fim de semana (ou antes de a bolsa abrir) o FTSE não mexeu, e

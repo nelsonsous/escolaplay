@@ -297,6 +297,13 @@ test('carteira: o Fundo Viva (4.51) — as tuas UP × o valor da UP, o ano e o g
         assert.equal(d.ed, '567.3069');
         assert.equal(d.aberto, false);
         assert.ok(d.depois, 'antes do simulador');
+        // 4.57: a data de adesão no editor e, se o valor da UP desse dia é estimado, a nota
+        {
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, fut: { ...fut, cfg: { up: 567.3069, de: '2010-03-01' }, iniL: 'Desde 03/2010 (por ano)', iniN: 'O valor da UP em 03/2010 é estimado.' } })}</body>`);
+            const e = await pg.evaluate(() => ({ de: document.querySelector('section.fut [data-fut="de"]').value, n: (document.querySelector('section.fut .fut-ini') || {}).textContent, l: [...document.querySelectorAll('section.fut .sim-st small')].map((b) => b.textContent) }));
+            assert.deepEqual(e, { de: '2010-03-01', n: 'O valor da UP em 03/2010 é estimado.', l: ['As tuas UP', 'Valor da UP', 'Desde 03/2010 (por ano)'] });
+            assert.equal(await pg.evaluate(() => document.querySelectorAll('section.fut [data-fut="de"]').length), 1);
+        }
         // sem as UP (ou a carregar, ou sem os valores): a frase certa, sem gráfico, e o editor aberto
         for (const [x, re] of [[{}, /Põe as tuas UP do Fundo Viva/], [{ loading: 1 }, /A carregar os valores da Futuro/], [{ erro: 'Não consegui ler os valores da Futuro agora. Tenta mais tarde.' }, /Não consegui ler/]]) {
             await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, fut: { at: '', loading: 0, erro: '', ed: 1, cfg: { up: 0 }, vv: 0, ...x } })}</body>`);

@@ -3581,3 +3581,16 @@ dia de sexta).
 **Verificado.** Interface: com o último preço do FTSE de há 3 dias, o «Hoje» é a soma do que mexeu, diz «bolsa
 fechada», e a linha do FTSE diz o dia; ao voltar o preço de hoje, tudo como antes.
 
+## Iteração (Mercados 4.57.0): o Fundo Viva desde que aderiste
+
+**Pedido.** «Do Fundo Viva só me interessa desde que aderi.»
+
+**Feito.** Em «O teu Fundo Viva», o campo «Desde (quando aderiste)» (fica só no iPhone). Com a data: o gráfico começa nela
+(o valor da UP desse dia, entre os dois valores à volta, em progressão geométrica), o ano a ano vai até ao ano da adesão
+(esse ano, desde o dia), e o «Desde 1992 (por ano)» passa a «Desde mm/aaaa (por ano)» (com menos de um ano, o todo).
+Antes de 2015 só há o valor do início do fundo: aí o valor do dia é estimado, a app di-lo numa nota e não mostra esse
+1.º ano. Sem a data, como antes.
+
+**Verificado.** Carteira: o campo da data e a nota da estimativa; interface: com 15/06/2024, o ano a ano (2024 desde
+06/2024 +2,9 %), «Desde 06/2024 (por ano)» +4,3 %, o gráfico desde 06/2024; ao apagar a data, «Desde 1992» outra vez.
+

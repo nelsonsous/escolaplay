@@ -439,7 +439,7 @@
   "</div></details>" }
 
 # 4.51: o Fundo Viva (Futuro) — as tuas UP × o valor da UP de cada dia (do PDF da Futuro, pelo conector). r: { at, loading,
-# erro, ed, cfg: {up}, vv, up, ytd, anos: [{l, p}], pts: [{x, y}], hits: [{x, w, cx, tx}], lo, hi, d0 }
+# erro, ed, cfg: {up, de}, vv, up, ytd, anos: [{l, p}], pts: [{x, y}], hits: [{x, w, cx, tx}], lo, hi, d0, iniL, iniP, iniN }
 : cr_futg i>i r {
   `<svg class="sim-g real-g" viewBox="0 0 340 208" role="img" aria-label="Evolução do Fundo Viva: arrasta para ver cada data">`
   `<path class="real-a" d="M34 186` = c pri r.pts
@@ -475,6 +475,8 @@
     # 4.55: desde o início do fundo, por ano
     Se ha r.iniL `<div><small>{ esc r.iniL }</small><b class="num { ? >= num r.iniP 0.0 "up-t" "down-t" }">{ cr_pc num r.iniP }</b></div>`
     "</div>"
+    # 4.57: o valor da UP no dia em que aderiste, se é estimado
+    Se ha r.iniN `<p class="note fut-ini">{ esc r.iniN }</p>`
     # 4.54: ano a ano — a % do valor da UP em cada ano (o mais recente primeiro)
     = a pri r.anos
     Se a {
@@ -484,8 +486,10 @@
     # 4.55: as comissões do fundo
     Se ha r.custos `<p class="note fut-custos">{ esc r.custos }</p>` }
   `<details class="how fut-ed" data-fold="fut-ed"{ Se ha r.ed " open" }><summary>O teu Fundo Viva</summary><div class="real-in">`
-  `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label></div>`
-  `<p class="note">As UP (unidades) estão na NetFuturo, ou na Declaração de Benefícios de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12. O valor da UP vem do site da Futuro, todos os dias úteis; o que escreves aqui fica só no teu iPhone. Quando entrarem contribuições, atualiza as UP.</p>`
+  `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label>`
+  # 4.57: desde quando — o gráfico, o ano a ano e o rendimento por ano contam a partir daí
+  `<label><small>Desde (quando aderiste)</small><input class="inp" type="date" data-fut="de" value="{ esc c.de }"></label></div>`
+  `<p class="note">As UP (unidades) estão na NetFuturo, ou na Declaração de Benefícios de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12. Com a data em que aderiste, o gráfico, o ano a ano e o rendimento por ano contam a partir dela. O valor da UP vem do site da Futuro, todos os dias úteis; o que escreves aqui fica só no teu iPhone. Quando entrarem contribuições, atualiza as UP.</p>`
   "</div></details></section>" }
 
 : ecra_carteira i>i s {
