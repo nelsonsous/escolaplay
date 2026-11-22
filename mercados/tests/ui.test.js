@@ -141,6 +141,12 @@ function proxyBody(u) {
     if (p === '/health') return { ok: true };
     if (p === '/quotes') return { quotes: u.searchParams.get('symbols').split(',').map((s) => quote(s, u.searchParams.get('range'))) };
     if (p === '/news') return NEWS(u.searchParams.get('q'));
+    if (p === '/ppr') {
+        // 4.47: os valores diários das unidades do PPR (só os dias úteis), desde o «de»: a Proteção devagar, o Dinâmico mais depressa
+        const d = [];
+        for (let t = Date.parse(u.searchParams.get('de') + 'T12:00:00Z'), i = 0; t <= Date.now(); t += 864e5) { const w = new Date(t).getUTCDay(); if (w > 0 && w < 6) d.push([new Date(t).toISOString().slice(0, 10), i++]); }
+        return { f: { 7614: { n: 'Proteção (PPR)', d: d.map(([x, i]) => [x, Math.round((100 + 0.01 * i) * 1e5) / 1e5]) }, 7615: { n: 'Dinâmico (PPR ICAE Ações)', d: d.map(([x, i]) => [x, Math.round((110 + 0.05 * i) * 1e5) / 1e5]) } } };
+    }
     if (p === '/derivs') return { at: 1, items: [
         { c: 'BTC', funding8h: -0.0043, index: 58882, dvol: 52.6, basis: { inst: 'BTC-29JAN27', days: 69, pct: 0.96, ann: 5.07 } },
         { c: 'ETH', funding8h: 0.0147, dvol: 65.6, basis: { inst: 'ETH-29JAN27', days: 69, pct: 0.7, ann: 3.7 } },
@@ -426,6 +432,55 @@ function proxyBody(u) {
     assert.equal(plD[1] in (await fL()).pa, false, 'vazio volta à sugestão');
     await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; for (const x of ['pm', 'pa', 'ra', 'sa']) delete L[x]; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
     console.log('✓ poupança periódica: plano, round up e saveback em listas; escreve-se o valor de cada data; a sugestão é a média');
+    // 4.47: o PPR Evoluir da Fidelidade — escreve-se quanto por mês, quanto vai para o Dinâmico e desde quando; os valores das
+    // unidades vêm do conector (/ppr); em cada mês, no dia de «Desde», o prémio compra ao valor do dia útil seguinte
+    {
+        const de = isoAtras(200), hojeP = isoAtras(0);
+        await page.evaluate(() => { delete window.__mk.cfg.ppr; window.__mk.render(); });
+        await page.waitForSelector('section.ppr details.ppr-ed[open]');
+        assert.match(await page.locator('section.ppr .empty').textContent(), /Põe desde quando pagas/, 'sem PPR: a frase e o editor aberto');
+        const escP = async (f, v) => { const x = page.locator(`section.ppr [data-ppr="${f}"]`); await x.fill(v); await x.evaluate((e) => e.blur()); await page.waitForTimeout(150); };
+        await escP('pm', '60');
+        await escP('din', '70');
+        await page.locator('section.ppr [data-ppr="de"]').fill(de);
+        await page.waitForFunction((d) => (window.__mk.cfg.ppr || {}).de === d, de, { timeout: 3000 });
+        assert.deepEqual(await page.evaluate(() => window.__mk.cfg.ppr), { pm: 60, din: 70, de }, 'o que escreveste, guardado');
+        await page.waitForSelector('section.ppr .sim-big b', { timeout: 8000 });
+        // a conta, à parte: os prémios de cada mês no dia de «Desde» (até hoje), cada um ao valor do 1.º dia útil depois dele
+        const S = proxyBody(new URL('https://proxy.test/ppr?f=7614,7615&de=' + new Date(Date.parse(de + 'T12:00:00Z') - 10 * 864e5).toISOString().slice(0, 10))).f;
+        const l = await page.evaluate(() => window.__mk.pprAtivos());
+        assert.deepEqual(l.map((a) => [a.k, a.name, a.b.length === l[0].b.length]), [['ppr:7614', 'Proteção', true], ['ppr:7615', 'Dinâmico (ações)', true]]);
+        const ds = l[0].b.map((b) => new Date(b[0] * 1000).toISOString().slice(0, 10));
+        assert.equal(ds[0], de, 'o 1.º prémio no dia de «Desde»');
+        assert.ok(ds.every((x, i) => x <= hojeP && (i === 0 || [28, 29, 30, 31].includes(Math.round((Date.parse(x) - Date.parse(ds[i - 1])) / 864e5)))), 'um por mês, até hoje: ' + ds);
+        assert.ok(ds.length >= 6 && ds.length <= 8, 'uns 7 prémios em 200 dias: ' + ds.length);
+        for (const [j, c, parte] of [[0, '7614', 0.3], [1, '7615', 0.7]]) for (const [i, b] of l[j].b.entries()) {
+            const x = S[c].d.find((r) => r[0] > ds[i]);
+            assert.ok(Math.abs(b[1] - 60 * parte) < 1e-9 && Math.abs(b[2] - (60 * parte) / x[1]) < 1e-9, `${c} ${ds[i]}: ${b[1]} € → ${b[2]} unidades`);
+        }
+        const un = (a) => a.b.reduce((s, b) => s + b[2], 0), V = l.reduce((s, a) => s + un(a) * a.px, 0);
+        const eurT = (x) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(x);
+        assert.equal(await page.locator('section.ppr .sim-big b').textContent(), eurT(V), 'vale hoje');
+        assert.equal(await page.locator('section.ppr .sim-st b').first().textContent(), eurT(60 * ds.length), 'investido: os prémios');
+        assert.equal(await page.locator('section.ppr .real-l .row').count(), 2);
+        assert.match(await page.locator('section.ppr .sec-h .sub').textContent(), /^Fidelidade · valores de \d\d\/\d\d\/\d{4}$/);
+        if (SHOTS) await page.locator('section.ppr').screenshot({ path: path.join(SHOTS, '8h-carteira-ppr.png') });
+        // acertar com a Fidelidade: as unidades da MyFidelidade mandam (na mesma proporção em cada prémio); vazio volta à conta
+        await page.locator('section.ppr details.ppr-ed').evaluate((d) => { d.open = true; });
+        await escP('uc', '12,5');
+        const l2 = await page.evaluate(() => window.__mk.pprAtivos());
+        assert.ok(Math.abs(un(l2[1]) - 12.5) < 1e-9 && Math.abs(un(l2[0]) - un(l[0])) < 1e-12, 'o Dinâmico com 12,5 unidades; a Proteção como estava');
+        assert.ok(l2[1].b.every((b, i) => Math.abs(b[2] / l[1].b[i][2] - 12.5 / un(l[1])) < 1e-9), 'na mesma proporção');
+        await escP('uc', '');
+        assert.ok(Math.abs(un((await page.evaluate(() => window.__mk.pprAtivos()))[1]) - un(l[1])) < 1e-12, 'vazio: volta à conta');
+        // tudo no Dinâmico: só uma componente; uma percentagem acima de 100 não entra
+        await escP('din', '100');
+        assert.deepEqual((await page.evaluate(() => window.__mk.pprAtivos())).map((a) => a.k), ['ppr:7615']);
+        await escP('din', '140');
+        assert.equal(await page.evaluate(() => window.__mk.cfg.ppr.din), 100, '140 % não entra');
+        await escP('din', '70');
+        console.log('✓ PPR Evoluir: escreve-se o PPR; os prémios de cada mês ao valor do dia útil seguinte; acerto com as unidades da Fidelidade');
+    }
     // o plano mensal junta-se sozinho depois do ponto de partida (90 €/mês do Bitcoin, no dia 2)
     await page.evaluate(() => { const c = window.__mk.cfg; Object.assign(c, { cryptoPct: 10, cryptoMix: 'btc', saveDays: [2] }); c.lots['c:BTC'].at = new Date(Date.now() - 70 * 864e5).toISOString().slice(0, 10); window.__mk.render(); });
     await page.waitForSelector('.reg-i:has-text("plano (estimado)")');

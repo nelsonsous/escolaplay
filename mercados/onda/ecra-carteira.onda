@@ -346,9 +346,57 @@
       Se ~ umano `<p class="note">O rendimento por ano aparece quando a primeira compra fizer 1 ano.</p>`
     `{ cr_editor l ha r.edOpen }</section>` } }
 
+# 4.47: o PPR Evoluir da Fidelidade — as duas componentes (a Proteção e o Dinâmico) como dois ativos: em cada mês, o prémio
+# dividido pelas duas, ao valor da unidade do dia útil seguinte (os valores diários vêm do site da Fidelidade, pelo conector).
+# r: { now, at, loading, erro, ed, cfg: {de, pm, din, ur, uc}, ativos: [{k, name, px, h, b}] }
+: cr_ppr i>i r {
+  = tf num r.now = tb cr_prep r.ativos tf = na @ tb
+  `\n        <section class="sec ppr"><div class="sec-h"><h2>PPR Evoluir</h2><span class="sub">Fidelidade{ Se ha r.at ` · valores de { esc r.at }` }</span></div>`
+  ? == na 0 {
+    ? ha r.loading `<div class="empty">A carregar os valores da Fidelidade…</div>`
+      ? ha r.erro `<div class="empty">{ esc r.erro }</div>`
+        `<div class="empty">Põe desde quando pagas, quanto por mês e quanto vai para o Dinâmico, para veres quanto vale hoje e a evolução.</div>` } {
+    = vv 0.0 = ee 0.0 L j na { = p cr_p tb j = vv + vv * @f + p 3 @f + p 4 = ee + ee @f + p 5 }
+    = t0 cr_t0 tb 0 na
+    = umano >= - tf t0 31557600.0
+    `<div class="sim-big"><small>Vale hoje</small><b class="num">{ cs_eur vv }</b>`
+    `<div class="sim-rng { ? >= vv ee "up-t" "down-t" }">{ cr_eursg - vv ee } ({ cr_pc - / vv ee 1.0 })`
+    `{ Se umano ` · { cr_pc cr_tir tb 0 na vv tf } por ano` }</div></div>`
+    cr_graf tb na t0 tf
+    `<div class="sim-tip">Arrasta o dedo no gráfico para ver cada mês.</div>`
+    `<div class="sim-leg"><span><i class="b"></i>vale</span><span><i class="v"></i>investido</span></div>`
+    `<div class="stats sim-st">`
+    `<div><small>Investido</small><b class="num">{ cs_eur ee }</b></div>`
+    `<div><small>Ganho</small><b class="num { ? >= vv ee "up-t" "down-t" }">{ cr_eursg - vv ee }</b></div>`
+    `<div><small>Por ano</small><b class="num">{ ? umano cr_pc cr_tir tb 0 na vv tf "—" }</b></div>`
+    "</div>"
+    # cada componente: as unidades e o valor de cada uma, o investido, o que vale e o ganho
+    `<div class="list real-l">` L j na {
+      = p cr_p tb j = c @ p = v * @f + p 3 @f + p 4 = e @f + p 5
+      `<div class="row"><div class="r-main"><div class="r-name">{ esc c.name }</div>`
+      `<div class="r-sub">{ _nu_intl @f + p 4 4 } un. × { _nu_moeda @f + p 3 2 $"EUR" } · investido { cs_eur e }</div></div>`
+      `<div class="r-px num"><span class="px">{ cs_eur v }</span><span class="chg { ? >= v e "up" "down" }">{ cr_pc - / v e 1.0 }</span></div></div>` }
+    "</div>" }
+  cr_ppred r
+  "</section>" }
+# o editor do PPR: desde quando pagas, quanto por mês e quanto vai para o Dinâmico (o resto fica na Proteção); para acertar
+# com a Fidelidade, as unidades de hoje de cada componente (as da MyFidelidade)
+: cr_ppred i>i r {
+  = c r.cfg
+  `<details class="how ppr-ed" data-fold="ppr-ed"{ Se ha r.ed " open" }><summary>O teu PPR</summary><div class="real-in">`
+  `<div class="real-g3"><label><small>€ por mês</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-ppr="pm" value="{ cr_campo c $"pm" 0 }" placeholder="100"></label>`
+  `<label><small>% no Dinâmico</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-ppr="din" value="{ cr_campo c $"din" 0 }" placeholder="50"></label>`
+  `<label><small>Desde (o 1.º prémio)</small><input class="inp" type="date" data-ppr="de" value="{ esc c.de }"></label></div>`
+  `<small class="real-gt">Acertar com a Fidelidade (opcional)</small><div class="real-g2">`
+  `<label><small>Unidades na Proteção</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-ppr="ur" value="{ cr_campo c $"ur" 0 }"></label>`
+  `<label><small>Unidades no Dinâmico</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-ppr="uc" value="{ cr_campo c $"uc" 0 }"></label></div>`
+  `<p class="note">Todos os meses, no dia de «Desde», o prémio divide-se pelas duas componentes e compra unidades ao valor do dia útil seguinte, como faz a Fidelidade. Os valores das unidades vêm do site da Fidelidade, todos os dias úteis; o que escreves aqui fica só no teu iPhone. Para acertar, copia da MyFidelidade as unidades de cada componente.</p>`
+  "</div></details>" }
+
 : ecra_carteira i>i s {
   ! 53 s
   = rl es.real Se ha rl cr_real rl
+  = pr es.ppr Se ha pr cr_ppr pr
   = m cs_num $"budget" = st cs_num $"start" = g cs_num $"goal" = h ha es.hoje
   = c / Mn 100.0 cs_num $"cp" 100.0
   = y I cs_num $"years"

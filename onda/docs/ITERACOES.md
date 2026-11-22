@@ -3423,3 +3423,18 @@ tinha «Tudo» nos ativos passa a 5A.
 
 **Verificado.** Painel: a barra dos ativos com 5A nos 600 estados; interface: o 5A na barra; bateria 108/108.
 
+## Iteração (Mercados 4.47.0, conector 1.15.0): o PPR Evoluir da Fidelidade
+
+**Pedido.** «A Trade Republic tem algum PPR? Consegues seguir a evolução dos PPR da Fidelidade?» — e as condições do PPR
+Evoluir (prémio mensal dividido pela Proteção e pelo Dinâmico).
+
+**Feito.** O conector ganha `/ppr`: o valor diário das unidades das duas componentes, públicos no site da Fidelidade
+(«Cotações e rendimento»: 7614 Proteção, 7615 Dinâmico). Na Carteira, a secção «PPR Evoluir»: vale hoje, ganho, por ano,
+o gráfico desde o 1.º prémio e as duas componentes — feitas como dois ativos (`cr_prep`, `cr_graf` e `cr_tir` da Carteira,
+os mesmos). Os prémios contam todos os meses no dia de «Desde», ao valor do dia útil seguinte (o 1.º prémio, de 07/07/2025,
+foi ao valor de 08/07: é o que as condições mostram); as unidades da MyFidelidade, se escritas, acertam a conta. O que é do
+dono (desde, € por mês, % no Dinâmico, unidades) fica só no iPhone.
+
+**Verificado.** Conector: `/ppr` com os valores da Fidelidade (testes do conector 28/28; publicado, 1.15.0); Carteira: as
+contas da secção conferidas com uma conta independente; interface: escrever o PPR, a secção e o acerto das unidades.
+
