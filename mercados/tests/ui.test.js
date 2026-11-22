@@ -1156,20 +1156,8 @@ function proxyBody(u) {
     await page.evaluate(() => window.__mk.render());
     const tagF = await page.locator('.row[data-key="VWCE.DE"] .r-t').first().textContent();
     assert.equal(tagF, `abre ≈ −${String(Math.abs(ft.p).toFixed(1)).replace('.', ',')}%`);
-    // 4.60: a abertura estimada também no cartão da carteira, em cima — a do FTSE (com o lote dele), em % e em euros
-    {
-        const lot0 = await page.evaluate(() => { const mk = window.__mk, l = mk.cfg.lots['VWCE.DE']; mk.cfg.lots['VWCE.DE'] = { qty: 5.5, avg: 170, cost: 935, at: '2026-11-10' }; mk.render(); return l === undefined ? null : JSON.stringify(l); });
-        await page.waitForSelector('.pf .pf-abre');
-        const ab = await page.evaluate(() => { const mk = window.__mk, s = mk.pfSnap(), ks = mk.cfg.holdings.filter((k) => mk.REG[k] && mk.REG[k].kind !== 'crypto' && mk.projOf(k));
-            return { abL: s.abL, abP: s.abP, el: document.querySelector('.pf .pf-abre').textContent, cls: document.querySelector('.pf .pf-abre').className, ks, p: mk.projOf('VWCE.DE').p }; });
-        assert.equal(ab.el, ab.abL, 'à vista no cartão');
-        assert.match(ab.abL, /^Abertura estimada: [+−]?\d,\d% \([+−]\d+\s€\)$/);
-        if (ab.ks.length === 1) assert.ok(Math.abs(ab.abP - ab.p) < 1e-9, 'só o FTSE: a mesma % da linha dele');
-        assert.match(ab.cls, ab.abP >= 0 ? /up-t/ : /down-t/);
-        if (SHOTS) await page.locator('section.pf').screenshot({ path: path.join(SHOTS, '9g0-carteira-abertura.png') });
-        await page.evaluate((l) => { const mk = window.__mk; if (l) mk.cfg.lots['VWCE.DE'] = JSON.parse(l); else delete mk.cfg.lots['VWCE.DE']; mk.render(); }, lot0);
-        console.log('✓ a abertura estimada no cartão da carteira:', ab.abL);
-    }
+    // 4.61.1: a abertura estimada já não se repete no cartão da carteira (está na linha de cada ativo)
+    assert.equal(await page.locator('.pf .pf-abre').count(), 0, 'sem a abertura estimada no cartão');
     await page.locator('.row[data-open="VWCE.DE"]:visible').first().click();
     await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && !document.querySelector('#d-ext').hidden);
     await page.waitForTimeout(300);
