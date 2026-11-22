@@ -45,6 +45,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
 | `/calendar?symbols=NVDA,EDP.LS` | próximos resultados e datas de dividendo (Yahoo) | 6 h |
+| `/ppr?f=7614,7615&de=AAAA-MM-DD` | o valor diário das unidades do PPR Evoluir da Fidelidade (7614 Proteção, 7615 Dinâmico), desde o dia `de` — públicos no site da Fidelidade (1.15.0) | 3 h |
 | `/derivs?c=BTC,ETH,SOL,XRP` | derivados da cripto (Deribit): a volatilidade das opções a 30 dias (BTC, ETH), o funding dos perpétuos por 8 h e a base do futuro a ~3 meses, ao ano (1.14.0) | 5 min |
 | `/ext?symbols=TSLA,NVDA` | antes da abertura e depois do fecho (ações dos EUA): `kind` (`pre`, `post` ou null com a bolsa aberta), preço, variação face ao fecho e a série de 5 min (1.13.0) | 2 min |
 | `/search?q=mota` | procurar símbolos | 1 h |
@@ -137,6 +138,15 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
 - `node mercados/proxy/recuperar-historico.mjs` copia o que ainda está no KV (a 16/11: 13 conselhos desde 05/11 e o diário
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
+
+## PPR Evoluir (Fidelidade, 4.47.0 e conector 1.15.0)
+
+Na Carteira, abaixo de «A tua carteira»: quanto vale hoje o PPR Evoluir, o ganho, o rendimento por ano, o gráfico desde o
+1.º prémio (o valor e o investido) e as duas componentes (Proteção e Dinâmico) com as unidades e o valor de cada uma. Em
+«O teu PPR» escreve-se desde quando se paga, quanto por mês e quanto vai para o Dinâmico (fica só no iPhone). Em cada mês,
+no dia de «Desde», o prémio divide-se pelas duas componentes e compra unidades ao valor do dia útil seguinte (como a
+Fidelidade fez com o 1.º prémio); para acertar, as unidades de hoje da MyFidelidade corrigem a conta na mesma proporção.
+Os valores diários das unidades vêm do site da Fidelidade pelo conector (`/ppr`, públicos, em cache 3 h).
 
 ## Dados e limites
 

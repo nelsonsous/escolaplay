@@ -925,4 +925,7 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .reg .pp-v { width: 86px; flex: none; padding: 6px 8px; text-align: right; }
 .reg .pp-eur { color: var(--muted); margin-left: -4px; }
 .reg .pp-l > span:first-child small { display: block; margin-left: 0; }
+/* 4.47: o PPR Evoluir — as componentes são linhas para ler (não abrem a ficha) */
+.ppr .row { cursor: default; }
+.ppr .row:active { background: none; }
 

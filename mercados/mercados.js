@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.46.0';
+    const VERSION = '4.47.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -488,6 +488,28 @@
             DERIV = o;
             if (sheetKey && !$('#mk-sheet').hidden) renderSheetExt();
         } catch { /* o conector antes da 1.14.0: sem os derivados */ }
+    }
+    // ---------- o PPR Evoluir da Fidelidade (4.47): os valores diários das duas componentes, pelo conector (/ppr) ----------
+    // O teu PPR (desde, € por mês e % no Dinâmico: cfg.ppr) fica só aqui; do conector vêm só os valores públicos das unidades.
+    const PPR_F = [['7614', 'Proteção', 0], ['7615', 'Dinâmico (ações)', 1]];
+    let PPRD = null, pprVai = false, pprErr = '', pprTry = 0;
+    try { PPRD = JSON.parse(localStorage.getItem('mk:ppr') || 'null'); } catch { PPRD = null; }
+    const pprDe = () => (cfg.ppr && ISO_D.test(cfg.ppr.de || '') ? isoMais(cfg.ppr.de, -10) : '');
+    async function loadPPR() {
+        const de = pprDe();
+        if (!cfg.proxy || !de || pprVai) return;
+        if (PPRD && PPRD.f && PPRD.de <= de && now() - PPRD.at < 3 * 3600e3) return;
+        if (now() - pprTry < 5 * 60e3 && PPRD && PPRD.de <= de) return;
+        pprVai = true; pprTry = now();
+        try {
+            const r = await px(`/ppr?f=${PPR_F.map((x) => x[0]).join(',')}&de=${de}`, 20000), f = {};
+            for (const [c] of PPR_F) { const x = r && r.f && r.f[c]; if (x && Array.isArray(x.d) && x.d.length) f[c] = x.d; }
+            if (!Object.keys(f).length) throw new Error('sem valores');
+            PPRD = { at: now(), de, f }; pprErr = '';
+            try { localStorage.setItem('mk:ppr', JSON.stringify(PPRD)); } catch { /* sem espaço: fica só em memória */ }
+        } catch { pprErr = 'Não consegui ler os valores da Fidelidade agora. Tenta mais tarde.'; }
+        pprVai = false;
+        if (cfg.tab === 'carteira') render();
     }
     // o desvio dos retornos diários (em log) dos últimos 120 dias
     function sdDaily(k) {
@@ -1497,7 +1519,7 @@
         const ch = carteiraHoje(), real = ch.v > 0 && !cfg.simStartManual;
         const mexido = (ch.v > 0 && !!cfg.simStartManual) || (Number.isFinite(cfg.simBudget) && cfg.simBudget !== poupMes());
         return { budget: simBudget(), mexido, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund),
-            start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap() };
+            start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap(), ppr: pprSnap() };
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
     const LH = {}, lhAt = {}, lhVai = new Set();
@@ -1710,6 +1732,35 @@
             }),
             reg: regSnap(),
         };
+    }
+    // as duas componentes do PPR como dois ativos da Carteira: em cada mês, no dia de «Desde», o prémio divide-se pelas duas e
+    // compra unidades ao valor do dia útil seguinte (como a Fidelidade fez com o 1.º prémio: o de 07/07/2025 ao valor de 08/07)
+    function pprAtivos() {
+        const P = cfg.ppr || {}, pm = +P.pm || 0, din = Math.min(100, Math.max(0, +P.din || 0)) / 100;
+        if (!ISO_D.test(P.de || '') || !(pm > 0) || !PPRD || !PPRD.f) return [];
+        const hj = todayLocal(), [y0, m0, d0] = P.de.split('-').map(Number), datas = [];
+        for (let i = 0; i < 1200; i++) {
+            const y = y0 + Math.floor((m0 - 1 + i) / 12), m = (m0 - 1 + i) % 12, ult = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+            const d = `${y}-${String(m + 1).padStart(2, '0')}-${String(Math.min(d0, ult)).padStart(2, '0')}`;
+            if (d > hj) break;
+            datas.push(d);
+        }
+        const ts = (iso) => Date.parse(iso + 'T12:00:00Z') / 1000;
+        return PPR_F.map(([c, name, dyn]) => {
+            const s = PPRD.f[c], parte = dyn ? din : 1 - din;
+            if (!Array.isArray(s) || !s.length || !(parte > 0) || !datas.length) return null;
+            const b = datas.map((d) => { const x = s.find((r) => r[0] > d) || s[s.length - 1]; return [ts(d), pm * parte, (pm * parte) / x[1]]; });
+            // acertar com a Fidelidade: as unidades de hoje (as da MyFidelidade) corrigem a conta, na mesma proporção
+            const real = +(dyn ? P.uc : P.ur), u = b.reduce((a, r) => a + r[2], 0);
+            if (real > 0 && u > 0) for (const r of b) r[2] *= real / u;
+            return { k: 'ppr:' + c, name, px: s[s.length - 1][1], h: s.map((r) => [ts(r[0]), r[1]]), b };
+        }).filter(Boolean);
+    }
+    function pprSnap() {
+        loadPPR();
+        const P = cfg.ppr || {}, l = pprAtivos(), s = PPRD && PPRD.f && (PPRD.f['7615'] || PPRD.f['7614']), ed = st.fold['ppr-ed'];
+        return { now: now() / 1000, ativos: l, at: l.length && s ? dmy(s[s.length - 1][0]) : '', loading: pprVai && !l.length ? 1 : 0, erro: l.length ? '' : pprErr,
+            ed: (ed === undefined ? !l.length : ed) ? 1 : 0, cfg: { de: P.de || '', pm: +P.pm || 0, din: +P.din || 0, ur: +P.ur || 0, uc: +P.uc || 0 } };
     }
     // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
     function regSnap() {
@@ -3109,6 +3160,22 @@
             toast(`${tp === 'pl' ? 'Plano' : tp === 'ru' ? 'Round up' : 'Saveback'} a ${dmy(dia)}: ${txt ? fmtPx(m[dia], { decimals: 2 }, 'EUR') : 'a sugestão'}`, () => setLots(k, { ...lotOf(k), [PP_MAPA[tp]]: antes }));
             return;
         }
+        // 4.47: o PPR Evoluir — desde, € por mês, % no Dinâmico e, para acertar com a Fidelidade, as unidades de hoje
+        if (t.dataset && t.dataset.ppr) {
+            const f = t.dataset.ppr, P = { ...(cfg.ppr || {}) }, txt = String(t.value || '').trim();
+            if (!['de', 'pm', 'din', 'ur', 'uc'].includes(f)) return;
+            if (f === 'de') {
+                if (txt && !(ISO_D.test(txt) && txt <= todayLocal())) { toast('Escolhe uma data até hoje.'); return; }
+                if (txt) P.de = txt; else delete P.de;
+            } else if (!txt) delete P[f];
+            else {
+                const v = numPt(txt);
+                if (!(v >= 0) || (f === 'din' && v > 100)) { toast(f === 'din' ? 'Escreve uma percentagem de 0 a 100.' : 'Escreve um número.'); return; }
+                P[f] = v;
+            }
+            // a data: o campo larga o foco (com ele focado, render() não redesenha) e os valores pedem-se logo
+            cfg.ppr = P; saveCfg(); if (t.type === 'date') t.blur(); loadPPR(); render(); return;
+        }
         if (t.dataset && t.dataset.reg) { st.reg = st.reg || {}; st.reg[t.dataset.reg] = t.value; if (t.dataset.reg === 'k') render(); return; }
         if (t.dataset && t.dataset.lot && t.dataset.k && REG[t.dataset.k]) {
             const k = t.dataset.k, L = { ...lotOf(k) };
@@ -3296,7 +3363,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas

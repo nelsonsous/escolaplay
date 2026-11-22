@@ -37,7 +37,7 @@
 
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
 
-const VERSION = '1.14.0';
+const VERSION = '1.15.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -598,6 +598,34 @@ async function cryptoGlobal() {
     return { body: out, ttl: 600 };
 }
 
+// ---------- o PPR Evoluir da Fidelidade (1.15.0): o valor diário das unidades de cada componente ----------
+// Público no site da Fidelidade («Cotações e rendimento»): 7614 = Proteção, 7615 = Dinâmico (PPR ICAE Ações). Aqui só passam
+// os valores públicos; a conta com os prémios do dono faz-se na app (ficam no iPhone).
+const FID_Q = 'https://poupareinvestir.fidelidade.pt/_hcms/api/life/microsite/quotationsv2';
+const ISO_DIA = /^\d{4}-\d\d-\d\d$/;
+export function parsePPR(d) {
+    const q = d && d.response && Array.isArray(d.response.quotations) ? d.response.quotations : [];
+    const m = new Map();
+    for (const x of q) {
+        const dia = String((x && x.quoteDate) || ''), v = +(x && (x.sellQuote ?? x.buyQuote));
+        if (ISO_DIA.test(dia) && Number.isFinite(v) && v > 0) m.set(dia, Math.round(v * 1e5) / 1e5);
+    }
+    return { n: String((q[0] && q[0].description) || ''), d: [...m].sort((a, b) => (a[0] < b[0] ? -1 : 1)) };
+}
+async function ppr(url) {
+    const cs = (url.searchParams.get('f') || '7614,7615').split(',').map((s) => s.trim()).filter(Boolean);
+    if (!cs.length || cs.length > 4 || !cs.every((c) => /^\d{3,6}$/.test(c))) return { status: 400, body: { error: 'fundos inválidos' } };
+    const ate = new Date().toISOString().slice(0, 10), de = url.searchParams.get('de') || new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
+    if (!ISO_DIA.test(de) || de < '2000-01-01' || de > ate) return { status: 400, body: { error: 'data inválida' } };
+    const f = {};
+    await Promise.all(cs.map(async (c) => {
+        try { f[c] = parsePPR(await getJSON(`${FID_Q}?fundType=financial&quoteType=daily&frequency=daily&fundCode=${c}&startDate=${de}&endDate=${ate}`)); }
+        catch (e) { f[c] = { error: String(e.message || e) }; }
+    }));
+    if (!Object.values(f).some((x) => x.d && x.d.length)) return { status: 502, body: { error: 'sem valores da Fidelidade', f } };
+    return { body: { f }, ttl: 3 * 3600 };
+}
+
 async function distritos() {
     const rows = await dgeg('GetDistritos');
     return { body: { items: (rows || []).map((r) => ({ id: r.Id, name: r.Descritivo })).sort((a, b) => a.name.localeCompare(b.name, 'pt')) }, ttl: 86400 };
@@ -834,7 +862,7 @@ async function universe(url, env) {
 }
 
 // ---------- router ----------
-const ROUTES = { '/derivs': derivs, '/ext': ext, '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal };
+const ROUTES = { '/derivs': derivs, '/ext': ext, '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal, '/ppr': ppr };
 
 export default {
     async fetch(request, env = {}, ctx) {

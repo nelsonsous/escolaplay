@@ -189,3 +189,46 @@ test('carteira: o rendimento real dá as contas certas', async () => {
         assert.equal(await pg.getAttribute('.real details.real-ed', 'open'), '');
     } finally { await br.close(); }
 });
+
+test('carteira: o PPR Evoluir (4.47) — as duas componentes como dois ativos, com as contas certas', async () => {
+    await AO.ready;
+    const T = Date.UTC(2026, 10, 20, 12) / 1000, DIA = 86400;
+    // 500 dias de valores: a Proteção a subir devagar, o Dinâmico com altos e baixos; 15 prémios, cada um ao valor do dia seguinte
+    const dias = (f) => Array.from({ length: 500 }, (_, i) => [T - (499 - i) * DIA, f(i)]);
+    const hP = dias((i) => 105 + 0.01 * i), hD = dias((i) => 110 + 0.04 * i + 4 * Math.sin(i / 20));
+    const prem = (h, e) => Array.from({ length: 15 }, (_, i) => { const t = T - (14 - i) * 30 * DIA; return [t, e, e / pxEm(h, t + DIA)]; });
+    const pr = { k: 'ppr:7614', name: 'Proteção', px: hP[499][1], h: hP, b: prem(hP, 30) };
+    const di = { k: 'ppr:7615', name: 'Dinâmico (ações)', px: hD[499][1], h: hD, b: prem(hD, 45) };
+    const ppr = { now: T, at: '20/11/2026', loading: 0, erro: '', ed: 0, cfg: { de: '2025-08-20', pm: 75, din: 60, ur: 0, uc: 0 }, ativos: [pr, di] };
+    const br = await chromium.launch(), pg = await br.newPage();
+    try {
+        await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'FTSE All-World', start: 0, years: 20, goal: 0, ppr })}</body>`);
+        const d = await pg.evaluate(() => {
+            const r = document.querySelector('section.ppr'), t = (e) => (e ? e.textContent.trim() : null);
+            return { sub: t(r.querySelector('.sec-h .sub')), big: t(r.querySelector('.sim-big b')), rng: t(r.querySelector('.sim-rng')), st: [...r.querySelectorAll('.sim-st b')].map((b) => b.textContent),
+                rows: [...r.querySelectorAll('.real-l .row')].map((x) => [t(x.querySelector('.r-name')), t(x.querySelector('.r-sub')), t(x.querySelector('.px')), t(x.querySelector('.chg'))]),
+                hits: r.querySelectorAll('.sim-hit').length, ed: [...r.querySelectorAll('[data-ppr]')].map((i) => [i.dataset.ppr, i.value]), aberto: r.querySelector('details.ppr-ed').open,
+                antes: !!document.querySelector('section.ppr + section.sim') };
+        });
+        const u = (a) => a.b.reduce((s, b) => s + b[2], 0), vP = u(pr) * pr.px, vD = u(di) * di.px, V = vP + vD;
+        const E = 15 * 75, eP = 15 * 30, eD = 15 * 45, as = [pr, di];
+        assert.equal(d.sub, 'Fidelidade · valores de 20/11/2026');
+        assert.equal(d.big, eur(V), 'vale hoje: as unidades × o valor de hoje');
+        assert.equal(d.rng, `${sg(V - E)} (${pc(V / E - 1)}) · ${pc(tir(as, V, T))} por ano`);
+        assert.deepEqual(d.st, [eur(E), sg(V - E), pc(tir(as, V, T))], 'investido, ganho, por ano');
+        const un = (x) => new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(x);
+        const p2 = (x) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(x);
+        assert.deepEqual(d.rows, [['Proteção', `${un(u(pr))} un. × ${p2(pr.px)} · investido ${eur(eP)}`, eur(vP), pc(vP / eP - 1)],
+            ['Dinâmico (ações)', `${un(u(di))} un. × ${p2(di.px)} · investido ${eur(eD)}`, eur(vD), pc(vD / eD - 1)]], 'as duas componentes');
+        assert.equal(d.hits, 60, 'o gráfico, com o dedo');
+        assert.deepEqual(d.ed, [['pm', '75'], ['din', '60'], ['de', '2025-08-20'], ['ur', ''], ['uc', '']], 'o editor com o que escreveste');
+        assert.equal(d.aberto, false, 'com o PPR feito, o editor fica fechado');
+        assert.ok(d.antes, 'antes do simulador');
+        // sem nada, a carregar ou sem os valores: a frase certa, sem gráfico, e o editor aberto
+        for (const [x, re] of [[{}, /Põe desde quando pagas/], [{ loading: 1 }, /A carregar os valores da Fidelidade/], [{ erro: 'Não consegui ler os valores da Fidelidade agora. Tenta mais tarde.' }, /Não consegui ler/]]) {
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, ppr: { now: T, at: '', loading: 0, erro: '', ed: 1, cfg: { de: '', pm: 0, din: 0, ur: 0, uc: 0 }, ativos: [], ...x } })}</body>`);
+            const v = await pg.evaluate(() => ({ e: document.querySelector('section.ppr .empty').textContent, o: document.querySelector('section.ppr details.ppr-ed').open, g: !!document.querySelector('section.ppr svg') }));
+            assert.match(v.e, re); assert.equal(v.o, true); assert.equal(v.g, false);
+        }
+    } finally { await br.close(); }
+});

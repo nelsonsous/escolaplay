@@ -1,7 +1,7 @@
 // node --test mercados/tests — o Worker com fetch simulado (sem rede)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, cleanPlano, parseCryptoGlobal, cleanSyms, parseExt, parseDerivs, deribitExpiry } from '../proxy/src/worker.js';
+import worker, { parseChart, parseRSS, fuelStats, parsePrice, parseCalendar, parseConsensus, parseFund, upsertJournal, cleanLots, cleanPlano, parseCryptoGlobal, cleanSyms, parseExt, parseDerivs, deribitExpiry, parsePPR } from '../proxy/src/worker.js';
 
 const chart = (sym, price, prev, n = 10) => ({
     chart: { result: [{
@@ -598,4 +598,22 @@ test('/derivs junta a Deribit por moeda; sem nada, 502', async () => {
     mockFetch(() => res({}, 500));
     assert.equal((await call('/derivs?c=ETH')).status, 502);
     assert.equal((await call('/derivs?c=DOGE')).status, 400);
+});
+
+test('/ppr: o valor diário das unidades do PPR Evoluir, do site da Fidelidade (1.15.0)', async () => {
+    const q = (c, l) => ({ response: { rentabilization: 0.02, quotations: l.map(([d, v]) => ({ fundType: 'financial', fundCode: c, quoteType: 'daily', quoteDate: d, description: c === 7614 ? 'Proteção (PPR)' : 'Dinâmico (PPR ICAE Ações)', buyQuote: v, sellQuote: v })) } });
+    assert.deepEqual(parsePPR(q(7614, [['2025-07-09', 107.50266], ['2025-07-08', 107.497691], ['x', 1], ['2025-07-10', 0]])), { n: 'Proteção (PPR)', d: [['2025-07-08', 107.49769], ['2025-07-09', 107.50266]] });
+    assert.deepEqual(parsePPR(null), { n: '', d: [] });
+    const calls = mockFetch((u) => u.includes('fundCode=7614') ? res(q(7614, [['2025-07-08', 107.49769]])) : u.includes('fundCode=7615') ? res(q(7615, [['2025-07-08', 114.01963]])) : res({}, 404));
+    const r = await call('/ppr?f=7614,7615&de=2025-06-27');
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.f['7615'], { n: 'Dinâmico (PPR ICAE Ações)', d: [['2025-07-08', 114.01963]] });
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every((u) => u.startsWith('https://poupareinvestir.fidelidade.pt/_hcms/api/life/microsite/quotationsv2?fundType=financial&quoteType=daily&frequency=daily&fundCode=') && u.includes('&startDate=2025-06-27&endDate=')));
+    assert.match(r.headers.get('cache-control'), /s-maxage=10800/);
+    assert.equal((await call('/ppr?f=7614,../x')).status, 400, 'só códigos de fundo');
+    assert.equal((await call('/ppr?f=1,2,3,4,5')).status, 400, 'no máximo 4');
+    assert.equal((await call('/ppr?de=ontem')).status, 400);
+    mockFetch(() => res({}, 500));
+    assert.equal((await call('/ppr?f=7614&de=2025-06-28')).status, 502);
 });
