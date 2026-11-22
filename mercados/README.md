@@ -140,6 +140,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## O «Hoje» com a bolsa fechada (4.56.0)
+
+O «Hoje» do cartão da carteira conta só o que mexeu hoje: ao fim de semana (ou antes de a bolsa abrir) o FTSE não mexeu, e
+a variação do último dia de bolsa fica na linha do ativo, com o dia («sexta», «ontem»); o cartão diz «bolsa fechada».
+Assim o «Hoje» bate certo com o gráfico das últimas 24 h.
+
 ## Simulador: os ativos, o PPR ou o Fundo Viva (4.52.0)
 
 No Simulador da Carteira escolhe-se o que simular — os ativos, o PPR ou o Fundo Viva (estes dois quando estão

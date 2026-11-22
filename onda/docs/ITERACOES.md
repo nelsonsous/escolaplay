@@ -3566,3 +3566,18 @@ legais, e quanto se receberia hoje).
 **Verificado.** Conector: os fins de ano de 2015 a 2020 dão os rendimentos oficiais; publicado (1.17.0). Carteira e
 interface: desde 1992, as comissões do Fundo Viva e do PPR (e o valor de resgate de hoje).
 
+## Iteração (Mercados 4.56.0): o «Hoje» com a bolsa fechada
+
+**Pedido.** «A percentagem bate certo com os gráficos em baixo?» (domingo: «Hoje −25,16 € (−0,61 %)», com o gráfico das
+24 h quase sem descer, e o FTSE a −4,62 %.)
+
+**Visto.** Não batia: os −4,62 % do FTSE eram a descida de sexta (face ao fecho de quinta), contada no «Hoje» de um domingo
+— o gráfico das últimas 24 h só tinha a cripto a mexer. As linhas dos ativos batiam com os seus gráficos (o do FTSE é o
+dia de sexta).
+
+**Feito.** O «Hoje» do cartão conta só os ativos cujo último preço é de hoje (a cripto sempre); com a bolsa fechada, diz
+«bolsa fechada». No 1D, a linha de um ativo cuja variação não é de hoje diz o dia («sexta», «ontem»).
+
+**Verificado.** Interface: com o último preço do FTSE de há 3 dias, o «Hoje» é a soma do que mexeu, diz «bolsa
+fechada», e a linha do FTSE diz o dia; ao voltar o preço de hoje, tudo como antes.
+
