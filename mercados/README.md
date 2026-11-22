@@ -140,11 +140,14 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
-## O Fundo Viva desde que aderiste (4.57.0)
+## O Fundo Viva: o que cresceu o teu dinheiro em cada ano (4.58.0)
 
-Em «O teu Fundo Viva», «Desde (quando aderiste)»: com a data, o gráfico, o ano a ano e o rendimento por ano contam a partir
-dela, e não do início do fundo (1992). O valor da UP nesse dia é o do dia ou, entre os dois à volta, em progressão
-geométrica; antes de 2015 só há o do início do fundo, e a app diz que é estimado (e não mostra esse 1.º ano).
+Em «O teu Fundo Viva», além das UP, juntam-se os teus anos, da Declaração de Benefícios de Reforma: o valor a 31/12 e as
+contribuições de cada ano (ficam só no iPhone). Com eles, «Ano a ano (o teu dinheiro)»: em cada ano, o valor a 31/12,
+menos o do ano anterior, menos o que entrou, em € e em % (sobre o que lá tinhas, com o que entrou a meio do ano); este ano,
+até hoje (as tuas UP × o valor da UP). Por cima, o ganho desde o 1.º desses anos e, por ano, o que cresceu (as % de cada
+ano encadeadas). O gráfico passa a ter os teus valores a 31/12. Saem o «Desde 1992 (por ano)», o ano a ano do valor da UP e
+a data de adesão (4.57.0): os teus anos dizem desde quando.
 
 ## O «Hoje» com a bolsa fechada (4.56.0)
 
@@ -162,7 +165,7 @@ mais-valias no resgate nas condições legais; Fundo Viva: não entra, depende d
 ## Fundo Viva (Futuro, 4.51.0 e conector 1.16.0)
 
 Na Carteira, abaixo do PPR: quanto valem hoje as tuas UP do Fundo Viva (o fundo de pensões da Futuro), quanto rendeu
-este ano e, ano a ano, a % do valor da UP desde 2022 (4.54.0), e o gráfico desde 2021 (os fins de ano dos relatórios da Futuro e, daí em diante, um valor por
+este ano e, ano a ano, o que cresceu o teu dinheiro (4.58.0), e o gráfico desde 2021 (os fins de ano dos relatórios da Futuro e, daí em diante, um valor por
 dia útil, guardado pelo conector). Em «O teu Fundo Viva» escrevem-se as UP (da NetFuturo, ou da Declaração de Benefícios
 de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12); ficam só no iPhone. O valor da UP vem do PDF público
 das cotações da Futuro, que o conector desencripta (palavra-passe vazia) e lê (`/futuro`).

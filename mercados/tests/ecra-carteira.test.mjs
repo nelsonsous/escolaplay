@@ -273,7 +273,7 @@ test('carteira: o PPR Evoluir (4.47) — as duas componentes como dois ativos, c
 test('carteira: o Fundo Viva (4.51) — as tuas UP × o valor da UP, o ano e o gráfico', async () => {
     await AO.ready;
     const pts = [{ x: 34, y: 120 }, { x: 93.2, y: 170 }, { x: 330, y: 20 }], hits = pts.map((p, i) => ({ x: i ? p.x - 5 : 34, w: 10, cx: p.x, tx: i === 2 ? 'Hoje: 10 409 €' : `${i}` }));
-    const fut = { at: '23/11/2026', loading: 0, erro: '', ed: 0, cfg: { up: 567.3069 }, vv: 567.3069 * 18.3484, up: 18.3484, ytd: 18.3484 / 18.2705 - 1, iniL: 'Desde 1992 (por ano)', iniP: 0.039, custos: 'Custos do fundo.', anos: [{ l: '2026 (até hoje)', p: 18.3484 / 18.2705 - 1 }, { l: '2025', p: 18.2705 / 17.0496 - 1 }, { l: '2022', p: 15.0428 / 16.9157 - 1 }], pts, hits, lo: 8000, hi: 10600, d0: '12/2021' };
+    const fut = { at: '23/11/2026', loading: 0, erro: '', ed: 0, cfg: { up: 567.3069 }, vv: 567.3069 * 18.3484, up: 18.3484, ytd: 18.3484 / 18.2705 - 1, custos: 'Custos do fundo.', anos: [{ l: '2026 (até hoje)', g: 109.18, p: 0.0106, tp: 1 }, { l: '2025', g: 600, p: 0.0622, tp: 1 }, { l: '2024', g: 510, p: 0.0564, tp: 1 }], gL: 'Ganho desde 2024', gV: 1219.18, pa: 0.0443, semN: '', meus: [{ a: '2023', v: 9000, c: 0 }, { a: '2024', v: 9600, c: 90 }, { a: '2025', v: -1, c: 100 }], xa: '', xv: '', xc: '', pts, hits, lo: 8000, hi: 10600, d0: '12/2021' };
     const br = await chromium.launch(), pg = await br.newPage();
     try {
         await pg.setContent(`<body>${AO.ecra.carteira({ budget: 900, cp: 10, core: 'X', start: 0, years: 20, goal: 0, fut })}</body>`);
@@ -281,28 +281,32 @@ test('carteira: o Fundo Viva (4.51) — as tuas UP × o valor da UP, o ano e o g
             const r = document.querySelector('section.fut'), t = (e) => (e ? e.textContent.trim() : null);
             return { sub: t(r.querySelector('.sec-h .sub')), big: t(r.querySelector('.sim-big b')), rng: t(r.querySelector('.sim-rng')), st: [...r.querySelectorAll('.sim-st b')].map((b) => b.textContent),
                 lbl: [...r.querySelectorAll('.sim-st small')].map((b) => b.textContent), v: r.querySelector('path.real-v').getAttribute('d'), hits: [...r.querySelectorAll('.sim-hit')].map((h) => h.dataset.tx),
-                eixo: [...r.querySelectorAll('.sim-t')].map((x) => x.textContent), custos: (r.querySelector('.fut-custos') || {}).textContent, anos: [...r.querySelectorAll('.ppr-anos tr')].map((tr) => [...tr.querySelectorAll('td')].map((x) => x.textContent)), ed: r.querySelector('[data-fut="up"]').value, aberto: r.querySelector('details.fut-ed').open, depois: !!document.querySelector('section.fut + section.sim') };
+                eixo: [...r.querySelectorAll('.sim-t')].map((x) => x.textContent), custos: (r.querySelector('.fut-custos') || {}).textContent, anos: [...r.querySelectorAll('.ppr-anos tr')].map((tr) => [...tr.querySelectorAll('td')].map((x) => x.textContent)), ed: r.querySelector('[data-fut="up"]').value, aberto: r.querySelector('details.fut-ed').open, depois: !!document.querySelector('section.fut + section.sim'),
+                meus: [...r.querySelectorAll('.fut-x')].map((x) => x.textContent), campos: [...r.querySelectorAll('[data-futx]')].map((x) => x.dataset.futx), junta: !!r.querySelector('[data-act="fut-add"]') };
         });
         const p4 = (x) => new Intl.NumberFormat('pt-PT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(x);
         assert.equal(d.sub, 'Futuro · valores de 23/11/2026');
         assert.equal(d.big, eur(567.3069 * 18.3484), 'vale hoje: as UP × o valor da UP');
         assert.equal(d.rng, `${pc(18.3484 / 18.2705 - 1)} este ano`);
-        assert.deepEqual(d.lbl, ['As tuas UP', 'Valor da UP', 'Desde 1992 (por ano)']);
+        assert.deepEqual(d.lbl, ['As tuas UP', 'Valor da UP', 'Ganho desde 2024', 'Por ano']);
         assert.equal(d.custos, 'Custos do fundo.');
-        assert.deepEqual(d.anos, [['2026 (até hoje)', pc(18.3484 / 18.2705 - 1)], ['2025', pc(18.2705 / 17.0496 - 1)], ['2022', pc(15.0428 / 16.9157 - 1)]], 'ano a ano, o mais recente primeiro');
-        assert.deepEqual(d.st, [p4(567.3069), new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(18.3484), pc(0.039)]);
+        // 4.58: o teu dinheiro ano a ano — o ganho em € e, por baixo, a % (o mais recente primeiro)
+        assert.deepEqual(d.anos, [['2026 (até hoje)', `+${eur(109.18)}${pc(0.0106)}`], ['2025', `+${eur(600)}${pc(0.0622)}`], ['2024', `+${eur(510)}${pc(0.0564)}`]], 'o teu dinheiro ano a ano, o mais recente primeiro');
+        const m2 = (x) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(x);
+        assert.deepEqual(d.meus, [`2023${m2(9000)}✕`, `2024${m2(9600)}entrou ${m2(90)}✕`, `2025—entrou ${m2(100)}✕`], 'os teus anos no editor');
+        assert.deepEqual([d.campos, d.junta], [['a', 'v', 'c'], true], 'a linha para juntar um ano');
+        assert.deepEqual(d.st, [p4(567.3069), new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(18.3484), `+${eur(1219.18)}`, pc(0.0443)]);
         assert.equal(d.v, 'M34.0 120.0 L93.2 170.0 L330.0 20.0', 'o valor ao longo do tempo');
         assert.deepEqual(d.hits, ['0', '1', 'Hoje: 10 409 €'], 'o dedo, data a data');
         assert.equal(d.eixo[2], '12/2021');
         assert.equal(d.ed, '567.3069');
         assert.equal(d.aberto, false);
         assert.ok(d.depois, 'antes do simulador');
-        // 4.57: a data de adesão no editor e, se o valor da UP desse dia é estimado, a nota
+        // 4.58: sem os teus anos, a frase para os juntar (sem o ano a ano nem o ganho); e já sem a data de adesão (4.57)
         {
-            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, fut: { ...fut, cfg: { up: 567.3069, de: '2010-03-01' }, iniL: 'Desde 03/2010 (por ano)', iniN: 'O valor da UP em 03/2010 é estimado.' } })}</body>`);
-            const e = await pg.evaluate(() => ({ de: document.querySelector('section.fut [data-fut="de"]').value, n: (document.querySelector('section.fut .fut-ini') || {}).textContent, l: [...document.querySelectorAll('section.fut .sim-st small')].map((b) => b.textContent) }));
-            assert.deepEqual(e, { de: '2010-03-01', n: 'O valor da UP em 03/2010 é estimado.', l: ['As tuas UP', 'Valor da UP', 'Desde 03/2010 (por ano)'] });
-            assert.equal(await pg.evaluate(() => document.querySelectorAll('section.fut [data-fut="de"]').length), 1);
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, fut: { ...fut, anos: [], gL: '', meus: [], semN: 'Para veres quanto cresceu o teu dinheiro em cada ano, junta os teus anos.' } })}</body>`);
+            const e = await pg.evaluate(() => ({ n: (document.querySelector('section.fut .fut-sem') || {}).textContent, t: document.querySelectorAll('section.fut .fut-anos').length, de: document.querySelectorAll('section.fut [data-fut="de"]').length, l: [...document.querySelectorAll('section.fut .sim-st small')].map((b) => b.textContent) }));
+            assert.deepEqual(e, { n: 'Para veres quanto cresceu o teu dinheiro em cada ano, junta os teus anos.', t: 0, de: 0, l: ['As tuas UP', 'Valor da UP'] });
         }
         // sem as UP (ou a carregar, ou sem os valores): a frase certa, sem gráfico, e o editor aberto
         for (const [x, re] of [[{}, /Põe as tuas UP do Fundo Viva/], [{ loading: 1 }, /A carregar os valores da Futuro/], [{ erro: 'Não consegui ler os valores da Futuro agora. Tenta mais tarde.' }, /Não consegui ler/]]) {

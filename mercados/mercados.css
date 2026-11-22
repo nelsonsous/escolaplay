@@ -946,4 +946,8 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 /* 4.56: o dia de uma variação que não é de hoje (a bolsa fechada), e o aviso no «Hoje» do cartão */
 .r-px .chg-dia { display: block; color: var(--muted); font-size: calc(.7rem * var(--k)); line-height: 1.1; }
 .pf .pf-fech { color: var(--muted); font-size: calc(.72rem * var(--k)); white-space: nowrap; }
+/* 4.58: o Fundo Viva — os teus anos (da declaração) e a linha para juntar outro */
+.fut .fut-g3 { display: grid; gap: 8px; grid-template-columns: minmax(0, .7fr) minmax(0, 1fr) minmax(0, 1fr); }
+.fut .ppr-junta { margin: 8px 0 4px; }
+.fut-x small { color: var(--muted); font-size: calc(.74rem * var(--k)); white-space: nowrap; }
 

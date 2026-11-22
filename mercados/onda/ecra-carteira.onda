@@ -439,7 +439,8 @@
   "</div></details>" }
 
 # 4.51: o Fundo Viva (Futuro) — as tuas UP × o valor da UP de cada dia (do PDF da Futuro, pelo conector). r: { at, loading,
-# erro, ed, cfg: {up, de}, vv, up, ytd, anos: [{l, p}], pts: [{x, y}], hits: [{x, w, cx, tx}], lo, hi, d0, iniL, iniP, iniN }
+# erro, ed, cfg: {up}, vv, up, ytd, pts: [{x, y}], hits: [{x, w, cx, tx}], lo, hi, d0; 4.58: anos: [{l, g, p, tp}] (o teu
+# dinheiro em cada ano), gL, gV, pa (o ganho e por ano), semN, meus: [{a, v, c}] (os teus anos), xa, xv, xc }
 : cr_futg i>i r {
   `<svg class="sim-g real-g" viewBox="0 0 340 208" role="img" aria-label="Evolução do Fundo Viva: arrasta para ver cada data">`
   `<path class="real-a" d="M34 186` = c pri r.pts
@@ -472,24 +473,39 @@
     `<div class="stats sim-st">`
     `<div><small>As tuas UP</small><b class="num">{ _nu_intl num c.up 4 }</b></div>`
     `<div><small>Valor da UP</small><b class="num">{ _nu_moeda num r.up 4 $"EUR" }</b></div>`
-    # 4.55: desde o início do fundo, por ano
-    Se ha r.iniL `<div><small>{ esc r.iniL }</small><b class="num { ? >= num r.iniP 0.0 "up-t" "down-t" }">{ cr_pc num r.iniP }</b></div>`
+    # 4.58: o teu dinheiro — o ganho desde o 1.º dos teus anos e, por ano, o que cresceu
+    Se ha r.gL {
+      = g num r.gV = p num r.pa
+      `<div><small>{ esc r.gL }</small><b class="num { ? >= g 0.0 "up-t" "down-t" }">{ cr_eursg g }</b></div>`
+      `<div><small>Por ano</small><b class="num { ? >= p 0.0 "up-t" "down-t" }">{ cr_pc p }</b></div>` }
     "</div>"
-    # 4.57: o valor da UP no dia em que aderiste, se é estimado
-    Se ha r.iniN `<p class="note fut-ini">{ esc r.iniN }</p>`
-    # 4.54: ano a ano — a % do valor da UP em cada ano (o mais recente primeiro)
+    # 4.58: ano a ano — o que cresceu o teu dinheiro em cada ano, em € e em % (o mais recente primeiro); sem os teus anos, a frase
     = a pri r.anos
-    Se a {
-      `<div class="ppr-anos"><small class="real-gt">Ano a ano (o valor da UP)</small><table class="sim-tab"><tbody>`
-      W a { = p num a.p `<tr><td>{ esc a.l }</td><td class="num"><b class="{ ? >= p 0.0 "up-t" "down-t" }">{ cr_pc p }</b></td></tr>` = a seg a }
-      "</tbody></table></div>" }
+    ? a {
+      `<div class="ppr-anos fut-anos"><small class="real-gt">Ano a ano (o teu dinheiro)</small><table class="sim-tab"><tbody>`
+      W a {
+        = g num a.g
+        `<tr><td>{ esc a.l }</td><td class="num"><b class="{ ? >= g 0.0 "up-t" "down-t" }">{ cr_eursg g }</b>{ Se ha a.tp `<small>{ cr_pc num a.p }</small>` }</td></tr>`
+        = a seg a }
+      `</tbody></table><p class="note">Em cada ano: o valor a 31/12, menos o do ano anterior, menos o que entrou. A % é sobre o que lá tinhas (o que entrou conta a meio do ano).</p></div>` } {
+      Se ha r.semN `<p class="note fut-sem">{ esc r.semN }</p>` }
     # 4.55: as comissões do fundo
     Se ha r.custos `<p class="note fut-custos">{ esc r.custos }</p>` }
   `<details class="how fut-ed" data-fold="fut-ed"{ Se ha r.ed " open" }><summary>O teu Fundo Viva</summary><div class="real-in">`
-  `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label>`
-  # 4.57: desde quando — o gráfico, o ano a ano e o rendimento por ano contam a partir daí
-  `<label><small>Desde (quando aderiste)</small><input class="inp" type="date" data-fut="de" value="{ esc c.de }"></label></div>`
-  `<p class="note">As UP (unidades) estão na NetFuturo, ou na Declaração de Benefícios de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12. Com a data em que aderiste, o gráfico, o ano a ano e o rendimento por ano contam a partir dela. O valor da UP vem do site da Futuro, todos os dias úteis; o que escreves aqui fica só no teu iPhone. Quando entrarem contribuições, atualiza as UP.</p>`
+  `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label></div>`
+  # 4.58: os teus anos (da Declaração de Benefícios de Reforma), cada um com ✕; e a linha para juntar outro (o rascunho em xa, xv, xc)
+  `<small class="real-gt">Os teus anos (da Declaração de Benefícios de Reforma)</small>`
+  = m pri r.meus = i 0
+  W m {
+    = v num m.v = e num m.c
+    `<div class="ppr-x fut-x"><span>{ esc m.a }</span><b class="num">{ ? >= v 0.0 _nu_moeda v 2 $"EUR" "—" }</b>{ Se > e 0.0 `<small>entrou { _nu_moeda e 2 $"EUR" }</small>` }`
+    `<button type="button" class="dt-x" data-act="fut-rm" data-i="{ N i }" aria-label="Apagar { esc m.a }">✕</button></div>`
+    = i + i 1 = m seg m }
+  `<div class="fut-g3"><label><small>Ano</small><input class="inp" type="text" inputmode="numeric" autocomplete="off" data-futx="a" value="{ esc r.xa }" placeholder="2025"></label>`
+  `<label><small>Valor a 31/12</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-futx="v" value="{ esc r.xv }" placeholder="€"></label>`
+  `<label><small>Contribuições</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-futx="c" value="{ esc r.xc }" placeholder="€"></label></div>`
+  `<button type="button" class="btn sm ppr-junta" data-act="fut-add">Juntar ano</button>`
+  `<p class="note">As UP (unidades) estão na NetFuturo, ou na Declaração de Benefícios de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12. Os teus anos estão na mesma declaração: o valor a 31/12 e as contribuições de cada ano; com eles vês quanto cresceu o teu dinheiro em cada ano. O valor da UP vem do site da Futuro, todos os dias úteis; o que escreves aqui fica só no teu iPhone. Quando entrarem contribuições, atualiza as UP e junta as deste ano.</p>`
   "</div></details></section>" }
 
 : ecra_carteira i>i s {
