@@ -3499,3 +3499,14 @@ E o PPR: depois de uma falha do conector sem valores guardados, já não volta a
 com o do Node, a rota guarda o dia; publicado (1.16.0) e no ar. Carteira: a secção com as contas e o gráfico; interface:
 escrever as UP, o valor, este ano, o ano passado e o dedo.
 
+## Iteração (Mercados 4.51.1): o aviso do PPR a partir de 2 %
+
+**Visto (captura do dono).** Só com a entrega de 550 € (faltava a de 22/07/2025, de 100 €), as unidades da MyFidelidade
+valiam 4,7 % mais do que as contas: abaixo dos 5 % do aviso, a app mostrava +182 € (+13,9 % por ano) em vez de +82 €.
+Com as duas entregas, a diferença é de 0,05 %.
+
+**Feito.** O aviso passa a aparecer com mais de 2 % de diferença no valor: uma entrega esquecida de uns 50 € já se vê.
+
+**Verificado.** O caso do dono: com uma entrega em falta, o aviso (e sem ganho); com as duas, sem aviso e +82 €;
+interface e bateria iguais.
+

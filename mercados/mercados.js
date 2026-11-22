@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.51.0';
+    const VERSION = '4.51.1';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1794,12 +1794,13 @@
     function pprSnap() {
         loadPPR();
         const P = cfg.ppr || {}, l = pprAtivos(), s = PPRD && PPRD.f && (PPRD.f['7615'] || PPRD.f['7614']), ed = st.fold['ppr-ed'];
-        // 4.48: com as unidades da MyFidelidade muito longe das dos prémios registados (mais de 5 % no valor), falta (ou sobra)
+        // 4.48: com as unidades da MyFidelidade longe das dos prémios registados (4.51.1: mais de 2 % no valor; com tudo certo,
+        // a diferença fica abaixo de 0,1 % — 5 % deixava passar uma entrega de 100 € esquecida), falta (ou sobra)
         // alguma entrega: o ganho ficava errado — diz-se o que falta e o ganho não se mostra
         let aviso = '';
         if (+P.ur > 0 || +P.uc > 0) {
             const vr = l.reduce((a, x) => a + x.px * x.b.reduce((q, r) => q + r[2], 0), 0), vc = l.reduce((a, x) => a + x.px * x.u0, 0), dv = vr - vc;
-            if (vc > 0 && Math.abs(dv) > 0.05 * vc) aviso = dv > 0
+            if (vc > 0 && Math.abs(dv) > 0.02 * vc) aviso = dv > 0
                 ? `As unidades que escreveste valem mais ${fmtPx(dv, { decimals: 0 }, 'EUR')} do que dão os prémios registados: falta alguma entrega extra? Junta-a em «O teu PPR» para veres o investido e o ganho certos.`
                 : `As unidades que escreveste valem menos ${fmtPx(-dv, { decimals: 0 }, 'EUR')} do que dão os prémios registados: confirma-as na MyFidelidade («Carteira do seguro», as UP de cada componente) — ou falhou algum prémio.`;
         }
