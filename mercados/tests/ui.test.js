@@ -791,6 +791,27 @@ function proxyBody(u) {
     assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['Hoje'], 'em cima, só o de hoje');
     assert.match((await page.locator('.pf .pf-st .pf-c').allTextContents()).join(' | '), /^Hoje[+−][\d\s ]+,\d\d\s€[+−]?\d+,\d\d%$/);
     assert.ok(await page.locator('.pf .pf-st').evaluate((e) => e.getBoundingClientRect().height < 26), 'numa linha');
+    // 4.56: com o último preço do FTSE de há 3 dias (a bolsa fechada), o «Hoje» é só o que mexeu (a cripto) e diz «bolsa
+    // fechada»; a linha do FTSE diz o dia da variação
+    {
+        const t3 = Math.floor(Date.now() / 1000) - 3 * 86400;
+        const antes = await page.evaluate((t) => { const mk = window.__mk, v = []; for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) { v.push([s, mk.Q[s].time]); mk.Q[s].time = t; } mk.cfg.perA = '1d'; mk.render(); return v; }, t3);
+        await page.waitForSelector('.pf .pf-fech');
+        const r = await page.evaluate(() => { const p = window.__mk.pfSnap(), f = p.ativos.find((a) => a.k === 'VWCE.DE'), h = p.ativos.reduce((s, a) => (Number.isFinite(a.ch) && a.ch > -100 && a.q > 0 ? s + a.q * a.px - (a.q * a.px) / (1 + a.ch / 100) : s), 0);
+            return { ch: f.ch, fech: p.fech, h, txt: document.querySelector('.pf .pf-st .pf-c b').textContent, dia: (document.querySelector('.row[data-key="VWCE.DE"] .chg-dia') || {}).textContent }; });
+        assert.equal(r.ch, 0, 'o FTSE não mexeu hoje');
+        assert.equal(r.fech, 1);
+        const eurS = (x) => (x >= 0 ? '+' : '−') + new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.abs(x));
+        assert.equal(r.txt.replace(/\s/g, ' '), eurS(r.h).replace(/\s/g, ' '), 'o «Hoje» é a soma do que mexeu hoje');
+        assert.equal(r.dia, ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'][new Date(t3 * 1000).getDay()], 'a linha diz o dia');
+        // com o preço de agora (a bolsa aberta), volta a contar no «Hoje», sem «bolsa fechada» nem o dia na linha
+        await page.evaluate(() => { const mk = window.__mk, t = Math.floor(Date.now() / 1000); for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) mk.Q[s].time = t; mk.render(); });
+        await page.waitForFunction(() => !document.querySelector('.pf .pf-fech'), null, { timeout: 3000 });
+        assert.ok(await page.evaluate(() => { const f = window.__mk.pfSnap().ativos.find((a) => a.k === 'VWCE.DE'); return Number.isFinite(f.ch) && f.ch !== 0; }), 'o FTSE volta a contar');
+        assert.equal(await page.locator('.row[data-key="VWCE.DE"] .chg-dia').count(), 0, 'sem o dia');
+        await page.evaluate((v) => { const mk = window.__mk; for (const [s, t] of v) mk.Q[s].time = t; mk.render(); }, antes);
+        console.log('✓ «Hoje» só com o que mexeu hoje (a bolsa fechada fica de fora) e o dia na linha');
+    }
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
     // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com
     // as moedas debaixo dela e o total — o investido total é a soma do que custou cada um

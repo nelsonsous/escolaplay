@@ -41,7 +41,8 @@
   # a hora do último preço, ou fora de horas (pré/pós, a abertura estimada) com a cor da variação (a.tt)
   Se ha t `<span class="r-t{ Se eh a.tt $"up" " up" }{ Se eh a.tt $"down" " down" }">{ esc t }</span>`
   ? || == tipo px 0 == tipo px 1 `<span class="px skel">0000,00</span>` `<span class="px">{ pn_preco px a a.cur }</span>`
-  `{ ln_chg a.pc }</div></button></div>` }
+  # 4.56: no 1D, a variação de um dia que não é hoje (a bolsa fechada) leva o dia
+  `{ ln_chg a.pc }{ Se ha a.dia `<small class="chg-dia">{ esc a.dia }</small>` }</div></button></div>` }
 # o card(): a unidade ("por barril") e, na energia por litro, o €/L sem impostos
 : pn_card i>i a {
   = u a.unit = l a.pl
@@ -596,6 +597,8 @@
       # numa linha: o de hoje e, fora do 1D, o do período (o ganho no total está no Total da tabela, em baixo — 4.38.4)
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
       pn_casa 1 dd dp 1
+      # 4.56: com a bolsa fechada, o «Hoje» é só o que mexeu (a cripto)
+      Se ha p.fech `<small class="pf-fech">bolsa fechada</small>`
       Se && ~ d1 ~ tu pn_casa 2 pc pc 0
       "</span>"
       # o gráfico do período: o valor e o investido a tracejado

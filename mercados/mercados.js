@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.55.0';
+    const VERSION = '4.56.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -227,6 +227,10 @@
         return x.concat(g.filter((p) => p[0] > lx));
     }
     // o negócio mais recente das outras bolsas alemãs do fundo (na mesma moeda), com o símbolo
+    // 4.56: o último preço é de hoje? A cripto mexe sempre; a bolsa, ao fim de semana (ou antes de abrir), não — e o dia dele
+    const diaLocal = (t) => { const d = new Date(t * 1000); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+    const mexeuHoje = (k, q) => (REG[k] && REG[k].kind === 'crypto') || !fin(+(q || {}).time) || diaLocal(+q.time) >= todayLocal();
+    const diaDe = (t) => { const d = diaLocal(t); return d === isoMais(todayLocal(), -1) ? 'ontem' : ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'][new Date(d + 'T12:00:00Z').getUTCDay()]; };
     function liveOf(k) {
         const a = REG[k], q0 = Q[k];
         let best = null;
@@ -1368,11 +1372,13 @@
         if (!comp.length) return null;
         loadLong(comp);
         const ti = pfInicio();
-        return { now: now() / 1000, t0: ti, dl: ti ? dmy(new Date(ti * 1000).toISOString().slice(0, 10)) : '', ativos: keys.map((k) => {
+        // 4.56: o «Hoje» conta só o que mexeu hoje (a bolsa fechada não mexeu: a variação do último dia fica na linha do ativo)
+        const fech = keys.some((k) => REG[k].kind !== 'crypto' && posOf(k).q > 0 && !mexeuHoje(k, qv(k))) ? 1 : 0;
+        return { now: now() / 1000, t0: ti, fech, dl: ti ? dmy(new Date(ti * 1000).toISOString().slice(0, 10)) : '', ativos: keys.map((k) => {
             const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k, cfg.per);
             // o nome curto (o símbolo na cripto; sem a moeda, o «(Acc)» e o «UCITS ETF» nos fundos)
             const nm = REG[k].kind === 'crypto' ? REG[k].sym : nameOf(k).replace(/\s*\(.*\)\s*$/, '').replace(/\s+(USD|EUR|UCITS|ETF|Acc|Dist)\b.*$/i, '').trim() || k;
-            return { k, nm, cr: REG[k].kind === 'crypto', px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: q.changePct,
+            return { k, nm, cr: REG[k].kind === 'crypto', px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: mexeuHoje(k, q) ? q.changePct : 0,
                 s: (pd.series || []).filter((x) => fin(x[1])).map(([t, v]) => [t, v * f]) };
         }) };
     }
@@ -1982,6 +1988,7 @@
                 const my = mine.includes(k), cl = my ? claudeFor(k) : null, dec = my && !cl && ad ? decOf(k) : null, tg = pxTag(k, q);
                 return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), unit: a.unit, dec: a.decimals, pts: a.points,
                     px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k, perA()).pct, t: tg.t, tt: tg.tt,
+                    dia: perA() === '1d' && fin(+q.time) && !mexeuHoje(k, q) ? diaDe(+q.time) : '',
                     pl: a.perLitre && Q[k] ? A.usdGalToEurL(Q[k].price, eu) : undefined, mkt: mktOf(k), nr: rank ? rank.get(nameOf(k)) : undefined,
                     an: r ? { d: d ? { dd: d.dd, score: d.score } : d, adv: ad ? { key: ad.key, action: ad.action } : ad, L: h ? (h.long || h.mid || {}).score : undefined } : r,
                     cl: cl ? { key: cl.key, action: cl.action } : cl, dk: dec ? dec.key : undefined, tax: my && a.kind === 'crypto' ? taxLine(k) : undefined };
@@ -3548,7 +3555,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas

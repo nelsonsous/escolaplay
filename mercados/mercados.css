@@ -943,4 +943,7 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .ppr-anos { margin: 4px 0 12px; }
 .ppr-anos td small { display: block; color: var(--muted); font-size: calc(.74rem * var(--k)); }
 .ppr-anos .ppr-tot td { border-top: 1px solid var(--line); font-weight: 650; }
+/* 4.56: o dia de uma variação que não é de hoje (a bolsa fechada), e o aviso no «Hoje» do cartão */
+.r-px .chg-dia { display: block; color: var(--muted); font-size: calc(.7rem * var(--k)); line-height: 1.1; }
+.pf .pf-fech { color: var(--muted); font-size: calc(.72rem * var(--k)); white-space: nowrap; }
 
