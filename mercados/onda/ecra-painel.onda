@@ -37,6 +37,8 @@
   ln_ico k a.name ? eh a.kind $"crypto" a.sym 0 0
   `<div class="r-main"><div class="r-name">{ esc a.name }</div>`
   ? == md 2 pn_meu a Se == md 1 pn_card a
+  # 4.61: a sessão (fora a cripto): ● aberta até quando, ou ○ quando abre
+  Se ha a.ses `<div class="r-ses{ Se ha a.on " on" }">{ esc a.ses }</div>`
   `</div><canvas class="spark" data-key="{ esc k }"></canvas><div class="r-px num">`
   # a hora do último preço, ou fora de horas (pré/pós, a abertura estimada) com a cor da variação (a.tt)
   Se ha t `<span class="r-t{ Se eh a.tt $"up" " up" }{ Se eh a.tt $"down" " down" }">{ esc t }</span>`

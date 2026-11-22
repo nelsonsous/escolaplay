@@ -3637,3 +3637,18 @@ fora de horas, pelo valor de cada um, e o que dá em euros, a verde ou a vermelh
 **Verificado.** Interface: com a bolsa fechada e o FTSE com lote, o cartão mostra a abertura estimada igual à da linha do
 FTSE (só ele fora de horas), com a cor certa.
 
+## Iteração (Mercados 4.61.0, conector 1.18.0): aberta ou fechada, e quando abre
+
+**Pedido.** «Podia perceber quando está on ou off cada objeto (ação ou assim), e quando abre, e o futuro ou a previsão
+quando está fechada.»
+
+**Feito.** O conector passa a dar, com cada cotação, a sessão normal da bolsa (a de hoje ou a última) e o fuso. Na app,
+por baixo do nome de cada ação, fundo, índice ou energia: «● aberta até 17:30» ou «○ abre seg. às 08:00» (hoje, amanhã ou o
+dia), à mesma hora local da bolsa, sem o fim de semana (pelo fim da sessão: os futuros abrem ao domingo à noite) e com a
+mudança da hora pelo meio; os futuros seguem a CME (de domingo às 18 h a sexta às 17 h de Nova Iorque, com a pausa diária
+— o Yahoo dá o dia inteiro). A previsão, fechada, continua à direita («abre ≈ +0,4%», nos teus; pré/pós nos dos EUA).
+
+**Verificado.** Conector: a sessão e o fuso (e sem eles). Painel (Onda): a linha da sessão igual à da app, e nenhuma na
+cripto. Interface: aberta, antes de abrir, depois de fechar, de sexta para segunda, a hora de verão pelo meio, os futuros ao
+domingo; na linha do FTSE, aberta até quando e fechada quando abre.
+

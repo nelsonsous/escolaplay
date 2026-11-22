@@ -38,7 +38,7 @@
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
 import { pdfTexto, parseFuturo, FUT_ANOS, FUT_REND, FUT_INI } from './futuro.js';
 
-const VERSION = '1.17.0';
+const VERSION = '1.18.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -139,6 +139,9 @@ export function parseChart(data, range, adj) {
         low52: round(m.fiftyTwoWeekLow),
         time: m.regularMarketTime || (series.length ? series[series.length - 1][0] : null),
         open: reg ? now >= reg.start && now < reg.end : null,
+        // 1.18.0: a sessão normal da bolsa (a de hoje ou a última) e o fuso dela — a app diz até quando está aberta ou quando abre
+        sess: reg && Number.isFinite(reg.start) && Number.isFinite(reg.end) ? [reg.start, reg.end] : null,
+        tz: m.exchangeTimezoneName || null,
         series,
     };
 }

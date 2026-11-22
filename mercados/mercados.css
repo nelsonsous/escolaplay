@@ -952,4 +952,8 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .fut-x small { color: var(--muted); font-size: calc(.74rem * var(--k)); white-space: nowrap; }
 /* 4.60: a abertura estimada da bolsa, no cartão da carteira (por baixo do «Hoje») */
 .pf .pf-abre { display: block; margin-top: 2px; font-size: calc(.8rem * var(--k)); font-weight: 600; }
+/* 4.61: a sessão de cada ativo, por baixo do nome: ● aberta até quando / ○ quando abre */
+.r-ses { color: var(--muted); font-size: calc(.72rem * var(--k)); line-height: 1.3; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-ses::before { content: '○ '; }
+.r-ses.on::before { content: '● '; color: var(--up); }
 

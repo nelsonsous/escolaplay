@@ -320,6 +320,10 @@ function verificar({ de, ate, seed }) {
                 const t = row.querySelector('.r-t');
                 if ((t ? t.textContent : null) !== (x.t ? txt(x.t) : null)) erro(`${k}: a hora ${t && t.textContent} em vez de ${x.t}`);
                 if (x.t) T.hora++;
+                // 4.61: a sessão (fora a cripto): aberta até quando, ou quando abre
+                const se = row.querySelector('.r-ses');
+                if ((se ? se.textContent : null) !== (x.ses ? txt(x.ses) : null) || (se && se.classList.contains('on') !== !!x.on)) erro(`${k}: a sessão ${se && se.outerHTML} em vez de ${x.ses}`);
+                if (a.kind === 'crypto' && se) erro(`${k}: a cripto com sessão`);
                 const px = row.querySelector('.r-px .px');
                 const skel = q.price == null;
                 if (skel) T.skel++;
