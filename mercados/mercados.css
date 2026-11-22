@@ -928,4 +928,9 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 /* 4.47: o PPR Evoluir — as componentes são linhas para ler (não abrem a ficha) */
 .ppr .row { cursor: default; }
 .ppr .row:active { background: none; }
+/* 4.48: as entregas extra do PPR (data, valor e ✕) e o aviso quando a MyFidelidade não bate com os prémios */
+.ppr-x { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.ppr-x > span { flex: 1; min-width: 0; }
+.ppr .ppr-junta { margin: 8px 0 4px; }
+.ppr .ppr-av { color: var(--down); }
 

@@ -145,7 +145,10 @@ Na Carteira, abaixo de «A tua carteira»: quanto vale hoje o PPR Evoluir, o gan
 1.º prémio (o valor e o investido) e as duas componentes (Proteção e Dinâmico) com as unidades e o valor de cada uma. Em
 «O teu PPR» escreve-se desde quando se paga, quanto por mês e quanto vai para o Dinâmico (fica só no iPhone). Em cada mês,
 no dia de «Desde», o prémio divide-se pelas duas componentes e compra unidades ao valor do dia útil seguinte (como a
-Fidelidade fez com o 1.º prémio); para acertar, as unidades de hoje da MyFidelidade corrigem a conta na mesma proporção.
+Fidelidade fez com o 1.º prémio); as entregas extra (além do mensal) juntam-se com a data e o valor (4.48.0) — com as unidades da MyFidelidade, a divisão
+delas é a que as faz bater (pode não ser a do plano). Para acertar, as unidades de hoje da
+MyFidelidade corrigem a conta na mesma proporção; se ficarem longe (mais de 5 % no valor) dos prémios registados, falta
+alguma entrega: a app di-lo e não mostra o ganho, que ficaria errado.
 Os valores diários das unidades vêm do site da Fidelidade pelo conector (`/ppr`, públicos, em cache 3 h).
 
 ## Dados e limites

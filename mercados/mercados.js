@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.47.0';
+    const VERSION = '4.48.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1745,22 +1745,48 @@
             if (d > hj) break;
             datas.push(d);
         }
+        // 4.48: as entregas extra (além do mensal): com a divisão do plano ou, com as unidades da MyFidelidade, com a que as faz
+        // bater (uma entrega extra pode ter outra divisão: a parte de uma componente é o que sobra depois dos prémios do mês)
+        const ex = (Array.isArray(P.ex) ? P.ex : []).filter((x) => Array.isArray(x) && ISO_D.test(x[0] || '') && x[0] <= hj && +x[1] > 0);
+        const prem = datas.map((d) => [d, pm, 0]).concat(ex.map((x) => [x[0], +x[1], 1])).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+        const vu = (s, d) => (s.find((r) => r[0] > d) || s[s.length - 1])[1];
+        let dx = din;
+        for (const [c, dyn, real] of [['7614', 0, +P.ur], ['7615', 1, +P.uc]]) {
+            const s = PPRD.f[c], pa = dyn ? din : 1 - din;
+            if (!(real > 0) || !ex.length || !Array.isArray(s) || !s.length) continue;
+            const uMes = datas.reduce((a, d) => a + (pm * pa) / vu(s, d), 0), uEx = ex.reduce((a, x) => a + +x[1] / vu(s, x[0]), 0);
+            const q = Math.min(1, Math.max(0, (real - uMes) / uEx));
+            dx = dyn ? q : 1 - q;
+            break;
+        }
         const ts = (iso) => Date.parse(iso + 'T12:00:00Z') / 1000;
         return PPR_F.map(([c, name, dyn]) => {
-            const s = PPRD.f[c], parte = dyn ? din : 1 - din;
-            if (!Array.isArray(s) || !s.length || !(parte > 0) || !datas.length) return null;
-            const b = datas.map((d) => { const x = s.find((r) => r[0] > d) || s[s.length - 1]; return [ts(d), pm * parte, (pm * parte) / x[1]]; });
-            // acertar com a Fidelidade: as unidades de hoje (as da MyFidelidade) corrigem a conta, na mesma proporção
+            const s = PPRD.f[c];
+            if (!Array.isArray(s) || !s.length || !prem.length) return null;
+            const b = prem.map(([d, e, x]) => { const pa = dyn ? (x ? dx : din) : 1 - (x ? dx : din); return [ts(d), e * pa, (e * pa) / vu(s, d)]; }).filter((r) => r[1] > 0);
+            if (!b.length) return null;
+            // acertar com a Fidelidade: as unidades de hoje (as da MyFidelidade) corrigem a conta, na mesma proporção (u0: as da conta)
             const real = +(dyn ? P.uc : P.ur), u = b.reduce((a, r) => a + r[2], 0);
             if (real > 0 && u > 0) for (const r of b) r[2] *= real / u;
-            return { k: 'ppr:' + c, name, px: s[s.length - 1][1], h: s.map((r) => [ts(r[0]), r[1]]), b };
+            return { k: 'ppr:' + c, name, px: s[s.length - 1][1], h: s.map((r) => [ts(r[0]), r[1]]), b, u0: u };
         }).filter(Boolean);
     }
     function pprSnap() {
         loadPPR();
         const P = cfg.ppr || {}, l = pprAtivos(), s = PPRD && PPRD.f && (PPRD.f['7615'] || PPRD.f['7614']), ed = st.fold['ppr-ed'];
-        return { now: now() / 1000, ativos: l, at: l.length && s ? dmy(s[s.length - 1][0]) : '', loading: pprVai && !l.length ? 1 : 0, erro: l.length ? '' : pprErr,
-            ed: (ed === undefined ? !l.length : ed) ? 1 : 0, cfg: { de: P.de || '', pm: +P.pm || 0, din: +P.din || 0, ur: +P.ur || 0, uc: +P.uc || 0 } };
+        // 4.48: com as unidades da MyFidelidade muito longe das dos prémios registados (mais de 5 % no valor), falta (ou sobra)
+        // alguma entrega: o ganho ficava errado — diz-se o que falta e o ganho não se mostra
+        let aviso = '';
+        if (+P.ur > 0 || +P.uc > 0) {
+            const vr = l.reduce((a, x) => a + x.px * x.b.reduce((q, r) => q + r[2], 0), 0), vc = l.reduce((a, x) => a + x.px * x.u0, 0), dv = vr - vc;
+            if (vc > 0 && Math.abs(dv) > 0.05 * vc) aviso = dv > 0
+                ? `A MyFidelidade tem mais ${fmtPx(dv, { decimals: 0 }, 'EUR')} do que dão os prémios registados: falta alguma entrega extra? Junta-a em «O teu PPR» para veres o investido e o ganho certos.`
+                : `A MyFidelidade tem menos ${fmtPx(-dv, { decimals: 0 }, 'EUR')} do que dão os prémios registados: falhou algum mês, ou há uma entrega a mais? Corrige em «O teu PPR».`;
+        }
+        const x = st.pprx || {};
+        return { now: now() / 1000, ativos: l, at: l.length && s ? dmy(s[s.length - 1][0]) : '', loading: pprVai && !l.length ? 1 : 0, erro: l.length ? '' : pprErr, aviso,
+            ed: (ed === undefined ? !l.length : ed) ? 1 : 0, cfg: { de: P.de || '', pm: +P.pm || 0, din: +P.din || 0, ur: +P.ur || 0, uc: +P.uc || 0 },
+            ex: (Array.isArray(P.ex) ? P.ex : []).map((e) => ({ d: String(e[0] || ''), l: ISO_D.test(e[0] || '') ? dmy(e[0]) : '?', e: +e[1] || 0 })), xd: x.d || '', xe: x.e || '' };
     }
     // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
     function regSnap() {
@@ -3075,6 +3101,30 @@
                 break;
             }
             // 4.45: ✕ apaga o valor escrito nessa data (volta à sugestão)
+            // 4.48: uma entrega extra do PPR (além do mensal): a data e o valor; ✕ apaga
+            case 'ppr-add': {
+                const x = { ...(st.pprx || {}) }, fd = $('[data-pprx="d"]'), fe = $('[data-pprx="e"]');
+                if (fd && fd.value) x.d = fd.value;
+                if (fe && String(fe.value).trim()) x.e = fe.value;
+                const dia = String(x.d || ''), v = numPt(String(x.e || '').trim() || 'x');
+                if (!(ISO_D.test(dia) && dia <= todayLocal())) { toast('Escolhe a data da entrega (até hoje).'); break; }
+                if (!(v > 0)) { toast('Escreve o valor da entrega em euros.'); break; }
+                const antes = (cfg.ppr || {}).ex;
+                cfg.ppr = { ...(cfg.ppr || {}), ex: [...(antes || []), [dia, Math.round(v * 100) / 100]].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)) };
+                st.pprx = {}; saveCfg();
+                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                render();
+                toast(`Entrega extra de ${fmtPx(v, { decimals: 2 }, 'EUR')} a ${dmy(dia)}`, () => { cfg.ppr = { ...(cfg.ppr || {}), ex: antes }; saveCfg(); render(); });
+                break;
+            }
+            case 'ppr-rm': {
+                const antes = (cfg.ppr || {}).ex || [], i = +d.i;
+                if (!(i >= 0 && i < antes.length)) break;
+                const [dia, v] = antes[i];
+                cfg.ppr = { ...(cfg.ppr || {}), ex: antes.filter((_, j) => j !== i) }; saveCfg(); render();
+                toast(`Apagada a entrega de ${fmtPx(+v, { decimals: 2 }, 'EUR')} a ${dmy(dia)}`, () => { cfg.ppr = { ...(cfg.ppr || {}), ex: antes }; saveCfg(); render(); });
+                break;
+            }
             case 'pp-rm': {
                 const k = (st.reg || {}).k, L0 = lotOf(k), tp = d.tp, dia = d.d;
                 if (!REG[k] || !temHoje(L0) || !PP_MAPA[tp] || !ISO_D.test(dia || '')) break;
@@ -3161,6 +3211,7 @@
             return;
         }
         // 4.47: o PPR Evoluir — desde, € por mês, % no Dinâmico e, para acertar com a Fidelidade, as unidades de hoje
+        if (t.dataset && t.dataset.pprx) { st.pprx = { ...(st.pprx || {}), [t.dataset.pprx]: t.value }; return; }
         if (t.dataset && t.dataset.ppr) {
             const f = t.dataset.ppr, P = { ...(cfg.ppr || {}) }, txt = String(t.value || '').trim();
             if (!['de', 'pm', 'din', 'ur', 'uc'].includes(f)) return;

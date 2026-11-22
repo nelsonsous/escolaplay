@@ -3438,3 +3438,21 @@ dono (desde, € por mês, % no Dinâmico, unidades) fica só no iPhone.
 **Verificado.** Conector: `/ppr` com os valores da Fidelidade (testes do conector 28/28; publicado, 1.15.0); Carteira: as
 contas da secção conferidas com uma conta independente; interface: escrever o PPR, a secção e o acerto das unidades.
 
+## Iteração (Mercados 4.48.0): as entregas extra do PPR, e sem ganho falso
+
+**Pedido.** As capturas da MyFidelidade: saldo de 2431,52 € (9,87 UP na Proteção, 10,43 UP no Dinâmico) — a app dava
+1767 € só com os 100 € por mês.
+
+**Visto.** As unidades reais são 2,999 UP e 2,594 UP a mais do que as dos 17 prémios: cerca de 620 a 665 € de entregas
+extra (conforme a data), divididas quase a meias. E o acerto da 4.47 escalava as unidades sem mexer no investido: o ganho
+ficava inflacionado (+731 € em vez de cerca de +90 €).
+
+**Feito.** Em «O teu PPR», as entregas extra (data e valor; ✕ apaga, com desfazer), que entram nas contas como os prémios
+do mês (ao valor do dia útil seguinte); a divisão delas é a do plano ou, com as unidades da MyFidelidade, a que as faz
+bater (na Proteção, o que sobra depois dos prémios do mês — no exemplo, quase a meias, e cada componente fica com o seu
+ganho certo). Com as unidades da MyFidelidade a mais de 5 % do valor dos
+prémios registados, a secção diz quanto falta (ou sobra) e não mostra o ganho nem o por ano.
+
+**Verificado.** Carteira: a lista das entregas e o aviso (sem ganho); interface: juntar e apagar uma entrega (o investido e
+as unidades dela), o aviso com as unidades longe e o acerto pequeno sem aviso.
+
