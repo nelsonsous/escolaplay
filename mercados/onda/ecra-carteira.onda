@@ -440,7 +440,8 @@
 
 # 4.51: o Fundo Viva (Futuro) — as tuas UP × o valor da UP de cada dia (do PDF da Futuro, pelo conector). r: { at, loading,
 # erro, ed, cfg: {up}, vv, up, ytd, pts: [{x, y}], hits: [{x, w, cx, tx}], lo, hi, d0; 4.58: anos: [{l, g, p, tp}] (o teu
-# dinheiro em cada ano), gL, gV, pa (o ganho e por ano), semN, meus: [{a, v, c}] (os teus anos), xa, xv, xc }
+# dinheiro em cada ano; est: estimado), gL, gV, gE, pa (o ganho e por ano), semN, estN, meus: [{a, v, c}] (os teus anos), xa,
+# xv, xc; 4.59: cfg.desde (o ano) }
 : cr_futg i>i r {
   `<svg class="sim-g real-g" viewBox="0 0 340 208" role="img" aria-label="Evolução do Fundo Viva: arrasta para ver cada data">`
   `<path class="real-a" d="M34 186` = c pri r.pts
@@ -476,7 +477,7 @@
     # 4.58: o teu dinheiro — o ganho desde o 1.º dos teus anos e, por ano, o que cresceu
     Se ha r.gL {
       = g num r.gV = p num r.pa
-      `<div><small>{ esc r.gL }</small><b class="num { ? >= g 0.0 "up-t" "down-t" }">{ cr_eursg g }</b></div>`
+      `<div><small>{ esc r.gL }</small><b class="num { ? >= g 0.0 "up-t" "down-t" }">{ Se ha r.gE "≈ " }{ cr_eursg g }</b></div>`
       `<div><small>Por ano</small><b class="num { ? >= p 0.0 "up-t" "down-t" }">{ cr_pc p }</b></div>` }
     "</div>"
     # 4.58: ano a ano — o que cresceu o teu dinheiro em cada ano, em € e em % (o mais recente primeiro); sem os teus anos, a frase
@@ -485,14 +486,16 @@
       `<div class="ppr-anos fut-anos"><small class="real-gt">Ano a ano (o teu dinheiro)</small><table class="sim-tab"><tbody>`
       W a {
         = g num a.g
-        `<tr><td>{ esc a.l }</td><td class="num"><b class="{ ? >= g 0.0 "up-t" "down-t" }">{ cr_eursg g }</b>{ Se ha a.tp `<small>{ cr_pc num a.p }</small>` }</td></tr>`
+        `<tr><td>{ esc a.l }</td><td class="num"><b class="{ ? >= g 0.0 "up-t" "down-t" }">{ Se ha a.est "≈ " }{ cr_eursg g }</b>{ Se ha a.tp `<small>{ cr_pc num a.p }</small>` }</td></tr>`
         = a seg a }
-      `</tbody></table><p class="note">Em cada ano: o valor a 31/12, menos o do ano anterior, menos o que entrou. A % é sobre o que lá tinhas (o que entrou conta a meio do ano).</p></div>` } {
+      `</tbody></table><p class="note">Em cada ano: o valor a 31/12, menos o do ano anterior, menos o que entrou. A % é sobre o que lá tinhas (o que entrou conta a meio do ano).</p>{ Se ha r.estN `<p class="note fut-est">{ esc r.estN }</p>` }</div>` } {
       Se ha r.semN `<p class="note fut-sem">{ esc r.semN }</p>` }
     # 4.55: as comissões do fundo
     Se ha r.custos `<p class="note fut-custos">{ esc r.custos }</p>` }
   `<details class="how fut-ed" data-fold="fut-ed"{ Se ha r.ed " open" }><summary>O teu Fundo Viva</summary><div class="real-in">`
-  `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label></div>`
+  `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label>`
+  # 4.59: desde que ano — o ano a ano e o gráfico (os anos sem os teus valores, estimados)
+  `<label><small>Desde (ano)</small><input class="inp" type="text" inputmode="numeric" autocomplete="off" data-fut="desde" value="{ cr_campo c $"desde" 0 }" placeholder="ano"></label></div>`
   # 4.58: os teus anos (da Declaração de Benefícios de Reforma), cada um com ✕; e a linha para juntar outro (o rascunho em xa, xv, xc)
   `<small class="real-gt">Os teus anos (da Declaração de Benefícios de Reforma)</small>`
   = m pri r.meus = i 0

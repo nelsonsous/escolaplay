@@ -598,6 +598,21 @@ function proxyBody(u) {
             await page.click('section.fut .fut-x [data-act="fut-rm"] >> nth=0');
             await page.waitForFunction(() => window.__mk.cfg.fut.anos.length === 2, null, { timeout: 3000 });
             assert.deepEqual(await page.locator('section.fut .fut-anos tr td:first-child').allTextContents(), ['2026 (até hoje)', '2025']);
+            // 4.59: «Desde (ano)» — com 2024, o 2024 (sem o valor de 31/12/2023) estima-se (≈): as UP de 31/12/2024 × o que o
+            // valor da UP subiu; o gráfico começa a 31/12/2023
+            const ds = page.locator('section.fut [data-fut="desde"]');
+            await ds.fill('2024'); await ds.evaluate((e) => e.blur());
+            await page.waitForFunction(() => (window.__mk.cfg.fut || {}).desde === 2024, null, { timeout: 3000 });
+            await page.waitForFunction(() => document.querySelectorAll('section.fut .fut-anos tr').length === 3, null, { timeout: 3000 });
+            const g24 = (9600 / 17.0496) * (17.0496 - 16.1857);
+            assert.equal(sp(await page.locator('section.fut .fut-anos tr').nth(2).textContent()), sp(`2024≈ ${eur0(g24)}${pc1(17.0496 / 16.1857 - 1)}`), '2024 estimado');
+            assert.match(await page.locator('section.fut .fut-est').textContent(), /as de 31\/12\/2024/);
+            assert.match(sp(await page.locator('section.fut .sim-st').textContent()), /Ganho desde 2024≈ \+/);
+            assert.equal(await page.locator('section.fut .sim-t').nth(2).textContent(), '12/2023');
+            if (SHOTS) await page.locator('section.fut').screenshot({ path: path.join(SHOTS, '8j3-fundo-viva-desde-ano.png') });
+            await ds.fill(''); await ds.evaluate((e) => e.blur());
+            await page.waitForFunction(() => !('desde' in (window.__mk.cfg.fut || {})), null, { timeout: 3000 });
+            await page.waitForFunction(() => document.querySelectorAll('section.fut .fut-anos tr').length === 2, null, { timeout: 3000 });
             await page.evaluate(() => { delete window.__mk.cfg.fut.anos; window.__mk.render(); });
             await page.waitForSelector('section.fut .fut-sem');
             console.log('✓ Fundo Viva: o teu dinheiro ano a ano (os teus anos da declaração) e o ganho por ano');

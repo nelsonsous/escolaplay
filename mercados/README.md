@@ -140,6 +140,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## O Fundo Viva desde o ano que escolhes (4.59.0)
+
+Em «O teu Fundo Viva», «Desde (ano)»: o ano a ano e o gráfico começam nesse ano. Os anos sem os teus valores da declaração
+estimam-se (≈): as tuas UP (as do 31/12 seguinte que puseste, ou as de hoje) × o que o valor da UP subiu nesse ano, sem as
+contribuições; com o valor a 31/12 da declaração desse ano e do anterior, ficam exatos. Sem «Desde», como na 4.58.0.
+
 ## O Fundo Viva: o que cresceu o teu dinheiro em cada ano (4.58.0)
 
 Em «O teu Fundo Viva», além das UP, juntam-se os teus anos, da Declaração de Benefícios de Reforma: o valor a 31/12 e as

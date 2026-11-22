@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.58.0';
+    const VERSION = '4.59.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1891,41 +1891,57 @@
     }
     // 4.51: o Fundo Viva — as tuas UP × o valor da UP de cada data (os fins de ano dos relatórios e os dias guardados): vale
     // hoje, este ano e o gráfico (já em coordenadas do desenho: 34..330 × 186..14). 4.58: com os teus anos (da Declaração de
-    // Benefícios de Reforma: o valor a 31/12 e as contribuições de cada ano), o que cresceu o teu dinheiro em cada ano
+    // Benefícios de Reforma: o valor a 31/12 e as contribuições de cada ano), o que cresceu o teu dinheiro em cada ano. 4.59:
+    // desde o ano que escolhes; os anos sem os teus valores estimam-se (as tuas UP × o que o valor da UP subiu)
     function futAnos() {
         const l = (cfg.fut || {}).anos, n = (x) => (x === null || x === undefined || x === '' || !(+x >= 0) ? null : +x);
         return (Array.isArray(l) ? l : []).filter((r) => Array.isArray(r) && +r[0] >= 1992).map((r) => [+r[0], n(r[1]), n(r[2])]).sort((a, b) => a[0] - b[0]);
     }
     function futSnap() {
         loadFUT();
-        const P = cfg.fut || {}, u = +P.up || 0, dF = FUTD && Array.isArray(FUTD.d) ? FUTD.d : [], ed = st.fold['fut-ed'], A = futAnos(), x = st.futx || {};
-        const base = { at: '', loading: futVai && !dF.length ? 1 : 0, erro: dF.length ? '' : futErr, ed: (ed === undefined ? !(u > 0 && dF.length) : ed) ? 1 : 0, cfg: { up: u }, vv: 0,
+        const P = cfg.fut || {}, u = +P.up || 0, dF = FUTD && Array.isArray(FUTD.d) ? FUTD.d : [], ed = st.fold['fut-ed'], A = futAnos(), x = st.futx || {}, dsd = Math.round(+P.desde || 0);
+        const base = { at: '', loading: futVai && !dF.length ? 1 : 0, erro: dF.length ? '' : futErr, ed: (ed === undefined ? !(u > 0 && dF.length) : ed) ? 1 : 0, cfg: { up: u, desde: dsd }, vv: 0,
             meus: A.map((r) => ({ a: String(r[0]), v: r[1] === null ? -1 : r[1], c: r[2] || 0 })), xa: x.a || '', xv: x.v || '', xc: x.c || '' };
         if (!(u > 0) || !dF.length) return base;
         const ts = (iso) => Date.parse(iso + 'T12:00:00Z') / 1000, up = dF[dF.length - 1][1], ult = dF[dF.length - 1][0], ano = +ult.slice(0, 4), vh = u * up;
-        // o teu dinheiro em cada ano: o valor no fim, menos o do início, menos o que entrou; a % é sobre o que lá tinhas (o que
-        // entrou conta a meio do ano) — deste ano (até hoje) para trás, enquanto há os valores a 31/12
+        const fimAno = (y) => { const r = dF.filter((q) => q[0] <= `${y}-12-31`).pop(); return r && r[0] >= `${y}-12-01` ? r[1] : null; }, f1 = fimAno(ano - 1);
+        // o teu dinheiro em cada ano — com os teus valores: o valor no fim, menos o do início, menos o que entrou, e a % sobre o
+        // que lá tinhas (o que entrou conta a meio do ano); sem eles (desde o ano que escolheste): as tuas UP (as do 31/12 seguinte
+        // que puseste, ou as de hoje) × o que o valor da UP subiu, sem as contribuições (≈). Sem «Desde», os anos seguidos com os
+        // teus valores, até hoje
         const V = new Map(A.filter((r) => r[1] !== null && r[0] < ano).map((r) => [r[0], r[1]])), C = new Map(A.map((r) => [r[0], r[2] || 0])), anos = [];
-        for (let y = ano; V.has(y - 1) && (y === ano || V.has(y)); y--) {
-            const v0 = V.get(y - 1), c = C.get(y) || 0, g = (y === ano ? vh : V.get(y)) - v0 - c, b = v0 + c / 2;
-            anos.push({ l: y === ano ? `${y} (até hoje)` : String(y), g: Math.round(g * 100) / 100, p: b > 0 ? g / b : 0, tp: b > 0 ? 1 : 0 });
+        const exato = (y) => V.has(y - 1) && (y === ano || V.has(y));
+        const uK = (y) => { const k = [...V.keys()].filter((q) => q >= y).sort((a, b) => a - b)[0], pk = k === undefined ? null : fimAno(k); return pk ? V.get(k) / pk : u; };
+        let y0 = dsd;
+        if (!y0) { let y = ano; while (exato(y)) y--; y0 = y + 1; }
+        for (let y = ano; y >= y0; y--) {
+            const l = y === ano ? `${y} (até hoje)` : String(y);
+            if (exato(y)) {
+                const v0 = V.get(y - 1), c = C.get(y) || 0, g = (y === ano ? vh : V.get(y)) - v0 - c, b = v0 + c / 2;
+                anos.push({ y, l, g: Math.round(g * 100) / 100, p: b > 0 ? g / b : 0, tp: b > 0 ? 1 : 0 });
+                continue;
+            }
+            const p0 = fimAno(y - 1), p1 = y === ano ? up : fimAno(y);
+            if (p0 && p1) anos.push({ y, l, g: Math.round(uK(y) * (p1 - p0) * 100) / 100, p: p1 / p0 - 1, tp: 1, est: 1 });
         }
         // desde o 1.º desses anos: o ganho e, por ano, as % encadeadas
-        const y1 = ano - anos.length + 1, nA = (ts(ult) - ts(`${y1 - 1}-12-31`)) / (365.25 * 86400);
-        const meu = anos.length && nA >= 1 ? { gL: `Ganho desde ${y1}`, gV: anos.reduce((s, a) => s + a.g, 0), pa: anos.reduce((q, a) => q * (1 + a.p), 1) ** (1 / nA) - 1 } : {};
+        const est = anos.some((a) => a.est), y1 = anos.length ? anos[anos.length - 1].y : 0, nA = y1 ? (ts(ult) - ts(`${y1 - 1}-12-31`)) / (365.25 * 86400) : 0;
+        const meu = anos.length && nA >= 1 ? { gL: `Ganho desde ${y1}`, gV: anos.reduce((s, a) => s + a.g, 0), gE: est ? 1 : 0, pa: anos.reduce((q, a) => q * (1 + a.p), 1) ** (1 / nA) - 1 } : {};
+        const kV = [...V.keys()].filter((y) => y >= y1).sort((a, b) => a - b)[0];
+        const estN = est ? `≈ estimado: as tuas UP${kV === undefined ? ' (as de hoje)' : ` (as de 31/12/${kV})`} × o que o valor da UP subiu nesse ano, sem as contribuições. Com o valor a 31/12 da declaração desse ano e do anterior, fica exato.` : '';
         const semN = anos.length ? '' : A.length ? `Para o ano a ano, junta o valor a 31/12/${ano - 1}.`
             : 'Para veres quanto cresceu o teu dinheiro em cada ano, junta os teus anos em «O teu Fundo Viva»: o valor a 31/12 e as contribuições, da Declaração de Benefícios de Reforma.';
-        // o gráfico: com os teus anos, os teus valores a 31/12 e, depois do último, as tuas UP × o valor da UP; sem eles, as UP
-        // de hoje ao longo do tempo
-        const kn = [...V.keys()].sort((a, b) => a - b), yK = kn[kn.length - 1];
-        const d = kn.length ? kn.map((y) => [`${y}-12-31`, V.get(y) / u]).concat(dF.filter((r) => r[0] > `${yK}-12-31`)) : dF;
-        const fimAno = (y) => { const r = dF.filter((q) => q[0] <= `${y}-12-31`).pop(); return r && r[0] >= `${y}-12-01` ? r[1] : null; }, f1 = fimAno(ano - 1);
+        // o gráfico: desde o 31/12 antes do 1.º ano — os teus valores ou, sem eles, as UP estimadas × o valor da UP — e, depois do
+        // último 31/12, as tuas UP × o valor da UP; sem anos, as UP de hoje ao longo do tempo
+        const yC = anos.length ? y1 - 1 : V.size ? Math.min(...V.keys()) : 0, fa = [];
+        if (yC) for (let y = yC; y < ano; y++) { if (V.has(y)) fa.push([`${y}-12-31`, V.get(y) / u]); else { const p = fimAno(y); if (p) fa.push([`${y}-12-31`, (uK(y) * p) / u]); } }
+        const d = fa.length ? fa.concat(dF.filter((r) => r[0] > fa[fa.length - 1][0])) : dF;
         const vs = d.map((r) => r[1] * u), lo0 = Math.min(...vs), hi0 = Math.max(...vs), pad = (hi0 - lo0) * 0.08 || hi0 * 0.02, lo = lo0 - pad, hi = hi0 + pad;
         const t0 = ts(d[0][0]), tf = ts(ult), X = (t) => 34 + 296 * (tf > t0 ? (t - t0) / (tf - t0) : 1), Y = (v) => 186 - (172 * (v - lo)) / (hi - lo);
         const pts = d.map((r, i) => ({ x: Math.round(X(ts(r[0])) * 10) / 10, y: Math.round(Y(vs[i]) * 10) / 10 }));
         // o dedo: um quadro por data, até a meio da vizinha
         const hits = pts.map((p, i) => { const a = i ? (pts[i - 1].x + p.x) / 2 : 34, b = i < pts.length - 1 ? (p.x + pts[i + 1].x) / 2 : 330; return { x: Math.round(a * 10) / 10, w: Math.max(0.5, Math.round((b - a) * 10) / 10), cx: p.x, tx: `${i === d.length - 1 ? 'Hoje' : dmy(d[i][0])}: ${fmtPx(vs[i], { decimals: 0 }, 'EUR')}` }; });
-        return { ...base, at: dmy(ult), vv: vh, up, ytd: anos.length ? anos[0].p : f1 ? up / f1 - 1 : 0, anos, ...meu, semN, pts, hits, lo, hi, d0: dmy(d[0][0]).slice(3), custos: FUT_CUSTOS };
+        return { ...base, at: dmy(ult), vv: vh, up, ytd: anos.length ? anos[0].p : f1 ? up / f1 - 1 : 0, anos, ...meu, semN, estN, pts, hits, lo, hi, d0: dmy(d[0][0]).slice(3), custos: FUT_CUSTOS };
     }
     // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
     function regSnap() {
@@ -3379,9 +3395,14 @@
         // 4.47: o PPR Evoluir — desde, € por mês, % no Dinâmico e, para acertar com a Fidelidade, as unidades de hoje
         // 4.51: o Fundo Viva — as tuas UP (vazio tira a secção dos números)
         if (t.dataset && t.dataset.fut) {
-            const txt = String(t.value || '').trim(), P = { ...(cfg.fut || {}) };
+            const txt = String(t.value || '').trim(), P = { ...(cfg.fut || {}) }, hj = +todayLocal().slice(0, 4);
             delete P.de;
-            if (!txt) delete P.up;
+            if (t.dataset.fut === 'desde') { // 4.59: desde que ano (o ano a ano e o gráfico)
+                const y = Math.round(numPt(txt || 'x'));
+                if (!txt) delete P.desde;
+                else if (!(y >= 2016 && y <= hj)) { toast(`Escreve o ano (de 2016 a ${hj}).`); return; }
+                else P.desde = y;
+            } else if (!txt) delete P.up;
             else { const v = numPt(txt); if (!(v > 0)) { toast('Escreve as UP (unidades) do Fundo Viva.'); return; } P.up = v; }
             cfg.fut = P; saveCfg(); loadFUT(true); render(); return;
         }
