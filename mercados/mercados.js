@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.59.0';
+    const VERSION = '4.60.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1374,7 +1374,15 @@
         const ti = pfInicio();
         // 4.56: o «Hoje» conta só o que mexeu hoje (a bolsa fechada não mexeu: a variação do último dia fica na linha do ativo)
         const fech = keys.some((k) => REG[k].kind !== 'crypto' && posOf(k).q > 0 && !mexeuHoje(k, qv(k))) ? 1 : 0;
-        return { now: now() / 1000, t0: ti, fech, dl: ti ? dmy(new Date(ti * 1000).toISOString().slice(0, 10)) : '', ativos: keys.map((k) => {
+        // 4.60: a abertura estimada da bolsa, à vista no cartão — a dos fundos e ações fora de horas (o gémeo e os futuros, a
+        // mesma da linha de cada um), pelo valor de cada um, e o que dá em euros
+        let abV = 0, abE = 0;
+        for (const k of keys) {
+            const P = REG[k].kind === 'crypto' ? null : posOf(k), pr = P && P.q > 0 ? projOf(k) : null, v = pr && fin(pr.p) ? P.q * pxEur(k) : 0;
+            if (v > 0) { abV += v; abE += (v * pr.p) / 100; }
+        }
+        const abP = abV > 0 ? (abE / abV) * 100 : 0, abL = abV > 0 ? `Abertura estimada: ${fmtPct1(abP)} (${abE >= 0 ? '+' : '−'}${fmtPx(Math.abs(abE), { decimals: 0 }, 'EUR')})` : '';
+        return { now: now() / 1000, t0: ti, fech, abL, abP, dl: ti ? dmy(new Date(ti * 1000).toISOString().slice(0, 10)) : '', ativos: keys.map((k) => {
             const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k, cfg.per);
             // o nome curto (o símbolo na cripto; sem a moeda, o «(Acc)» e o «UCITS ETF» nos fundos)
             const nm = REG[k].kind === 'crypto' ? REG[k].sym : nameOf(k).replace(/\s*\(.*\)\s*$/, '').replace(/\s+(USD|EUR|UCITS|ETF|Acc|Dist)\b.*$/i, '').trim() || k;

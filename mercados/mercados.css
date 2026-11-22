@@ -950,4 +950,6 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .fut .fut-g3 { display: grid; gap: 8px; grid-template-columns: minmax(0, .7fr) minmax(0, 1fr) minmax(0, 1fr); }
 .fut .ppr-junta { margin: 8px 0 4px; }
 .fut-x small { color: var(--muted); font-size: calc(.74rem * var(--k)); white-space: nowrap; }
+/* 4.60: a abertura estimada da bolsa, no cartão da carteira (por baixo do «Hoje») */
+.pf .pf-abre { display: block; margin-top: 2px; font-size: calc(.8rem * var(--k)); font-weight: 600; }
 
