@@ -36,8 +36,9 @@
 // para só aceitar pedidos vindos da tua app.
 
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
+import { pdfTexto, parseFuturo, FUT_ANOS } from './futuro.js';
 
-const VERSION = '1.15.0';
+const VERSION = '1.16.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -626,6 +627,34 @@ async function ppr(url) {
     return { body: { f }, ttl: 3 * 3600 };
 }
 
+// ---------- os fundos de pensões da Futuro (1.16.0): o valor da UP de cada fundo, do PDF público das cotações ----------
+// (o PDF lê-se em futuro.js); o histórico vai-se guardando no KV, um valor por dia, e começa nos fins de ano dos relatórios
+const FUT_PDF = 'https://www.futuro-sa.pt/files/cotacoes.pdf';
+async function futuro(url, env) {
+    const nomes = (url.searchParams.get('f') || 'FUNDO VIVA').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean);
+    if (!nomes.length || nomes.length > 4 || !nomes.every((x) => /^[A-Z0-9ÀÁÂÃÇÉÊÍÓÔÕÚ .-]{3,40}$/.test(x))) return { status: 400, body: { error: 'fundos inválidos' } };
+    const r = await fetch(FUT_PDF, { headers: { 'User-Agent': UA } });
+    if (!r.ok) throw new Error(`HTTP ${r.status} na Futuro`);
+    const { dia, f } = parseFuturo(await pdfTexto(new Uint8Array(await r.arrayBuffer())), nomes);
+    if (!dia || !Object.keys(f).length) return { status: 502, body: { error: 'sem valores da Futuro' } };
+    let h = {};
+    if (env.JOURNAL) {
+        try { h = (await env.JOURNAL.get('fut:h', 'json')) || {}; } catch { h = {}; }
+        let mudou = false;
+        for (const [nome, x] of Object.entries(f)) {
+            const l = Array.isArray(h[nome]) ? h[nome] : [];
+            if (!l.length || l[l.length - 1][0] < dia) { l.push([dia, x.up]); h[nome] = l.slice(-3000); mudou = true; }
+        }
+        if (mudou) await env.JOURNAL.put('fut:h', JSON.stringify(h)).catch(() => {});
+    }
+    const out = {};
+    for (const [nome, x] of Object.entries(f)) {
+        const m = new Map([...(FUT_ANOS[nome] || []), ...(h[nome] || []), [dia, x.up]]);
+        out[nome] = { up: x.up, d: [...m].sort((a, b) => (a[0] < b[0] ? -1 : 1)) };
+    }
+    return { body: { dia, f: out }, ttl: 3 * 3600 };
+}
+
 async function distritos() {
     const rows = await dgeg('GetDistritos');
     return { body: { items: (rows || []).map((r) => ({ id: r.Id, name: r.Descritivo })).sort((a, b) => a.name.localeCompare(b.name, 'pt')) }, ttl: 86400 };
@@ -862,7 +891,7 @@ async function universe(url, env) {
 }
 
 // ---------- router ----------
-const ROUTES = { '/derivs': derivs, '/ext': ext, '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal, '/ppr': ppr };
+const ROUTES = { '/derivs': derivs, '/ext': ext, '/quotes': quotes, '/news': news, '/movers': movers, '/calendar': calendar, '/consensus': consensus, '/search': search, '/fuel': fuel, '/fuel/distritos': distritos, '/fuel/municipios': municipios, '/cryptoglobal': cryptoGlobal, '/ppr': ppr, '/futuro': futuro };
 
 export default {
     async fetch(request, env = {}, ctx) {

@@ -45,6 +45,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 | `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
 | `/calendar?symbols=NVDA,EDP.LS` | próximos resultados e datas de dividendo (Yahoo) | 6 h |
+| `/futuro?f=FUNDO VIVA` | o valor da UP dos fundos de pensões da Futuro, do PDF público das cotações (desencriptado: palavra-passe vazia), com o histórico guardado no KV (um valor por dia) e os fins de ano dos relatórios (1.16.0) | 3 h |
 | `/ppr?f=7614,7615&de=AAAA-MM-DD` | o valor diário das unidades do PPR Evoluir da Fidelidade (7614 Proteção, 7615 Dinâmico), desde o dia `de` — públicos no site da Fidelidade (1.15.0) | 3 h |
 | `/derivs?c=BTC,ETH,SOL,XRP` | derivados da cripto (Deribit): a volatilidade das opções a 30 dias (BTC, ETH), o funding dos perpétuos por 8 h e a base do futuro a ~3 meses, ao ano (1.14.0) | 5 min |
 | `/ext?symbols=TSLA,NVDA` | antes da abertura e depois do fecho (ações dos EUA): `kind` (`pre`, `post` ou null com a bolsa aberta), preço, variação face ao fecho e a série de 5 min (1.13.0) | 2 min |
@@ -138,6 +139,14 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
 - `node mercados/proxy/recuperar-historico.mjs` copia o que ainda está no KV (a 16/11: 13 conselhos desde 05/11 e o diário
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
+
+## Fundo Viva (Futuro, 4.51.0 e conector 1.16.0)
+
+Na Carteira, abaixo do PPR: quanto valem hoje as tuas UP do Fundo Viva (o fundo de pensões da Futuro), quanto rendeu
+este ano e o ano passado, e o gráfico desde 2021 (os fins de ano dos relatórios da Futuro e, daí em diante, um valor por
+dia útil, guardado pelo conector). Em «O teu Fundo Viva» escrevem-se as UP (da NetFuturo, ou da Declaração de Benefícios
+de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12); ficam só no iPhone. O valor da UP vem do PDF público
+das cotações da Futuro, que o conector desencripta (palavra-passe vazia) e lê (`/futuro`).
 
 ## Poupança periódica: as listas curtas (4.49.0)
 

@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.50.0';
+    const VERSION = '4.51.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -495,11 +495,12 @@
     let PPRD = null, pprVai = false, pprErr = '', pprTry = 0;
     try { PPRD = JSON.parse(localStorage.getItem('mk:ppr') || 'null'); } catch { PPRD = null; }
     const pprDe = () => (cfg.ppr && ISO_D.test(cfg.ppr.de || '') ? isoMais(cfg.ppr.de, -10) : '');
-    async function loadPPR() {
+    async function loadPPR(force) {
         const de = pprDe();
         if (!cfg.proxy || !de || pprVai) return;
         if (PPRD && PPRD.f && PPRD.de <= de && now() - PPRD.at < 3 * 3600e3) return;
-        if (now() - pprTry < 5 * 60e3 && PPRD && PPRD.de <= de) return;
+        // (depois de uma falha, só volta a tentar 5 min depois — salvo quando mudas o PPR: force)
+        if (!force && now() - pprTry < 5 * 60e3) return;
         pprVai = true; pprTry = now();
         try {
             const r = await px(`/ppr?f=${PPR_F.map((x) => x[0]).join(',')}&de=${de}`, 20000), f = {};
@@ -509,6 +510,25 @@
             try { localStorage.setItem('mk:ppr', JSON.stringify(PPRD)); } catch { /* sem espaço: fica só em memória */ }
         } catch { pprErr = 'Não consegui ler os valores da Fidelidade agora. Tenta mais tarde.'; }
         pprVai = false;
+        if (cfg.tab === 'carteira') render();
+    }
+    // ---------- o Fundo Viva (Futuro, 4.51): o valor da UP de cada dia útil, pelo conector (/futuro) ----------
+    // As tuas UP (cfg.fut.up) ficam só aqui; do conector vem o valor público da UP (o PDF da Futuro) e o histórico.
+    const FUT_N = 'FUNDO VIVA';
+    let FUTD = null, futVai = false, futErr = '', futTry = 0;
+    try { FUTD = JSON.parse(localStorage.getItem('mk:fut') || 'null'); } catch { FUTD = null; }
+    async function loadFUT(force) {
+        if (!cfg.proxy || !(+(cfg.fut || {}).up > 0) || futVai) return;
+        if (FUTD && Array.isArray(FUTD.d) && now() - FUTD.at < 3 * 3600e3) return;
+        if (!force && now() - futTry < 5 * 60e3) return;
+        futVai = true; futTry = now();
+        try {
+            const r = await px(`/futuro?f=${encodeURIComponent(FUT_N)}`, 25000), x = r && r.f && r.f[FUT_N];
+            if (!x || !Array.isArray(x.d) || !x.d.length) throw new Error('sem valores');
+            FUTD = { at: now(), dia: r.dia, d: x.d }; futErr = '';
+            try { localStorage.setItem('mk:fut', JSON.stringify(FUTD)); } catch { /* sem espaço: fica só em memória */ }
+        } catch { futErr = 'Não consegui ler os valores da Futuro agora. Tenta mais tarde.'; }
+        futVai = false;
         if (cfg.tab === 'carteira') render();
     }
     // o desvio dos retornos diários (em log) dos últimos 120 dias
@@ -1519,7 +1539,7 @@
         const ch = carteiraHoje(), real = ch.v > 0 && !cfg.simStartManual;
         const mexido = (ch.v > 0 && !!cfg.simStartManual) || (Number.isFinite(cfg.simBudget) && cfg.simBudget !== poupMes());
         return { budget: simBudget(), mexido, cp: etfCrypto() ? +cfg.cryptoPct || 0 : 0, core: nameOf(cfg.coreFund),
-            start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap(), ppr: pprSnap() };
+            start: real ? Math.round(ch.v) : +cfg.simStart || 0, ...(real ? { c0: ch.cp, startReal: true } : {}), temReal: ch.v > 0, years: +cfg.simYears || 20, goal: +cfg.simGoal || 0, hoje: !!cfg.simHoje, howOpen: !!st.fold['sim-how'], real: realSnap(), ppr: pprSnap(), fut: futSnap() };
     }
     // ---- o rendimento real (4.13): as compras (plano e avulsas) com os preços de 5 anos (semanais) e do último (diários) ----
     const LH = {}, lhAt = {}, lhVai = new Set();
@@ -1787,6 +1807,23 @@
         return { now: now() / 1000, ativos: l, at: l.length && s ? dmy(s[s.length - 1][0]) : '', loading: pprVai && !l.length ? 1 : 0, erro: l.length ? '' : pprErr, aviso,
             ed: (ed === undefined ? !l.length : ed) ? 1 : 0, cfg: { de: P.de || '', pm: +P.pm || 0, din: +P.din || 0, ur: +P.ur || 0, uc: +P.uc || 0 },
             ex: (Array.isArray(P.ex) ? P.ex : []).map((e) => ({ d: String(e[0] || ''), l: ISO_D.test(e[0] || '') ? dmy(e[0]) : '?', e: +e[1] || 0 })), xd: x.d || '', xe: x.e || '' };
+    }
+    // 4.51: o Fundo Viva — as tuas UP × o valor da UP de cada data (os fins de ano dos relatórios e os dias guardados): vale
+    // hoje, este ano, o ano passado e o gráfico (já em coordenadas do desenho: 34..330 × 186..14)
+    function futSnap() {
+        loadFUT();
+        const P = cfg.fut || {}, u = +P.up || 0, d = FUTD && Array.isArray(FUTD.d) ? FUTD.d : [], ed = st.fold['fut-ed'];
+        const base = { at: '', loading: futVai && !d.length ? 1 : 0, erro: d.length ? '' : futErr, ed: (ed === undefined ? !(u > 0 && d.length) : ed) ? 1 : 0, cfg: { up: u }, vv: 0 };
+        if (!(u > 0) || !d.length) return base;
+        const ts = (iso) => Date.parse(iso + 'T12:00:00Z') / 1000, up = d[d.length - 1][1], ult = d[d.length - 1][0], ano = +ult.slice(0, 4);
+        const fimAno = (y) => { const x = d.filter((r) => r[0] <= `${y}-12-31`).pop(); return x && x[0] >= `${y}-12-01` ? x[1] : null; };
+        const f1 = fimAno(ano - 1), f2 = fimAno(ano - 2);
+        const vs = d.map((r) => r[1] * u), lo0 = Math.min(...vs), hi0 = Math.max(...vs), pad = (hi0 - lo0) * 0.08 || hi0 * 0.02, lo = lo0 - pad, hi = hi0 + pad;
+        const t0 = ts(d[0][0]), tf = ts(ult), X = (t) => 34 + 296 * (tf > t0 ? (t - t0) / (tf - t0) : 1), Y = (v) => 186 - (172 * (v - lo)) / (hi - lo);
+        const pts = d.map((r, i) => ({ x: Math.round(X(ts(r[0])) * 10) / 10, y: Math.round(Y(vs[i]) * 10) / 10 }));
+        // o dedo: um quadro por data, até a meio da vizinha
+        const hits = pts.map((p, i) => { const a = i ? (pts[i - 1].x + p.x) / 2 : 34, b = i < pts.length - 1 ? (p.x + pts[i + 1].x) / 2 : 330; return { x: Math.round(a * 10) / 10, w: Math.max(0.5, Math.round((b - a) * 10) / 10), cx: p.x, tx: `${i === d.length - 1 ? 'Hoje' : dmy(d[i][0])}: ${fmtPx(vs[i], { decimals: 0 }, 'EUR')}` }; });
+        return { ...base, at: dmy(ult), vv: u * up, up, ytd: f1 ? up / f1 - 1 : 0, anoL: f1 && f2 ? `Em ${ano - 1}` : '', ano: f1 && f2 ? f1 / f2 - 1 : 0, pts, hits, lo, hi, d0: dmy(d[0][0]).slice(3) };
     }
     // o «Registar» da Carteira: os ativos com quantidade, o rascunho (st.reg) e o que entrou depois do que copiaste
     function regSnap() {
@@ -3213,6 +3250,13 @@
             return;
         }
         // 4.47: o PPR Evoluir — desde, € por mês, % no Dinâmico e, para acertar com a Fidelidade, as unidades de hoje
+        // 4.51: o Fundo Viva — as tuas UP (vazio tira a secção dos números)
+        if (t.dataset && t.dataset.fut) {
+            const txt = String(t.value || '').trim(), P = { ...(cfg.fut || {}) };
+            if (!txt) delete P.up;
+            else { const v = numPt(txt); if (!(v > 0)) { toast('Escreve as UP (unidades) do Fundo Viva.'); return; } P.up = v; }
+            cfg.fut = P; saveCfg(); loadFUT(true); render(); return;
+        }
         if (t.dataset && t.dataset.pprx) { st.pprx = { ...(st.pprx || {}), [t.dataset.pprx]: t.value }; return; }
         if (t.dataset && t.dataset.ppr) {
             const f = t.dataset.ppr, P = { ...(cfg.ppr || {}) }, txt = String(t.value || '').trim();
@@ -3227,7 +3271,7 @@
                 P[f] = v;
             }
             // a data: o campo larga o foco (com ele focado, render() não redesenha) e os valores pedem-se logo
-            cfg.ppr = P; saveCfg(); if (t.type === 'date') t.blur(); loadPPR(); render(); return;
+            cfg.ppr = P; saveCfg(); if (t.type === 'date') t.blur(); loadPPR(true); render(); return;
         }
         if (t.dataset && t.dataset.reg) { st.reg = st.reg || {}; st.reg[t.dataset.reg] = t.value; if (t.dataset.reg === 'k') render(); return; }
         if (t.dataset && t.dataset.lot && t.dataset.k && REG[t.dataset.k]) {
