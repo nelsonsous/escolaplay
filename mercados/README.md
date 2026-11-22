@@ -139,6 +139,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## Poupança periódica: as listas curtas (4.49.0)
+
+No «Registar» da Carteira, cada lista (plano, round up, saveback) mostra só a próxima data e as últimas — o round up, um
+mês (4); o plano e o saveback, 2. As mais antigas ficam numa dobra fechada, «Mais antigas · N», onde continuam a
+editar-se e a contar.
+
 ## PPR Evoluir (Fidelidade, 4.47.0 e conector 1.15.0)
 
 Na Carteira, abaixo de «A tua carteira»: quanto vale hoje o PPR Evoluir, o ganho, o rendimento por ano, o gráfico desde o

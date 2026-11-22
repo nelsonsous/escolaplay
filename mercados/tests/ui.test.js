@@ -431,7 +431,21 @@ function proxyBody(u) {
     await escreve('pl', plD[1], '');
     assert.equal(plD[1] in (await fL()).pa, false, 'vazio volta à sugestão');
     await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; for (const x of ['pm', 'pa', 'ra', 'sa']) delete L[x]; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
-    console.log('✓ poupança periódica: plano, round up e saveback em listas; escreve-se o valor de cada data; a sugestão é a média');
+    // 4.49: com meses de história, à vista só a próxima e as últimas (o round up: 4; o plano e o saveback: 2); as outras numa dobra fechada
+    {
+        await page.evaluate(() => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; L.at = new Date(Date.now() - 200 * 864e5).toISOString().slice(0, 10); L.pm = 900; c.saveDays = [2]; window.__mk.render(); });
+        await page.waitForSelector('.reg .pp-f[data-fold="pp-ru"] .pp-mais');
+        const vis = await page.evaluate(() => Object.fromEntries(['pl', 'ru', 'sb'].map((tp) => { const f = document.querySelector(`.reg .pp-f[data-fold="pp-${tp}"]`), m = f.querySelector('.pp-mais');
+            return [tp, { fora: f.querySelectorAll(':scope > .pp-l').length, dentro: m ? m.querySelectorAll('.pp-l').length : 0, aberta: m ? m.open : null, txt: m ? m.querySelector('summary').textContent : '' }]; })));
+        assert.deepEqual([vis.ru.fora, vis.pl.fora, vis.sb.fora], [5, 3, 3], 'à vista: a próxima e as últimas ' + JSON.stringify(vis));
+        assert.ok(vis.ru.dentro >= 20 && vis.ru.aberta === false && vis.ru.txt === `Mais antigas · ${vis.ru.dentro}`, 'o round up: as outras na dobra, fechada');
+        assert.ok(vis.pl.dentro >= 4 && vis.sb.dentro >= 4, 'o plano e o saveback também');
+        await page.click('.reg .pp-f[data-fold="pp-ru"] .pp-mais > summary');
+        await page.waitForFunction(() => window.__mk.st.fold['ppm-ru'] === true, null, { timeout: 3000 }); // aberta, fica aberta
+        await page.click('.reg .pp-f[data-fold="pp-ru"] .pp-mais > summary');
+        await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; for (const x of ['pm', 'pa', 'ra', 'sa']) delete L[x]; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
+    }
+    console.log('✓ poupança periódica: plano, round up e saveback em listas; escreve-se o valor de cada data; a sugestão é a média; as antigas numa dobra');
     // 4.47: o PPR Evoluir da Fidelidade — escreve-se quanto por mês, quanto vai para o Dinâmico e desde quando; os valores das
     // unidades vêm do conector (/ppr); em cada mês, no dia de «Desde», o prémio compra ao valor do dia útil seguinte
     {

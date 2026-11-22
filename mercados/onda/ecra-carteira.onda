@@ -259,6 +259,13 @@
   `<details class="pp-f" data-fold="pp-{ esc tp }"{ Se ha f.aberto " open" }><summary><span>{ esc f.nome }</span><small>{ esc f.info }</small></summary>`
   = c pri f.linhas
   W c { cr_ppl c tp = c seg c }
+  # 4.49: as mais antigas numa dobra (fechada por omissão; fica como a deixares): a lista não cresce à vista
+  = m f.mais = n quantos m
+  Se n {
+    `<details class="pp-mais" data-fold="ppm-{ esc tp }"{ Se ha f.maisAberto " open" }><summary>Mais antigas · { N n }</summary>`
+    = c pri m
+    W c { cr_ppl c tp = c seg c }
+    "</details>" }
   "</details>" 0 }
 # registar (4.20) sem escrever tudo outra vez: uma compra (só os euros; a data e o preço do dia vêm feitos) e o acerto
 # com a TR (escreve-se a quantidade que a TR mostra: a diferença são os arredondamentos e o cashback). Depois, a lista.
