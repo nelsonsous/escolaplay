@@ -3538,3 +3538,13 @@ Com o aviso (unidades que não batem), a tabela não aparece.
 **Verificado.** Carteira: a tabela (cabeçalho, ganhos, %, total) e sem ela com aviso; interface: um ano por coluna e os
 totais somam o ganho.
 
+## Iteração (Mercados 4.54.0): o Fundo Viva ano a ano
+
+**Pedido.** «E a percentagem dos anos anteriores?» (no Fundo Viva só se via este ano e 2025.)
+
+**Feito.** Na secção do Fundo Viva, «Ano a ano (o valor da UP)»: a % de cada ano, o mais recente primeiro — 2026 (até
+hoje) +0,4 %, 2025 +7,2 %, 2024 +5,3 %, 2023 +7,6 %, 2022 −11,1 % —, dos fins de ano dos relatórios e do valor de hoje.
+O «Em 2025» dos quadros passa para a tabela.
+
+**Verificado.** Carteira: a tabela, o mais recente primeiro; interface: os anos do conector.
+

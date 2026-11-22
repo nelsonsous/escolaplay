@@ -150,7 +150,7 @@ mais-valias no resgate nas condições legais; Fundo Viva: não entra, depende d
 ## Fundo Viva (Futuro, 4.51.0 e conector 1.16.0)
 
 Na Carteira, abaixo do PPR: quanto valem hoje as tuas UP do Fundo Viva (o fundo de pensões da Futuro), quanto rendeu
-este ano e o ano passado, e o gráfico desde 2021 (os fins de ano dos relatórios da Futuro e, daí em diante, um valor por
+este ano e, ano a ano, a % do valor da UP desde 2022 (4.54.0), e o gráfico desde 2021 (os fins de ano dos relatórios da Futuro e, daí em diante, um valor por
 dia útil, guardado pelo conector). Em «O teu Fundo Viva» escrevem-se as UP (da NetFuturo, ou da Declaração de Benefícios
 de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12); ficam só no iPhone. O valor da UP vem do PDF público
 das cotações da Futuro, que o conector desencripta (palavra-passe vazia) e lê (`/futuro`).

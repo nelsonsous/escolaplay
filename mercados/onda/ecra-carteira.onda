@@ -437,7 +437,7 @@
   "</div></details>" }
 
 # 4.51: o Fundo Viva (Futuro) — as tuas UP × o valor da UP de cada dia (do PDF da Futuro, pelo conector). r: { at, loading,
-# erro, ed, cfg: {up}, vv, up, ytd, ano, anoL, pts: [{x, y}], hits: [{x, w, cx, tx}], lo, hi, d0 }
+# erro, ed, cfg: {up}, vv, up, ytd, anos: [{l, p}], pts: [{x, y}], hits: [{x, w, cx, tx}], lo, hi, d0 }
 : cr_futg i>i r {
   `<svg class="sim-g real-g" viewBox="0 0 340 208" role="img" aria-label="Evolução do Fundo Viva: arrasta para ver cada data">`
   `<path class="real-a" d="M34 186` = c pri r.pts
@@ -470,8 +470,13 @@
     `<div class="stats sim-st">`
     `<div><small>As tuas UP</small><b class="num">{ _nu_intl num c.up 4 }</b></div>`
     `<div><small>Valor da UP</small><b class="num">{ _nu_moeda num r.up 4 $"EUR" }</b></div>`
-    Se ha r.anoL `<div><small>{ esc r.anoL }</small><b class="num { ? >= num r.ano 0.0 "up-t" "down-t" }">{ cr_pc num r.ano }</b></div>`
-    "</div>" }
+    "</div>"
+    # 4.54: ano a ano — a % do valor da UP em cada ano (o mais recente primeiro)
+    = a pri r.anos
+    Se a {
+      `<div class="ppr-anos"><small class="real-gt">Ano a ano (o valor da UP)</small><table class="sim-tab"><tbody>`
+      W a { = p num a.p `<tr><td>{ esc a.l }</td><td class="num"><b class="{ ? >= p 0.0 "up-t" "down-t" }">{ cr_pc p }</b></td></tr>` = a seg a }
+      "</tbody></table></div>" } }
   `<details class="how fut-ed" data-fold="fut-ed"{ Se ha r.ed " open" }><summary>O teu Fundo Viva</summary><div class="real-in">`
   `<div class="real-g2"><label><small>As tuas UP</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-fut="up" value="{ cr_campo c $"up" 0 }" placeholder="da NetFuturo"></label></div>`
   `<p class="note">As UP (unidades) estão na NetFuturo, ou na Declaração de Benefícios de Reforma: o valor acumulado a dividir pelo valor da UP a 31/12. O valor da UP vem do site da Futuro, todos os dias úteis; o que escreves aqui fica só no teu iPhone. Quando entrarem contribuições, atualiza as UP.</p>`
