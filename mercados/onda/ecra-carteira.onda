@@ -389,9 +389,28 @@
       `<div class="row"><div class="r-main"><div class="r-name">{ esc c.name }</div>`
       `<div class="r-sub">{ _nu_intl @f + p 4 4 } un. × { _nu_moeda @f + p 3 2 $"EUR" } · investido { cs_eur e }</div></div>`
       `<div class="r-px num"><span class="px">{ cs_eur v }</span>{ Se ~ av `<span class="chg { ? >= v e "up" "down" }">{ cr_pc - / v e 1.0 }</span>` }</div></div>` }
-    "</div>" }
+    "</div>"
+    Se && ~ av ha r.anos cr_pprano r }
   cr_ppred r
   "</section>" }
+# 4.53: ano a ano — o ganho de cada componente (e o total) em cada ano, com a % da unidade nesse ano
+: cr_pprano i>i r {
+  = a r.anos
+  `<div class="ppr-anos"><small class="real-gt">Ano a ano</small><table class="sim-tab"><thead><tr><th></th>`
+  = c pri a.cab
+  W c { `<th class="num">{ esc c }</th>` = c seg c }
+  `</tr></thead><tbody>`
+  = l pri a.linhas
+  W l {
+    `<tr{ Se ha l.t ` class="ppr-tot"` }><td>{ esc l.n }</td>`
+    = c pri l.c
+    W c {
+      = g num c.g
+      `<td class="num"><b class="{ ? >= g 0.0 "up-t" "down-t" }">{ cr_eursg g }</b>{ Se ha c.tp `<small>{ cr_pc num c.p }</small>` }</td>`
+      = c seg c }
+    "</tr>"
+    = l seg l }
+  `</tbody></table><p class="note">{ esc a.nota }</p></div>` }
 # o editor do PPR: desde quando pagas, quanto por mês e quanto vai para o Dinâmico (o resto fica na Proteção); para acertar
 # com a Fidelidade, as unidades de hoje de cada componente (as da MyFidelidade)
 : cr_ppred i>i r {

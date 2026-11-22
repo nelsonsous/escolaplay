@@ -3526,3 +3526,15 @@ conta».
 imposto), conferidos com uma conta à parte; interface: escolher o PPR e o Fundo Viva, o «já tens» de cada um, o «por mês»
 guardado à parte, e os dos ativos iguais.
 
+## Iteração (Mercados 4.53.0): o PPR ano a ano
+
+**Pedido.** «Não diz quanto rendeu em 2025 e em 2026 separado — a parte dinâmica e a outra.»
+
+**Feito.** Na secção do PPR, por baixo das componentes, «Ano a ano»: para a Proteção, o Dinâmico e o total, o ganho em €
+em cada ano (o valor no fim do ano, menos o do início, menos o que entrou — no ano corrente, até ao último valor da
+Fidelidade) e, por baixo, a % da unidade nesse ano (no 1.º ano, desde a 1.ª compra). Somados, os anos dão o ganho todo.
+Com o aviso (unidades que não batem), a tabela não aparece.
+
+**Verificado.** Carteira: a tabela (cabeçalho, ganhos, %, total) e sem ela com aviso; interface: um ano por coluna e os
+totais somam o ganho.
+

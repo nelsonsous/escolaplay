@@ -481,6 +481,14 @@ function proxyBody(u) {
         assert.equal(await page.locator('section.ppr .real-l .row').count(), 2);
         assert.match(await page.locator('section.ppr .sec-h .sub').textContent(), /^Fidelidade · valores de \d\d\/\d\d\/\d{4}$/);
         if (SHOTS) await page.locator('section.ppr').screenshot({ path: path.join(SHOTS, '8h-carteira-ppr.png') });
+        // 4.53: ano a ano — um ano por coluna (desde o do 1.º prémio) e, somados, os totais dão o ganho
+        {
+            const anos = await page.evaluate(() => { const r = document.querySelector('section.ppr .ppr-anos'); return { cab: [...r.querySelectorAll('thead th')].map((x) => x.textContent).slice(1), tot: [...r.querySelectorAll('tr.ppr-tot td')].slice(1).map((x) => x.textContent), ganho: document.querySelector('section.ppr .sim-st div:nth-child(2) b').textContent }; });
+            const yy = [...new Set(ds.map((x) => x.slice(0, 4)).concat(isoAtras(0).slice(0, 4)))];
+            assert.deepEqual(anos.cab, yy, 'um ano por coluna');
+            const nEur = (t) => (t.trim().startsWith('−') ? -1 : 1) * +t.replace(/[^\d,]/g, '').replace(',', '.');
+            assert.ok(Math.abs(anos.tot.reduce((q, x) => q + nEur(x), 0) - nEur(anos.ganho)) <= anos.tot.length, 'os anos somam o ganho: ' + anos.tot + ' / ' + anos.ganho);
+        }
         // acertar com a Fidelidade: as unidades da MyFidelidade mandam (na mesma proporção em cada prémio); vazio volta à conta
         await page.locator('section.ppr details.ppr-ed').evaluate((d) => { d.open = true; });
         await escP('uc', '12,5');

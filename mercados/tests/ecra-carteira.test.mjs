@@ -224,6 +224,17 @@ test('carteira: o PPR Evoluir (4.47) — as duas componentes como dois ativos, c
         assert.deepEqual(d.ed, [['pm', '75'], ['din', '60'], ['de', '2025-08-20'], ['ur', ''], ['uc', '']], 'o editor com o que escreveste');
         assert.equal(d.aberto, false, 'com o PPR feito, o editor fica fechado');
         assert.ok(d.antes, 'antes do simulador');
+        // 4.53: ano a ano — o ganho de cada componente (e o total) em cada ano, com a % da unidade
+        {
+            const anos = { cab: ['2025', '2026'], linhas: [{ n: 'Proteção', c: [{ g: 6.4, p: 0.0071, tp: 1 }, { g: 16.2, p: 0.0163, tp: 1 }] }, { n: 'Dinâmico (ações)', c: [{ g: 41.6, p: 0.06, tp: 1 }, { g: -3.1, p: -0.004, tp: 1 }] }, { n: 'Total', t: 1, c: [{ g: 48 }, { g: 13.1 }] }], nota: 'Em 2025, desde 07/07/2025; em 2026, até 20/11/2026.' };
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, ppr: { ...ppr, anos } })}</body>`);
+            const t = await pg.evaluate(() => { const r = document.querySelector('section.ppr .ppr-anos'); return { cab: [...r.querySelectorAll('th')].map((x) => x.textContent), l: [...r.querySelectorAll('tbody tr')].map((tr) => [tr.className, ...[...tr.querySelectorAll('td')].map((x) => x.textContent)]), nota: r.querySelector('.note').textContent }; });
+            assert.deepEqual(t.cab, ['', '2025', '2026']);
+            assert.deepEqual(t.l, [['', 'Proteção', `+${eur(6.4)}${pc(0.0071)}`, `+${eur(16.2)}${pc(0.0163)}`], ['', 'Dinâmico (ações)', `+${eur(41.6)}${pc(0.06)}`, `−${eur(3.1)}${pc(-0.004)}`], ['ppr-tot', 'Total', `+${eur(48)}`, `+${eur(13.1)}`]]);
+            assert.equal(t.nota, 'Em 2025, desde 07/07/2025; em 2026, até 20/11/2026.');
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, ppr: { ...ppr, anos, aviso: 'Falta uma entrega.' } })}</body>`);
+            assert.equal(await pg.evaluate(() => document.querySelectorAll('section.ppr .ppr-anos').length), 0, 'com aviso, sem o ano a ano');
+        }
         // 4.48: as entregas extra no editor (cada uma com ✕) e a linha para juntar outra (com o rascunho)
         {
             const ex = [{ d: '2025-12-15', l: '15/12/2025', e: 600 }, { d: '2026-03-02', l: '02/03/2026', e: 50.5 }];

@@ -939,4 +939,8 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
    números com um número ímpar de quadros, o último ocupa a linha toda (sem a célula cinzenta vazia) */
 .ppr-x .dt-x { position: static; transform: none; flex: none; }
 .stats > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+/* 4.53: o PPR ano a ano — o ganho em € e, por baixo, a % da unidade nesse ano */
+.ppr-anos { margin: 4px 0 12px; }
+.ppr-anos td small { display: block; color: var(--muted); font-size: calc(.74rem * var(--k)); }
+.ppr-anos .ppr-tot td { border-top: 1px solid var(--line); font-weight: 650; }
 
