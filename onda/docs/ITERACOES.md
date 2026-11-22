@@ -3609,3 +3609,17 @@ teus anos, uma frase diz o que juntar.
 Interface: juntam-se 2023, 2024 e 2025; o ano a ano, o ganho, por ano e «este ano» batem com as contas; o gráfico começa a
 31/12/2023; ao apagar 2023, o ano a ano começa em 2025.
 
+## Iteração (Mercados 4.59.0): o Fundo Viva desde o ano que escolhes
+
+**Pedido.** «Coloca só desde 2021.»
+
+**Visto.** Das declarações, só há as de 2024 e de 2025 (o valor a 31/12/2023, 2024 e 2025, e as contribuições de 2024 e
+2025): de 2021 a 2023 não há os valores do dono.
+
+**Feito.** Em «O teu Fundo Viva», «Desde (ano)» (fica só no iPhone): o ano a ano e o gráfico começam nesse ano. Os anos
+sem os teus valores estimam-se (≈): as tuas UP (as do 31/12 seguinte que puseste, ou as de hoje) × o que o valor da UP
+subiu nesse ano, sem as contribuições; uma nota di-lo. O ganho desde esse ano leva ≈ quando há anos estimados.
+
+**Verificado.** Carteira: os anos estimados com ≈, o ganho com ≈, a nota e o campo; interface: com «Desde» 2024 e sem o
+valor de 31/12/2023, o 2024 estima-se com as UP de 31/12/2024, o gráfico começa a 31/12/2023; sem «Desde», como antes.
+

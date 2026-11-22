@@ -302,6 +302,15 @@ test('carteira: o Fundo Viva (4.51) — as tuas UP × o valor da UP, o ano e o g
         assert.equal(d.ed, '567.3069');
         assert.equal(d.aberto, false);
         assert.ok(d.depois, 'antes do simulador');
+        // 4.59: desde o ano que escolhes — os anos sem os teus valores, estimados (≈), e a nota; o campo «Desde (ano)»
+        {
+            await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, fut: { ...fut, cfg: { up: 567.3069, desde: 2021 }, anos: [{ y: 2026, l: '2026 (até hoje)', g: 44.2, p: 0.0043, tp: 1 }, { y: 2021, l: '2021', g: 267.1, p: 0.0292, tp: 1, est: 1 }], gL: 'Ganho desde 2021', gV: 311.3, gE: 1, pa: 0.019, estN: '≈ estimado.' } })}</body>`);
+            const e = await pg.evaluate(() => ({ an: [...document.querySelectorAll('section.fut .fut-anos tr')].map((tr) => [...tr.querySelectorAll('td')].map((x) => x.textContent)), st: [...document.querySelectorAll('section.fut .sim-st b')].map((b) => b.textContent), n: (document.querySelector('section.fut .fut-est') || {}).textContent, ds: document.querySelector('section.fut [data-fut="desde"]').value }));
+            assert.deepEqual(e.an, [['2026 (até hoje)', `+${eur(44.2)}${pc(0.0043)}`], ['2021', `≈ +${eur(267.1)}${pc(0.0292)}`]], 'os anos estimados com ≈');
+            assert.equal(e.st[2], `≈ +${eur(311.3)}`, 'o ganho, com anos estimados');
+            assert.equal(e.n, '≈ estimado.');
+            assert.equal(e.ds, '2021');
+        }
         // 4.58: sem os teus anos, a frase para os juntar (sem o ano a ano nem o ganho); e já sem a data de adesão (4.57)
         {
             await pg.setContent(`<body>${AO.ecra.carteira({ budget: 0, cp: 0, core: 'X', start: 0, years: 20, goal: 0, fut: { ...fut, anos: [], gL: '', meus: [], semN: 'Para veres quanto cresceu o teu dinheiro em cada ano, junta os teus anos.' } })}</body>`);
