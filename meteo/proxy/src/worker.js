@@ -15,7 +15,7 @@ import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushGroupMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.13.1';
+const VERSION = '1.13.2';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -592,12 +592,13 @@ async function wantAnalysis(env, place, why) {
     await env.KV.put(key, JSON.stringify({ at: old?.at || new Date(now).toISOString(), why, fires: (old?.fires || 0) + (go ? 1 : 0) }), { expirationTtl: ON_OPEN.wantTtl });
     return go ? fireAnalysis(env, [place.id], why, state) : { fired: false, busy: state.busy, full: state.full };
 }
-// a análise deste local está velha (mais de 6 h)? Os locais dos outros seguem a «análise dos outros» do dono
-// (desligada: nunca; 1× por dia: só se a última for de outro dia, hora de Lisboa)
-function stale(a, p, mode, now = Date.now()) {
+// a análise deste local está velha (mais de 6 h)? Os locais dos outros — e os do dono quando quem abre é outra pessoa,
+// que se juntou a ele (1.13.2) — seguem a «análise dos outros» do dono (desligada: nunca; 1× por dia: só se a última for
+// de outro dia, hora de Lisboa). O dono, no seu local, pede sempre.
+function stale(a, p, mode, now = Date.now(), byOwner = true) {
     const at = Date.parse(a?.generatedAt || '') || 0;
     if (now - at < ON_OPEN.staleH * 36e5) return false;
-    if (!isOwnerPlace(p) && (mode === 'off' || (mode === '1x' && at && lisbon(at).date === lisbon(now).date))) return false;
+    if (!(isOwnerPlace(p) && byOwner) && (mode === 'off' || (mode === '1x' && at && lisbon(at).date === lisbon(now).date))) return false;
     return true;
 }
 // a vigia (cron): pedidos com mais de 15 min que a tarefa ainda não levou, com menos de 2 chamadas → chama outra vez
@@ -632,10 +633,11 @@ async function getAnalysis(req, env, url, ctx) {
     const [places, mode] = await Promise.all([getPlaces(env), getSettings(env).then(othersMode)]);
     const near = nearestOf(me, places, c.lat, c.lon, 10);
     let analysis = near ? await lastAnalysis(env, near.p.id) : null;
-    // ao abrir a app: a análise do seu local com mais de 6 h → chama a tarefa (fica pronta para a vez seguinte)
+    // ao abrir a app: a análise do seu local — ou de um a que se juntou (1.13.2: os 6 telemóveis juntos a Sampriz nunca a
+    // pediam) — com mais de 6 h → chama a tarefa (fica pronta para a vez seguinte)
     let refreshing = false;
-    if (onOpenOn(env) && near && env.KV && mine(me, near.p) && !near.p.off) {
-        if (stale(analysis, near.p, mode)) {
+    if (onOpenOn(env) && near && env.KV && uses(me, near.p) && !near.p.off) {
+        if (stale(analysis, near.p, mode, Date.now(), me.owner)) {
             refreshing = true;
             const job = wantAnalysis(env, near.p, 'ao abrir a app').catch((e) => console.error('análise na hora', e));
             if (ctx?.waitUntil) ctx.waitUntil(job); else await job;

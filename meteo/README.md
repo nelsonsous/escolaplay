@@ -140,6 +140,11 @@ para a vez seguinte (com a app aberta, ela volta a buscá-la aos 8 min). «Anali
 a app, não se gasta nada. A notificação das 19:00 usa a última análise se tiver menos de 30 h; senão pede para abrir a
 app. Cada corrida gasta da subscrição do Claude: **uma de cada vez** (15 min), no máximo **4 por hora e 12 por dia**; o
 texto da chamada é fixo (só os ids dos locais); um pedido que fique para trás é chamado pela vigia do cron (até 2 vezes).
+
+**Quem se juntou a um local também a pede** (conector 1.13.2): antes só a pessoa do local (ou o dono, nos seus) a pedia
+ao abrir — os 6 telemóveis juntos a Sampriz viram a de 16/11 até 23/11. Quem não é o dono segue a «análise dos outros»:
+ligada = com mais de 6 h; 1× por dia = só se a última for de outro dia; desligada = nunca. O dono, nos seus locais, pede
+sempre que tenha mais de 6 h.
 Os locais dos outros seguem a «Análise dos outros» (desligada: nunca; 1× por dia: no máximo uma por dia).
 
 **Para ligar** (uma vez; o token nunca passa pelo código nem pelas conversas):

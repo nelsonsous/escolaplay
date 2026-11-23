@@ -66,7 +66,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.13.1');
+    assert.equal(j.version, '1.13.2');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 2, 0]);
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -898,6 +898,59 @@ test('análise na hora: abrir a app com a análise do seu local com mais de 6 h 
     env.KV.m.delete('want:santo-tirso');
     b = await get();
     assert.deepEqual([b.refreshing, fired.length, kvj('fire:calls').length], [true, 4, 1]);
+    delete env.METEO_FIRE_URL; delete env.METEO_TOKEN; delete env.OWNER_CODE;
+});
+
+test('análise na hora: quem se juntou a um local (membro) também a pede ao abrir, conforme a «análise dos outros» (1.13.2)', async () => {
+    // Sampriz: um local do dono com 6 telemóveis juntos; só o dono abria a análise de novo (16/11 → 23/11 sem atualizar)
+    const sp = { id: 'sampriz', name: 'Sampriz', lat: 41.7759, lon: -8.3739, createdAt: '2026-11-14T17:17:31Z', owner: 'owner', members: [] };
+    const ago = (h) => new Date(Date.now() - h * 36e5).toISOString();
+    const g = device(), outro = device(), dono = { d: device(), owner: CODE };
+    sp.members = [g.id];
+    const keep = ['places', 'settings'].map((k) => [k, env.KV.m.get(k)]);
+    env.KV.m.set('places', JSON.stringify([sp]));
+    env.OWNER_CODE = CODE;
+    Object.assign(env, { METEO_FIRE_URL: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', METEO_TOKEN: 'segredo-de-teste' });
+    const fired = [];
+    globalThis.fetch = async (u, init) => { fired.push(JSON.parse(init.body).text); return new Response('{"type":"routine_fire"}', { status: 200 }); };
+    const pend = [], w0 = ctx.waitUntil;
+    ctx.waitUntil = (x) => pend.push(x); // o pedido à tarefa vai em segundo plano: espera-se por ele
+    const open = async (who) => { const r = await J('GET', '/api/analysis?lat=41.7759&lon=-8.3739', who); await Promise.all(pend.splice(0)); return r.body; };
+    const reset = (h, others) => {
+        env.KV.m.set('analysis:sampriz', JSON.stringify({ titulo: 'Velha', generatedAt: ago(h), place: sp }));
+        env.KV.m.set('settings', JSON.stringify({ others }));
+        env.KV.m.delete('want:sampriz'); env.KV.m.set('fire:calls', '[]'); fired.length = 0;
+    };
+    await J('GET', '/api/status', dono);
+    // a análise com 6 dias e a «análise dos outros» 1× por dia: quem se juntou abre a app → pede a análise
+    reset(6 * 24, '1x');
+    let b = await open({ d: g });
+    assert.deepEqual([b.analysis?.titulo, b.refreshing, fired], ['Velha', true, ['Corrida pedida pela app Meteo (ao abrir a app): sampriz.']]);
+    assert.equal(kvj('want:sampriz').fires, 1);
+    // abrir outra vez logo a seguir: a corrida está a decorrer — diz que está a atualizar, sem outra chamada
+    b = await open({ d: g });
+    assert.deepEqual([b.refreshing, fired.length], [true, 1]);
+    // desligada: quem se juntou não a pede…
+    reset(6 * 24, 'off');
+    b = await open({ d: g });
+    assert.deepEqual([b.refreshing, fired.length], [false, 0]);
+    // …mas o dono, no seu local, pede sempre (a opção é para os outros)
+    b = await open(dono);
+    assert.deepEqual([b.refreshing, fired.length], [true, 1]);
+    // ligada: com mais de 6 h, quem se juntou pede; com menos, não
+    reset(7, 'on');
+    b = await open({ d: g });
+    assert.deepEqual([b.refreshing, fired.length], [true, 1]);
+    reset(2, 'on');
+    b = await open({ d: g });
+    assert.deepEqual([b.refreshing, fired.length], [false, 0]);
+    // quem não se juntou não pede (nem vê o local do dono)
+    reset(6 * 24, 'on');
+    b = await open({ d: outro });
+    assert.deepEqual([b.analysis, b.refreshing, fired.length], [null, false, 0]);
+    ctx.waitUntil = w0;
+    for (const [k, v] of keep) { if (v == null) env.KV.m.delete(k); else env.KV.m.set(k, v); }
+    env.KV.m.delete('analysis:sampriz'); env.KV.m.delete('want:sampriz');
     delete env.METEO_FIRE_URL; delete env.METEO_TOKEN; delete env.OWNER_CODE;
 });
 
