@@ -18,7 +18,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.29.0';
+const VERSION = '1.30.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -620,11 +620,16 @@ function nextRun() {
     const next = sched.find((s) => s > now);
     return next ? `hoje às ${next}` : `amanhã às ${sched[0]}`;
 }
+// 1.30 (pedido do dono): uma análise com mais de um dia não se mostra — nem o cartão do Agora (em Sampriz via-se a de há
+// 6 dias, «a atualizar…»); aparece quando chega uma nova (o cartão fica escondido no sítio, para a nova o substituir)
+const AN_MAX_H = 24;
+const oldAnalysis = (r = st.analysis) => { const at = Date.parse(r?.analysis?.generatedAt || ''); return Number.isFinite(at) && Date.now() - at > AN_MAX_H * 36e5; };
 function teaserHtml() {
     const r = st.analysis;
     if (r === undefined) return `<div class="claude" id="cl-teaser" aria-busy="true"><div class="adv-src">Análise${IA_AN}</div><div class="skel skel-l"></div><div class="skel skel-l s"></div></div>`;
     const a = r?.analysis;
     if (!a) return `<div class="claude cl-opt" id="cl-teaser">${optInHtml()}</div>`;
+    if (oldAnalysis(r)) return '<div id="cl-teaser" hidden></div>';
     const ap = analysedPoint();
     const tomorrow = a.notificacao?.amanha || a.vestir || '';
     const main = `<div class="adv-src">Análise${IA_AN} <span>· ${esc(F.ago(r.ageMin ?? 0))}${r.refreshing ? ' · a atualizar…' : ''}</span></div>${ap ? forLine(ap) : ''}
@@ -917,6 +922,7 @@ function viewAnalysis() {
     const today = fc ? todayOf(fc) : '';
     let h = '<section class="sec">';
     if (r === undefined) h += `<div class="today"><div class="adv-src">Análise${IA_AN}</div><div class="skel skel-l"></div><div class="skel skel-l"></div><div class="skel skel-l s"></div></div>`;
+    else if (a && oldAnalysis(r)) h += `<p class="note an-old">${esc(r.refreshing ? 'A preparar a análise de hoje: aparece aqui daqui a uns minutos.' : `A última análise tem mais de um dia: não se mostra. A próxima chega ${nextRun()}.`)}</p>`;
     else if (a) {
         const g = a.generatedAt ? new Date(a.generatedAt) : null;
         const hm = g && !Number.isNaN(+g) ? `${String(g.getHours()).padStart(2, '0')}:${String(g.getMinutes()).padStart(2, '0')}` : '';
