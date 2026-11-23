@@ -144,6 +144,9 @@ Desde o conector 1.14 (decisão do dono, 23/11) **sem máximo por hora ou por di
 2 chamadas (para uma tarefa avariada não gastar sem fim). O texto da chamada é fixo (só os ids dos locais); um pedido que
 fique para trás é chamado pela vigia do cron.
 
+**Uma análise com mais de um dia não se mostra** (1.30, pedido do dono): nem o cartão do Agora; na Análise só se diz que
+vem a nova. Aparece quando chega uma nova (em Sampriz via-se a de há 6 dias, «a atualizar…»).
+
 **Quem se juntou a um local também a pede** (conector 1.13.2): antes só a pessoa do local (ou o dono, nos seus) a pedia
 ao abrir — os 6 telemóveis juntos a Sampriz viram a de 16/11 até 23/11. Quem não é o dono segue a «análise dos outros» (ligada desde 23/11):
 ligada = com mais de 6 h; 1× por dia = só se a última for de outro dia; desligada = nunca. O dono, nos seus locais, pede

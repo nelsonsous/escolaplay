@@ -119,6 +119,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     const guestPlace = { id: 'casa-ana-k2m9xq', name: 'Casa da Ana', lat: 41.55, lon: -8.43, approx: true, mine: false, kind: 'guest', status: 'active', createdAt: '2026-11-05T10:00:00Z' };
     const analysed = new Set(); // locais que a tarefa agendada já analisou
     let onOpen = null, refreshing = false; // a análise na hora (conector 1.9): sem horas marcadas, ao abrir a app
+    let anAge = null; // 1.30: horas da análise do conector simulado (null: a de sempre, de há 140 min)
     let failModels = false, refreshBody = null, elevCalls = 0, terrainCalls = 0, patchBody = null, postBody = null, others = 'on', settingsBody = null;
     const rvCalls = [], reportPosts = [], serverReports = [];
     // memória da aprendizagem do local (como a tarefa agendada a guarda em learn:<id>): 30 dias antes da janela do exemplo,
@@ -194,7 +195,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
             const near = visible().filter((x) => !x.off).map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
             const an = near && analysed.has(near.id);
-            return fulfill(r, { analysis: an ? MOCK_ANALYSIS : null, place: near || null, ageMin: an ? 140 : null, schedule: onOpen ? [] : SCHEDULE, onOpen, refreshing, onDemand: true, others });
+            return fulfill(r, { analysis: an ? (anAge ? { ...MOCK_ANALYSIS, generatedAt: new Date(Date.parse(NOW) - anAge * 36e5).toISOString() } : MOCK_ANALYSIS) : null, place: near || null, ageMin: an ? (anAge ? anAge * 60 : 140) : null, schedule: onOpen ? [] : SCHEDULE, onOpen, refreshing, onDemand: true, others });
         }
         if (p === '/api/analysis/refresh' && m === 'POST') {
             refreshBody = JSON.parse(req.postData() || '{}');
@@ -747,6 +748,20 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(await page.locator('.today .an-meta').textContent(), /a atualizar: a nova chega daqui a uns minutos\./);
     await tab('agora');
     assert.match(await page.locator('#cl-teaser .adv-src').textContent(), /a atualizar…/);
+    // 1.30: uma análise com mais de um dia não se mostra — nem o cartão do Agora; na Análise, só que vem a nova — e aparece
+    // quando chega uma nova (pedido do dono: em Sampriz via-se a de há 6 dias)
+    anAge = 26;
+    await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
+    await page.waitForFunction(() => document.querySelector('#cl-teaser')?.hidden === true);
+    assert.equal((await page.locator('#cl-teaser').textContent()).trim(), '', 'no Agora, sem o cartão');
+    await tab('analise');
+    assert.match(await page.locator('.an-old').textContent(), /^A preparar a análise de hoje: aparece aqui daqui a uns minutos\.$/);
+    assert.equal(await page.locator('.today .cl-head').count(), 0, 'na Análise, sem a análise velha');
+    anAge = null; // chegou a nova
+    await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
+    await page.waitForSelector('.today .cl-head');
+    await tab('agora');
+    assert.equal(await page.locator('#cl-teaser').evaluate((e) => e.hidden), false, 'a nova aparece no Agora');
     await tab('analise');
     onOpen = null; refreshing = false;
     await page.evaluate(() => window.__mt.loadAnalysis(window.__mt.cfg.loc));
