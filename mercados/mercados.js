@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.65.0';
+    const VERSION = '4.66.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1325,6 +1325,15 @@
         g.clearRect(0, 0, w, h);
         return { g, w, h };
     }
+    // 4.66: o fecho anterior só entra na escala se estiver perto do dia: longe (a mais de 1,5 vezes o que o dia mexeu, como
+    // num dia de +30 %), esmagava a linha do dia num canto — fica de fora, e a ficha di-lo («↓ fecho anterior»)
+    function baseVisivel(pts, base) {
+        if (!fin(base) || !pts || pts.length < 2) return base;
+        const vals = pts.map((p) => p[1]).filter(fin);
+        if (!vals.length) return base;
+        const mn = Math.min(...vals), mx = Math.max(...vals), r = Math.max(mx - mn, Math.abs(mx) * 1e-4);
+        return (base < mn && mn - base > 1.5 * r) || (base > mx && base - mx > 1.5 * r) ? NaN : base;
+    }
     function drawLine(cv, pts, opt = {}) {
         const c = setupCanvas(cv);
         if (!c || !pts || pts.length < 2) return null;
@@ -1449,7 +1458,7 @@
             const p = perData(k, perA());
             if (!p.series || p.series.length < 2) continue;
             // poucos pontos: por ordem, para não desenhar retas longas
-            drawLine(cv, p.series, { tone: toneOf(p.pct), base: p.base, pad: 3, width: 1.5, byIndex: perA() !== '1d' || p.series.length < 12 });
+            drawLine(cv, p.series, { tone: toneOf(p.pct), base: baseVisivel(p.series, p.base), pad: 3, width: 1.5, byIndex: perA() !== '1d' || p.series.length < 12 });
         }
     }
 
@@ -2020,8 +2029,9 @@
         // que copiaste da TR (a mais recente primeiro); em cada uma, o valor escrito (ou a sugestão, a cinzento)
         const hjP = todayLocal(), L1 = lotOf(k), deP = ISO_D.test(L1.at || '') ? L1.at : isoMais(hjP, -45), nPl = Math.max(1, (cfg.saveDays || []).length);
         const eurP = (x, dd) => fmtPx(x, { decimals: dd }, 'EUR');
+        // 4.66: o round up seguinte pode estar a 10 dias (de 23 ao dia 2): a lista vê 11 dias à frente
         const lst = (tp) => {
-            const ds = agendaPP(k, tp, deP, isoMais(hjP, tp === 'ru' ? 8 : 31)), sug = tp === 'pl' ? pmOf(k) / nPl : habitual(k, tp);
+            const ds = agendaPP(k, tp, deP, isoMais(hjP, tp === 'ru' ? 11 : 31)), sug = tp === 'pl' ? pmOf(k) / nPl : habitual(k, tp);
             // 4.49: à vista, a próxima e as últimas (o round up: um mês; o plano e o saveback: 2); as mais antigas numa dobra fechada
             // 4.65: o estado de cada data — próximo (à hora habitual), confirmado, ou a média (o plano) sem confirmar; o rascunho
             // escrito e ainda por confirmar fica no campo (e o ✓ a piscar)
@@ -2800,6 +2810,7 @@
         const vals = pts.map((p) => p[1]), mx = Math.max(...vals), mn = Math.min(...vals), a = REG[sheetKey], cur = o.q.currency, hv = o.hover, tone = o.tone;
         viva.sobre = (g, gg) => {
             if (ef) extVeil(g, (X(ef - 1) + X(ef)) / 2, gg.w, gg.h, o.extKind);
+            if (o.foraB) notaForaB(g, gg.h, o.foraB);
             g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'right';
             g.fillText(fmtPx(mx, a, cur), gg.w - 2, Math.max(10, Y(mx, gg) - 4));
             g.textBaseline = 'top'; g.fillText(fmtPx(mn, a, cur), gg.w - 2, Math.min(gg.h - 12, Y(mn, gg) + 4));
@@ -2811,6 +2822,11 @@
             }
         };
         if (!viva.animando) viva.pinta();
+    }
+    // 4.66: a nota do fecho anterior fora da escala, no canto de baixo (ou de cima), à esquerda
+    function notaForaB(g, h, txt) {
+        g.save(); g.font = '600 10px system-ui, -apple-system, sans-serif'; g.fillStyle = COL.muted; g.textAlign = 'left';
+        g.textBaseline = txt[0] === '↓' ? 'bottom' : 'top'; g.fillText(txt, 4, txt[0] === '↓' ? h - 2 : 14); g.restore();
     }
     // a parte fora de horas do gráfico: mais clara (o fundo da ficha por cima, a 55%), a tracejado o fim da sessão e o nome
     function extVeil(g, x, w, h, kind) {
@@ -2840,14 +2856,17 @@
         if (ext) for (const [t, v] of ext.series) if (t > pts[pts.length - 1][0]) pts.push([t, v * f]);
         const extFrom = ext && pts.length > n0 ? n0 : 0;
         const first = pts[0][1], lastv = pts[pts.length - 1][1];
-        const base = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first;
+        const base0 = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? q.prevClose : first, base = baseVisivel(pts, base0);
+        // 4.66: o fecho anterior fora da escala (longe do dia): uma nota no canto, para cima ou para baixo
+        const foraB = fin(base0) && !fin(base) ? `${base0 < pts[0][1] ? '↓' : '↑'} fecho anterior ${fmtPx(base0, REG[sheetKey], q.currency)}` : '';
         const tone = toneOf(sheetRange === '1d' ? q.changePct ?? (lastv / first - 1) * 100 : (lastv / first - 1) * 100);
         const byIdx = (sheetRange !== '1d' && !SHORT_R[sheetRange]) || !!extFrom;
         const viva = window.GraficoOnda && GraficoOnda.ok ? GraficoOnda.ligar(cv) : null;
-        if (viva) desenhaViva(viva, cv, pts, { base, tone, byIdx, hover, q, extFrom, extKind: ext && ext.kind });
+        if (viva) desenhaViva(viva, cv, pts, { base, tone, byIdx, hover, q, extFrom, extKind: ext && ext.kind, foraB });
         else {
             sheetDraw = drawLine(cv, pts, { tone, base, width: 2, pad: 14, byIndex: byIdx });
             if (sheetDraw && extFrom) extVeil(sheetDraw.g, (sheetDraw.X(extFrom - 1) + sheetDraw.X(extFrom)) / 2, sheetDraw.w, sheetDraw.h, ext.kind);
+            if (sheetDraw && foraB) notaForaB(sheetDraw.g, sheetDraw.h, foraB);
         }
         if (sheetDraw) sheetDraw.n = pts.length;
         // preço máximo e mínimo do período, à direita
@@ -3736,7 +3755,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, baseVisivel, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas
