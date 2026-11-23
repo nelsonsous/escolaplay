@@ -406,7 +406,8 @@ function proxyBody(u) {
     const ruD = await datasDe('ru'), sbD = await datasDe('sb'), plD = await datasDe('pl');
     assert.ok(ruD.length >= 5 && ruD.every((x) => ['02', '09', '16', '23'].includes(x.slice(8)) && x > isoAtras(40)), 'round up: os dias 2, 9, 16 e 23, depois do que copiaste: ' + ruD);
     assert.deepEqual([...ruD].sort().reverse(), ruD, 'a mais recente primeiro');
-    assert.ok(ruD[0] > isoAtras(0) && ruD[1] <= isoAtras(0), 'a primeira é a próxima');
+    // (num dia de round up, antes das 15h45, a de hoje ainda é a próxima: conta às 15h45)
+    assert.ok(ruD[0] >= isoAtras(0) && ruD[1] <= isoAtras(0) && ruD[1] < ruD[0], 'a primeira é a próxima: ' + ruD.slice(0, 2));
     assert.ok(sbD.length >= 2 && sbD.every((x) => x.endsWith('-02')) && plD.length >= 2 && plD.every((x) => x.endsWith('-02')), 'o saveback e o plano no dia 2');
     assert.equal(await page.locator(`.reg [data-ppv="pl"][data-d="${plD[1]}"]`).getAttribute('placeholder'), '900', 'o plano: vazio é o valor por mês');
     assert.match(await page.locator('.reg .pp-f[data-fold="pp-ru"] > summary').textContent(), /escreve o valor da TR em cada data/, 'sem nenhum escrito');
@@ -942,6 +943,22 @@ function proxyBody(u) {
         assert.equal(await page.locator('.row[data-key="c:BTC"] .r-ses').count(), 0, 'a cripto não tem sessão');
         await page.evaluate((ss) => { const mk = window.__mk; for (const s of ss) if (mk.Q[s]) { delete mk.Q[s].sess; delete mk.Q[s].tz; } mk.render(); }, syms);
         console.log('✓ a sessão de cada ativo: aberta até quando, ou quando abre');
+    }
+    // 4.62: de manhã, a série do dia vem da bolsa com pontos (Munique), mesmo que outra (Düsseldorf) tenha a hora mais recente
+    // e a série vazia; o preço é o mais recente
+    {
+        const r = await page.evaluate(() => {
+            const mk = window.__mk, k = 'VWCE.DE', [mu, du] = mk.REG[k].live, sv = [k, mu, du].map((s) => [s, mk.Q[s]]), t = Math.floor(Date.now() / 1000), cur = mk.Q[k].currency;
+            mk.Q[k] = { ...mk.Q[k], time: t - 3 * 86400, series: [] };
+            mk.Q[mu] = { ...mk.Q[mu], currency: cur, price: 100, time: t - 3000, series: [[t - 3600, 99], [t - 3300, 99.5], [t - 3000, 100]] };
+            mk.Q[du] = { ...mk.Q[du], currency: cur, price: 100.2, time: t - 600, series: [] };
+            const s = mk.perData(k, '1d').series;
+            for (const [x, q] of sv) mk.Q[x] = q;
+            return { n: s.length, a: s[0][0] - t, z: s[s.length - 1], t };
+        });
+        assert.deepEqual([r.n, r.a, r.z[0] - r.t], [4, -3600, -600], 'os pontos de Munique e, no fim, o preço de Düsseldorf');
+        assert.ok(Math.abs(r.z[1] / 100.2 - 1) < 0.2, 'o preço mais recente (em euros)');
+        console.log('✓ de manhã, o gráfico do dia com a bolsa que tem pontos');
     }
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
     // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com
