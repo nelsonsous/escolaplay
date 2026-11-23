@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.61.1';
+    const VERSION = '4.62.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -377,7 +377,7 @@
         extAt = now();
         const tw = [...new Set(cfg.funds.map(twinOf).filter(Boolean))], US = /^[A-Z][A-Z0-9-]{0,6}$/;
         const keys = [...new Set(Object.keys(REG).filter((k) => listed(k) && usKey(k)).concat(tw.filter((s) => US.test(s))))];
-        const jobs = [px(`/quotes?symbols=${encodeURIComponent(['ES=F', 'NIY=F', 'EURUSD=X', ...tw].join(','))}&range=5d`, 20000).then((r) => {
+        const jobs = [px(`/quotes?symbols=${encodeURIComponent(['ES=F', 'NQ=F', 'NIY=F', 'EURUSD=X', ...tw].join(','))}&range=5d`, 20000).then((r) => {
             for (const q of r.quotes || []) if (!q.error && q.series && q.series.length) S5[q.symbol] = q.series;
         }).catch(() => {})];
         for (let i = 0; i < keys.length; i += 40) jobs.push(px(`/ext?symbols=${encodeURIComponent(keys.slice(i, i + 40).join(','))}`, 30000).then((r) => {
@@ -2064,9 +2064,45 @@
                     an: r ? { d: d ? { dd: d.dd, score: d.score } : d, adv: ad ? { key: ad.key, action: ad.action } : ad, L: h ? (h.long || h.mid || {}).score : undefined } : r,
                     cl: cl ? { key: cl.key, action: cl.action } : cl, dk: dec ? dec.key : undefined, tax: my && a.kind === 'crypto' ? taxLine(k) : undefined };
             }),
-            hoje: hojeSnap(), pf: pfSnap(),
+            hoje: hojeSnap(), pf: pfSnap(), futuros: futurosSnap(),
             fuel: FUEL ? { fuels: FUEL.fuels } : FUEL, fuelErr: st.fuelErr, dname, mname,
         };
+    }
+    // 4.62: os futuros com a bolsa fechada (o quadro do Painel). O S&P 500, o Nasdaq e o Nikkei negoceiam quase 24 h:
+    // com a bolsa do que tenho fechada (e Nova Iorque também: aberta, já se vê nos índices) dizem para onde vai abrir.
+    // A variação é desde o último preço da bolsa (o mesmo ponto de partida da estimativa da abertura); sem a série dos
+    // 5 dias, a do dia do próprio futuro. null: a bolsa aberta, os futuros fechados (sábado, domingo até às 23 h,
+    // a pausa das 22 h) ou sem preços.
+    const FUT_P = [['ES=F', 'S&P 500'], ['NQ=F', 'Nasdaq'], ['NIY=F', 'Nikkei']];
+    function futurosSnap() {
+        if (!cfg.proxy) return null;
+        const t = (st.futT || now()) / 1000; // st.futT: a hora dos testes
+        let fs = null;
+        try { fs = sessaoFut(t); } catch { return null; }
+        if (!fs || !fs.on) return null;
+        const bolsa = cfg.holdings.filter((k) => REG[k] && REG[k].kind !== 'crypto' && posOf(k).q > 0), ks = bolsa.length ? bolsa : ['^GSPC'];
+        const ses = ks.map((k) => sessaoDe(REG[k] ? qv(k) : Q[k], t)).filter(Boolean);
+        const us = Q['^GSPC'] ? sessaoDe(Q['^GSPC'], t) : null;
+        if (!ses.length || ses.some((x) => x.on) || (us && us.on)) return null;
+        const T = Math.max(0, ...ks.map((k) => +((REG[k] ? qv(k) : Q[k]) || {}).time || 0));
+        const l = [];
+        for (const [s, nm] of FUT_P) {
+            const z = pxNow(s);
+            if (!z || !fin(z[1])) continue;
+            const a = T ? pxAt(s, T) : null;
+            const pc = a && z[0] - T >= 30 * 60 ? (z[1] / a[1] - 1) * 100 : Q[s] && fin(Q[s].changePct) ? Q[s].changePct : null;
+            if (!fin(pc)) continue;
+            l.push({ s, nm, px: NF({ maximumFractionDigits: 0 }).format(z[1]), pc: fmtPct1(pc), t: Math.abs(pc) < 0.05 ? 'flat' : pc > 0 ? 'up' : 'down', v: pc });
+        }
+        if (!l.length) return null;
+        const quando = !T ? '' : `desde o fecho ${diaLocal(T) === todayLocal() ? 'de hoje' : diaDe(T) === 'ontem' ? 'de ontem' : 'de ' + diaDe(T)} (${hhmm(T)})`;
+        const abre = ses.find((x) => x.abre);
+        const sub = [quando, abre ? 'a bolsa ' + sesTxt(abre, t) : ''].filter(Boolean).join(' · ');
+        // a leitura: pelo S&P 500 (o que mais pesa no FTSE All-World), ou o primeiro que houver
+        const r = l.find((x) => x.s === 'ES=F') || l[0];
+        const ler = Math.abs(r.v) < 0.15 ? `Os futuros estão quase parados: a bolsa deve abrir perto do fecho.`
+            : `Os futuros ${r.v > 0 ? 'sobem' : 'descem'} (${r.nm} ${r.pc}): a bolsa deve abrir em ${r.v > 0 ? 'alta' : 'baixa'}.`;
+        return { sub, ler, l: l.map(({ v, ...x }) => x) };
     }
     // o que o cartão Hoje lê: a análise do Claude (só com o título), o que o resumo automático usa (os ativos analisados que
     // se compram na TR, pela ordem de Object.keys(AN), o sentimento do mercado — o marketMood do motor —, o dia nos índices,
@@ -3656,7 +3692,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas

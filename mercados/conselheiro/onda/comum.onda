@@ -50,7 +50,8 @@
   `"IS3N.DE":"Mercados emergentes (iShares)","EXSA.DE":"Europa 600 (iShares)","4GLD.DE":"Ouro físico (Xetra-Gold)"\},`
   `"CRYPTO":\{"c:BTC":["BTC-EUR","Bitcoin"],"c:ETH":["ETH-EUR","Ether"],"c:SOL":["SOL-EUR","Solana"],"c:XRP":["XRP-EUR","XRP"]\},`
   `"MARKET":\{"^GSPC":"S&P 500","^IXIC":"Nasdaq","^STOXX50E":"Euro Stoxx 50","PSI20.LS":"PSI","^VIX":"VIX","EURUSD=X":"EUR/USD",`
-  `"BZ=F":"Petróleo Brent","CL=F":"Petróleo WTI","RB=F":"Gasolina (RBOB)","HO=F":"Gasóleo (ULSD)","NG=F":"Gás natural","GC=F":"Ouro (futuros)"\},`
+  `"BZ=F":"Petróleo Brent","CL=F":"Petróleo WTI","RB=F":"Gasolina (RBOB)","HO=F":"Gasóleo (ULSD)","NG=F":"Gás natural","GC=F":"Ouro (futuros)",`
+  `"ES=F":"Futuros S&P 500","NQ=F":"Futuros Nasdaq","NIY=F":"Futuros Nikkei"\},`
   `"MINE":["VWCE.DE","c:BTC","c:ETH","c:SOL","c:XRP"],`
   `"ACTION_KEYS":["buy","scale","hold","wait","neutral","turn","reduce","sell","avoid"],"REF_KEYS":["up","flat","down"],`
   `"ACTION_LABEL":\{"buy":"Comprar","scale":"Comprar aos poucos","hold":"Manter","wait":"Esperar","neutral":"Manter, sem reforçar","turn":"Esperar confirmação",`
@@ -62,7 +63,7 @@
   `"KIND_PT":\{"fund":"ETF","stock":"ação","crypto":"cripto","ref":"ref"\},`
   `"SECTIONS":[["mine","O que tens"],["fund","ETF"],["crypto","Cripto"],["stock","Ações da lista da app"],["extra","Juntadas por ti na app"],`
   `["ref","Referência: índices, câmbio e futuros (key up/flat/down)"]],`
-  `"MK":["^GSPC","^IXIC","^STOXX50E","PSI20.LS","^VIX","EURUSD=X","BZ=F","GC=F"],`
+  `"MK":["^GSPC","^IXIC","^STOXX50E","PSI20.LS","^VIX","EURUSD=X","BZ=F","GC=F","ES=F","NQ=F","NIY=F"],`
   `"NEWSQ":[["stock market today","en"],["bolsa mercados hoje","pt"],["bitcoin","en"]],`
   `"PLAN0":[\{"s":"VWCE.DE","amount":"810 €"\},\{"s":"c:BTC","amount":"90 €"\}],"TLDR0":["Mercado: ","Hoje: ","Atenção: "],`
   `"BUYISH":["buy","scale"],"SELLISH":["sell","reduce","avoid"],"SELLAV":["sell","avoid"],"MINEX":["mine","extra"],`

@@ -860,6 +860,46 @@ function proxyBody(u) {
         await page.evaluate((v) => { const mk = window.__mk; for (const [s, t] of v) mk.Q[s].time = t; mk.render(); }, antes);
         console.log('✓ «Hoje» só com o que mexeu hoje (a bolsa fechada fica de fora) e o dia na linha');
     }
+    // 4.62: o quadro dos futuros no Painel — só com a bolsa do que tenho e Nova Iorque fechadas e os futuros a negociar
+    {
+        const r = await page.evaluate(() => {
+            const mk = window.__mk, t = Date.now() / 1000, ss = ['VWCE.DE', '^GSPC'].concat(mk.REG['VWCE.DE'].live || []);
+            const antes = ss.filter((s) => mk.Q[s]).map((s) => [s, mk.Q[s].sess, mk.Q[s].tz, mk.Q[s].open]);
+            for (const s of ss) if (mk.Q[s]) { mk.Q[s].sess = [t - 30 * 3600, t - 20 * 3600]; mk.Q[s].tz = 'Europe/Berlin'; }
+            // a próxima terça às 3 h (UTC): os futuros abertos (segunda às 22 h de Nova Iorque), as bolsas fechadas
+            const d = new Date(); d.setUTCHours(3, 0, 0, 0); do d.setUTCDate(d.getUTCDate() + 1); while (d.getUTCDay() !== 2);
+            mk.st.futT = d.getTime(); mk.render();
+            const fut = mk.futurosSnap(), dom = [...document.querySelectorAll('#mk-body .pn-fut .fut-r')].map((e) => e.textContent),
+                ler = (document.querySelector('#mk-body .pn-fut .fut-ler') || {}).textContent,
+                ordem = [...document.querySelectorAll('#mk-body > section')].map((e) => e.className);
+            // ao sábado os futuros também fecham: o quadro sai
+            const sab = new Date(d.getTime() + 4 * 86400e3); mk.st.futT = sab.getTime(); mk.render();
+            const semSab = { fut: mk.futurosSnap(), n: document.querySelectorAll('#mk-body .pn-fut').length };
+            // com a bolsa aberta, também não
+            mk.st.futT = 0; for (const s of ss) if (mk.Q[s]) mk.Q[s].sess = [t - 3600, t + 3600]; mk.render();
+            const aberta = document.querySelectorAll('#mk-body .pn-fut').length;
+            for (const [s, se, tz, op] of antes) Object.assign(mk.Q[s], { sess: se, tz, open: op });
+            mk.render();
+            return { fut, dom, ler, ordem, semSab, aberta };
+        });
+        assert.ok(r.fut && r.fut.l.length >= 2, 'com a bolsa fechada e os futuros abertos: o quadro');
+        assert.deepEqual(r.fut.l.slice(0, 2).map((x) => x.nm), ['S&P 500', 'Nasdaq']);
+        assert.equal(r.dom.length, r.fut.l.length);
+        assert.match(r.dom[0], /^S&P 500[\d\s.]+[+−]?\d+,\d%$/);
+        assert.match(r.ler, /^Os futuros (sobem|descem) \(S&P 500 [+−]\d+,\d%\): a bolsa deve abrir em (alta|baixa)\.$|^Os futuros estão quase parados/);
+        assert.match(r.fut.sub, /^desde o fecho .* · a bolsa abre /);
+        assert.ok(r.ordem.indexOf('sec pn-fut') > 0 && r.ordem.indexOf('sec pn-fut') === r.ordem.findIndex((c) => /pn-fut/.test(c)), 'depois dos meus ativos: ' + r.ordem.join(' | '));
+        assert.deepEqual(r.semSab, { fut: null, n: 0 }, 'ao sábado: sem futuros');
+        assert.equal(r.aberta, 0, 'com a bolsa aberta: sem o quadro');
+        if (SHOTS) {
+            await page.evaluate(() => { const mk = window.__mk, t = Date.now() / 1000; mk.__futS = ['VWCE.DE', '^GSPC'].concat(mk.REG['VWCE.DE'].live || []).filter((s) => mk.Q[s]).map((s) => [s, mk.Q[s].sess]);
+                for (const [s] of mk.__futS) mk.Q[s].sess = [t - 30 * 3600, t - 20 * 3600];
+                const d = new Date(); d.setUTCHours(3, 0, 0, 0); do d.setUTCDate(d.getUTCDate() + 1); while (d.getUTCDay() !== 2); mk.st.futT = d.getTime(); mk.render(); });
+            await page.locator('#mk-body .pn-fut').screenshot({ path: path.join(SHOTS, '9h-futuros.png') });
+            await page.evaluate(() => { const mk = window.__mk; for (const [s, se] of mk.__futS) mk.Q[s].sess = se; mk.st.futT = 0; mk.render(); });
+        }
+        console.log('✓ os futuros com a bolsa fechada:', r.dom.join(' | '), '—', r.ler);
+    }
     // 4.61: a sessão de cada ativo (fora a cripto) — aberta até quando, ou fechada e quando abre: hoje, amanhã ou o dia, à
     // mesma hora local da bolsa (sem o fim de semana, com a mudança da hora pelo meio; os futuros abrem ao domingo à noite)
     {

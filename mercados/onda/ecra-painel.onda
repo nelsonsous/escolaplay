@@ -626,11 +626,22 @@
       = r 1 } }
   r }
 
+# 4.62: os futuros com a bolsa fechada (es.futuros, do futurosSnap do JS: só quando a bolsa do que tenho e Nova Iorque estão
+# fechadas e os futuros negoceiam): o S&P 500, o Nasdaq e o Nikkei desde o fecho, e o que dizem da abertura
+: pn_futuros >i {
+  = f es.futuros
+  Se == tipo f 7 {
+    `\n        <section class="sec pn-fut"><div class="sec-h"><h2>Futuros</h2><span class="sub">{ esc f.sub }</span></div><div class="fut-l">`
+    = c pri f.l
+    W c { `<div class="fut-r"><b>{ esc c.nm }</b><span class="num">{ esc c.px }</span><span class="num fut-p { esc c.t }-t">{ esc c.pc }</span></div>` = c seg c }
+    `</div><p class="fut-ler">{ esc f.ler }</p></section>` }
+  0 }
+
 # ===== a vista =====
 : ecra_painel i>i s {
   ! 53 s
   pn_carteira
-  pn_meus pn_hoje pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
+  pn_meus pn_futuros pn_hoje pn_cripto pn_fundos pn_acoes pn_indices pn_energia pn_fuel
   0 }
 # só o cartão da carteira (o JS redesenha-o com os preços ao vivo, sem redesenhar o Painel todo): { pf, per }
 : ecra_pf i>i s {
