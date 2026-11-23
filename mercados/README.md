@@ -141,6 +141,13 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## Os gráficos do dia de manhã (4.63.0)
+
+De manhã, antes de haver dados da Xetra (abre às 8 h de Portugal e o Yahoo dá-os com 15 minutos de atraso), o gráfico do
+dia dos fundos vem de Munique (gettex, desde as 7 h): a série é a da bolsa com o ponto mais recente nela — a de Düsseldorf
+vem muitas vezes vazia, com a hora mais recente, e o gráfico ficava em branco. O Europa 600 passa a ter Munique e
+Düsseldorf; o Xetra-Gold não está em nenhuma das duas, e o gráfico dele começa com os dados da Xetra.
+
 ## Aberta ou fechada, e quando abre (4.61.0 e conector 1.18.0)
 
 Em cada linha de ação, fundo, índice ou energia (a cripto não fecha), por baixo do nome: «● aberta até 17:30» ou «○ abre

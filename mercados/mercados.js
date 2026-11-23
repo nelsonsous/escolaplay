@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.62.0';
+    const VERSION = '4.63.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -93,7 +93,8 @@
     const FUND_TYPE = { 'VWCE.DE': 'acc', 'EUNL.DE': 'acc', 'SXR8.DE': 'acc', 'SXRV.DE': 'acc', 'IS3N.DE': 'acc', 'EXSA.DE': 'dist', '4GLD.DE': 'etc' };
     // depois do fecho da Xetra (17:30), o preço vem da bolsa alemã com o negócio mais recente: Munique (gettex) ou Düsseldorf,
     // abertas até às 22 h (a TR negoceia até às 23 h na Lang & Schwarz, que o Yahoo não tem)
-    const LIVE = { 'VWCE.DE': ['VWCE.MU', 'VWCE.DU'], 'EUNL.DE': ['EUNL.MU', 'EUNL.DU'], 'SXR8.DE': ['SXR8.MU', 'SXR8.DU'], 'SXRV.DE': ['SXRV.MU', 'SXRV.DU'], 'IS3N.DE': ['IS3N.MU', 'IS3N.DU'] };
+    const LIVE = { 'VWCE.DE': ['VWCE.MU', 'VWCE.DU'], 'EUNL.DE': ['EUNL.MU', 'EUNL.DU'], 'SXR8.DE': ['SXR8.MU', 'SXR8.DU'], 'SXRV.DE': ['SXRV.MU', 'SXRV.DU'], 'IS3N.DE': ['IS3N.MU', 'IS3N.DU'],
+        'EXSA.DE': ['EXSA.MU', 'EXSA.DU'] }; // 4.62: o Europa 600 também (o Xetra-Gold não está em Munique nem em Düsseldorf)
     const VENUE = { MU: 'Munique (gettex)', DU: 'Düsseldorf' };
     const DEFAULT_FUNDS = Object.keys(FUND_NAMES);
 
@@ -288,7 +289,11 @@
         let q = q0;
         const lv = liveOf(k);
         if (lv && (lv.time || 0) > (q0.time || 0)) {
-            const series = mergeDay(q0.series, lv.series);
+            // 4.62: a série do dia: a da bolsa com o ponto mais recente nela (a de Düsseldorf vem muitas vezes vazia, com a hora
+            // mais recente — e o gráfico ficava em branco)
+            const sv = [].concat(a.live || []).map((s) => Q[s]).filter((x) => x && Array.isArray(x.series) && x.series.length && (x.currency || q0.currency) === q0.currency)
+                .sort((x, y) => y.series[y.series.length - 1][0] - x.series[x.series.length - 1][0])[0];
+            const series = mergeDay(q0.series, sv ? sv.series : lv.series);
             if (lv.time && (!series.length || series[series.length - 1][0] < lv.time)) series.push([lv.time, lv.price]);
             // a variação do dia é face ao fecho da véspera na Xetra: o «fecho anterior» que o Yahoo dá para Munique e
             // Düsseldorf é muitas vezes um negócio solto (ex.: 168,44 € em Munique com a Xetra a fechar a 167,42 €)

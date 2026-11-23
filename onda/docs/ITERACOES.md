@@ -3652,3 +3652,19 @@ mudança da hora pelo meio; os futuros seguem a CME (de domingo às 18 h a sexta
 cripto. Interface: aberta, antes de abrir, depois de fechar, de sexta para segunda, a hora de verão pelo meio, os futuros ao
 domingo; na linha do FTSE, aberta até quando e fechada quando abre.
 
+## Iteração (Mercados 4.63.0): os gráficos do dia de manhã
+
+**Pedido.** «Porque os gráficos não carregam?» (segunda, às 8h08: sem gráfico o Nasdaq-100, o Europa 600 e o Xetra-Gold;
+os outros, uma linha quase direita.)
+
+**Visto.** Às 8h08 a Xetra tinha aberto há 8 minutos, e o Yahoo dá-a com 15 de atraso: sem série do dia. Os fundos com
+Munique e Düsseldorf usavam a série da bolsa com a hora mais recente — a de Düsseldorf, muitas vezes sem pontos (o
+Nasdaq-100 ficava em branco, com 3 pontos em Munique). O Europa 600 não tinha Munique; o Xetra-Gold não está lá. As linhas
+quase direitas eram verdadeiras: o fundo abriu −3 % (o tracejado é o fecho de sexta) e mexeu pouco desde as 7 h.
+
+**Feito.** A série do dia vem da bolsa com o ponto mais recente nela (o preço continua a ser o mais recente de todas); o
+Europa 600 passa a ter Munique e Düsseldorf.
+
+**Verificado.** Interface: com Düsseldorf mais recente e sem pontos, o gráfico do dia tem os de Munique e, no fim, o preço
+de Düsseldorf.
+
