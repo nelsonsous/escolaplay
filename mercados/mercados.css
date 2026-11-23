@@ -964,3 +964,9 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .pn-fut .fut-r b { font-weight: 600; }
 .pn-fut .fut-p { text-align: right; font-weight: 700; }
 .pn-fut .fut-ler { margin: 8px 2px 0; color: var(--muted); font-size: calc(.85rem * var(--k)); line-height: 1.4; }
+/* 4.65: confirmar a poupança periódica — o ✓ (verde quando confirmado; a piscar com um valor escrito por confirmar) */
+.reg .pp-ok { color: var(--muted); }
+.reg .pp-ok.on { color: #fff; background: var(--up); border-color: var(--up); }
+.reg .pp-ok.pisca { color: var(--up); border-color: var(--up); animation: pp-pisca 1s ease-in-out infinite; }
+@keyframes pp-pisca { 50% { opacity: .3; } }
+
