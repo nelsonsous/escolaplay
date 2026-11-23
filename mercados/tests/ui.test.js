@@ -1013,6 +1013,13 @@ function proxyBody(u) {
         await page.evaluate(() => { const mk = window.__mk; for (const [s, q] of window.__svQ) mk.Q[s] = q; delete window.__svQ; mk.render(); });
         console.log('✓ a ficha de manhã: o gráfico do dia com Munique');
     }
+    // 4.66: o fecho anterior só entra na escala perto do dia (num dia de +30 %, esmagava a linha); longe, fica de fora
+    {
+        const r = await page.evaluate(() => { const mk = window.__mk, d = [[0, 158], [1, 170.6], [2, 165]];
+            return [mk.baseVisivel(d, 125.5), mk.baseVisivel(d, 157), mk.baseVisivel(d, 150), mk.baseVisivel(d, 200), mk.baseVisivel(d, 189), mk.baseVisivel(d, null)]; });
+        assert.deepEqual(r.map((x) => (Number.isNaN(x) ? 'fora' : x)), ['fora', 157, 150, 'fora', 189, null]);
+        console.log('✓ o fecho anterior longe do dia fica fora da escala');
+    }
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
     // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com
     // as moedas debaixo dela e o total — o investido total é a soma do que custou cada um

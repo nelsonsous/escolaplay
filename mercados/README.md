@@ -141,6 +141,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## O fecho anterior longe do dia (4.66.0)
+
+Nos gráficos do dia (a ficha e as linhas), o fecho anterior (a tracejado) só entra na escala se estiver perto do dia: a
+mais de 1,5 vezes o que o dia mexeu (como num dia de +30 %), esmagava a linha num canto. Longe, fica de fora, e a ficha
+di-lo no canto («↓ fecho anterior 114,38 €»).
+
 ## Confirmar a poupança periódica (4.65.0)
 
 No «Registar», cada data do plano, do round up e do saveback tem um ✓: escreve-se o valor da TR e confirma-se (o ✓ pisca

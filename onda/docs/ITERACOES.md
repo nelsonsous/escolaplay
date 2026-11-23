@@ -3696,3 +3696,18 @@ nenhuma, as 15h45); a próxima data mostra-a. O ✕ apaga o confirmado e a hora.
 depois de redesenhar; confirmado hoje guarda a hora e conta já; o ✓ vazio confirma a média; a hora habitual é a média
 das confirmadas (sem nenhuma, 15h45).
 
+## Iteração (Mercados 4.66.0): o fecho anterior longe do dia
+
+**Pedido.** «Porque não aparece o gráfico todo?» (a ficha da Nvidia, num dia de +31 %: a linha do dia num canto de cima.)
+
+**Visto.** A escala ia do fecho anterior (125,5 US$, a tracejado) ao máximo do dia (170,6 US$): o dia (158 a 170,6 US$)
+ficava num quarto da altura, e o mínimo a meio do gráfico.
+
+**Feito.** O fecho anterior só entra na escala se estiver a menos de 1,5 vezes o que o dia mexeu; longe, fica de fora (na
+ficha e nas linhas), e a ficha escreve no canto «↓ fecho anterior …» (ou ↑).
+
+**Verificado.** Interface: longe (abaixo e acima) fica de fora; perto e dentro, entra; sem fecho, fica como está.
+
+Também: a lista do round up só procurava a próxima data nos 8 dias seguintes; depois do de dia 23, o seguinte (dia 2) está
+a 9 ou 10 dias, e a linha «próximo» desaparecia até dia 24/25 (o teste falhou a 23/11 à noite). Passa a 11 dias.
+
