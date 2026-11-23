@@ -3668,3 +3668,17 @@ Europa 600 passa a ter Munique e Düsseldorf.
 **Verificado.** Interface: com Düsseldorf mais recente e sem pontos, o gráfico do dia tem os de Munique e, no fim, o preço
 de Düsseldorf.
 
+## Iteração (Mercados 4.64.0): a ficha de manhã
+
+**Pedido.** (A ficha do FTSE às 8h09, com o 1D em «A carregar…».)
+
+**Visto.** A ficha só usava a série do dia guardada se a da Xetra tivesse pontos (de manhã não tem); pedia-a outra vez,
+vinha vazia, e o gráfico ficava «A carregar…» para sempre. A série juntava a de Munique pela bolsa com a hora mais recente
+(o mesmo erro da 4.63.0).
+
+**Feito.** O 1D da ficha usa a Xetra e, depois dela ou sem ela, a outra bolsa com pontos (a mesma escolha da linha); sem
+pontos nenhuns, diz «Ainda sem negócios hoje».
+
+**Verificado.** Interface: sem pontos da Xetra e com Düsseldorf mais recente e vazia, a ficha do FTSE desenha o 1D com os
+de Munique.
+
