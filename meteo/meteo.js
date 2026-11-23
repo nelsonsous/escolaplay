@@ -2,7 +2,8 @@
 // A previsão é calculada no telemóvel por ./lib/data.js (com o radar no ponto, RainViewer); o conector (Cloudflare
 // Worker) serve METAR, FIRMS, fogos.pt, satélite, locais, avisos do utilizador e a análise do Claude.
 // Endereço do conector nos Ajustes ou ?proxy=URL. Sem contas: cada telemóvel tem uma identidade anónima (api.js); a
-// análise do Claude está desligada por omissão e cada pessoa liga-a para até 2 locais (1.27), que só ela vê. O dono da app
+// análise do Claude está desligada por omissão e cada pessoa liga-a para os locais que quiser (1.29: sem limite; uma análise
+// por cidade, que serve todos os que lá estão), que só ela vê. O dono da app
 // (?dono=<código>, uma vez) não tem limite, vê e gere os locais todos e tem o painel "Utilização".
 import { loadForecast, requestAnalysis, setProxy, getProxy, DEFAULT_PROXY, radarMaps, tidyCache } from './lib/data.js';
 import { withReport, reportActive, warnHereText, missingText, withClaude, CLAUDE_MAX_AGE_H, CLAUDE_RAMP_H } from './lib/engine.js';
@@ -17,7 +18,7 @@ import { renderHourly, renderNowcast } from './charts.js';
 import { skyHtml, startRain, rainFrames, startSky, skyGL, pauseSky } from './sky.js';
 import { waterFeel, seaState } from './lib/marine.js';
 
-const VERSION = '1.28.2';
+const VERSION = '1.29.0';
 const SCHEDULE = ['07:34', '17:34']; // igual ao conector (/api/status)
 const REFRESH_MIN = 15;
 const LAYERS = [
@@ -182,7 +183,7 @@ const isOwner = () => !!st.status?.owner;
 const myPlaces = () => st.places.filter((p) => p.mine !== false);
 const onPlaces = () => myPlaces().filter((p) => !p.off);
 // quantas análises cada pessoa acompanha (as suas e as partilhadas; o conector diz, 2 desde a 1.27); o dono não tem limite
-const perPerson = () => st.status?.limit ?? 2;
+const perPerson = () => st.status?.limit ?? Infinity; // 1.29: sem limite (um conector antigo ainda manda o seu)
 const andJoin = (n) => (n.length <= 2 ? n.join(' e ') : `${n.slice(0, -1).join(', ')} e ${n[n.length - 1]}`);
 const placeNames = (ps) => andJoin(ps.map((p) => p.name));
 const othersMode = () => st.status?.others || 'on';
@@ -638,7 +639,7 @@ function teaserHtml() {
     return `<button type="button" class="claude" id="cl-teaser" data-tab="analise">${main}${note}</button>`;
 }
 // Sem análise para este ponto. A análise do Claude está desligada por omissão: ligá-la é uma escolha clara, para
-// este local e só para esta pessoa (até 2 análises por pessoa; com as 2 em uso, ligar aqui pergunta qual troca)
+// este local e só para esta pessoa (1.29: sem limite de análises; se o conector tiver um, ligar mais uma pergunta qual troca)
 function optInHtml() {
     const head = `<div class="adv-src">Análise${IA_AN}</div>`;
     if (st.analysis?.error && !st.analysis.offline) return `${head}<p>Não foi possível obter a análise (${esc(st.analysis.error)}).</p>`;
@@ -951,7 +952,7 @@ function viewAnalysis() {
     const swHint = np ? `Ligada (${np.name}) · ${onOpenH() ? `ao abrir a app, se tiver mais de ${onOpenH()} h` : schedFor().join(' · ')}`
         : owner ? `${at} · sem limite de locais`
         : othersMode() === 'off' ? 'Desligada pelo dono da app, por agora'
-        : `${othersMode() === '1x' ? (onOpenH() ? '1× por dia, ao abrir a app' : '1× por dia, às 07:34') : at} · até ${perPerson()} por pessoa${used.length ? ` (agora: ${placeNames(used)})` : ''}`;
+        : `${othersMode() === '1x' ? (onOpenH() ? '1× por dia, ao abrir a app' : '1× por dia, às 07:34') : at}${Number.isFinite(perPerson()) ? ` · até ${perPerson()} por pessoa` : ''}${used.length ? ` (agora: ${placeNames(used)})` : ''}`;
     h += `<div class="form"><div class="sw"><span><b>Análise para este local</b><br><small class="hint">${esc(swHint)}</small></span>
         <div class="seg" role="group" aria-label="Análise para este local"><button type="button" data-act="place-on" class="${np ? 'on' : ''}" aria-pressed="${!!np}">Sim</button><button type="button" data-act="place-off" class="${np ? '' : 'on'}" aria-pressed="${!np}">Não</button></div></div>
         ${onDemand ? `<button type="button" class="btn pri blk" data-act="analyze"${st.analyzing ? ' disabled' : ''}>${ui('sparkle', st.analyzing ? 'spin' : '')}${st.analyzing ? 'A analisar… pode demorar 1 minuto' : 'Analisar agora'}</button>` : ''}</div></section>`;
@@ -1186,7 +1187,7 @@ const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (/Macintosh
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 // 1.27: os locais da notificação (vários, numa só); os escolhidos que ainda estão ligados, ou por omissão: com até 2, os
 // dois; com mais (o dono), o daqui (ou o primeiro)
-const pushMax = () => (isOwner() ? 4 : perPerson());
+const pushMax = () => (isOwner() ? 4 : Math.min(4, perPerson())); // 1.29: até 4 para todos
 function pushPlaceIds() {
     const own = onPlaces(), P = st.push;
     const chosen = (P?.places?.length ? P.places : P?.place ? [P.place] : []).filter((id) => own.some((p) => p.id === id));
@@ -1304,7 +1305,7 @@ function placeRow(p, other = false) {
 function placesSettingsHtml() {
     const owner = isOwner(), mineOn = onPlaces();
     const byOwner = !owner && myPlaces().some((p) => p.off && p.offBy === 'owner');
-    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Locais com análise</h2><span class="sub">${owner ? 'sem limite de locais' : `${mineOn.length} de ${perPerson()}`}</span></div><div class="form">
+    let h = `<section class="sec" id="locais"><div class="sec-h"><h2>Locais com análise</h2><span class="sub">${owner || !Number.isFinite(perPerson()) ? 'sem limite de locais' : `${mineOn.length} de ${perPerson()}`}</span></div><div class="form">
         <div class="wl">${mineOn.length ? mineOn.map((p) => placeRow(p)).join('') : `<div class="hint">${byOwner ? 'Desligada pelo dono da app.' : 'Desligada (é opcional). Liga-a no cartão «Análise» do local que quiseres.'}</div>`}</div>`;
     if (owner) {
         const others = st.places.filter((p) => p.mine === false);

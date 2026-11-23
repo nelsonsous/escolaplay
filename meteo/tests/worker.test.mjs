@@ -66,9 +66,9 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.13.2');
+    assert.equal(j.version, '1.14.0');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
-    assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', 2, 0]);
+    assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', null, 0], '1.14: sem limite de análises');
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
     const root = await call('/');
     assert.equal(root.status, 302);
@@ -161,7 +161,7 @@ test('dono: sem o segredo OWNER_CODE não há dono; com ele, o código certo vê
     const nelson = device(), me = { d: nelson, owner: CODE };
     // sem OWNER_CODE ninguém é dono, nem com um código
     let s = (await J('GET', '/api/status', me)).body;
-    assert.deepEqual([s.owner, s.ownerCode, s.limit, s.places], [false, 'sem_codigo', 2, 0]);
+    assert.deepEqual([s.owner, s.ownerCode, s.limit, s.places], [false, 'sem_codigo', null, 0]);
     assert.deepEqual((await J('GET', '/api/places', me)).body, [], 'o local de antes é do dono');
     assert.equal((await J('GET', '/api/analysis?lat=41.3354&lon=-8.4745', me)).body.analysis, null);
     assert.equal((await J('GET', '/api/usage', me)).status, 403);
@@ -195,7 +195,7 @@ test('dono: sem o segredo OWNER_CODE não há dono; com ele, o código certo vê
     assert.equal((await J('GET', '/api/places', { d: tablet, owner: CODE })).body.find((p) => p.id === t.id).lat, 38.7);
 });
 
-test('convidado: até 2 análises por pessoa (1.13); com as 2, ligar outra responde 409 com elas e muda-se uma (PATCH, o mesmo id: a análise e as lições ficam); desligar não apaga', async () => {
+test('convidado: sem limite de análises por pessoa (1.14; eram 2); a app muda um local de sítio (PATCH, o mesmo id: a análise e as lições ficam); desligar não apaga', async () => {
     const g = device();
     const post = (b, d = g, origin = ORIGIN) => J('POST', '/api/places', { d, body: b, origin });
     assert.equal((await post({ name: 'Casa', lat: 41.5, lon: -8.4 }, g, 'https://evil.example')).status, 403);
@@ -212,13 +212,14 @@ test('convidado: até 2 análises por pessoa (1.13); com as 2, ligar outra respo
     assert.deepEqual([casa.mine, casa.kind, casa.lat, casa.lon], [true, 'guest', 41.5454, -8.4265]);
     assert.equal(kvj('places')[0].owner, g.id);
     assert.equal((await J('GET', '/api/analysis?lat=41.5454&lon=-8.4265', { d: g })).body.analysis, null);
-    // no mesmo sítio devolve o que já existe; noutro sítio: a 2.ª análise (1.13: 2 por pessoa)
+    // no mesmo sítio devolve o que já existe; noutro sítio: a 2.ª análise
     assert.deepEqual([(await post({ name: 'Outra', lat: 41.5455, lon: -8.4266 })).status, kvj('places').length], [200, 1]);
     const praia = await post({ name: 'Praia', lat: 41.36, lon: -8.76 });
     assert.deepEqual([praia.status, kvj('places').length], [201, 2]);
-    // a 3.ª: 409 com as duas em uso (a app pergunta qual troca); place = a 1.ª, para as versões de antes
-    const far = await post({ name: 'Serra', lat: 41.0, lon: -7.9 });
-    assert.deepEqual([far.status, far.body.error, far.body.places.map((p) => p.id), far.body.place.id, far.body.join], [409, 'limite', [casa.id, praia.body.id], casa.id, false]);
+    // a 3.ª (1.14: sem limite; eram 2): liga-se, um local novo
+    const far = await post({ name: 'Gerês', lat: 41.75, lon: -8.15 });
+    assert.deepEqual([far.status, kvj('places').length], [201, 3]);
+    env.KV.m.set('places', JSON.stringify(kvj('places').filter((p) => p.id !== far.body.id))); // ficam as 2, para o resto
     // a app muda uma delas (PATCH, o mesmo id): a última análise e as lições ficam
     env.KV.m.set('analysis:' + casa.id, JSON.stringify({ titulo: 'Sol em Braga', generatedAt: new Date().toISOString(), place: { id: casa.id, name: 'Casa', lat: 41.5454, lon: -8.4265 } }));
     env.KV.m.set('lessons:' + casa.id, JSON.stringify(['O vale arrefece nas noites calmas']));
@@ -237,11 +238,11 @@ test('convidado: até 2 análises por pessoa (1.13); com as 2, ligar outra respo
     const back = await post({ name: 'Serra', lat: 41.0, lon: -7.9 });
     assert.deepEqual([back.status, back.body.id, back.body.off], [200, casa.id, undefined]);
     assert.equal((await J('GET', '/api/analysis?lat=41.0&lon=-7.9', { d: g })).body.analysis.titulo, 'Sol em Braga');
-    // com as 2 ligadas, voltar a ligar uma 3.ª desligada (PATCH on) também pede para trocar
+    // com as 2 ligadas, voltar a ligar uma 3.ª desligada (PATCH on) liga-a (1.14: sem pedir para trocar)
     const old = { id: 'velha-abc234', name: 'Velha', lat: 40.2, lon: -8.4, owner: g.id, off: true, offBy: 'device', createdAt: '2026-11-01T00:00:00Z' };
     env.KV.m.set('places', JSON.stringify([...kvj('places'), old]));
     const re = await J('PATCH', '/api/places/velha-abc234', { d: g, body: { on: true } });
-    assert.deepEqual([re.status, re.body.error, re.body.places.length], [409, 'limite', 2]);
+    assert.deepEqual([re.status, re.body.off], [200, undefined]);
     env.KV.m.set('places', JSON.stringify(kvj('places').filter((p) => p.id !== old.id)));
     // "Desfazer" na app: PATCH { on: true }
     await api('DELETE', `/api/places/${casa.id}`, { d: g });
@@ -256,13 +257,9 @@ test('convidado: até 2 análises por pessoa (1.13); com as 2, ligar outra respo
     const no = await post({ name: 'Porto', lat: 41.15, lon: -8.61 }, h);
     assert.deepEqual([no.status, no.body.error], [403, 'convidados_desligados']);
     env.KV.m.delete('settings');
-    // limite de segurança: 15 locais em análise (os do dono e os dos outros em uso)
+    // sem o máximo de 15 locais em análise (1.14): com 16, liga-se na mesma
     const others = Array.from({ length: 14 }, (_, i) => ({ id: `d${i}`, name: `D${i}`, lat: 37 + i / 10, lon: -8, owner: 'owner' }));
     env.KV.m.set('places', JSON.stringify([...kvj('places'), ...others]));
-    const full = await post({ name: 'Porto', lat: 41.15, lon: -8.61 }, h);
-    assert.deepEqual([full.status, full.body.error], [409, 'cheio']);
-    // um local em pausa (telemóvel sem abrir a app há 20 dias) não conta
-    env.KV.m.set('dev:' + g.id, JSON.stringify({ ...kvj('dev:' + g.id), lastSeen: new Date(Date.now() - 20 * 864e5).toISOString() }));
     assert.equal((await post({ name: 'Porto', lat: 41.15, lon: -8.61 }, h)).status, 201);
 });
 
@@ -329,22 +326,22 @@ test('mesma cidade (≤ 5 km): o telemóvel novo junta-se à análise que já ex
     assert.equal((await api('DELETE', '/api/places/santo-tirso', { d: v })).status, 204);
     assert.deepEqual([kvj('places')[0].members, kvj('places')[0].off], [[], undefined]);
     assert.equal((await J('GET', '/api/analysis?lat=41.35&lon=-8.46', { d: v })).body.analysis, null);
-    // quem já tinha o seu local noutra cidade: junta-se e o seu continua (1.13: 2 análises por pessoa)
+    // quem já tinha o seu local noutra cidade: junta-se e o seu continua
     const braga = (await J('POST', '/api/places', { d: w, body: { name: 'Braga', lat: 41.5454, lon: -8.4265 } })).body;
     assert.equal(braga.shared, undefined);
     const j2 = await J('POST', '/api/places', { d: w, body: { name: 'Santo Tirso', lat: 41.3354, lon: -8.4745 } });
     assert.deepEqual([j2.status, j2.body.id, j2.body.shared], [200, 'santo-tirso', true]);
     assert.deepEqual(kvj('places').map((p) => [p.id, !!p.off]), [['santo-tirso', false], [braga.id, false]]);
     assert.deepEqual((await J('GET', '/api/places', { d: w })).body.map((p) => p.id).sort(), [braga.id, 'santo-tirso'].sort());
-    // com as 2 em uso: uma 3.ª (própria ou partilhada) responde 409 com as duas; join diz se ali se juntava a uma
+    // 1.14: sem limite — uma 3.ª própria liga-se; com 2 próprias, juntar-se a uma que já existe também (a mesma análise)
     const third = await J('POST', '/api/places', { d: w, body: { name: 'Lisboa', lat: 38.72, lon: -9.14 } });
-    assert.deepEqual([third.status, third.body.error, third.body.places.map((p) => p.id).sort(), third.body.join], [409, 'limite', [braga.id, 'santo-tirso'].sort(), false]);
+    assert.equal(third.status, 201);
     const x = device();
     await J('POST', '/api/places', { d: x, body: { name: 'Faro', lat: 37.02, lon: -7.93 } });
     await J('POST', '/api/places', { d: x, body: { name: 'Évora', lat: 38.57, lon: -7.91 } });
     const jx = await J('POST', '/api/places', { d: x, body: { name: 'Areias', lat: 41.35, lon: -8.46 } });
-    assert.deepEqual([jx.status, jx.body.error, jx.body.join], [409, 'limite', true]);
-    assert.equal(kvj('places').find((p) => p.id === 'santo-tirso').members.includes(x.id), false, 'não se juntou');
+    assert.deepEqual([jx.status, jx.body.id, jx.body.shared], [200, 'santo-tirso', true], 'junta-se à que já existe: nenhuma análise a mais');
+    assert.equal(kvj('places').find((p) => p.id === 'santo-tirso').members.includes(x.id), true, 'juntou-se');
     // noutra cidade: local próprio
     const porto = await J('POST', '/api/places', { d: longe, body: { name: 'Porto', lat: 41.1621, lon: -8.6219 } });
     assert.equal(porto.status, 201, 'a 27 km: local próprio');
@@ -753,7 +750,7 @@ test('avisos do utilizador: ficam com o telemóvel que os deu — no seu local (
     assert.equal((await api('GET', '/api/reports?lat=x&lon=1', { d: a })).status, 400);
 });
 
-test('análises por pessoa: um registo novo com o mesmo nome (histórico limpo, outro browser) é a mesma pessoa (as 2 contam juntas)', async () => {
+test('análises por pessoa: um registo novo com o mesmo nome (histórico limpo, outro browser) é a mesma pessoa (os locais contam juntos)', async () => {
     const before = env.KV.m.get('places');
     env.KV.m.set('places', JSON.stringify([]));
     env.OWNER_CODE = CODE;
@@ -763,12 +760,13 @@ test('análises por pessoa: um registo novo com o mesmo nome (histórico limpo, 
     const r1 = await post(a, { name: 'Vila Meã', lat: 41.2577, lon: -8.2115 });
     assert.equal(r1.status, 201);
     assert.equal(kvj('places')[0].ownerName, 'Vanessa');
-    // o registo novo da mesma pessoa vê o local como seu, e ele conta para as 2 da pessoa
+    // o registo novo da mesma pessoa vê o local como seu
     assert.deepEqual((await J('GET', '/api/places', { d: b })).body.map((p) => [p.id, p.mine, !!p.approx]), [[r1.body.id, true, false]]);
     const r2 = await post(b, { name: 'Campanhã', lat: 41.1571, lon: -8.5747 });
     assert.equal(r2.status, 201, 'a 2.ª da mesma pessoa');
-    const far = await post(b, { name: 'Aveiro', lat: 40.64, lon: -8.65 });
-    assert.deepEqual([far.status, far.body.places.map((p) => p.id).sort()], [409, [r1.body.id, r2.body.id].sort()]);
+    const far = await post(b, { name: 'Gerês', lat: 41.75, lon: -8.15 });
+    assert.equal(far.status, 201, '1.14: sem limite, a 3.ª também');
+    env.KV.m.set('places', JSON.stringify(kvj('places').filter((p) => p.id !== far.body.id)));
     // mudar a 1.ª de sítio a partir do registo novo: passa a ser deste registo (o antigo deixa de abrir a app)
     const mv = await J('PATCH', `/api/places/${r1.body.id}`, { d: b, body: { lat: 40.64, lon: -8.65, name: 'Aveiro' } });
     assert.equal(mv.status, 200);
@@ -832,7 +830,7 @@ test('análise: notas sobre os dados (opcionais, até 4, cada uma até 160 carac
     assert.ok(ANALYSIS_SCHEMA.properties.dados && /"dados"/.test(SYSTEM_PROMPT));
 });
 
-test('análise na hora: abrir a app com a análise do seu local com mais de 6 h chama a tarefa (uma de cada vez, com limites); sem os segredos nada muda', async () => {
+test('análise na hora: abrir a app com a análise do seu local com mais de 6 h chama a tarefa (uma de cada vez; 1.14: sem máximo por hora ou por dia); sem os segredos nada muda', async () => {
     const st = { id: 'santo-tirso', name: 'Santo Tirso', lat: 41.3354, lon: -8.4745, createdAt: '2026-11-01T10:00:00Z' };
     const ago = (h) => new Date(Date.now() - h * 36e5).toISOString();
     env.KV.m.set('places', JSON.stringify([st]));
@@ -886,18 +884,25 @@ test('análise na hora: abrir a app com a análise do seu local com mais de 6 h 
     await worker.scheduled({ scheduledTime: Date.now() }, env, c2);
     await Promise.all(pend.splice(0));
     assert.equal(fired.length, 3, 'já teve as suas 2 chamadas');
-    // limite: 4 corridas na última hora → não chama mais
+    // 1.14: sem máximo por hora ou por dia (eram 4 e 12): com 12 corridas hoje e 4 na última hora, chama na mesma
     env.KV.m.delete('want:santo-tirso');
     env.KV.m.set('analysis:santo-tirso', JSON.stringify({ titulo: 'Velha', generatedAt: ago(8), place: st }));
-    env.KV.m.set('fire:calls', JSON.stringify([50, 40, 30, 20].map((m) => Date.now() - m * 6e4)));
+    env.KV.m.set('fire:calls', JSON.stringify([20, 30, 40, 50, 120, 180, 240, 300, 360, 420, 480, 540].map((m) => Date.now() - m * 6e4)));
     b = await get();
-    assert.equal(fired.length, 3);
+    assert.deepEqual([b.refreshing, fired.length, kvj('want:santo-tirso').fires], [true, 4, 1]);
+    // o mesmo pedido tem no máximo 2 chamadas: se a análise não chega (tarefa avariada), espera — não se gasta sem fim
+    env.KV.m.set('fire:calls', JSON.stringify([Date.now() - 20 * 6e4]));
+    b = await get();
+    assert.deepEqual([fired.length, kvj('want:santo-tirso').fires], [5, 2]);
+    env.KV.m.set('fire:calls', JSON.stringify([Date.now() - 20 * 6e4]));
+    b = await get();
+    assert.deepEqual([b.refreshing, fired.length, kvj('want:santo-tirso').fires], [true, 5, 2], 'já teve as suas 2 chamadas');
     // o token falha (revogado): regista na mesma (não é martelado) e a app continua a funcionar
     globalThis.fetch = async (u, init) => { fired.push({ url: String(u), init }); return new Response('{}', { status: 401 }); };
     env.KV.m.set('fire:calls', '[]');
     env.KV.m.delete('want:santo-tirso');
     b = await get();
-    assert.deepEqual([b.refreshing, fired.length, kvj('fire:calls').length], [true, 4, 1]);
+    assert.deepEqual([b.refreshing, fired.length, kvj('fire:calls').length], [true, 6, 1]);
     delete env.METEO_FIRE_URL; delete env.METEO_TOKEN; delete env.OWNER_CODE;
 });
 
