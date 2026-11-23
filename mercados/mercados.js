@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.64.0';
+    const VERSION = '4.65.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1707,6 +1707,23 @@
     const HORA_PLANO = 15 * 60 + 45; // 15h45, em minutos
     const feito = (iso) => { if (iso < todayLocal()) return true; const a = new Date(); return iso === todayLocal() && a.getHours() * 60 + a.getMinutes() >= HORA_PLANO; };
     const PP_MAPA = { pl: 'pa', ru: 'ra', sb: 'sa' };
+    // 4.65: a hora a que cada um foi confirmado (no próprio dia: minutos desde a meia-noite) — lots.ph, lots.rh, lots.sh
+    const PP_HORA = { pl: 'ph', ru: 'rh', sb: 'sh' };
+    // a hora habitual: a média das últimas confirmadas (sem nenhuma, as 15h45)
+    function horaPP(k, tp) {
+        const h = Object.values(lotOf(k)[PP_HORA[tp]] || {}).filter((x) => x !== null && x !== '' && fin(+x)).slice(-8);
+        return h.length ? Math.round(h.reduce((s, x) => s + +x, 0) / h.length) : HORA_PLANO;
+    }
+    // já foi feito? Os dias antes de hoje sim; hoje, se foi confirmado hoje (com a hora) ou já passou a hora habitual
+    function feitoPP(k, tp, iso) {
+        const hoje = todayLocal();
+        if (iso !== hoje) return iso < hoje;
+        const h = (lotOf(k)[PP_HORA[tp]] || {})[iso];
+        if (h !== undefined && h !== null && h !== '' && fin(+h)) return true;
+        const a = new Date();
+        return a.getHours() * 60 + a.getMinutes() >= horaPP(k, tp);
+    }
+    const hmPP = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
     // o habitual do round up (€ por semana) e do saveback (€ por mês): o escolhido, senão a média dos últimos 4 registados
     // os valores inseridos do round up ou do saveback (pelo «Registar» ou acertados com −/+/0): [[dia, €]], por ordem
     function entradas(k, tp) {
@@ -1767,7 +1784,7 @@
         // a poupança periódica, nos dias já feitos (por volta das 15h45): o inserido nesse dia, senão o habitual (4.42/4.43)
         for (const tp of ['pl', 'ru', 'sb']) {
             for (const d of agendaPP(k, tp, L.at, todayLocal())) {
-                if (!feito(d)) continue;
+                if (!feitoPP(k, tp, d)) continue;
                 const v = valorPP(k, tp, d), p = pxEm(k, d);
                 if (v.e > 0 && fin(p) && p > 0) out.push({ d, e: v.e, q: v.e / p, t: tp === 'pl' ? 0 : tp === 'sb' ? (v.aj ? 3 : 5) : v.aj ? 4 : 6, aj: v.aj });
             }
@@ -2006,9 +2023,13 @@
         const lst = (tp) => {
             const ds = agendaPP(k, tp, deP, isoMais(hjP, tp === 'ru' ? 8 : 31)), sug = tp === 'pl' ? pmOf(k) / nPl : habitual(k, tp);
             // 4.49: à vista, a próxima e as últimas (o round up: um mês; o plano e o saveback: 2); as mais antigas numa dobra fechada
-            const linha = (dd) => { const v = valorPP(k, tp, dd); return { d: dd, l: dmy(dd), ins: v.aj, e: v.aj ? Math.round(v.e * 100) / 100 : 0, sug: Math.round(sug * 100) / 100, feito: feito(dd) ? 1 : 0 }; };
-            const feitas = ds.filter((x) => feito(x)).reverse().slice(0, tp === 'ru' ? 48 : 12), ver = tp === 'ru' ? 4 : 2;
-            const linhas = ds.filter((x) => !feito(x)).slice(0, 1).concat(feitas.slice(0, ver)).map(linha), mais = feitas.slice(ver).map(linha);
+            // 4.65: o estado de cada data — próximo (à hora habitual), confirmado, ou a média (o plano) sem confirmar; o rascunho
+            // escrito e ainda por confirmar fica no campo (e o ✓ a piscar)
+            const linha = (dd) => { const v = valorPP(k, tp, dd), fe = feitoPP(k, tp, dd);
+                return { d: dd, l: dmy(dd), ins: v.aj, e: v.aj ? Math.round(v.e * 100) / 100 : 0, sug: Math.round(sug * 100) / 100, feito: fe ? 1 : 0, rasc: (st.ppd || {})[tp + '|' + dd] || '',
+                    st: !fe ? `próximo · ~${hmPP(horaPP(k, tp))}` : v.aj ? 'confirmado' : tp === 'pl' ? 'plano' : 'média' }; };
+            const feitas = ds.filter((x) => feitoPP(k, tp, x)).reverse().slice(0, tp === 'ru' ? 48 : 12), ver = tp === 'ru' ? 4 : 2;
+            const linhas = ds.filter((x) => !feitoPP(k, tp, x)).slice(0, 1).concat(feitas.slice(0, ver)).map(linha), mais = feitas.slice(ver).map(linha);
             const ent = entradas(k, tp);
             const info = tp === 'pl' ? `${eurP(pmOf(k), 0)} por mês${(cfg.saveDays || []).length ? ' · dia ' + cfg.saveDays.join(' e ') : ''}`
                 : ent.length ? `média ${eurP(sug, 2)} · ~${eurP(Math.round(sug * (tp === 'ru' ? 48 : 12)), 0)} por ano` : 'escreve o valor da TR em cada data';
@@ -3395,10 +3416,29 @@
             case 'pp-rm': {
                 const k = (st.reg || {}).k, L0 = lotOf(k), tp = d.tp, dia = d.d;
                 if (!REG[k] || !temHoje(L0) || !PP_MAPA[tp] || !ISO_D.test(dia || '')) break;
-                const antes = L0[PP_MAPA[tp]], m = { ...(antes || {}) };
-                delete m[dia];
-                setLots(k, { ...L0, [PP_MAPA[tp]]: m });
-                toast(`Apagado: ${tp === 'pl' ? 'o plano' : tp === 'ru' ? 'o round up' : 'o saveback'} de ${dmy(dia)} (fica a sugestão)`, () => setLots(k, { ...lotOf(k), [PP_MAPA[tp]]: antes }));
+                const antes = L0[PP_MAPA[tp]], antesH = L0[PP_HORA[tp]], m = { ...(antes || {}) }, h = { ...(antesH || {}) };
+                delete m[dia]; delete h[dia];
+                if (st.ppd) delete st.ppd[tp + '|' + dia];
+                setLots(k, { ...L0, [PP_MAPA[tp]]: m, [PP_HORA[tp]]: h });
+                toast(`Apagado: ${tp === 'pl' ? 'o plano' : tp === 'ru' ? 'o round up' : 'o saveback'} de ${dmy(dia)} (fica ${tp === 'pl' ? 'o plano' : 'a média'})`, () => setLots(k, { ...lotOf(k), [PP_MAPA[tp]]: antes, [PP_HORA[tp]]: antesH }));
+                break;
+            }
+            // 4.65: confirmar (✓) — o escrito ou, com o campo vazio, a média (o plano); hoje, com a hora (conta já, e a hora
+            // entra na hora habitual)
+            case 'pp-ok': {
+                const k = (st.reg || {}).k, L0 = lotOf(k), tp = d.tp, dia = d.d, chave = tp + '|' + dia;
+                if (!REG[k] || !temHoje(L0) || !PP_MAPA[tp] || !ISO_D.test(dia || '')) break;
+                const f = $(`.reg [data-ppv="${tp}"][data-d="${dia}"]`), txt = String(f ? f.value : (st.ppd || {})[chave] || '').trim();
+                const v = txt ? numPt(txt) : valorPP(k, tp, dia).e;
+                if (!(v >= 0)) { toast('Escreve um valor em euros.'); break; }
+                const antes = L0[PP_MAPA[tp]], antesH = L0[PP_HORA[tp]], m = { ...(antes || {}) }, h = { ...(antesH || {}) }, hoje = dia === todayLocal();
+                m[dia] = Math.round(v * 100) / 100;
+                if (hoje) { const a = new Date(); h[dia] = a.getHours() * 60 + a.getMinutes(); }
+                if (st.ppd) delete st.ppd[chave];
+                if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+                setLots(k, { ...L0, [PP_MAPA[tp]]: m, [PP_HORA[tp]]: h });
+                toast(`${tp === 'pl' ? 'Plano' : tp === 'ru' ? 'Round up' : 'Saveback'} a ${dmy(dia)}: ${fmtPx(m[dia], { decimals: 2 }, 'EUR')} — confirmado${hoje ? ` às ${hmPP(h[dia])}` : ''}`,
+                    () => setLots(k, { ...lotOf(k), [PP_MAPA[tp]]: antes, [PP_HORA[tp]]: antesH }));
                 break;
             }
             case 'reg-acerto': {
@@ -3468,16 +3508,8 @@
     document.addEventListener('change', (ev) => {
         const t = ev.target;
         // 4.45: o valor de uma data da poupança periódica (o plano, o round up ou o saveback): grava ao sair do campo
-        if (t.dataset && t.dataset.ppv) {
-            const k = (st.reg || {}).k, L0 = lotOf(k), tp = t.dataset.ppv, dia = t.dataset.d, txt = String(t.value || '').trim();
-            if (!REG[k] || !temHoje(L0) || !PP_MAPA[tp] || !ISO_D.test(dia || '')) return;
-            const antes = L0[PP_MAPA[tp]], m = { ...(antes || {}) };
-            if (!txt) delete m[dia];
-            else { const v = numPt(txt); if (!(v >= 0)) { toast('Escreve um valor em euros.'); return; } m[dia] = Math.round(v * 100) / 100; }
-            setLots(k, { ...L0, [PP_MAPA[tp]]: m });
-            toast(`${tp === 'pl' ? 'Plano' : tp === 'ru' ? 'Round up' : 'Saveback'} a ${dmy(dia)}: ${txt ? fmtPx(m[dia], { decimals: 2 }, 'EUR') : 'a sugestão'}`, () => setLots(k, { ...lotOf(k), [PP_MAPA[tp]]: antes }));
-            return;
-        }
+        // 4.65: escrever não grava — só ao confirmar (✓), que pisca até lá; o rascunho fica (st.ppd)
+        if (t.dataset && t.dataset.ppv) { st.ppd = { ...(st.ppd || {}), [t.dataset.ppv + '|' + t.dataset.d]: t.value }; return; }
         // 4.47: o PPR Evoluir — desde, € por mês, % no Dinâmico e, para acertar com a Fidelidade, as unidades de hoje
         // 4.51: o Fundo Viva — as tuas UP (vazio tira a secção dos números)
         if (t.dataset && t.dataset.fut) {
@@ -3540,6 +3572,12 @@
     });
     document.addEventListener('input', (ev) => {
         if (ev.target.dataset && ev.target.dataset.reg) { st.reg = st.reg || {}; st.reg[ev.target.dataset.reg] = ev.target.value; }
+        // 4.65: a poupança periódica — escrito e por confirmar: o ✓ pisca
+        if (ev.target.dataset && ev.target.dataset.ppv) {
+            const t = ev.target, b = t.parentElement && t.parentElement.querySelector('.pp-ok');
+            st.ppd = { ...(st.ppd || {}), [t.dataset.ppv + '|' + t.dataset.d]: t.value };
+            if (b) b.classList.add('pisca');
+        }
         // a barra do simulador: o número muda enquanto se arrasta; grava e redesenha ao largar (change)
         if (ev.target.classList && ev.target.classList.contains('sim-rg')) {
             const t = ev.target, v = +t.value, o = document.querySelector(`[data-out="${t.dataset.cfg}"]`);
@@ -3698,7 +3736,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas

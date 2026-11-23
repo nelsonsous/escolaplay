@@ -250,8 +250,11 @@
 # 4.45: uma data da poupança periódica — o dia, o estado e o valor: escreve-se como a TR o mostra (vazio fica a sugestão, a
 # cinzento); ✕ apaga o escrito
 : cr_ppl ii>i c tp {
-  `<div class="pp-l{ Se ~ ha c.feito " pp-prox" }"><span>{ esc c.l }<small>{ ? ~ ha c.feito "próximo" ? ha c.ins "escrito" "sugestão" }</small></span>`
-  `<input class="inp pp-v" type="text" inputmode="decimal" autocomplete="off" data-ppv="{ esc tp }" data-d="{ esc c.d }" value="{ Se ha c.ins _nu_intlm num c.e 2 }" placeholder="{ _nu_intlm num c.sug 2 }" aria-label="Valor a { esc c.l }"><small class="pp-eur">€</small>`
+  # 4.65: o estado (próximo à hora habitual, confirmado, a média); o ✓ confirma (verde quando confirmado; a piscar com um
+  # valor escrito por confirmar — o rascunho fica no campo)
+  `<div class="pp-l{ Se ~ ha c.feito " pp-prox" }"><span>{ esc c.l }<small>{ esc c.st }</small></span>`
+  `<input class="inp pp-v" type="text" inputmode="decimal" autocomplete="off" data-ppv="{ esc tp }" data-d="{ esc c.d }" value="{ ? ha c.rasc esc c.rasc ? ha c.ins _nu_intlm num c.e 2 "" }" placeholder="{ _nu_intlm num c.sug 2 }" aria-label="Valor a { esc c.l }"><small class="pp-eur">€</small>`
+  `<button type="button" class="pp-b pp-ok{ Se ha c.ins " on" }{ Se ha c.rasc " pisca" }" data-act="pp-ok" data-tp="{ esc tp }" data-d="{ esc c.d }" aria-label="Confirmar o valor a { esc c.l }">✓</button>`
   Se ha c.ins { `<button type="button" class="pp-b pp-x" data-act="pp-rm" data-tp="{ esc tp }" data-d="{ esc c.d }" aria-label="Apagar">✕</button>` }
   "</div>" 0 }
 # 4.45: a lista do plano, do round up ou do saveback, numa dobra (aberta por omissão; fica como a deixares): vai crescendo

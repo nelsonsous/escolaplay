@@ -411,16 +411,37 @@ function proxyBody(u) {
     assert.ok(sbD.length >= 2 && sbD.every((x) => x.endsWith('-02')) && plD.length >= 2 && plD.every((x) => x.endsWith('-02')), 'o saveback e o plano no dia 2');
     assert.equal(await page.locator(`.reg [data-ppv="pl"][data-d="${plD[1]}"]`).getAttribute('placeholder'), '900', 'o plano: vazio é o valor por mês');
     assert.match(await page.locator('.reg .pp-f[data-fold="pp-ru"] > summary').textContent(), /escreve o valor da TR em cada data/, 'sem nenhum escrito');
-    const escreve = async (tp, d, v) => { const x = page.locator(`.reg [data-ppv="${tp}"][data-d="${d}"]`); await x.fill(v); await x.evaluate((e) => e.blur()); await page.waitForTimeout(150); };
+    // 4.65: escreve-se e confirma-se com o ✓
+    const okDe = (tp, d) => page.locator(`.reg .pp-l:has([data-ppv="${tp}"][data-d="${d}"]) [data-act="pp-ok"]`);
+    const escreve = async (tp, d, v) => { const x = page.locator(`.reg [data-ppv="${tp}"][data-d="${d}"]`); await x.fill(v); await okDe(tp, d).click(); await page.waitForTimeout(150); };
     // dois round ups (2,24 € e 12 €): fica o valor de cada data, e a sugestão passa a ser a média — 7,12 €, ~342 € por ano
     await escreve('ru', ruD[2], '2,24');
     assert.equal((await fL()).ra[ruD[2]], 2.24, 'o round up dessa data');
-    assert.match(await page.locator('#mk-toast').textContent(), /^Round up a \d\d\/\d\d\/\d{4}: 2,24\s€/);
+    assert.match(await page.locator('#mk-toast').textContent(), /^Round up a \d\d\/\d\d\/\d{4}: 2,24\s€ — confirmado/);
+    assert.equal(await okDe('ru', ruD[2]).evaluate((b) => b.classList.contains('on')), true, 'o ✓ fica verde');
+    // 4.65: escrito sem confirmar não conta, e o ✓ pisca (o rascunho fica no campo depois de redesenhar)
+    {
+        const x = page.locator(`.reg [data-ppv="ru"][data-d="${ruD[3]}"]`);
+        await x.fill('3'); await x.evaluate((e) => e.blur());
+        await page.waitForTimeout(150);
+        assert.equal(ruD[3] in ((await fL()).ra || {}), false, 'sem confirmar, não grava');
+        assert.equal(await okDe('ru', ruD[3]).evaluate((b) => b.classList.contains('pisca')), true, 'o ✓ pisca');
+        await page.evaluate(() => window.__mk.render());
+        assert.equal(await page.locator(`.reg [data-ppv="ru"][data-d="${ruD[3]}"]`).inputValue(), '3', 'o rascunho fica');
+        await page.locator(`.reg [data-ppv="ru"][data-d="${ruD[3]}"]`).fill('');
+        await page.evaluate((d) => { delete window.__mk.st.ppd['ru|' + d]; window.__mk.render(); }, ruD[3]);
+    }
     await escreve('ru', ruD[1], '12');
     await page.waitForFunction(() => /média 7,12\s€ · ~342\s€ por ano/.test(document.querySelector('.reg .pp-f[data-fold="pp-ru"] > summary').textContent), null, { timeout: 3000 });
     assert.equal(await page.locator(`.reg [data-ppv="ru"][data-d="${ruD[3]}"]`).getAttribute('placeholder'), '7,12', 'as datas vazias sugerem a média');
     // o pendente (a próxima) escreve-se já: só conta nesse dia, às 15h45; o saveback de 8,40 €; o plano de um dia em 600 €
     await escreve('ru', ruD[0], '2,31');
+    // 4.65: confirmado hoje: com a hora, conta já, e a hora entra na hora habitual
+    if (ruD[0] === isoAtras(0)) {
+        const h = (await fL()).rh[ruD[0]], a = new Date();
+        assert.ok(Math.abs(h - (a.getHours() * 60 + a.getMinutes())) <= 1, 'a hora da confirmação: ' + h);
+        assert.equal(await page.evaluate((d) => window.__mk.feitoPP('VWCE.DE', 'ru', d), ruD[0]), true, 'conta já');
+    }
     await escreve('sb', sbD[sbD.length - 1], '8,40');
     await escreve('pl', plD[1], '600');
     const vL = await fL();
@@ -431,9 +452,19 @@ function proxyBody(u) {
     await page.locator(`.reg .pp-l:has([data-ppv="ru"][data-d="${ruD[2]}"]) [data-act="pp-rm"]`).click();
     assert.equal(ruD[2] in (await fL()).ra, false, '✕ apaga');
     await page.waitForFunction((d) => !document.querySelector(`.reg .pp-l:has([data-ppv="ru"][data-d="${d}"]) [data-act="pp-rm"]`), ruD[2], { timeout: 3000 });
-    await escreve('pl', plD[1], '');
-    assert.equal(plD[1] in (await fL()).pa, false, 'vazio volta à sugestão');
-    await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; for (const x of ['pm', 'pa', 'ra', 'sa']) delete L[x]; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
+    // ✕ no plano também; e o ✓ com o campo vazio confirma a média (ou o plano)
+    await page.locator(`.reg .pp-l:has([data-ppv="pl"][data-d="${plD[1]}"]) [data-act="pp-rm"]`).click();
+    assert.equal(plD[1] in (await fL()).pa, false, '✕ volta ao plano');
+    await page.waitForFunction((d) => !document.querySelector(`.reg .pp-l:has([data-ppv="pl"][data-d="${d}"]) [data-act="pp-rm"]`), plD[1], { timeout: 3000 });
+    const med = await page.locator(`.reg [data-ppv="ru"][data-d="${ruD[3]}"]`).getAttribute('placeholder');
+    await escreve('ru', ruD[3], '');
+    assert.equal((await fL()).ra[ruD[3]], +med.replace(',', '.'), 'vazio + ✓: confirma a média');
+    // 4.65: a hora habitual — a média das confirmadas (sem nenhuma, as 15h45); hoje conta a partir dela
+    {
+        const r = await page.evaluate(() => { const mk = window.__mk, L = mk.cfg.lots['VWCE.DE'], h0 = L.sh; L.sh = {}; const a = mk.horaPP('VWCE.DE', 'sb'); L.sh = { '2026-10-02': 500, '2026-11-02': 520 }; const b = mk.horaPP('VWCE.DE', 'sb'); L.sh = h0; return [a, b]; });
+        assert.deepEqual(r, [15 * 60 + 45, 510]);
+    }
+    await page.evaluate((sd) => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; for (const x of ['pm', 'pa', 'ra', 'sa', 'ph', 'rh', 'sh']) delete L[x]; L.at = new Date().toISOString().slice(0, 10); c.saveDays = sd; window.__mk.render(); }, sd0);
     // 4.49: com meses de história, à vista só a próxima e as últimas (o round up: 4; o plano e o saveback: 2); as outras numa dobra fechada
     {
         await page.evaluate(() => { const c = window.__mk.cfg, L = c.lots['VWCE.DE']; L.at = new Date(Date.now() - 200 * 864e5).toISOString().slice(0, 10); L.pm = 900; c.saveDays = [2]; window.__mk.render(); });

@@ -3682,3 +3682,17 @@ pontos nenhuns, diz «Ainda sem negócios hoje».
 **Verificado.** Interface: sem pontos da Xetra e com Düsseldorf mais recente e vazia, a ficha do FTSE desenha o 1D com os
 de Munique.
 
+## Iteração (Mercados 4.65.0): confirmar a poupança periódica
+
+**Pedido.** «Recebi a notificação da Trade Republic a dizer que o round up foi feito, de 5,15 €. Podia haver um pisco quando
+inserir o valor, para confirmar; se não confirmasse, assumia o valor da média e a hora da média.»
+
+**Feito.** Cada data do plano, do round up e do saveback tem um ✓: escrever não grava (o ✓ pisca e o rascunho fica no
+campo); o ✓ confirma o escrito ou, vazio, a média. Confirmado no próprio dia, guarda a hora e conta logo (antes, um escrito
+de hoje só contava às 15h45). Sem confirmar, conta a média, à hora habitual: a média das horas das confirmadas (sem
+nenhuma, as 15h45); a próxima data mostra-a. O ✕ apaga o confirmado e a hora.
+
+**Verificado.** Interface: confirmar grava e o ✓ fica verde; escrito sem confirmar não grava, o ✓ pisca e o rascunho fica
+depois de redesenhar; confirmado hoje guarda a hora e conta já; o ✓ vazio confirma a média; a hora habitual é a média
+das confirmadas (sem nenhuma, 15h45).
+

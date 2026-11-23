@@ -141,6 +141,13 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## Confirmar a poupança periódica (4.65.0)
+
+No «Registar», cada data do plano, do round up e do saveback tem um ✓: escreve-se o valor da TR e confirma-se (o ✓ pisca
+até lá; escrito sem confirmar não conta, e o rascunho fica no campo). Com o campo vazio, o ✓ confirma a média (ou o plano).
+Confirmado no próprio dia, guarda a hora e conta logo. Sem confirmar, conta a média, à hora habitual — a média das horas das
+confirmadas (sem nenhuma, as 15h45); a próxima data diz-a («próximo · ~08:30»). ✕ apaga o confirmado.
+
 ## Os gráficos do dia de manhã (4.63.0)
 
 De manhã, antes de haver dados da Xetra (abre às 8 h de Portugal e o Yahoo dá-os com 15 minutos de atraso), o gráfico do
