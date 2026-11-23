@@ -414,7 +414,7 @@ async function main() {
     L.push(`# Dados de ${today} (${when} em Lisboa)`);
     L.push(`Cobre em "actions" TODOS os ${rows.length} ativos abaixo (a app mostra o teu veredicto em cada um). Ponto de partida: modelo.json.`);
     L.push('Legenda: preço na moeda do ativo (≈ €) | dia · 1M · 3M · 1A | alg = pontuação automática C/M/L (curto/médio/longo), RSI, volatilidade anual | máx = distância ao máximo de 1 ano · MM200 (↑ a subir) | S/R = suportes/resistências (* forte) | regra = sinal automático | antes = o teu último veredicto e convicção C/M/L, desde que dia manténs essa família (entrar, ficar ou sair) e o que dizias antes | FONTES = o que as outras fontes da decisão dizem: analistas (recomendação, nota de 1 a 5, quantos, alvo, revisões das estimativas em 30 dias ↑↓, resultados acima do esperado), fundamentos (P/E esperado, vendas num ano, margem, ROE, dívida/capital), o fundo por dentro, o F&G da cripto, e a média delas de 0 a 100 na escala da app, sem o teu voto');
-    const mk = ['^GSPC', '^IXIC', '^STOXX50E', 'PSI20.LS', '^VIX', 'EURUSD=X', 'BZ=F', 'GC=F'].map((k) => rows.find((r) => r.s === k)).filter(Boolean);
+    const mk = ['^GSPC', '^IXIC', '^STOXX50E', 'PSI20.LS', '^VIX', 'EURUSD=X', 'BZ=F', 'GC=F', 'ES=F', 'NQ=F', 'NIY=F'].map((k) => rows.find((r) => r.s === k)).filter(Boolean);
     L.push('## Mercado', mk.map((r) => `${MARKET[r.s]} ${r.price} (${r.day == null ? '—' : (r.day > 0 ? '+' : '') + r.day.toFixed(2) + '%'})`).join(' · '));
     // o contexto: os juros a 10 anos dos EUA, o dólar e o medo da cripto
     const ctx = [], tnx = obj(q1d['^TNX']), dxy = obj(q1d['DX-Y.NYB']);

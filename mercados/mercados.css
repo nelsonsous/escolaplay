@@ -957,3 +957,10 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .r-ses::before { content: '○ '; }
 .r-ses.on::before { content: '● '; color: var(--up); }
 
+/* 4.62 — os futuros com a bolsa fechada (Painel) */
+.pn-fut .fut-l { border: 1px solid var(--line); border-radius: var(--r); background: var(--card); padding: 2px 14px; }
+.pn-fut .fut-r { display: grid; grid-template-columns: 1fr auto 76px; gap: 12px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: calc(1rem * var(--k)); }
+.pn-fut .fut-r:last-child { border-bottom: 0; }
+.pn-fut .fut-r b { font-weight: 600; }
+.pn-fut .fut-p { text-align: right; font-weight: 700; }
+.pn-fut .fut-ler { margin: 8px 2px 0; color: var(--muted); font-size: calc(.85rem * var(--k)); line-height: 1.4; }

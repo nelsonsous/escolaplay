@@ -83,10 +83,12 @@ export const FUNDS = {
     'IS3N.DE': 'Mercados emergentes (iShares)', 'EXSA.DE': 'Europa 600 (iShares)', '4GLD.DE': 'Ouro físico (Xetra-Gold)',
 };
 export const CRYPTO = { 'c:BTC': ['BTC-EUR', 'Bitcoin'], 'c:ETH': ['ETH-EUR', 'Ether'], 'c:SOL': ['SOL-EUR', 'Solana'], 'c:XRP': ['XRP-EUR', 'XRP'] };
-// Referência: o que a app mostra mas não se compra diretamente na TR (índices, câmbio, futuros de energia e ouro)
+// Referência: o que a app mostra mas não se compra diretamente na TR (índices, câmbio, futuros de energia, ouro e bolsas)
 export const MARKET = {
     '^GSPC': 'S&P 500', '^IXIC': 'Nasdaq', '^STOXX50E': 'Euro Stoxx 50', 'PSI20.LS': 'PSI', '^VIX': 'VIX', 'EURUSD=X': 'EUR/USD',
     'BZ=F': 'Petróleo Brent', 'CL=F': 'Petróleo WTI', 'RB=F': 'Gasolina (RBOB)', 'HO=F': 'Gasóleo (ULSD)', 'NG=F': 'Gás natural', 'GC=F': 'Ouro (futuros)',
+    // os futuros das bolsas (quase 24 h): com as bolsas fechadas (às 07:14, à noite, ao domingo) dizem como vão abrir
+    'ES=F': 'Futuros S&P 500', 'NQ=F': 'Futuros Nasdaq', 'NIY=F': 'Futuros Nikkei',
 };
 // o que o investidor tem (a app mostra-os em "Os meus ativos")
 export const MINE = ['VWCE.DE', 'c:BTC', 'c:ETH', 'c:SOL', 'c:XRP'];

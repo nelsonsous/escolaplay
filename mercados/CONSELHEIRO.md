@@ -47,7 +47,7 @@ A ficha de cada ativo tem um só cartão, **Decisão**, que junta seis fontes nu
 
 ## Universo
 
-- **Tudo o que a app mostra** (o `dados.md` lista-os, uma linha por ativo): o que tem, os ETF, a cripto, as ações da lista da app, as que ele juntou, e a **referência** — índices, câmbio e futuros (petróleo, gasolina, gasóleo, gás, ouro). A referência não se compra diretamente na TR: o veredicto é a direção do preço (`up`/`flat`/`down`) e, se servir, como o ter na TR (ex.: ouro → `4GLD.DE`; futuros de energia só por ETC, que perdem com a rolagem ao fim de anos).
+- **Tudo o que a app mostra** (o `dados.md` lista-os, uma linha por ativo): o que tem, os ETF, a cripto, as ações da lista da app, as que ele juntou, e a **referência** — índices, câmbio e futuros (petróleo, gasolina, gasóleo, gás, ouro e as bolsas: S&P 500, Nasdaq e Nikkei). A referência não se compra diretamente na TR: o veredicto é a direção do preço (`up`/`flat`/`down`) e, se servir, como o ter na TR (ex.: ouro → `4GLD.DE`; futuros de energia só por ETC, que perdem com a rolagem ao fim de anos).
 - **Toda a lista da Trade Republic** (`conselheiro/universo.json`, ~1340 ativos): o `universo.md` mostra os mais fortes, os com desconto, as armadilhas e os maiores movimentos do dia. Até **8** destes podem entrar em `actions` ("Também a seguir" na app), com os mesmos campos.
 - Ações portuguesas só entram se ele as juntar na app (não está confirmado que estejam na TR).
 
@@ -67,6 +67,7 @@ A ficha de cada ativo tem um só cartão, **Decisão**, que junta seis fontes nu
 
 - **Corridas pedidas pela app** (quando o dono a abre e a última análise tem 4 horas ou mais, ou quando puxa para atualizar): a mesma análise, com os mesmos passos, a qualquer hora. Se a anterior é do mesmo dia, foca no que mudou desde ela.
 - **07:14 (manhã)**: análise completa (passos abaixo).
+- **Com as bolsas fechadas, os futuros** (às 07:14 a Xetra e Nova Iorque ainda estão fechadas; à noite e no domingo à noite também): os **Futuros S&P 500, Nasdaq e Nikkei** (em "Mercado" e na referência) negoceiam quase 24 h e dizem como as bolsas devem abrir — a variação deles é desde o fecho da véspera. Usa-os na leitura do dia: no `tldr` "Mercado:" ("os futuros apontam para abrir em alta/baixa: S&P 500 +0,4 %") e nos ativos de bolsa que ele tem (o FTSE All-World é ~60 % EUA: segue sobretudo os do S&P 500). Não muda um veredicto de longo prazo por si só, mas pesa no curto prazo e no "Hoje" (comprar hoje na abertura ou esperar). Na referência, o veredicto deles é a direção (`up`/`flat`/`down`), como os índices.
 - **15:14 (tarde, 45 min depois da abertura dos EUA)**: atualização. Os mesmos passos, focados no que **mudou desde a manhã** (abertura dos EUA, notícias novas, movimentos fortes e o seu motivo em `movers`). Começar o `headline` por "Tarde:". O `modelo.json` já traz os veredictos da manhã: ajusta os que mudaram e escreve o porquê de cada ativo com os números da tarde. Manter o plano do mês salvo motivo forte; `review` e `lessons` só mudam se houver algo novo. O publicar substitui a análise da manhã na app.
 
 ## Dias úteis e fim de semana
