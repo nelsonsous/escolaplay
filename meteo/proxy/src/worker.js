@@ -15,7 +15,7 @@ import { OWNER, GUEST_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner, placeMembers
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushGroupMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.14.0';
+const VERSION = '1.14.1';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -600,6 +600,10 @@ function stale(a, p, mode, now = Date.now(), byOwner = true) {
     if (!(isOwnerPlace(p) && byOwner) && (mode === 'off' || (mode === '1x' && at && lisbon(at).date === lisbon(now).date))) return false;
     return true;
 }
+// 1.14.1: um pedido já atendido — a análise do local é mais nova do que ele — não volta a chamar a tarefa. A app, aberta
+// durante a corrida, voltava a gravar o pedido que a tarefa já tinha levado (o KV lido no conector pode vir com até 60 s de
+// atraso) e a vigia chamava outra corrida 15–30 min depois: quase todas as análises de 20 a 22/11 saíram em dobro.
+const served = (a, w) => !!a?.generatedAt && !!w && Date.parse(a.generatedAt) > Date.parse(w.at || 0);
 // a vigia (cron): pedidos com mais de 15 min que a tarefa ainda não levou, com menos de 2 chamadas → chama outra vez
 export async function watchWants(env, now = Date.now()) {
     if (!onOpenOn(env) || !env.KV) return null;
@@ -608,8 +612,15 @@ export async function watchWants(env, now = Date.now()) {
     const late = (await Promise.all(keys.map(async (k) => [k, await env.KV.get(k, 'json')])))
         .filter(([, w]) => w && (w.fires || 0) < ON_OPEN.maxFires && now - Date.parse(w.at) > ON_OPEN.runMin * 6e4);
     if (!late.length) return null;
-    const f = await fireAnalysis(env, late.map(([k]) => k.slice(5)), 'pedido que ficou para trás');
-    if (f.fired) await Promise.all(late.map(([k, w]) => env.KV.put(k, JSON.stringify({ ...w, fires: (w.fires || 0) + 1 }), { expirationTtl: ON_OPEN.wantTtl })));
+    // os já atendidos saem (aproveita-se a análise que já há); só os outros chamam a tarefa
+    const open = [];
+    for (const [k, w] of late) {
+        if (served(await lastAnalysis(env, k.slice(5)).catch(() => null), w)) await env.KV.delete(k);
+        else open.push([k, w]);
+    }
+    if (!open.length) return null;
+    const f = await fireAnalysis(env, open.map(([k]) => k.slice(5)), 'pedido que ficou para trás');
+    if (f.fired) await Promise.all(open.map(([k, w]) => env.KV.put(k, JSON.stringify({ ...w, fires: (w.fires || 0) + 1 }), { expirationTtl: ON_OPEN.wantTtl })));
     return f;
 }
 
@@ -640,7 +651,12 @@ async function getAnalysis(req, env, url, ctx) {
             refreshing = true;
             const job = wantAnalysis(env, near.p, 'ao abrir a app').catch((e) => console.error('análise na hora', e));
             if (ctx?.waitUntil) ctx.waitUntil(job); else await job;
-        } else refreshing = !!(await env.KV.get('want:' + near.p.id));
+        } else {
+            // 1.14.1: um pedido já atendido (a análise é mais nova do que ele) sai: nem «a atualizar», nem a vigia o chama
+            const w = await env.KV.get('want:' + near.p.id, 'json');
+            if (served(analysis, w)) { const del = env.KV.delete('want:' + near.p.id); if (ctx?.waitUntil) ctx.waitUntil(del); else await del; }
+            else refreshing = !!w;
+        }
     }
     // a de um local de outro telemóvel (só o dono a vê): sem as coordenadas exatas
     if (analysis?.place && !mine(me, near.p)) analysis = { ...analysis, place: { ...analysis.place, lat: approx(analysis.place.lat), lon: approx(analysis.place.lon) } };

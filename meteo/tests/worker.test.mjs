@@ -66,7 +66,7 @@ test('estado, CORS (com os cabeçalhos da identidade) e endereço da app', async
     assert.equal(r.status, 200);
     const j = await r.json();
     assert.equal(j.onDemand, false);
-    assert.equal(j.version, '1.14.0');
+    assert.equal(j.version, '1.14.1');
     assert.deepEqual(j.schedule, ['07:34', '17:34']);
     assert.deepEqual([j.device, j.owner, j.others, j.limit, j.places], [false, false, 'on', null, 0], '1.14: sem limite de análises');
     assert.equal(r.headers.get('access-control-allow-origin'), '*');
@@ -956,6 +956,43 @@ test('análise na hora: quem se juntou a um local (membro) também a pede ao abr
     ctx.waitUntil = w0;
     for (const [k, v] of keep) { if (v == null) env.KV.m.delete(k); else env.KV.m.set(k, v); }
     env.KV.m.delete('analysis:sampriz'); env.KV.m.delete('want:sampriz');
+    delete env.METEO_FIRE_URL; delete env.METEO_TOKEN; delete env.OWNER_CODE;
+});
+
+test('aproveitar as análises (1.14.1): um pedido já atendido — a análise é mais nova do que ele — não chama outra corrida', async () => {
+    // 20–22/11: a app, aberta durante a corrida, voltava a gravar o pedido que a tarefa já tinha levado; a vigia chamava
+    // outra corrida 15–30 min depois e quase todas as análises saíam em dobro
+    const st = { id: 'santo-tirso', name: 'Santo Tirso', lat: 41.3354, lon: -8.4745, createdAt: '2026-11-01T10:00:00Z' };
+    const ago = (h) => new Date(Date.now() - h * 36e5).toISOString();
+    const keep = env.KV.m.get('places');
+    env.KV.m.set('places', JSON.stringify([st]));
+    env.OWNER_CODE = CODE;
+    Object.assign(env, { METEO_FIRE_URL: 'https://api.anthropic.com/v1/claude_code/routines/trig_01TESTE/fire', METEO_TOKEN: 'segredo-de-teste' });
+    const fired = [], pend = [], w0 = ctx.waitUntil, c2 = { waitUntil: (p) => pend.push(p) };
+    ctx.waitUntil = (p) => pend.push(p);
+    globalThis.fetch = async (u, init) => { fired.push(JSON.parse(init.body).text); return new Response('{"type":"routine_fire"}', { status: 200 }); };
+    const cron = async () => { await worker.scheduled({ scheduledTime: Date.now() }, env, c2); await Promise.all(pend.splice(0)); };
+    // o pedido (há 24 min) já foi atendido: a análise chegou há 18 min → a vigia não chama e tira-o
+    env.KV.m.set('analysis:santo-tirso', JSON.stringify({ titulo: 'Nova', generatedAt: ago(0.3), place: st }));
+    env.KV.m.set('want:santo-tirso', JSON.stringify({ at: ago(0.4), why: 'ao abrir a app', fires: 1 }));
+    env.KV.m.set('fire:calls', JSON.stringify([Date.now() - 25 * 6e4]));
+    await cron();
+    assert.deepEqual([fired.length, env.KV.m.has('want:santo-tirso')], [0, false], 'sem corrida em dobro');
+    // ao abrir a app: análise fresca e o pedido já atendido → não diz «a atualizar» e o pedido sai
+    env.KV.m.set('want:santo-tirso', JSON.stringify({ at: ago(0.4), why: 'ao abrir a app', fires: 1 }));
+    const me = { d: device(), owner: CODE };
+    const b = (await J('GET', '/api/analysis?lat=41.3354&lon=-8.4745', me)).body;
+    await Promise.all(pend.splice(0));
+    assert.deepEqual([b.refreshing, b.analysis.titulo, fired.length, env.KV.m.has('want:santo-tirso')], [false, 'Nova', 0, false]);
+    // um «Analisar agora» que ficou na fila (mais novo do que a análise) continua a chamar
+    env.KV.m.set('analysis:santo-tirso', JSON.stringify({ titulo: 'Nova', generatedAt: ago(0.5), place: st }));
+    env.KV.m.set('want:santo-tirso', JSON.stringify({ at: ago(0.3), why: 'pedida na app', fires: 0 }));
+    env.KV.m.set('fire:calls', JSON.stringify([Date.now() - 25 * 6e4]));
+    await cron();
+    assert.deepEqual([fired, kvj('want:santo-tirso').fires], [['Corrida pedida pela app Meteo (pedido que ficou para trás): santo-tirso.'], 1]);
+    ctx.waitUntil = w0;
+    if (keep == null) env.KV.m.delete('places'); else env.KV.m.set('places', keep);
+    ['analysis:santo-tirso', 'want:santo-tirso'].forEach((k) => env.KV.m.delete(k));
     delete env.METEO_FIRE_URL; delete env.METEO_TOKEN; delete env.OWNER_CODE;
 });
 
