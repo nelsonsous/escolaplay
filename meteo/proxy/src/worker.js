@@ -11,11 +11,11 @@ import { OM, FIRMS, FOGOS_URL, SAT_LAYERS, satUrl, satBbox, metarBboxUrl, metarH
 import { ANALYSIS_SCHEMA, SYSTEM_PROMPT, userPrompt, validateAnalysis } from '../../lib/analysis.js';
 import { analysisRows, runD1, readHistory, latestAnalysis, newest } from '../../lib/historico.js';
 import { cleanPrev, contradiction } from '../../lib/avisos.js';
-import { OWNER, GUEST_MAX, ANALYSED_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner, placeMembers, lastSeenOfPlace, isOwnerPlace, placeKind, othersMode, approx, lisbon,
+import { OWNER, GUEST_MAX, OTHERS, STATS_TTL, SHARE_KM, placeOwner, placeMembers, lastSeenOfPlace, isOwnerPlace, placeKind, othersMode, approx, lisbon,
     placeStatus, bumpStats, recentReports, usageSummary, addDays, shortId, cleanName } from '../../lib/places.js';
 import { validSubscription, validTime, validTz, duePush, pushGroupMessage, newVapidKeys, sendPush, localParts, PUSH_DEFAULT_TIME } from './push.js';
 
-const VERSION = '1.13.2';
+const VERSION = '1.14.0';
 const SCHEDULE = ['07:34', '17:34']; // 2× por dia (a das 17:34 vai nas notificações das 19:00)
 const UA = 'meteo-preciso/1.0 (app pessoal; Cloudflare Worker)';
 const REPORTS_MAX = 50, REPORTS_TTL = 30 * 86400; // avisos do utilizador: os últimos 50 de cada local (ou telemóvel), 30 dias
@@ -281,8 +281,9 @@ async function adoptPlaces(env, id) {
 
 // ---------- locais ----------
 // Cada local tem dono: place.owner = id do telemóvel que o ligou, ou "owner" (o dono da app; também os de antes, sem
-// dono). Os outros telemóveis acompanham no máximo GUEST_MAX (2, desde a 1.13) análises, suas ou partilhadas; com as 2
-// em uso, ligar uma terceira responde 409 «limite» com as duas, e a app pergunta qual troca. O dono não tem limite.
+// dono). Desde a 1.14 (decisão do dono, 23/11) ninguém tem limite de análises (GUEST_MAX = Infinity; eram 2): a
+// análise de um local é uma só e serve todos os que lá estão (a ≤ 5 km juntam-se à que já existe). Se GUEST_MAX voltar a
+// ser um número, ligar mais uma responde 409 «limite» com as que tem, e a app pergunta qual troca.
 // Desligar não apaga: o local fica com off (e offBy), para voltar a ligar com o mesmo id (a última análise e as lições
 // ficam). Os ids dos outros telemóveis levam sempre um sufixo ao acaso: nunca herdam a análise guardada de outro local.
 async function getPlaces(env) { const v = env.KV && (await env.KV.get('places', 'json')); return Array.isArray(v) ? v : []; }
@@ -329,16 +330,11 @@ function nearestOf(me, places, lat, lon, maxKm) {
     return places.filter((p) => !p.off && canSee(me, p)).map((p) => { const c = seenAt(me, p); return { p, d: distKm(lat, lon, c.lat, c.lon) }; })
         .filter((o) => o.d <= maxKm).sort((a, b) => a.d - b.d)[0] || null;
 }
-// O que impede outro telemóvel de ligar (ou voltar a ligar) a análise: a análise dos outros desligada pelo dono,
-// um local desligado pelo dono, ou já haver 15 locais em análise (os do dono e os dos outros em uso).
+// O que impede outro telemóvel de ligar (ou voltar a ligar) a análise: a análise dos outros desligada pelo dono ou um
+// local desligado pelo dono (1.14: sem o máximo de 15 locais em análise).
 async function guestBlock(env, places, cur) {
     if (othersMode(await getSettings(env)) === 'off') return json({ error: 'convidados_desligados', message: 'O dono da app desligou, por agora, a análise nos outros telemóveis.' }, 403);
     if (cur?.off && cur.offBy === 'owner') return json({ error: 'desligado_pelo_dono', message: 'A análise deste telemóvel foi desligada pelo dono da app.' }, 403);
-    const rest = places.filter((p) => p.id !== cur?.id && !p.off);
-    const seen = await lastSeenOf(env, rest.filter((p) => !isOwnerPlace(p)).flatMap((p) => [placeOwner(p), ...placeMembers(p)]));
-    if (rest.filter((p) => placeStatus(p, lastSeenOfPlace(p, (id) => seen[id])) === 'active').length >= ANALYSED_MAX) {
-        return json({ error: 'cheio', message: `De momento não há vagas para a análise (máx. ${ANALYSED_MAX} locais). Tenta mais tarde.` }, 409);
-    }
     return null;
 }
 
@@ -559,38 +555,41 @@ const onDemandFor = (env, me, mode) => (!!env.ANTHROPIC_API_KEY || onOpenOn(env)
 // criados em claude.ai/code/routines — nunca no código), abrir a app com a análise do seu local com mais de 6 h chama a
 // tarefa: fica pronta em ~7 min, para a vez seguinte; sem abrir a app, não há análise (decisão do dono: sem horas
 // marcadas). «Analisar agora» também a chama. Sem os segredos, nada muda (as corridas às horas marcadas).
-// Cada corrida gasta da subscrição do Claude: uma de cada vez (15 min), no máximo 4 por hora e 12 por dia; o texto da
-// chamada é fixo (só os ids dos locais). O pedido fica em want:<id> (3 h): a tarefa analisa só esses e apaga-os; um
-// pedido que fique para trás (corrida a decorrer) é chamado pela vigia do cron (de 15 em 15 min, até 2 vezes).
+// Cada corrida gasta da subscrição do Claude e aproveita-se: uma de cada vez (15 min) — os pedidos que chegam entretanto
+// vão juntos na seguinte —, uma análise por local para todos os que lá estão, e nada se repete com menos de 6 h. Desde a
+// 1.14 (decisão do dono, 23/11) sem máximo de corridas por hora ou por dia (eram 4 e 12); cada pedido tem no máximo 2
+// chamadas (para uma tarefa avariada não gastar sem fim). O texto da chamada é fixo (só os ids dos locais). O pedido fica
+// em want:<id> (3 h): a tarefa analisa só esses e apaga-os; um pedido que fique para trás (corrida a decorrer) é chamado
+// pela vigia do cron (de 15 em 15 min).
 const FIRE_URL = /^https:\/\/api\.anthropic\.com\/v1\/claude_code\/routines\/[A-Za-z0-9_-]+\/fire$/;
-export const ON_OPEN = { staleH: 6, runMin: 15, maxHour: 4, maxDay: 12, wantTtl: 3 * 3600, maxFires: 2 };
+export const ON_OPEN = { staleH: 6, runMin: 15, wantTtl: 3 * 3600, maxFires: 2 };
 const onOpenOn = (env) => !!(env.METEO_TOKEN && FIRE_URL.test(env.METEO_FIRE_URL || ''));
 const scheduleFor = (env) => (onOpenOn(env) ? [] : SCHEDULE);
 const onOpenView = (env) => (onOpenOn(env) ? { staleH: ON_OPEN.staleH } : null);
 async function fireState(env, now) {
     const calls = ((await env.KV.get('fire:calls', 'json')) || []).filter((x) => now - x < 864e5);
-    return { calls, busy: calls.some((x) => now - x < ON_OPEN.runMin * 6e4), full: calls.filter((x) => now - x < 36e5).length >= ON_OPEN.maxHour || calls.length >= ON_OPEN.maxDay };
+    return { calls, busy: calls.some((x) => now - x < ON_OPEN.runMin * 6e4) };
 }
 // chama a tarefa (regista primeiro: duas aberturas quase ao mesmo tempo não dão duas corridas; um token revogado não é
 // martelado)
 async function fireAnalysis(env, ids, why, state) {
     const now = Date.now(), st = state || (await fireState(env, now));
-    if (st.busy || st.full) return { fired: false, busy: st.busy, full: st.full };
+    if (st.busy) return { fired: false, busy: true };
     await env.KV.put('fire:calls', JSON.stringify([...st.calls, now]));
     const r = await fetch(env.METEO_FIRE_URL, { method: 'POST', headers: { authorization: `Bearer ${env.METEO_TOKEN}`,
         'anthropic-beta': 'experimental-cc-routine-2026-04-01', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({ text: `Corrida pedida pela app Meteo (${why}): ${ids.join(', ')}.` }) }).catch(() => null);
     if (!r?.ok) console.error('análise na hora', r?.status);
-    return { fired: !!r?.ok, busy: false, full: false };
+    return { fired: !!r?.ok, busy: false };
 }
 // pede a análise de um local: o pedido fica em want:<id> (antes de chamar, para a tarefa o ver) e a tarefa é chamada se
 // não houver uma a decorrer
 async function wantAnalysis(env, place, why) {
     const key = 'want:' + place.id, now = Date.now();
     const [old, state] = await Promise.all([env.KV.get(key, 'json'), fireState(env, now)]);
-    const go = !state.busy && !state.full;
+    const tired = (old?.fires || 0) >= ON_OPEN.maxFires, go = !state.busy && !tired; // 2 chamadas sem resposta: espera
     await env.KV.put(key, JSON.stringify({ at: old?.at || new Date(now).toISOString(), why, fires: (old?.fires || 0) + (go ? 1 : 0) }), { expirationTtl: ON_OPEN.wantTtl });
-    return go ? fireAnalysis(env, [place.id], why, state) : { fired: false, busy: state.busy, full: state.full };
+    return go ? fireAnalysis(env, [place.id], why, state) : { fired: false, busy: state.busy, tired };
 }
 // a análise deste local está velha (mais de 6 h)? Os locais dos outros — e os do dono quando quem abre é outra pessoa,
 // que se juntou a ele (1.13.2) — seguem a «análise dos outros» do dono (desligada: nunca; 1× por dia: só se a última for
@@ -741,7 +740,7 @@ async function savePush(req, env, url) {
     const ask = Array.isArray(b?.places) ? b.places : b?.place != null ? [b.place] : [];
     const all = await getPlaces(env);
     const chosen = [...new Set(ask.filter((x) => typeof x === 'string'))].map((id) => all.find((p) => p.id === id && !p.off && uses(me, p))).filter(Boolean)
-        .slice(0, me.owner ? PUSH_PLACES_MAX : GUEST_MAX);
+        .slice(0, PUSH_PLACES_MAX); // 1.14: até 4 locais numa notificação, para todos
     if (!chosen.length) return json({ error: 'sem_local', message: 'As notificações trazem a análise: liga-a primeiro para um local teu (Análise → Análise).' }, 409);
     const idx = await pushIndex(env), old = idx.find((e) => e.id === me.id), rest = idx.filter((e) => e.id !== me.id);
     if (rest.length >= PUSH_MAX) return json({ error: 'cheio', message: 'De momento não há vagas para mais notificações.' }, 409);
@@ -809,7 +808,7 @@ async function status(req, env, url) {
     if (me.error) return me.error;
     const [places, mode] = await Promise.all([getPlaces(env), getSettings(env).then(othersMode)]);
     return json({ version: VERSION, onDemand: onDemandFor(env, me, mode), places: places.filter((p) => !p.off && canSee(me, p)).length, schedule: scheduleFor(env), onOpen: onOpenView(env),
-        device: !!me.id, ...(me.id ? { id: shortId(me.id), name: me.name || null } : {}), owner: me.owner, ...(me.code ? { ownerCode: me.code } : {}), others: mode, limit: me.owner ? null : GUEST_MAX });
+        device: !!me.id, ...(me.id ? { id: shortId(me.id), name: me.name || null } : {}), owner: me.owner, ...(me.code ? { ownerCode: me.code } : {}), others: mode, limit: me.owner || !Number.isFinite(GUEST_MAX) ? null : GUEST_MAX });
 }
 
 // ---------- só o dono: painel "Utilização" e "Análise dos outros" ----------
@@ -887,11 +886,10 @@ async function refreshByTask(req, env, url) {
     const c = coords(url.searchParams);
     if (!c) return bad('coordenadas inválidas');
     const near = nearestOf(me, await getPlaces(env), c.lat, c.lon, 10);
-    if (!near || !mine(me, near.p) || near.p.off) return json({ error: 'sem_local', message: 'Pedir a análise é para o teu local com análise ligada: liga-a primeiro (Análise → «Análise para este local»).' }, 409);
+    if (!near || !uses(me, near.p) || near.p.off) return json({ error: 'sem_local', message: 'Pedir a análise é para o teu local com análise ligada: liga-a primeiro (Análise → «Análise para este local»).' }, 409);
     const a = await lastAnalysis(env, near.p.id);
     if (a?.generatedAt && Date.now() - Date.parse(a.generatedAt) < 30 * 6e4) return json({ error: 'limite', message: 'A análise deste local tem menos de 30 min.' }, 429);
     const f = await wantAnalysis(env, near.p, 'pedida na app');
-    if (f.full) return json({ error: 'limite', message: 'Já se pediram muitas análises nesta hora; tenta mais tarde.' }, 429);
     return json({ queued: true, busy: !!f.busy, etaMin: 8, place: placeView(me, near.p, { distanceKm: r1(near.d) }) }, 202);
 }
 async function refresh(req, env, url) {

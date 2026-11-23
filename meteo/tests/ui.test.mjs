@@ -189,7 +189,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/obs-history') return fulfill(r, []);
         if (p === '/api/me' && m === 'PATCH') { const b = JSON.parse(req.postData()); namePatches.push(b); myName = b.name.trim() || null; return fulfill(r, { id: 'a1b2c3', name: myName, device: true }); }
         if (p === '/api/status') return fulfill(r, { version: '1.0.0', onDemand: true, places: visible().filter((x) => !x.off).length, schedule: onOpen ? [] : SCHEDULE, onOpen,
-            device: !!h['x-meteo-device'], ...(h['x-meteo-device'] ? { id: 'a1b2c3', name: myName } : {}), owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: owner ? null : 2 });
+            device: !!h['x-meteo-device'], ...(h['x-meteo-device'] ? { id: 'a1b2c3', name: myName } : {}), owner, ...(h['x-meteo-owner'] ? { ownerCode: owner ? 'ok' : 'errado' } : {}), others, limit: null });
         if (p === '/api/analysis') { // como o conector: o local (deste telemóvel, ou o dono: todos) mais próximo até 10 km
             const la = Number(u.searchParams.get('lat')), lo = Number(u.searchParams.get('lon'));
             const near = visible().filter((x) => !x.off).map((x) => ({ ...x, distanceKm: Math.round(distKm(la, lo, x.lat, x.lon) * 10) / 10 })).filter((x) => x.distanceKm <= 10).sort((a, b) => a.distanceKm - b.distanceKm)[0];
@@ -204,9 +204,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
         if (p === '/api/places' && m === 'GET') return fulfill(r, visible());
         if (p === '/api/places' && m === 'POST') {
             postBody = JSON.parse(req.postData());
-            // como o conector (1.13): até 2 análises por pessoa; com as 2 em uso, 409 com elas (a app pergunta qual troca)
-            const active = places.filter((x) => !x.off);
-            if (!owner && active.length >= 2) return r.fulfill({ status: 409, json: { error: 'limite', message: 'Cada pessoa acompanha até 2 análises.', places: active, place: active[0], join: false }, headers: CORS });
+            // como o conector (1.14): sem limite de análises por pessoa (eram 2)
             const pl = { id: places.length ? postBody.name.toLowerCase() : 'casa', name: postBody.name, lat: postBody.lat, lon: postBody.lon, mine: true, kind: owner ? 'owner' : 'guest', status: 'active', createdAt: NOW };
             places.push(pl);
             return r.fulfill({ status: 201, json: pl, headers: CORS });
@@ -867,7 +865,7 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     assert.match(prec, /Relevo: Vale · 70 m abaixo do relevo à volta/);
     assert.match(await page.locator('.sec:has(h2:text("Estado das fontes"))').textContent(), /Relevo à volta do ponto/);
     // ✕ na lista também pede confirmação; Desfazer volta a ligar
-    assert.match(await page.locator('#locais .sec-h').textContent(), /1 de 2/);
+    assert.match(await page.locator('#locais .sec-h').textContent(), /sem limite de locais/, '1.29: sem limite de análises');
     assert.match(await page.locator('#locais').textContent(), /Uma análise por cidade \(partilhada com quem a ligar na mesma cidade\); se ninguém abrir a app durante 14 dias, fica em pausa até voltarem\./);
     assert.equal(await page.locator('#uso').count(), 0, 'o painel "Utilização" é só do dono');
     const dels0 = calls.filter((c) => c === 'DELETE /api/places/casa').length;
@@ -1122,23 +1120,14 @@ const nominatim = () => ({ name: RAW.place.name, address: { city: RAW.place.name
     if (SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(SHOTS, '08-os-meus-locais.png') }); }
     await page.click('#mt-sheet-card .mt-ibtn[data-act="close"]');
     await page.waitForSelector('#mt-sheet', { state: 'hidden' });
-    // 1.27: até 2 análises por pessoa; com Lisboa e Braga, ligar aqui (Porto) pergunta qual trocar; trocar Braga
-    // muda-a para aqui (PATCH, o mesmo id), com «Desfazer»
-    await page.waitForFunction(() => /Já acompanhas 2 análises \(Lisboa e Braga\)/.test(document.querySelector('#cl-teaser')?.textContent || ''));
+    // 1.29: sem limite de análises por pessoa — com Lisboa e Braga, ligar aqui (Porto) liga uma 3.ª, sem perguntar qual trocar
+    await page.waitForFunction(() => /Ativar a análise para este local/.test(document.querySelector('#cl-teaser')?.textContent || ''));
+    assert.doesNotMatch(await page.locator('#cl-teaser').textContent(), /Já acompanhas/);
     await page.click('#cl-teaser [data-act="place-on"]');
-    await page.waitForSelector('#mt-sheet:not([hidden]) [data-swap="braga"]');
-    assert.equal(await page.locator('#mt-sheet-title').textContent(), 'Trocar uma análise');
-    assert.deepEqual(await page.locator('#mt-sheet [data-swap]').allTextContents(), ['Trocar Lisboa', 'Trocar Braga']);
-    await noOverflow('trocar uma análise');
-    if (SHOTS) { await page.waitForTimeout(700); await page.screenshot({ path: path.join(SHOTS, '08b-trocar.png') }); } // a folha sobe com animação; só o ecrã
-    await page.click('#mt-sheet [data-swap="braga"]');
-    await toastIs(/A tua análise passa de Braga para este local/);
-    assert.deepEqual(patchBody, { lat: 41.1496, lon: -8.611, name: 'Porto', on: true });
-    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 2, 'o conector responde «limite» e a app troca uma (continua a haver 2)');
-    await page.click('#mt-toast .t-undo');
-    await toastIs(/voltou para Braga/);
-    assert.deepEqual(patchBody, { lat: 41.5454, lon: -8.4265, name: 'Braga' });
-    console.log('✓ mudar de local: Porto; até 2 análises por pessoa (ligar uma 3.ª pergunta qual trocar, e desfazer)');
+    await toastIs(/^Ligada\. A primeira análise chega/);
+    assert.equal(calls.filter((c) => c === 'POST /api/places').length, 2, 'o conector liga-a (201): nada a trocar');
+    assert.equal(await page.locator('#mt-sheet [data-swap]').count(), 0);
+    console.log('✓ mudar de local: Porto; sem limite de análises por pessoa (a 3.ª liga-se sem perguntar qual trocar)');
 
     // 8) sem rede para os modelos: puxar para atualizar → fica a última previsão, com aviso
     await page.evaluate(() => window.scrollTo(0, 0));

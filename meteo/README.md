@@ -106,7 +106,7 @@ sudoeste deve chegar ao ponto por volta das 21h») e os efeitos do relevo (vale:
 vento). O `publicar.mjs` recusa frases genéricas sobre o distrito ou a região.
 
 Na app a análise diária está **desligada por omissão**: o cartão «Análise» de um local sem análise oferece
-**Ativar a análise diária do Claude para este local**. Cada pessoa acompanha **até 2 análises** (1.27; eram 1): as suas ou
+**Ativar a análise diária do Claude para este local**. Cada pessoa acompanha **as análises que quiser** (sem limite desde a 1.29 / conector 1.14; eram 2): as suas ou
 as partilhadas na mesma cidade, e a análise de um local só aparece a quem o acompanha (nunca a de outras pessoas por estar
 perto). Com as 2 em uso, ligar uma 3.ª abre a folha **«Trocar uma análise»**: uma sua muda para o sítio novo, com a última
 análise e as lições; uma partilhada deixa-se. Se o telemóvel não abrir a app durante **14 dias**, o local fica em pausa (não é
@@ -138,11 +138,14 @@ Decisão do dono (14/11/2026): **sem horas marcadas**. Quando alguém abre a app
 6 h**, o conector chama a tarefa da análise pelo gatilho «API» (como o Maestro da app Música); fica pronta em ~7 min,
 para a vez seguinte (com a app aberta, ela volta a buscá-la aos 8 min). «Analisar agora» também a chama. Se ninguém abrir
 a app, não se gasta nada. A notificação das 19:00 usa a última análise se tiver menos de 30 h; senão pede para abrir a
-app. Cada corrida gasta da subscrição do Claude: **uma de cada vez** (15 min), no máximo **4 por hora e 12 por dia**; o
-texto da chamada é fixo (só os ids dos locais); um pedido que fique para trás é chamado pela vigia do cron (até 2 vezes).
+app. Cada corrida gasta da subscrição do Claude e **aproveita-se**: **uma de cada vez** (15 min) — os pedidos que chegam
+entretanto vão juntos na seguinte —, uma análise por local para todos os que lá estão, e nada se repete com menos de 6 h.
+Desde o conector 1.14 (decisão do dono, 23/11) **sem máximo por hora ou por dia** (eram 4 e 12); cada pedido tem no máximo
+2 chamadas (para uma tarefa avariada não gastar sem fim). O texto da chamada é fixo (só os ids dos locais); um pedido que
+fique para trás é chamado pela vigia do cron.
 
 **Quem se juntou a um local também a pede** (conector 1.13.2): antes só a pessoa do local (ou o dono, nos seus) a pedia
-ao abrir — os 6 telemóveis juntos a Sampriz viram a de 16/11 até 23/11. Quem não é o dono segue a «análise dos outros»:
+ao abrir — os 6 telemóveis juntos a Sampriz viram a de 16/11 até 23/11. Quem não é o dono segue a «análise dos outros» (ligada desde 23/11):
 ligada = com mais de 6 h; 1× por dia = só se a última for de outro dia; desligada = nunca. O dono, nos seus locais, pede
 sempre que tenha mais de 6 h.
 Os locais dos outros seguem a «Análise dos outros» (desligada: nunca; 1× por dia: no máximo uma por dia).
@@ -262,7 +265,7 @@ a app pede antes de ligar a análise diária, as notificações ou dar um aviso.
 **Uma análise por cidade** (1.8.2, 1.15.1): o dono tem quantos locais quiser com análise diária; se o dono liga uma cidade
 que outro telemóvel já analisa (≤ 5 km), não se cria outra — o local passa a ser do dono e o outro continua a vê-lo. Se já há uma análise diária a 5 km ou menos (de preferência a do dono), o telemóvel
 novo junta-se a ela em vez de criar outra — vê essa análise (sem as coordenadas exatas), pode receber as notificações
-dela e dar avisos para ela, mas não a muda de sítio; desligar é só sair. Cada pessoa acompanha até 2 análises (1.27). No painel **Utilização** o dono vê a lista: nome ou código, quando abriu a app, os locais com análise diária (só o
+dela e dar avisos para ela, mas não a muda de sítio; desligar é só sair. Cada pessoa acompanha as análises que quiser (1.29: sem limite). No painel **Utilização** o dono vê a lista: nome ou código, quando abriu a app, os locais com análise diária (só o
 nome) e se tem notificações. A localização de quem usa a app não é registada.
 
 ## Notificações do fim do dia (1.6)
@@ -296,7 +299,7 @@ endereço e como a instalar:
 - **Android**: abrir no **Chrome** → **⋮** → **«Instalar app»**.
 
 É grátis, sem conta e sem publicidade. Cada instalação ganha uma identidade anónima (um id e um segredo ao acaso, só no
-telemóvel); quem a recebe tem tudo, menos a análise do Claude, que é opcional e liga para até 2 locais.
+telemóvel); quem a recebe tem tudo, menos a análise do Claude, que é opcional e liga para os locais que quiser.
 
 **O dono** (eu) escreve o código uma vez em cada telemóvel seu, em **Ajustes → Conector de dados → «Sou o dono desta
 app»** (no iPhone é o único caminho para a app do ecrã principal, que não partilha a memória com o Safari), ou abre

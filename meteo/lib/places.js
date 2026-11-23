@@ -4,7 +4,7 @@
 import { haversine } from './stats.js';
 
 export const OWNER = 'owner';        // place.owner dos locais do dono; os dos outros telemóveis têm o id do telemóvel
-export const GUEST_MAX = 2;          // análises por pessoa (as suas ou partilhadas na mesma cidade; 1.27: eram 1); o dono não tem limite
+export const GUEST_MAX = Infinity;   // análises por pessoa: sem limite desde a 1.29 / conector 1.14 (decisão do dono, 23/11; eram 2)
 export const ANALYSED_MAX = 15;      // limite de segurança: locais analisados em cada corrida (os do dono nunca são cortados)
 export const SHARE_KM = 5;           // na mesma cidade (≤ 5 km) os outros telemóveis juntam-se à análise que já existe
 export const PAUSE_DAYS = 14;        // telemóvel sem abrir a app há 14 dias → o seu local fica em pausa (volta quando abrir)
