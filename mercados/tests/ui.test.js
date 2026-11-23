@@ -80,7 +80,7 @@ function series(sym, n, stepSec, drift) {
     return out;
 }
 const T_FECHO = 1762300000; // a hora do último preço de todos (a SAP fechou aí; os futuros andaram depois)
-const MOCK = { fechado: false }; // o teste fecha a bolsa do FTSE All-World (a Xetra e Munique) para ver a estimativa
+const MOCK = { fechado: false, semDia: false }; // o teste fecha a bolsa do FTSE All-World (a Xetra e Munique) para ver a estimativa
 function quote(sym, range) {
     const daily = range !== '1d';
     const drift = ((hash(sym) % 9) - 4) / 1500;
@@ -100,7 +100,7 @@ function quote(sym, range) {
     if (!daily) { const k = price / s[s.length - 1][1]; s.forEach((p) => { p[1] = +(p[1] * k).toFixed(4); }); }
     const prev = +(price / (1 + chgPct / 100)).toFixed(4);
     return { symbol: sym, name: sym + ' Name', currency: /\.LS$|\.DE$|\.PA$|\.AS$|\.MU$|\.DU$/.test(sym) ? 'EUR' : /\.CO$/.test(sym) ? 'DKK' : 'USD', exchange: 'Test', price, prevClose: prev,
-        change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : T_FECHO, open: !['PLTR', 'SAP.DE'].includes(sym) && !(MOCK.fechado && /^VWCE/.test(sym)), series: s };
+        change: +(price - prev).toFixed(4), changePct: chgPct, dayHigh: price * 1.01, dayLow: price * 0.97, volume: 1234567, high52: price * 1.4, low52: price * 0.6, time: sym === 'VWCE.MU' ? 1762309999 : T_FECHO, open: !['PLTR', 'SAP.DE'].includes(sym) && !(MOCK.fechado && /^VWCE/.test(sym)), series: MOCK.semDia && /\.DE$/.test(sym) && range === '1d' ? [] : s };
 }
 // análise do Claude do dono: o formato antigo (até à 3.x: o veredicto de alguns ativos) e o da 4.0, feito no arranque
 // pelo publicar.mjs a partir de uma análise de teste (um veredicto por ativo, com convicção por prazo, níveis e porquê)
@@ -959,6 +959,28 @@ function proxyBody(u) {
         assert.deepEqual([r.n, r.a, r.z[0] - r.t], [4, -3600, -600], 'os pontos de Munique e, no fim, o preço de Düsseldorf');
         assert.ok(Math.abs(r.z[1] / 100.2 - 1) < 0.2, 'o preço mais recente (em euros)');
         console.log('✓ de manhã, o gráfico do dia com a bolsa que tem pontos');
+    }
+    // 4.64: a ficha, de manhã — sem pontos da Xetra, o gráfico do dia vem de Munique (e não fica «A carregar…»)
+    {
+        const sv = await page.evaluate(() => {
+            const mk = window.__mk, k = 'VWCE.DE', [mu, du] = mk.REG[k].live, t = Math.floor(Date.now() / 1000), cur = mk.Q[k].currency, sv = [k, mu, du].map((s) => [s, mk.Q[s]]);
+            mk.Q[k] = { ...mk.Q[k], time: t - 3 * 86400, series: [], stale: false };
+            mk.Q[mu] = { ...mk.Q[mu], currency: cur, price: 100, time: t - 3000, series: [[t - 3600, 99], [t - 3300, 99.5], [t - 3000, 100]] };
+            mk.Q[du] = { ...mk.Q[du], currency: cur, price: 100.2, time: t - 600, series: [] };
+            mk.cfg.perA = '1d'; mk.render();
+            window.__svQ = sv;
+            return sv.length;
+        });
+        assert.equal(sv, 3);
+        MOCK.semDia = true; // a Xetra, de manhã: sem a série do dia
+        await page.locator('.row[data-open="VWCE.DE"]:visible').first().click();
+        await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && document.querySelector('#d-load').hidden, null, { timeout: 5000 });
+        assert.equal(await page.locator('#d-load').isHidden(), true, 'o gráfico do dia desenhado');
+        await page.click('[data-act="close"] >> nth=-1');
+        await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
+        MOCK.semDia = false;
+        await page.evaluate(() => { const mk = window.__mk; for (const [s, q] of window.__svQ) mk.Q[s] = q; delete window.__svQ; mk.render(); });
+        console.log('✓ a ficha de manhã: o gráfico do dia com Munique');
     }
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
     // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com

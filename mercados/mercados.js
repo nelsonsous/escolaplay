@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.63.0';
+    const VERSION = '4.64.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -273,6 +273,10 @@
         const d = diaLocal(se.abre), h = diaLocal(t);
         return `abre ${d === h ? '' : d === isoMais(h, 1) ? 'amanhã ' : ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'][new Date(se.abre * 1000).getDay()] + ' '}às ${hhmm(se.abre)}`;
     }
+    // 4.63/4.64: a outra bolsa com o ponto mais recente na série do dia (a de Düsseldorf vem muitas vezes vazia, com a hora
+    // mais recente — e o gráfico ficava em branco)
+    const vivaComSerie = (a, q0) => [].concat((a && a.live) || []).map((s) => Q[s]).filter((x) => x && Array.isArray(x.series) && x.series.length && (x.currency || q0.currency) === q0.currency)
+        .sort((x, y) => y.series[y.series.length - 1][0] - x.series[x.series.length - 1][0])[0];
     function liveOf(k) {
         const a = REG[k], q0 = Q[k];
         let best = null;
@@ -289,11 +293,7 @@
         let q = q0;
         const lv = liveOf(k);
         if (lv && (lv.time || 0) > (q0.time || 0)) {
-            // 4.62: a série do dia: a da bolsa com o ponto mais recente nela (a de Düsseldorf vem muitas vezes vazia, com a hora
-            // mais recente — e o gráfico ficava em branco)
-            const sv = [].concat(a.live || []).map((s) => Q[s]).filter((x) => x && Array.isArray(x.series) && x.series.length && (x.currency || q0.currency) === q0.currency)
-                .sort((x, y) => y.series[y.series.length - 1][0] - x.series[x.series.length - 1][0])[0];
-            const series = mergeDay(q0.series, sv ? sv.series : lv.series);
+            const sv = vivaComSerie(a, q0), series = mergeDay(q0.series, sv ? sv.series : lv.series);
             if (lv.time && (!series.length || series[series.length - 1][0] < lv.time)) series.push([lv.time, lv.price]);
             // a variação do dia é face ao fecho da véspera na Xetra: o «fecho anterior» que o Yahoo dá para Munique e
             // Düsseldorf é muitas vezes um negócio solto (ex.: 168,44 € em Munique com a Xetra a fechar a 167,42 €)
@@ -2703,10 +2703,10 @@
         } catch { /* sem análise */ }
     }
     // série do dia sem conversão de moeda: a da bolsa com o negócio mais recente (Munique ou Düsseldorf), como no Painel
+    // o gráfico do dia da ficha (na moeda do ativo): a Xetra e, depois dela (ou sem ela, de manhã), a outra bolsa com pontos
     function daySeries(k) {
-        const q0 = Q[k], lv = liveOf(k);
-        if (lv && lv.series && lv.series.length > 1 && (lv.time || 0) > (q0.time || 0)) return mergeDay(q0.series, lv.series);
-        return q0.series;
+        const q0 = Q[k] || {}, x = Array.isArray(q0.series) ? q0.series : [], sv = vivaComSerie(REG[k], q0);
+        return sv && (!x.length || sv.series[sv.series.length - 1][0] > x[x.length - 1][0]) ? mergeDay(x, sv.series) : x;
     }
     const SC = new Map(); // os gráficos da ficha já pedidos nesta sessão (ativo|período → { t, pts })
     async function loadSheetChart() {
@@ -2723,7 +2723,7 @@
                 const end = q.series[q.series.length - 1][0]; // mercado fechado: os últimos minutos da sessão
                 pts = q.series.filter(([t]) => t >= end - SHORT_R[range]);
             }
-            else if (range === '1d' && Q[k] && Q[k].series && Q[k].series.length > 1) {
+            else if (range === '1d' && Q[k] && daySeries(k).length > 1) {
                 pts = daySeries(k);
                 // o do instantâneo (da última vez) aparece logo; o de agora vem a seguir
                 if (Q[k].stale && cfg.proxy) px(`/quotes?symbols=${encodeURIComponent(k)}&range=1d`, 20000).then((r) => {
@@ -2806,7 +2806,8 @@
         if (!cv || !sheetKey || !REG[sheetKey]) return;
         const l = $('#d-load');
         if (!sheetPts) { if (l) { l.hidden = false; l.textContent = 'A carregar…'; } setupCanvas(cv); return; }
-        if (sheetPts.length < 2) return;
+        // 4.64: sem pontos (de manhã, antes dos primeiros negócios do dia), di-lo em vez de ficar «A carregar…»
+        if (sheetPts.length < 2) { if (l) { l.hidden = false; l.textContent = sheetRange === '1d' && REG[sheetKey].kind !== 'crypto' ? 'Ainda sem negócios hoje' : 'Sem dados para este período'; } setupCanvas(cv); return; }
         if (l) l.hidden = true;
         const q = qv(sheetKey);
         const f = q.fx || 1;
