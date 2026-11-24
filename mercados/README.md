@@ -141,6 +141,11 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## O de hoje por baixo do ganho (4.69.1)
+
+Na tabela da carteira, o ganho volta a uma linha, «−44 € (−1,5%)», com a % entre parênteses ao lado do valor. Por baixo,
+pequeno e no mesmo formato, o de hoje: «hoje −18 € (−0,6%)». Sem a coluna «Hoje» da 4.69.0.
+
 ## O «Hoje» de cada linha na tabela da carteira (4.69.0)
 
 A tabela do cartão «A minha carteira» tem a coluna «Hoje»: o que cada linha (o FTSE, a cripto, cada moeda e o total)

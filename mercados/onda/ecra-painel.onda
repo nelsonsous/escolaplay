@@ -524,10 +524,11 @@
 : pn_gx fff>i v e d {
   `<span class="num">` Se > e 0.0 pn_eur0 e "</span>"
   `<span class="num">{ pn_eur0 v }</span>`
-  # 4.69: o de hoje (em €, e por baixo a % sobre o valor de antes) e o ganho (em €, e por baixo a %): duas linhas estreitas
+  # o ganho, «−44 € (−1,5%)»; por baixo, pequeno, o de hoje no mesmo formato (4.69.1: a % sobre o valor de antes)
   = vo - v d
-  `<span class="num pf-d2 { ln_tom d }-t">{ pn_eurs0 d }<small>{ ? > vo 0.0 fm_pct1 * / d vo 100.0 "" }</small></span>`
-  ? > e 0.0 `<span class="num pf-d2 { ln_tom - v e }-t">{ pn_eurs0 - v e }<small>{ fm_pct1 * - / v e 1.0 100.0 }</small></span>` `<span class="num"></span>`
+  `<span class="num pf-d2">`
+  Se > e 0.0 `<span class="{ ln_tom - v e }-t">{ pn_eurs0 - v e } ({ fm_pct1 * - / v e 1.0 100.0 })</span>`
+  `<small><i>hoje</i> <span class="{ ln_tom d }-t">{ pn_eurs0 d }{ Se > vo 0.0 ` ({ fm_pct1 * / d vo 100.0 })` }</span></small></span>`
   0 }
 # o que um ativo mexeu hoje em euros: o da app (dh: as compras de hoje desde o preço pago), senão pela variação do dia
 : pn_dv if>f c val { = dh num c.dh = ch num c.ch ? fin dh dh ? && fin ch > ch -100.0 - val / val + 1.0 / ch 100.0 0.0 }
@@ -624,7 +625,7 @@
       `"/></svg><span class="pf-cap"><span>{ ? && tu > ta 0.0 { "desde " esc p.dl 0 } pn_desde es.per }</span>{ Se ci `<span class="pf-inv">investido</span>` }<span>agora</span></span></button>`
       # a tabela da carteira, fora do botão: o investido, o valor e o ganho de cada ativo — os fundos e as ações, depois a
       # cripto (um grupo com mais de um ativo, e com o outro grupo, leva a linha da soma, que o abre e fecha) — e o total
-      `<div class="pf-gs"><span class="pf-gh"><b></b><span>Investido</span><span>Vale</span><span>Hoje</span><span>Ganho</span></span>`
+      `<div class="pf-gs"><span class="pf-gh"><b></b><span>Investido</span><span>Vale</span><span>Ganho</span></span>`
       pn_gtab tb na 0 nn vo eo dz nc
       pn_gtab tb na 1 nc vc ec dc nn
       Se > na 1 { `<span class="pf-gr pf-gt"><b>Total</b>` pn_gx vv ee dd "</span>" }
