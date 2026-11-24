@@ -969,4 +969,6 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 .reg .pp-ok.on { color: #fff; background: var(--up); border-color: var(--up); }
 .reg .pp-ok.pisca { color: var(--up); border-color: var(--up); animation: pp-pisca 1s ease-in-out infinite; }
 @keyframes pp-pisca { 50% { opacity: .3; } }
+/* 4.67.1: confirmado e alterado (por confirmar outra vez): sem o verde cheio, só o contorno a piscar */
+.reg .pp-ok.on.pisca { background: none; color: var(--up); }
 

@@ -156,7 +156,8 @@ di-lo no canto («↓ fecho anterior 114,38 €»).
 
 No «Registar», cada data do plano, do round up e do saveback tem um ✓: escreve-se o valor da TR e confirma-se (o ✓ pisca
 até lá; escrito sem confirmar não conta, e o rascunho fica no campo). Com o campo vazio, o ✓ confirma a média (ou o plano).
-Confirmado no próprio dia, guarda a hora e conta logo. Sem confirmar, conta a média, à hora habitual — a média das horas das
+Um confirmado que se altera fica por confirmar outra vez (o ✓
+só com o contorno, a piscar; o guardado continua a contar até lá). Confirmado no próprio dia, guarda a hora e conta logo. Sem confirmar, conta a média, à hora habitual — a média das horas das
 confirmadas (sem nenhuma, as 15h45); a próxima data diz-a («próximo · ~08:30»). ✕ apaga o confirmado.
 
 ## Os gráficos do dia de manhã (4.63.0)
