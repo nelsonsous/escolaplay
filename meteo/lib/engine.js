@@ -1228,8 +1228,9 @@ export function buildForecast(raw, opts = {}) {
 
     for (const d of daily) delete d._thunder;
     const usedMetar = (obsOut?.sources || []).includes('METAR') || /METAR/.test(vset?.source || '');
-    // 1.26: «Não chove» repetido quando se previa chuva → a chuva fraca deste local conta menos (lib/avisos.js)
-    return applyRainCalib({
+    // 1.26: «Não chove» repetido quando se previa chuva → a chuva fraca deste local conta menos (lib/avisos.js); 1.31: as
+    // horas das próximas 2 h iguais aos passos de 15 min (alignHourly)
+    return alignHourly(applyRainCalib({
         v: 1, generatedAt: new Date(nowMs).toISOString(),
         location: { lat, lon, elevation: r0(targetElev), timezone: P.timezone, utcOffsetSeconds: off,
             name: opts.name || raw.place?.name || null, region: raw.place?.region || null, country: raw.place?.country || null, terrain },
@@ -1243,7 +1244,7 @@ export function buildForecast(raw, opts = {}) {
         analysis: raw.analysisMeta || null,
         sources: ['Open-Meteo (CC BY 4.0)', 'ECMWF, DWD, Météo-France, Met Office, NOAA, ECCC, JMA, CMA', ...(area || official ? ['IPMA'] : []),
             ...(usedMetar ? ['NOAA AWC (METAR)'] : []), ...(radar ? ['RainViewer (radar)'] : []), ...(fire.hotspots ? ['NASA FIRMS'] : []), ...(fire.incidents ? ['ANEPC via fogos.pt'] : []), 'EUMETSAT'],
-    }, rainCalib(raw.reports, { nowMs }));
+    }, rainCalib(raw.reports, { nowMs })));
 }
 
 // ---------- aprendizagem acumulada (lib/learn.js) ----------
@@ -1529,6 +1530,37 @@ export function reportActive(report, { lat, lon, nowMs = Date.now() } = {}) {
     return !(isNum(lat) && isNum(report.lat) && isNum(report.lon) && haversine(lat, lon, report.lat, report.lon) > 2);
 }
 /** Previsão com o aviso do utilizador aplicado ao "agora" e às próximas 2 h (devolve uma cópia; fc fica igual). */
+/**
+ * 1.31 (pedido do dono): as horas do gráfico «Próximas horas» que as «Próximas 2 horas» cobrem (radar e modelos, ou o aviso
+ * de quem lá está) passam a ter a soma desses passos de 15 min — antes diziam coisas diferentes para a mesma hora (0,6 mm em
+ * 15 min com o radar e 3,6 mm na hora só dos modelos). Cada valor é o do período que acaba à sua hora (como no Open-Meteo):
+ * a hora das 10:00 junta os passos das 09:15 às 10:00. A parte da hora que os passos não cobrem fica com os modelos; o
+ * «até» acompanha na mesma proporção e a probabilidade é a dos passos. O dos modelos fica em model (alinhar outra vez, com
+ * um aviso, parte dele) e nc diz quantos passos entraram.
+ */
+export function alignHourly(fc) {
+    const steps = fc?.nowcast?.steps, H = fc?.hourly;
+    if (!Array.isArray(steps) || !steps.length || !Array.isArray(H) || !H.length) return fc;
+    const off = fc.location?.utcOffsetSeconds || 0;
+    const S = steps.filter((s) => isNum(s.precip) && s.time).map((s) => ({ ms: localToMs(s.time, off), mm: s.precip, prob: s.prob }));
+    let changed = false;
+    const hourly = H.map((h) => {
+        const t = h.time ? localToMs(h.time, off) : NaN;
+        const inH = S.filter((s) => s.ms > t - 36e5 && s.ms <= t);
+        if (!inH.length) return h;
+        const base = h.model || { precip: h.precip, precipHi: h.precipHi, pop: h.pop };
+        const n = Math.min(4, inH.length), model = isNum(base.precip) ? base.precip : 0;
+        const mm = inH.reduce((a, s) => a + s.mm, 0) + ((4 - n) / 4) * model;
+        const k = model >= 0.05 ? mm / model : null;
+        const hi = isNum(base.precipHi) ? Math.max(k != null ? base.precipHi * k : base.precipHi, mm) : base.precipHi;
+        const probs = inH.map((s) => s.prob).filter(isNum), pStep = probs.length ? Math.max(...probs) : null;
+        const pop = pStep == null ? base.pop : n >= 4 ? pStep : Math.max(pStep, Math.round((base.pop ?? 0) * (4 - n) / 4));
+        changed = true;
+        return { ...h, precip: r1(mm), precipHi: isNum(hi) ? r1(hi) : hi, pop, model: base, nc: n };
+    });
+    return changed ? { ...fc, hourly } : fc;
+}
+
 export function withReport(fc, report, nowMs = Date.now()) {
     if (!fc?.now || !reportActive(report, { lat: fc.location?.lat, lon: fc.location?.lon, nowMs })) return fc;
     const off = fc.location?.utcOffsetSeconds || 0, k = report.kind, t = Date.parse(report.time);
@@ -1554,7 +1586,7 @@ export function withReport(fc, report, nowMs = Date.now()) {
     let text;
     if (k === 'nevoeiro') text = `Nevoeiro (${at}); ${(fc.nowcast?.text || '').replace(/^./, (c) => c.toLowerCase())}`;
     else text = `${REPORT_NOW[k]} (${at}); ${outlookText(steps, { wet, from: wet ? last + 1 : 0, radar: R })}.`;
-    return { ...fc, now, nowcast: { ...fc.nowcast, steps, text, source: 'aviso' }, report: { kind: k, label: REPORT_KINDS[k], time: report.time, local: msToLocal(t, off), ageMin: Math.max(0, Math.round((nowMs - t) / 6e4)) } };
+    return alignHourly({ ...fc, now, nowcast: { ...fc.nowcast, steps, text, source: 'aviso' }, report: { kind: k, label: REPORT_KINDS[k], time: report.time, local: msToLocal(t, off), ageMin: Math.max(0, Math.round((nowMs - t) / 6e4)) } });
 }
 
 // Diferença face à corrida de há 24 h (máx. e chuva por dia), média dos modelos

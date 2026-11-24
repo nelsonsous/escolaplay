@@ -234,6 +234,12 @@ ficam quietos. Desliga-se em **Ajustes → Avançado → Preferências → Anima
 ondular, e a chuva cai lá para dentro: mais gotas e mais depressa quanto mais chove. 60 imagens/s; pára fora do ecrã.
 Com as animações desligadas (ou sem WebAssembly), as barras SVG de sempre.
 
+**Os dois gráficos da chuva dizem o mesmo** (1.31, pedido do dono): as horas do «Próximas horas» que as «Próximas 2
+horas» cobrem somam os passos de 15 min (radar e modelos, ou o aviso de quem lá está) — antes a mesma hora dava 0,6 mm
+em 15 min (~2,4 mm/h) num e 3,6 mm no outro. Cada valor é o do período que acaba à sua hora (como no Open-Meteo); a parte
+da hora que os passos não cobrem fica com os modelos, o «até» acompanha e a probabilidade é a dos passos
+(`alignHourly` em `lib/engine.js`, também depois do aviso).
+
 ## O dia e a noite (1.28)
 
 **Ajustes → Cores**: Automático (segue o iPhone: claro de dia e escuro à noite, se o iPhone estiver assim), Dia (claro) e
