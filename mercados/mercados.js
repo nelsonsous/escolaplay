@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.67.0';
+    const VERSION = '4.67.1';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -3612,7 +3612,8 @@
         if (ev.target.dataset && ev.target.dataset.ppv) {
             const t = ev.target, b = t.parentElement && t.parentElement.querySelector('.pp-ok');
             st.ppd = { ...(st.ppd || {}), [t.dataset.ppv + '|' + t.dataset.d]: t.value };
-            if (b) b.classList.add('pisca');
+            // 4.67.1: só pisca se o escrito for diferente do guardado (o valor com que o campo foi desenhado)
+            if (b) b.classList.toggle('pisca', String(t.value).trim() !== String(t.defaultValue).trim());
         }
         // a barra do simulador: o número muda enquanto se arrasta; grava e redesenha ao largar (change)
         if (ev.target.classList && ev.target.classList.contains('sim-rg')) {

@@ -434,6 +434,16 @@ function proxyBody(u) {
     assert.equal((await fL()).ra[ruD[2]], 2.24, 'o round up dessa data');
     assert.match(await page.locator('#mk-toast').textContent(), /^Round up a \d\d\/\d\d\/\d{4}: 2,24\s€ — confirmado/);
     assert.equal(await okDe('ru', ruD[2]).evaluate((b) => b.classList.contains('on')), true, 'o ✓ fica verde');
+    // 4.67.1: confirmado e alterado: por confirmar outra vez — pisca, sem o verde cheio; o mesmo valor não pisca
+    {
+        const x = page.locator(`.reg [data-ppv="ru"][data-d="${ruD[2]}"]`), b = okDe('ru', ruD[2]);
+        await x.fill('9');
+        assert.deepEqual(await b.evaluate((e) => [e.classList.contains('pisca'), getComputedStyle(e).backgroundColor]), [true, 'rgba(0, 0, 0, 0)'], 'por confirmar: só o contorno a piscar');
+        await x.fill('2,24');
+        assert.equal(await b.evaluate((e) => e.classList.contains('pisca')), false, 'o guardado não pisca');
+        await page.evaluate((d) => { delete window.__mk.st.ppd['ru|' + d]; }, ruD[2]);
+        assert.equal((await fL()).ra[ruD[2]], 2.24, 'sem confirmar, fica o guardado');
+    }
     // 4.65: escrito sem confirmar não conta, e o ✓ pisca (o rascunho fica no campo depois de redesenhar)
     {
         const x = page.locator(`.reg [data-ppv="ru"][data-d="${ruD[3]}"]`);

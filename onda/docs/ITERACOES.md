@@ -3724,3 +3724,15 @@ partir desse dia (às 15h45), ao preço desse dia.
 **Verificado.** Interface: 1100 € daqui a 8 dias ficam agendados nesse dia, sem unidades, não contam ainda, aparecem na
 lista e o ✕ apaga-os.
 
+## Iteração (Mercados 4.67.1): o ✓ de um confirmado alterado
+
+**Pedido.** «Porque pisca os 50 €?» (o plano de 02/12, confirmado com 900 €, mudado para 50 €: o ✓ verde a piscar.)
+
+**Visto.** O 50 ainda não estava confirmado (contavam os 900 €); o ✓ piscava a pedir confirmação, mas continuava verde
+cheio, como se já estivesse confirmado.
+
+**Feito.** Alterado e por confirmar, o ✓ fica só com o contorno, a piscar; com o mesmo valor do guardado, não pisca.
+
+**Verificado.** Interface: um confirmado alterado pisca sem o verde cheio; voltar ao valor guardado tira o piscar; sem
+confirmar, conta o guardado.
+
