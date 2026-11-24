@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.67.1';
+    const VERSION = '4.68.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1434,7 +1434,13 @@
             const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k, cfg.per);
             // o nome curto (o símbolo na cripto; sem a moeda, o «(Acc)» e o «UCITS ETF» nos fundos)
             const nm = REG[k].kind === 'crypto' ? REG[k].sym : nameOf(k).replace(/\s*\(.*\)\s*$/, '').replace(/\s+(USD|EUR|UCITS|ETF|Acc|Dist)\b.*$/i, '').trim() || k;
-            return { k, nm, cr: REG[k].kind === 'crypto', px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch: mexeuHoje(k, q) ? q.changePct : 0,
+            // 4.68: o que mexeu hoje, em euros — as unidades de antes de hoje pela variação do dia; as compradas hoje desde o
+            // preço a que se compraram (o valor de agora menos o que se pagou), não desde o fecho de ontem. Só na posição
+            // copiada da TR (as compras de hoje só existem aí); sem ele, o cartão conta pela variação, com as unidades dele
+            const ch = mexeuHoje(k, q) ? q.changePct : 0, pxe = pxEur(k), xh = extrasOf(k).filter((x) => x.d === todayLocal());
+            const qh = xh.reduce((s, x) => s + x.q, 0), eh = xh.reduce((s, x) => s + x.e, 0), qa = P.q - qh;
+            const dh = temHoje(lotOf(k)) && P.q > 0 && fin(pxe) ? (fin(ch) && ch > -100 ? qa * pxe - (qa * pxe) / (1 + ch / 100) : 0) + (qh * pxe - eh) : undefined;
+            return { k, nm, cr: REG[k].kind === 'crypto', px: pxe, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch, ...(dh === undefined ? {} : { dh }),
                 s: (pd.series || []).filter((x) => fin(x[1])).map(([t, v]) => [t, v * f]) };
         }) };
     }

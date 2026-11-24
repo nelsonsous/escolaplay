@@ -141,6 +141,11 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## O «Hoje» com as compras de hoje (4.68.0)
+
+O «Hoje» do cartão da carteira conta as unidades de antes de hoje pela variação do dia e as compradas hoje desde o
+preço a que se compraram (o valor de agora menos o que se pagou, com a comissão) — não desde o fecho de ontem.
+
 ## Uma compra para o futuro (4.67.0)
 
 No «Registar», uma compra com data futura fica agendada (antes passava, sem aviso, para hoje): aparece na lista como

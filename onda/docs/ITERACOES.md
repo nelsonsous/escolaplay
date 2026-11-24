@@ -3736,3 +3736,16 @@ cheio, como se já estivesse confirmado.
 **Verificado.** Interface: um confirmado alterado pisca sem o verde cheio; voltar ao valor guardado tira o piscar; sem
 confirmar, conta o guardado.
 
+## Iteração (Mercados 4.68.0): o «Hoje» com as compras de hoje
+
+**Pedido.** «Hoje o quanto desceu em percentagem e valor as cripto e o FTSE?» — o cartão dizia −141,80 €.
+
+**Visto.** O «Hoje» aplicava a variação do dia (−1,54% no FTSE) a todas as unidades, também às 2000 € compradas às
+19:52 (a 162,74 €, com o preço agora a 162,50 €): exagerava o FTSE em cerca de 28 €.
+
+**Feito.** A app dá a cada ativo o que mexeu hoje em euros (`dh`): as unidades de antes de hoje pela variação do dia, e
+as compradas hoje (e a poupança periódica de hoje) pelo valor de agora menos o que se pagou. O cartão (Onda) soma-o.
+
+**Verificado.** Interface: com 5 unidades antigas e uma compra de hoje de 12,289541 a 2001,04 €, o `dh` do FTSE é o
+esperado, diferente da variação do dia sobre tudo, e o «Hoje» do cartão é a soma.
+

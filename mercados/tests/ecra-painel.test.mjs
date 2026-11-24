@@ -374,7 +374,9 @@ function verificar({ de, ate, seed }) {
                 for (const { a, u, e } of tbPf) {
                     const val = a.px * u, ch = a.ch === null ? 0 : typeof a.ch === 'number' ? a.ch : NaN;
                     vv += val; ee += e;
-                    if (Number.isFinite(ch) && ch > -100) dd += val - val / (1 + ch / 100);
+                    // 4.68: o que mexeu hoje em euros, quando a app o dá (a posição copiada da TR, com as compras de hoje)
+                    if (typeof a.dh === 'number' && Number.isFinite(a.dh)) dd += a.dh;
+                    else if (Number.isFinite(ch) && ch > -100) dd += val - val / (1 + ch / 100);
                 }
                 // (4.39: no «Tudo», desde a 1.ª compra — pf.t0; sem ela, 1 ano)
                 const tu = c.per === 'all', ta = tu ? Number(pf.t0) : 0;
@@ -399,7 +401,7 @@ function verificar({ de, ate, seed }) {
                 const gr = { c: { v: 0, e: 0, d: 0, n: 0 }, o: { v: 0, e: 0, d: 0, n: 0, a: null } };
                 for (const { a, u, e } of tbPf) {
                     const val = a.px * u, ch = a.ch === null ? 0 : typeof a.ch === 'number' ? a.ch : NaN, g = a.cr ? gr.c : gr.o;
-                    g.v += val; g.e += e; g.d += Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; g.n++;
+                    g.v += val; g.e += e; g.d += typeof a.dh === 'number' && Number.isFinite(a.dh) ? a.dh : Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; g.n++;
                     if (!a.cr) g.a = a;
                 }
                 // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo, em euros sem cêntimos — os fundos e as
@@ -760,6 +762,18 @@ test('Painel: a escala do cartão (4.44) — com o investido longe, só o valor 
     });
     assert.deepEqual(r[0], ['valor', false, 'há 24 hagora'], 'o investido (2000 €) longe do valor (perto de 1000 €): só o valor');
     assert.deepEqual(r[1], ['tudo', true, 'há 24 hinvestidoagora'], 'perto: os dois');
+});
+
+test('Painel: o «Hoje» do cartão (4.68) — o que mexeu hoje em euros vem da app (dh); sem ele, pela variação do dia', async () => {
+    const r = await page.evaluate(() => {
+        const AO = window.AnaliseOnda, agora = Date.now() / 1000;
+        const pf = (dh) => ({ now: agora, t0: 0, dl: '', ativos: [{ k: 'VWCE.DE', nm: 'FTSE All-World', cr: false, px: 100, h: [], b: [], q: 10, cost: 900, ch: 0.5, ...(dh === undefined ? {} : { dh }),
+            s: [[agora - 86400, 99], [agora - 43200, 100.6], [agora, 100]] }] });
+        const hoje = (dh) => new DOMParser().parseFromString(AO.ecra.pf({ pf: pf(dh), per: '1d' }), 'text/html').querySelector('.pf-st .pf-c b').textContent.replace(/\s/g, ' ');
+        return [hoje(-3), hoje(undefined)];
+    });
+    assert.equal(r[0], '−3,00 €', 'o dh da app');
+    assert.equal(r[1], '+4,98 €', 'sem dh: 1000 € a +0,5% (1000 − 1000/1,005)');
 });
 
 test('Painel: a app desenha-o com a Onda (e, se a Onda falhar, um aviso curto); a vista não mexe no estado', async () => {
