@@ -1064,7 +1064,7 @@ function proxyBody(u) {
     // o ganho do FTSE e o da cripto numa linha; o gráfico desde a primeira compra com o investido
     // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo (em euros sem cêntimos), a soma da cripto com
     // as moedas debaixo dela e o total — o investido total é a soma do que custou cada um
-    assert.deepEqual(await page.locator('.pf .pf-gs .pf-gh').evaluate((h) => [...h.children].map((c) => c.textContent)), ['', 'Investido', 'Vale', 'Ganho']);
+    assert.deepEqual(await page.locator('.pf .pf-gs .pf-gh').evaluate((h) => [...h.children].map((c) => c.textContent)), ['', 'Investido', 'Vale', 'Hoje', 'Ganho']);
     // 4.38.2: a cripto fechada numa linha (a soma); tocar abre as moedas — e fica aberta com os preços ao vivo —; outra vez, fecha
     const linhasPf = () => page.locator('.pf .pf-gs .pf-gr').evaluateAll((rs) => rs.map((r) => [r.className, ...[...r.children].map((c) => c.textContent)]));
     assert.deepEqual((await linhasPf()).map((r) => [r[0], r[1]]), [['pf-gr', 'FTSE All-World'], ['pf-gr pf-gg', 'Cripto'], ['pf-gr pf-gt', 'Total']], 'a cripto fechada: uma linha');
@@ -1076,7 +1076,15 @@ function proxyBody(u) {
     await page.waitForFunction(() => { const s = document.querySelector('#mk-body > section.pf'); return s && !s.dataset.antes; }, null, { timeout: 8000 });
     assert.equal(await page.locator('.pf .pf-gg.on').count(), 1, 'e fica aberta quando o cartão se redesenha ao vivo');
     if (SHOTS) await page.locator('#mk-body > section.pf').screenshot({ path: path.join(SHOTS, '1d-carteira-aberta.png') });
-    for (const r of grs) { assert.match(r[2], /^\d[\d\s ]*\s€$/, r.join(' | ')); assert.match(r[3], /^\d[\d\s ]*\s€$/); assert.match(r[4], /^[+−][\d\s ]+\s€ \([+−]?\d+,\d%\)$/); }
+    for (const r of grs) { assert.match(r[2], /^\d[\d\s ]*\s€$/, r.join(' | ')); assert.match(r[3], /^\d[\d\s ]*\s€$/); assert.match(r[4], /^[+−][\d\s ]+\s€([+−]?\d+,\d%)?$/, 'hoje: € e %'); assert.match(r[5], /^[+−][\d\s ]+\s€[+−]?\d+,\d%$/, 'ganho: € e %'); }
+    // 4.69: o «Hoje» de cada linha — o Total é o «Hoje» de cima (sem cêntimos), e os euros e a % em duas linhas
+    {
+        const h = await page.evaluate(() => { const t = document.querySelector('.pf .pf-gt .pf-d2'), s = t.querySelector('small'); return { t: t.firstChild.textContent, cima: document.querySelector('.pf .pf-st .pf-c b').textContent, alto: s.getBoundingClientRect().top >= t.firstChild.parentElement.getBoundingClientRect().top + 8 }; });
+        const n = (x) => Math.round(+x.replace(/[^\d,−+-]/g, '').replace('−', '-').replace(',', '.'));
+        assert.equal(n(h.t), n(h.cima), 'o Hoje do Total é o de cima');
+        assert.ok(h.alto, 'a % por baixo dos euros');
+        console.log('✓ a coluna Hoje na tabela da carteira:', h.t, '(em cima:', h.cima + ')');
+    }
     const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
     assert.equal(grs[grs.length - 1][2], inv, 'o investido total');
     assert.ok(await page.locator('.pf .pf-gs').evaluate((g) => g.scrollWidth <= g.clientWidth + 1 && g.getBoundingClientRect().right <= g.closest('.pf-cx').getBoundingClientRect().right), 'a tabela cabe no cartão (390 px)');
