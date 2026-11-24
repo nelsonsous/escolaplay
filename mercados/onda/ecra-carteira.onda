@@ -284,7 +284,7 @@
   `<label><small>€ investidos</small><input class="inp" type="text" inputmode="decimal" autocomplete="off" data-reg="e" value="{ esc g.e }`
   = pm num g.pm
   `" placeholder="{ Se && fin pm > pm 0.0 _nu_ps pm }"></label>`
-  `<label><small>Data</small><input class="inp" type="date" data-reg="d" max="{ esc g.hoje }" value="{ esc g.d }"></label></div>`
+  `<label><small>Data</small><input class="inp" type="date" data-reg="d" value="{ esc g.d }"></label></div>`
   `<button type="button" class="btn sm reg-bt" data-act="reg-compra">+ Juntar compra</button>`
   # 4.45: a poupança periódica — o plano, o round up e o saveback em listas (desde o dia em que copiaste da TR): em cada data
   # escreve-se o valor como na TR (vazio fica a sugestão: o plano por mês; a média dos escritos); conta nesse dia às 15h45
@@ -300,7 +300,7 @@
   = qa num g.qApp
   `" placeholder="{ Se && fin qa > qa 0.0 _nu_intlm qa 6 }"></label>`
   `<button type="button" class="btn sm reg-bt reg-ac" data-act="reg-acerto">Acertar</button></div>`
-  `<p class="note">A compra entra ao preço de fecho desse dia. No acerto, a diferença para a app entra hoje, ao preço de hoje.</p>`
+  `<p class="note">A compra entra ao preço de fecho desse dia; com uma data futura, fica agendada e conta nesse dia. No acerto, a diferença para a app entra hoje, ao preço de hoje.</p>`
   = l g.lista
   Se > quantos l 0 {
     `<div class="reg-l">`
@@ -308,9 +308,9 @@
     W c {
       = tp I num c.t = q num c.q
       `<div class="reg-i"><span>{ esc c.d } · { esc c.name }<small>`
-      ? == tp 0 { ? ha c.aj "plano (ajustado)" "plano (estimado)" } ? == tp 1 "compra" ? == tp 3 "saveback" ? == tp 4 "round up" ? == tp 5 "saveback (estimado)" ? == tp 6 "round up (estimado)" "acerto com a TR"
-      `</small></span><span class="num">{ cr_eursg num c.e }<small>{ Se > q 0.0 "+" }{ _nu_intlm q 6 }</small></span>`
-      Se && > tp 0 < tp 5 { `<button type="button" class="xbtn" data-act="reg-rm" data-k="{ esc c.k }" data-i="{ _nu_ps num c.i }` 0 `" aria-label="Apagar">✕</button>` }
+      ? == tp 0 { ? ha c.aj "plano (ajustado)" "plano (estimado)" } ? == tp 1 "compra" ? == tp 3 "saveback" ? == tp 4 "round up" ? == tp 5 "saveback (estimado)" ? == tp 6 "round up (estimado)" ? == tp 7 "agendada" "acerto com a TR"
+      `</small></span><span class="num">{ cr_eursg num c.e }<small>{ Se ~ == tp 7 `{ Se > q 0.0 "+" }{ _nu_intlm q 6 }` }</small></span>`
+      Se || && > tp 0 < tp 5 == tp 7 { `<button type="button" class="xbtn" data-act="reg-rm" data-k="{ esc c.k }" data-i="{ _nu_ps num c.i }` 0 `" aria-label="Apagar">✕</button>` }
       "</div>" = c seg c }
     "</div>" }
   "</div>" }

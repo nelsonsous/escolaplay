@@ -393,6 +393,21 @@ function proxyBody(u) {
     assert.match(await page.locator('#mk-toast').textContent(), /Acertado com a TR: \+0,001 de Bitcoin/);
     await page.click('.reg-i [data-act="reg-rm"][data-i="1"]');
     assert.equal((await btcL()).compras.length, 1, '✕ apaga o registo');
+    // 4.67: uma compra com data futura fica agendada (não passa para hoje) e não conta até lá; aparece na lista, com ✕
+    {
+        const fut = isoAtras(-8), nB = () => page.evaluate(() => window.__mk.pfSnap().ativos.find((a) => a.k === 'c:BTC').b.length), b0 = await nB();
+        await page.fill('.reg [data-reg="e"]', '1100');
+        await page.fill('.reg [data-reg="d"]', fut);
+        await page.click('[data-act="reg-compra"]');
+        const c = (await btcL()).compras;
+        assert.deepEqual([c.length, c[1].d, c[1].e, c[1].ag, 'q' in c[1]], [2, fut, 1100, 1, false], 'agendada nesse dia, sem unidades');
+        assert.match(await page.locator('#mk-toast').textContent(), /Compra agendada: 1100,00\s€ de Bitcoin a \d\d\/\d\d\/\d{4}/);
+        await page.waitForSelector('.reg-i:has-text("agendada")', { timeout: 3000 });
+        assert.equal(await nB(), b0, 'ainda não conta');
+        await page.click('.reg-i:has-text("agendada") [data-act="reg-rm"]');
+        assert.equal((await btcL()).compras.length, 1, '✕ apaga a agendada');
+        await page.evaluate(() => { const st = window.__mk.st; if (st.reg) st.reg.d = ''; window.__mk.render(); });
+    }
     // 4.45: a poupança periódica — o plano, o round up e o saveback em listas, desde o dia em que se copiou o que tens da TR (as
     // datas de antes já lá estão): em cada data escreve-se o valor como na TR (vazio fica a sugestão: o plano por mês; a média dos
     // escritos), grava ao sair do campo, e ✕ apaga; conta nesse dia às 15h45, ao preço desse dia

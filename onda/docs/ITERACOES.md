@@ -3711,3 +3711,16 @@ ficha e nas linhas), e a ficha escreve no canto «↓ fecho anterior …» (ou �
 Também: a lista do round up só procurava a próxima data nos 8 dias seguintes; depois do de dia 23, o seguinte (dia 2) está
 a 9 ou 10 dias, e a linha «próximo» desaparecia até dia 24/25 (o teste falhou a 23/11 à noite). Passa a 11 dias.
 
+## Iteração (Mercados 4.67.0): uma compra para o futuro
+
+**Pedido.** «Digo que vou poupar 1100 € a 2/12 e ele insere hoje.»
+
+**Visto.** O «Juntar compra» trocava, sem aviso, uma data futura pela de hoje (e o campo da data tinha o máximo em hoje,
+que o iPhone não respeita).
+
+**Feito.** Com uma data futura, a compra fica agendada (sem unidades): aparece na lista como «agendada», com ✕, e conta a
+partir desse dia (às 15h45), ao preço desse dia.
+
+**Verificado.** Interface: 1100 € daqui a 8 dias ficam agendados nesse dia, sem unidades, não contam ainda, aparecem na
+lista e o ✕ apaga-os.
+
