@@ -3749,3 +3749,19 @@ as compradas hoje (e a poupança periódica de hoje) pelo valor de agora menos o
 **Verificado.** Interface: com 5 unidades antigas e uma compra de hoje de 12,289541 a 2001,04 €, o `dh` do FTSE é o
 esperado, diferente da variação do dia sobre tudo, e o «Hoje» do cartão é a soma.
 
+## Iteração (Mercados 4.69.0): a coluna «Hoje» na tabela da carteira
+
+**Pedido.** «Onde diz isto: os −109,75 € dividem-se em cerca de −92 € na cripto e −18 € no FTSE?» — «Sim, desde que
+não ocupe muito. Tem que ficar organizado.»
+
+**Visto.** O cartão já fazia as contas de hoje por grupo (a cripto e o resto), mas só mostrava o total. A tabela tem
+336 px no telemóvel: uma quinta coluna com «€ (%)» cortava o «FTSE All-World».
+
+**Feito.** A coluna «Hoje» entre o «Vale» e o «Ganho», em cada linha (os grupos, cada moeda e o Total). O «Hoje» e o
+«Ganho» passam a duas linhas estreitas — os euros e, por baixo, a % (a de hoje sobre o valor de antes) —; o «Investido»
+e o «Vale» ficam como estavam. O que cada ativo mexeu hoje (o `dh` da 4.68, ou pela variação) é uma função só,
+`pn_dv`, para o total e para as linhas.
+
+**Verificado.** Os 600 estados do Painel com a coluna nova (o de hoje de cada linha, a cor e a %); interface: o
+cabeçalho, o formato de cada casa, o Total igual ao «Hoje» de cima, a % por baixo dos euros, e a tabela cabe nos 390 px.
+

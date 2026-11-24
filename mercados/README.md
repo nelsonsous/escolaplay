@@ -141,6 +141,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## O «Hoje» de cada linha na tabela da carteira (4.69.0)
+
+A tabela do cartão «A minha carteira» tem a coluna «Hoje»: o que cada linha (o FTSE, a cripto, cada moeda e o total)
+mexeu hoje em euros e, por baixo, em %. Para caber no telemóvel sem cortar os nomes, o «Hoje» e o «Ganho» têm duas
+linhas estreitas: os euros e, por baixo, a %.
+
 ## O «Hoje» com as compras de hoje (4.68.0)
 
 O «Hoje» do cartão da carteira conta as unidades de antes de hoje pela variação do dia e as compradas hoje desde o
