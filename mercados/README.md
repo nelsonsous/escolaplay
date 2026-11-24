@@ -141,6 +141,11 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## Uma compra para o futuro (4.67.0)
+
+No «Registar», uma compra com data futura fica agendada (antes passava, sem aviso, para hoje): aparece na lista como
+«agendada», com ✕, e só conta nesse dia (às 15h45), ao preço desse dia.
+
 ## O fecho anterior longe do dia (4.66.0)
 
 Nos gráficos do dia (a ficha e as linhas), o fecho anterior (a tracejado) só entra na escala se estiver perto do dia: a

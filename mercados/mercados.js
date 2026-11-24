@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.66.0';
+    const VERSION = '4.67.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1789,7 +1789,12 @@
     function extrasOf(k) {
         const L = lotOf(k), out = [];
         if (!temHoje(L) || !ISO_D.test(L.at || '')) return out;
-        (L.compras || []).forEach((c, i) => { if (fin(+c.q) && +c.q !== 0 && ISO_D.test(c.d || '')) out.push({ d: c.d, e: +c.e || 0, q: +c.q, t: c.cb ? 2 : c.sb ? 3 : c.ru ? 4 : 1, i }); });
+        (L.compras || []).forEach((c, i) => {
+            if (!ISO_D.test(c.d || '')) return;
+            // 4.67: a agendada conta a partir desse dia (às 15h45), ao preço desse dia
+            if (c.ag && !fin(+c.q)) { if (!feito(c.d)) return; const p = pxEm(k, c.d); if (fin(p) && p > 0 && +c.e > 0) out.push({ d: c.d, e: +c.e, q: +c.e / p, t: 1, i }); return; }
+            if (fin(+c.q) && +c.q !== 0) out.push({ d: c.d, e: +c.e || 0, q: +c.q, t: c.cb ? 2 : c.sb ? 3 : c.ru ? 4 : 1, i });
+        });
         // a poupança periódica, nos dias já feitos (por volta das 15h45): o inserido nesse dia, senão o habitual (4.42/4.43)
         for (const tp of ['pl', 'ru', 'sb']) {
             for (const d of agendaPP(k, tp, L.at, todayLocal())) {
@@ -2023,8 +2028,11 @@
         if (!ks.length) return null;
         const k = ks.includes(st.reg.k) ? st.reg.k : ks.includes(cfg.coreFund) ? cfg.coreFund : ks[0];
         st.reg.k = k;
-        const lista = ks.flatMap((x) => extrasOf(x).map((e) => ({ ...e, k: x }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)).filter((e) => !(e.t >= 3 && e.t <= 6)).slice(0, 8)
-            .map((e) => ({ k: e.k, name: nameOf(e.k), d: dmy(e.d), e: Math.round(e.e * 100) / 100, q: e.q, t: e.t, aj: e.aj || 0, i: e.i ?? -1 }));
+        // 4.67: as compras agendadas (ainda por chegar) primeiro, com ✕
+        const agend = ks.flatMap((x) => (lotOf(x).compras || []).map((c, i) => ({ c, i, x }))).filter(({ c }) => c.ag && !fin(+c.q) && ISO_D.test(c.d || '') && !feito(c.d))
+            .sort((a, b) => (a.c.d < b.c.d ? 1 : -1)).map(({ c, i, x }) => ({ k: x, name: nameOf(x), d: dmy(c.d), e: Math.round(+c.e * 100) / 100, q: 0, t: 7, aj: 0, i }));
+        const lista = agend.concat(ks.flatMap((x) => extrasOf(x).map((e) => ({ ...e, k: x }))).sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0)).filter((e) => !(e.t >= 3 && e.t <= 6)).slice(0, 8)
+            .map((e) => ({ k: e.k, name: nameOf(e.k), d: dmy(e.d), e: Math.round(e.e * 100) / 100, q: e.q, t: e.t, aj: e.aj || 0, i: e.i ?? -1 })));
         // 4.45: a poupança periódica deste ativo — o plano, o round up e o saveback em listas: a próxima data e as feitas desde
         // que copiaste da TR (a mais recente primeiro); em cada uma, o valor escrito (ou a sugestão, a cinzento)
         const hjP = todayLocal(), L1 = lotOf(k), deP = ISO_D.test(L1.at || '') ? L1.at : isoMais(hjP, -45), nPl = Math.max(1, (cfg.saveDays || []).length);
@@ -3373,9 +3381,18 @@
             case 'reg-compra': {
                 st.reg = st.reg || {};
                 const k = st.reg.k, L0 = lotOf(k), e = numPt(st.reg.e || '');
-                let dia = st.reg.d || todayLocal(); if (!ISO_D.test(dia) || dia > todayLocal()) dia = todayLocal();
+                let dia = st.reg.d || todayLocal(); if (!ISO_D.test(dia)) dia = todayLocal();
                 if (!REG[k] || !temHoje(L0)) break;
                 if (!(e > 0)) { toast('Escreve quantos euros investiste.'); break; }
+                // 4.67: com uma data futura, fica agendada (antes passava, sem aviso, para hoje): conta nesse dia, às 15h45, ao
+                // preço desse dia
+                if (dia > todayLocal()) {
+                    const antesA = L0.compras || [];
+                    st.reg.e = ''; st.reg.d = ''; { const i = $('.reg [data-reg="e"]'); if (i) i.value = ''; }
+                    setLots(k, { ...L0, compras: antesA.concat({ d: dia, e: Math.round(e * 100) / 100, ag: 1 }) });
+                    toast(`Compra agendada: ${fmtPx(e, { decimals: 2 }, 'EUR')} de ${nameOf(k)} a ${dmy(dia)} (conta nesse dia, ao preço desse dia)`, () => setLots(k, { ...lotOf(k), compras: antesA }));
+                    break;
+                }
                 const p = pxEm(k, dia);
                 if (!fin(p) || p <= 0) { toast('Ainda sem o preço desse dia: tenta daqui a pouco.'); break; }
                 const antes = L0.compras || [];
