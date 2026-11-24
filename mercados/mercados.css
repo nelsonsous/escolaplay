@@ -501,7 +501,7 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-c b + i::after { content: ')'; }
 /* 4.38: a tabela da carteira — o investido, o valor e o ganho de cada ativo, a soma de cada grupo e o total; as colunas
    alinhadas em todas as linhas (cada linha é uma subgrelha da tabela) */
-.pf .pf-gs { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; column-gap: 10px; margin-top: 6px; }
+.pf .pf-gs { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; column-gap: 10px; margin-top: 6px; }
 .pf .pf-gh, .pf .pf-gr { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; }
 .pf .pf-gh { padding: 2px 0; color: var(--muted); font-size: calc(.68rem * var(--k)); }
 .pf .pf-gh span { text-align: right; }
@@ -514,8 +514,9 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-gg.on .pf-sx::after { transform: rotate(90deg); }
 .pf .pf-gr b { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf .pf-gr .num { text-align: right; white-space: nowrap; }
-/* 4.69: o de hoje e o ganho em duas linhas estreitas: os euros e, por baixo, a % */
-.pf .pf-gr .pf-d2 small { display: block; font-size: .78em; line-height: 1.15; opacity: .85; }
+/* 4.69.1: por baixo do ganho, pequeno, o de hoje no mesmo formato («hoje −18 € (−0,6%)») */
+.pf .pf-gr .pf-d2 small { display: block; margin-top: 1px; font-size: .8em; line-height: 1.15; font-weight: 600; }
+.pf .pf-gr .pf-d2 small i { font-style: normal; font-weight: 500; color: var(--muted); }
 .pf .pf-grs { display: block; margin-top: 6px; }
 .pf .pf-gl { display: block; padding: 2px 0; color: var(--muted); font-size: calc(.8rem * var(--k)); }
 .pf .pf-gl b { color: var(--text); font-weight: 650; }

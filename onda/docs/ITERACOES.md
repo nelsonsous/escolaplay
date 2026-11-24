@@ -3765,3 +3765,17 @@ e o «Vale» ficam como estavam. O que cada ativo mexeu hoje (o `dh` da 4.68, ou
 **Verificado.** Os 600 estados do Painel com a coluna nova (o de hoje de cada linha, a cor e a %); interface: o
 cabeçalho, o formato de cada casa, o Total igual ao «Hoje» de cima, a % por baixo dos euros, e a tabela cabe nos 390 px.
 
+## Iteração (Mercados 4.69.1): o de hoje por baixo do ganho
+
+**Pedido.** «Dá para organizar melhor? Eu gostava da percentagem entre parênteses ligada ao valor.»
+
+**Visto.** Com a coluna «Hoje», o ganho e o de hoje tinham a % numa linha à parte, por baixo dos euros. Com as duas
+casas em «€ (%)», cinco colunas não cabem nos 336 px da tabela no telemóvel.
+
+**Feito.** Sem a coluna «Hoje»: o ganho volta a «−44 € (−1,5%)» numa linha, e por baixo, pequeno, «hoje −18 € (−0,6%)»,
+cada um com a sua cor — o de hoje junto do ganho, na mesma coluna.
+
+**Verificado.** Os 600 estados do Painel (o texto e as duas cores de cada casa); interface: o cabeçalho de novo com
+três colunas, o formato «€ (%)» e «hoje € (%)», o de hoje do Total igual ao «Hoje» de cima, por baixo do ganho, e a
+tabela cabe nos 390 px.
+

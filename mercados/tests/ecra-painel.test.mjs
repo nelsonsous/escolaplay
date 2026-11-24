@@ -408,12 +408,12 @@ function verificar({ de, ate, seed }) {
                 // ações, depois a cripto — e o total, com mais de um ativo. Um grupo com mais de um ativo, e com o outro grupo, leva
                 // a linha da soma, que abre e fecha os ativos dele (4.38.2): fechada por omissão, aberta como o utilizador a deixou
                 const eur0 = (x) => mk.fmtPx(x, { decimals: 0 }, 'EUR'), sg0 = (x) => (x >= 0 ? '+' : '−') + eur0(Math.abs(x));
-                // 4.69: e o de hoje (os euros e, por baixo, a % sobre o valor de antes); o ganho também em duas linhas
-                const lin = (cl, nm, v, e, d) => [cl, nm, e > 0 ? eur0(e) : '', eur0(v), sg0(d) + (v - d > 0 ? mk.fmtPct1((d / (v - d)) * 100) : ''), 'num pf-d2 ' + toneOf(d) + '-t',
-                    e > 0 ? `${sg0(v - e)}${mk.fmtPct1((v / e - 1) * 100)}` : '', e > 0 ? 'num pf-d2 ' + toneOf(v - e) + '-t' : 'num'];
+                // 4.69.1: o ganho «€ (%)» e, por baixo, «hoje € (%)» (a % de hoje sobre o valor de antes), cada um com a sua cor
+                const lin = (cl, nm, v, e, d) => [cl, nm, e > 0 ? eur0(e) : '', eur0(v), (e > 0 ? `${sg0(v - e)} (${mk.fmtPct1((v / e - 1) * 100)})` : '') + 'hoje ' + sg0(d) + (v - d > 0 ? ` (${mk.fmtPct1((d / (v - d)) * 100)})` : ''),
+                    'num pf-d2', e > 0 ? toneOf(v - e) + '-t' : '', toneOf(d) + '-t'];
                 const dvDe = (a, val) => { const ch = a.ch === null ? 0 : typeof a.ch === 'number' ? a.ch : NaN; return typeof a.dh === 'number' && Number.isFinite(a.dh) ? a.dh : Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; };
                 const tabQ = (abC, abF) => {
-                    const q = [['pf-gh', '', 'Investido', 'Vale', 'Hoje', '', 'Ganho', '', '']];
+                    const q = [['pf-gh', '', 'Investido', 'Vale', 'Ganho', '', '', '', '']];
                     for (const [g, cr, nm, outro, ab, gk] of [[gr.o, false, 'Fundos e ações', gr.c.n, abF, 'fundos'], [gr.c, true, 'Cripto', gr.o.n, abC, 'cripto']]) {
                         const sub = g.n > 1 && outro > 0;
                         if (sub) q.push([...lin(ab ? 'pf-gr pf-gg on' : 'pf-gr pf-gg', nm, g.v, g.e, g.d), gk]);
@@ -422,7 +422,7 @@ function verificar({ de, ate, seed }) {
                     if (tbPf.length > 1) q.push([...lin('pf-gr pf-gt', 'Total', vv, ee, dd), '']);
                     return q;
                 };
-                const tabDe = (raiz) => (raiz ? [...raiz.querySelectorAll('.pf-gs > span')].map((r) => { const c = r.children; return [r.className, c[0].textContent, c[1].textContent, c[2].textContent, c[3].textContent, c[3].className, c[4].textContent, c[4].className, r.dataset.g || '']; }) : []);
+                const tabDe = (raiz) => (raiz ? [...raiz.querySelectorAll('.pf-gs > span')].map((r) => { const c = r.children; return [r.className, c[0].textContent, c[1].textContent, c[2].textContent, c[3].textContent, c[3].className, (c[3].querySelector(':scope > span') || {}).className || '', (c[3].querySelector('small > span') || {}).className || '', r.dataset.g || '']; }) : []);
                 const tqPf = tabQ(!!snap.foldPfc, !!snap.foldPff), tabPf = tabDe(s);
                 if (JSON.stringify(tabPf) !== JSON.stringify(tqPf)) erro(`a carteira: a tabela ${JSON.stringify(tabPf)} em vez de ${JSON.stringify(tqPf)}`);
                 if (s && s.querySelector('.pf-b .pf-gs')) erro('a carteira: a tabela dentro do botão (lá dentro não se abre a soma)');
