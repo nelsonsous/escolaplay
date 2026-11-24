@@ -902,7 +902,7 @@ function proxyBody(u) {
         const t3 = Math.floor(Date.now() / 1000) - 3 * 86400;
         const antes = await page.evaluate((t) => { const mk = window.__mk, v = []; for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) { v.push([s, mk.Q[s].time]); mk.Q[s].time = t; } mk.cfg.perA = '1d'; mk.render(); return v; }, t3);
         await page.waitForSelector('.pf .pf-fech');
-        const r = await page.evaluate(() => { const p = window.__mk.pfSnap(), f = p.ativos.find((a) => a.k === 'VWCE.DE'), h = p.ativos.reduce((s, a) => (Number.isFinite(a.ch) && a.ch > -100 && a.q > 0 ? s + a.q * a.px - (a.q * a.px) / (1 + a.ch / 100) : s), 0);
+        const r = await page.evaluate(() => { const p = window.__mk.pfSnap(), f = p.ativos.find((a) => a.k === 'VWCE.DE'), h = p.ativos.reduce((s, a) => s + (Number.isFinite(a.dh) ? a.dh : Number.isFinite(a.ch) && a.ch > -100 && a.q > 0 ? a.q * a.px - (a.q * a.px) / (1 + a.ch / 100) : 0), 0);
             return { ch: f.ch, fech: p.fech, h, txt: document.querySelector('.pf .pf-st .pf-c b').textContent, dia: (document.querySelector('.row[data-key="VWCE.DE"] .chg-dia') || {}).textContent }; });
         assert.equal(r.ch, 0, 'o FTSE não mexeu hoje');
         assert.equal(r.fech, 1);
@@ -913,6 +913,22 @@ function proxyBody(u) {
         await page.evaluate(() => { const mk = window.__mk, t = Math.floor(Date.now() / 1000); for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) mk.Q[s].time = t; mk.render(); });
         await page.waitForFunction(() => !document.querySelector('.pf .pf-fech'), null, { timeout: 3000 });
         assert.ok(await page.evaluate(() => { const f = window.__mk.pfSnap().ativos.find((a) => a.k === 'VWCE.DE'); return Number.isFinite(f.ch) && f.ch !== 0; }), 'o FTSE volta a contar');
+        // 4.68: uma compra feita hoje conta desde o preço a que se comprou, não desde o fecho de ontem
+        const c = await page.evaluate(() => {
+            const mk = window.__mk, L0 = mk.cfg.lots['VWCE.DE'], d = new Date(), hj = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            mk.cfg.lots['VWCE.DE'] = { qty: 5, avg: 170, cost: 850, at: '2026-11-10', qd: '2026-11-10', compras: [{ d: hj, e: 2001.04, q: 12.289541 }] };
+            mk.render();
+            const p = mk.pfSnap(), f = p.ativos.find((a) => a.k === 'VWCE.DE'), soma = p.ativos.reduce((s, a) => s + (Number.isFinite(a.dh) ? a.dh : Number.isFinite(a.ch) && a.ch > -100 && a.q > 0 ? a.q * a.px - (a.q * a.px) / (1 + a.ch / 100) : 0), 0), txt = document.querySelector('.pf .pf-st .pf-c b').textContent;
+            if (L0 === undefined) delete mk.cfg.lots['VWCE.DE']; else mk.cfg.lots['VWCE.DE'] = L0;
+            mk.render();
+            return { dh: f.dh, ch: f.ch, px: f.px, q: f.q, soma, txt };
+        });
+        const esp = 5 * c.px - (5 * c.px) / (1 + c.ch / 100) + (12.289541 * c.px - 2001.04);
+        assert.ok(Math.abs(c.q - 17.289541) < 1e-9, 'as unidades de hoje contam na posição');
+        assert.ok(Math.abs(c.dh - esp) < 1e-6, 'as de antes pela variação do dia; as de hoje desde o preço pago');
+        assert.ok(Math.abs(c.dh - (c.q * c.px - (c.q * c.px) / (1 + c.ch / 100))) > 1, 'não a variação do dia sobre as compradas hoje');
+        assert.equal(c.txt.replace(/\s/g, ' '), eurS(c.soma).replace(/\s/g, ' '), 'o «Hoje» do cartão é a soma');
+        console.log('✓ o «Hoje» com uma compra de hoje:', c.dh.toFixed(2), '€ (pela variação do dia seria', (c.q * c.px - (c.q * c.px) / (1 + c.ch / 100)).toFixed(2), '€)');
         assert.equal(await page.locator('.row[data-key="VWCE.DE"] .chg-dia').count(), 0, 'sem o dia');
         await page.evaluate((v) => { const mk = window.__mk; for (const [s, t] of v) mk.Q[s].time = t; mk.render(); }, antes);
         console.log('✓ «Hoje» só com o que mexeu hoje (a bolsa fechada fica de fora) e o dia na linha');

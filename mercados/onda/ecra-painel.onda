@@ -567,7 +567,9 @@
       = vc 0.0 = ec 0.0 = dc 0.0 = nc 0 = vo 0.0 = eo 0.0 = dz 0.0 = nn 0
       L j na {
         = q cr_p tb j = val * @f + q 3 @f + q 4 = c @ q = ch num c.ch = e @f + q 5
-        = dv ? && fin ch > ch -100.0 - val / val + 1.0 / ch 100.0 0.0
+        # 4.68: o que mexeu hoje em euros vem da app (as compras de hoje desde o preço a que se compraram); sem ele, pela variação
+        = dh num c.dh
+        = dv ? fin dh dh ? && fin ch > ch -100.0 - val / val + 1.0 / ch 100.0 0.0
         = vv + vv val = ee + ee e = dd + dd dv
         ? ha c.cr { = vc + vc val = ec + ec e = dc + dc dv = nc + nc 1 } { = vo + vo val = eo + eo e = dz + dz dv = nn + nn 1 } }
       # o período escolhido (1D, 1S, 1M, 1A) em 60 instantes: o valor (com as unidades de cada instante), o investido e,
