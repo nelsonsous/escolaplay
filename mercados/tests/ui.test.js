@@ -1084,6 +1084,16 @@ function proxyBody(u) {
         assert.equal(n(h.t), n(h.cima), 'o Hoje do Total é o de cima');
         assert.ok(h.alto, 'o de hoje por baixo do ganho');
         console.log('✓ o de hoje por baixo do ganho na tabela da carteira:', h.t, '€ (em cima:', h.cima + ')');
+        // 4.70: no 1S, por baixo do ganho, o da semana («1S …»); no «Tudo», nada (é o próprio ganho); no 1D, de novo hoje
+        const sob = () => page.evaluate(() => [...document.querySelectorAll('.pf .pf-gr .pf-d2 small i')].map((i) => i.textContent));
+        await page.click('.pf .pf-pe [data-per="1w"]');
+        await page.waitForFunction(() => { const i = document.querySelector('.pf .pf-gt .pf-d2 small i'); return i && i.textContent === '1S'; }, null, { timeout: 5000 });
+        assert.ok((await sob()).every((x) => x === '1S'), 'no 1S, a semana em todas as linhas');
+        await page.click('.pf .pf-pe [data-per="all"]');
+        await page.waitForFunction(() => !document.querySelector('.pf .pf-gr .pf-d2 small'), null, { timeout: 5000 });
+        await page.click('.pf .pf-pe [data-per="1d"]');
+        await page.waitForFunction(() => { const i = document.querySelector('.pf .pf-gt .pf-d2 small i'); return i && i.textContent === 'hoje'; }, null, { timeout: 5000 });
+        console.log('✓ por baixo do ganho, o do período escolhido (hoje, 1S; nada no Tudo)');
     }
     const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
     assert.equal(grs[grs.length - 1][2], inv, 'o investido total');

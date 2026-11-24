@@ -141,6 +141,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## Por baixo do ganho, o do período escolhido (4.70.0)
+
+Na tabela da carteira, a linha pequena por baixo do ganho segue o período escolhido em cima: «hoje» no 1D, «1S» na
+semana, «1M» no mês e «1A» no ano — o ganho de agora menos o de então, sem contar o dinheiro que entrou depois (uma
+compra a meio da semana conta desde o preço a que se comprou). No «Tudo» não aparece: é o próprio ganho.
+
 ## O de hoje por baixo do ganho (4.69.1)
 
 Na tabela da carteira, o ganho volta a uma linha, «−44 € (−1,5%)», com a % entre parênteses ao lado do valor. Por baixo,

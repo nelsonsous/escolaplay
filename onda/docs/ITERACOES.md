@@ -3779,3 +3779,18 @@ cada um com a sua cor — o de hoje junto do ganho, na mesma coluna.
 três colunas, o formato «€ (%)» e «hoje € (%)», o de hoje do Total igual ao «Hoje» de cima, por baixo do ganho, e a
 tabela cabe nos 390 px.
 
+## Iteração (Mercados 4.70.0): por baixo do ganho, o do período escolhido
+
+**Pedido.** «Se coloco semana, devia ser semana e não hoje.»
+
+**Visto.** Com o período 1S escolhido, a tabela continuava a dizer o de hoje (o «Hoje» de cima é sempre o de hoje; o
+do período está ao lado, só em %).
+
+**Feito.** A linha pequena por baixo do ganho segue o período: «hoje» no 1D (como antes), «1S», «1M» e «1A» — o ganho
+de agora menos o de então, com as unidades e o investido desse instante, sem contar o dinheiro que entrou depois —, e
+nada no «Tudo» (é o próprio ganho). A % é sobre o valor de antes (o de agora menos o que mexeu). Os grupos e o Total
+somam as linhas.
+
+**Verificado.** Os 600 estados do Painel, com os quatro períodos (o rótulo, os euros, a % e a cor de cada linha);
+interface: 1S em todas as linhas, nada no «Tudo», e hoje outra vez no 1D.
+
