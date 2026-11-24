@@ -387,7 +387,21 @@ function verificar({ de, ate, seed }) {
                     for (const { a, u, dat } of tbPf) v += u * (Array.isArray(a.s) && a.s.length > 1 ? pxAt(a.s, t) : dat ? pxAt(a.h, t) : a.px);
                     vs.push(v);
                 }
-                const pc = vs[0] > 0 ? (vs[59] / vs[0] - 1) * 100 : 0, dp = vv - dd > 0 ? (dd / (vv - dd)) * 100 : 0, mostra = !!c.per && c.per !== '1d' && !tu;
+                // 4.70: o do período de cada linha (hoje no 1D; 1S, 1M, 1A; nada no «Tudo») — e a % do período, em cima, a do Total
+                const kl = tu ? '' : { '1w': '1S', '1m': '1M', '1y': '1A' }[c.per] || 'hoje';
+                const dvDe = (a, val) => { const ch = a.ch === null ? 0 : typeof a.ch === 'number' ? a.ch : NaN; return typeof a.dh === 'number' && Number.isFinite(a.dh) ? a.dh : Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; };
+                const perDe = ({ a, u, e, dat }) => {
+                    const val = a.px * u;
+                    if (kl === 'hoje') return dvDe(a, val);
+                    const b = a.b || [], ate = !dat || t0 >= tf;
+                    const ut = ate ? u : b.reduce((s, y) => (y[0] <= t0 ? s + ((y[2] || 0) !== 0 ? y[2] : y[1] / pxAt(a.h, y[0])) : s), 0);
+                    const et = ate ? e : b.reduce((s, y) => (y[0] <= t0 ? s + y[1] : s), 0);
+                    const pt = Array.isArray(a.s) && a.s.length > 1 ? pxAt(a.s, t0) : dat ? pxAt(a.h, t0) : a.px;
+                    const r = val - e - (ut * pt - et);
+                    return Number.isFinite(r) ? r : 0;
+                };
+                const pdT = tbPf.reduce((t, x) => t + perDe(x), 0), pc0 = vs[0] > 0 ? (vs[59] / vs[0] - 1) * 100 : 0;
+                const pc = ['1S', '1M', '1A'].includes(kl) ? (vv - pdT > 0 ? (pdT / (vv - pdT)) * 100 : 0) : pc0, dp = vv - dd > 0 ? (dd / (vv - dd)) * 100 : 0, mostra = !!c.per && c.per !== '1d' && !tu;
                 const v = s && s.querySelector('.sec-h .pf-v'), gg = s && s.querySelector('.pf-b .pf-st'), b = s && s.querySelector('.pf-b');
                 if (!v || v.textContent !== eur(vv)) erro(`a carteira: o valor ${v && v.textContent} em vez de ${eur(vv)}`);
                 const lbl = { '1w': '1 semana', '1m': '1 mês', '1y': '1 ano' }[c.per] || 'hoje';
@@ -398,10 +412,10 @@ function verificar({ de, ate, seed }) {
                 const cq = [['Hoje', [sgf(dd), toneOf(dd) + '-t'], mk.fmtPct(dp), toneOf(dp) + '-t']].concat(mostra ? [[lbl, null, mk.fmtPct(pc), toneOf(pc) + '-t']] : []);
                 if (JSON.stringify(casas) !== JSON.stringify(cq)) erro(`a carteira: a tabela ${JSON.stringify(casas)} em vez de ${JSON.stringify(cq)}`);
                 // o que é dos fundos e ações e o que é da cripto: o valor, o ganho e o de hoje de cada grupo
-                const gr = { c: { v: 0, e: 0, d: 0, n: 0 }, o: { v: 0, e: 0, d: 0, n: 0, a: null } };
+                const gr = { c: { v: 0, e: 0, n: 0 }, o: { v: 0, e: 0, n: 0, a: null } };
                 for (const { a, u, e } of tbPf) {
                     const val = a.px * u, ch = a.ch === null ? 0 : typeof a.ch === 'number' ? a.ch : NaN, g = a.cr ? gr.c : gr.o;
-                    g.v += val; g.e += e; g.d += typeof a.dh === 'number' && Number.isFinite(a.dh) ? a.dh : Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; g.n++;
+                    g.v += val; g.e += e; g.n++;
                     if (!a.cr) g.a = a;
                 }
                 // a tabela da carteira (4.38): o investido, o valor e o ganho de cada ativo, em euros sem cêntimos — os fundos e as
@@ -409,17 +423,18 @@ function verificar({ de, ate, seed }) {
                 // a linha da soma, que abre e fecha os ativos dele (4.38.2): fechada por omissão, aberta como o utilizador a deixou
                 const eur0 = (x) => mk.fmtPx(x, { decimals: 0 }, 'EUR'), sg0 = (x) => (x >= 0 ? '+' : '−') + eur0(Math.abs(x));
                 // 4.69.1: o ganho «€ (%)» e, por baixo, «hoje € (%)» (a % de hoje sobre o valor de antes), cada um com a sua cor
-                const lin = (cl, nm, v, e, d) => [cl, nm, e > 0 ? eur0(e) : '', eur0(v), (e > 0 ? `${sg0(v - e)} (${mk.fmtPct1((v / e - 1) * 100)})` : '') + 'hoje ' + sg0(d) + (v - d > 0 ? ` (${mk.fmtPct1((d / (v - d)) * 100)})` : ''),
-                    'num pf-d2', e > 0 ? toneOf(v - e) + '-t' : '', toneOf(d) + '-t'];
-                const dvDe = (a, val) => { const ch = a.ch === null ? 0 : typeof a.ch === 'number' ? a.ch : NaN; return typeof a.dh === 'number' && Number.isFinite(a.dh) ? a.dh : Number.isFinite(ch) && ch > -100 ? val - val / (1 + ch / 100) : 0; };
+                // 4.70: por baixo, o do período escolhido (hoje no 1D; 1S, 1M, 1A; nada no «Tudo»)
+                const lin = (cl, nm, v, e, d) => [cl, nm, e > 0 ? eur0(e) : '', eur0(v), (e > 0 ? `${sg0(v - e)} (${mk.fmtPct1((v / e - 1) * 100)})` : '') + (kl ? kl + ' ' + sg0(d) + (v - d > 0 ? ` (${mk.fmtPct1((d / (v - d)) * 100)})` : '') : ''),
+                    'num pf-d2', e > 0 ? toneOf(v - e) + '-t' : '', kl ? toneOf(d) + '-t' : ''];
+                // o do período de um ativo: no 1D, o de hoje; senão, o ganho de agora menos o de t0 (as unidades e o investido de t0)
                 const tabQ = (abC, abF) => {
                     const q = [['pf-gh', '', 'Investido', 'Vale', 'Ganho', '', '', '', '']];
                     for (const [g, cr, nm, outro, ab, gk] of [[gr.o, false, 'Fundos e ações', gr.c.n, abF, 'fundos'], [gr.c, true, 'Cripto', gr.o.n, abC, 'cripto']]) {
                         const sub = g.n > 1 && outro > 0;
-                        if (sub) q.push([...lin(ab ? 'pf-gr pf-gg on' : 'pf-gr pf-gg', nm, g.v, g.e, g.d), gk]);
-                        if (!sub || ab) for (const { a, u, e } of tbPf) if (!!a.cr === cr) q.push([...lin(sub ? 'pf-gr pf-ga' : 'pf-gr', txt(a.nm), a.px * u, e, dvDe(a, a.px * u)), '']);
+                        if (sub) q.push([...lin(ab ? 'pf-gr pf-gg on' : 'pf-gr pf-gg', nm, g.v, g.e, tbPf.reduce((s, x) => (!!x.a.cr === cr ? s + perDe(x) : s), 0)), gk]);
+                        if (!sub || ab) for (const x of tbPf) if (!!x.a.cr === cr) q.push([...lin(sub ? 'pf-gr pf-ga' : 'pf-gr', txt(x.a.nm), x.a.px * x.u, x.e, perDe(x)), '']);
                     }
-                    if (tbPf.length > 1) q.push([...lin('pf-gr pf-gt', 'Total', vv, ee, dd), '']);
+                    if (tbPf.length > 1) q.push([...lin('pf-gr pf-gt', 'Total', vv, ee, tbPf.reduce((s, x) => s + perDe(x), 0)), '']);
                     return q;
                 };
                 const tabDe = (raiz) => (raiz ? [...raiz.querySelectorAll('.pf-gs > span')].map((r) => { const c = r.children; return [r.className, c[0].textContent, c[1].textContent, c[2].textContent, c[3].textContent, c[3].className, (c[3].querySelector(':scope > span') || {}).className || '', (c[3].querySelector('small > span') || {}).className || '', r.dataset.g || '']; }) : []);
