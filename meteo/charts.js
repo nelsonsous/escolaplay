@@ -313,6 +313,8 @@ export function renderHourly(root, hourly, { todayIso, width } = {}) {
 /** Próximas 2 horas: 8 barras de 15 min (uma série, sem legenda). */
 // onda: as barras saem do campo da Onda (chuva.js: água que enche e chuva a cair) num canvas por baixo do SVG, que fica
 // com a linha de base, as horas e o valor máximo; sem Onda (ou com as animações desligadas), barras SVG paradas.
+// o início do quarto de hora de um passo (cada passo acaba à sua hora, como no Open-Meteo)
+const qStart = (iso) => new Date(Date.parse(String(iso).slice(0, 16) + ':00Z') - 15 * 6e4).toISOString().slice(0, 16);
 export function renderNowcast(root, nowcast, { onda = false } = {}) {
   const steps = (nowcast?.steps || []).slice(0, 8);
   root.textContent = '';
@@ -337,18 +339,20 @@ export function renderNowcast(root, nowcast, { onda = false } = {}) {
     const cx = slot * i + slot / 2;
     if (p > 0) {
       const hh = Math.max(2, base - yN(p));
-      if (!live) s += `<path class="bar nc" d="${barPath(cx - bw / 2, base - hh, bw, hh)}"><title>${esc(`${hhmm(st.time)} · ${mm(p)}`)}</title></path>`;
+      if (!live) s += `<path class="bar nc" d="${barPath(cx - bw / 2, base - hh, bw, hh)}"><title>${esc(`${hhmm(qStart(st.time))}–${hhmm(st.time)} · ${mm(p)}`)}</title></path>`;
       if (iMax < 0 || p > steps[iMax].precip) iMax = i;
     } else {
       s += `<line class="nc-zero" x1="${f(cx - bw / 2)}" x2="${f(cx + bw / 2)}" y1="${base}" y2="${base}"/>`;
     }
-    if (i % 2 === 1) s += `<text class="ax" x="${f(cx)}" y="${base + 18}" text-anchor="middle">${esc(hhmm(st.time))}</text>`;
+    // 1.32: cada barra é o quarto de hora que acaba à sua hora; escreve-se a hora em que começa, e a 1.ª é a de agora
+    if (i === 0) s += `<text class="ax nc-agora" x="${f(cx)}" y="${base + 18}" text-anchor="middle">agora</text>`;
+    else if (i % 2 === 1) s += `<text class="ax" x="${f(cx)}" y="${base + 18}" text-anchor="middle">${esc(hhmm(qStart(st.time)))}</text>`;
   });
   if (iMax >= 0) {
     const cx = slot * iMax + slot / 2, hh = Math.max(2, base - yN(steps[iMax].precip));
     s += `<text class="lbl" x="${f(cx)}" y="${f(base - hh - 6)}" text-anchor="middle">${esc(mm(steps[iMax].precip))}</text>`;
   }
-  const label = steps.map((st) => `${hhmm(st.time)} ${mm(st.precip || 0)}`).join(', ');
+  const label = steps.map((st) => `${hhmm(qStart(st.time))}–${hhmm(st.time)} ${mm(st.precip || 0)}`).join(', ');
   const svg = `<svg class="nowcast-svg" viewBox="0 0 ${Wv} ${base + 26}" role="img" aria-label="${esc('Chuva prevista a cada 15 minutos: ' + label)}">${s}</svg>`;
   // o resumo que responde a «isto é muito?»: o máximo em 15 min, o mesmo por hora e a intensidade, e o total
   const tot = steps.reduce((a, st) => a + (st.precip || 0), 0);

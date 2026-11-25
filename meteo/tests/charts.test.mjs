@@ -18,3 +18,12 @@ test('próximas 2 horas: os nomes das linhas vão para o lado onde não está o 
 test('intensidade da chuva por hora: fraca até 2,5 mm/h, moderada até 10, forte a partir de 10', () => {
     assert.deepEqual([0, 0.4, 2.5, 9.9, 10, 30].map(rainWord), ['sem chuva', 'fraca', 'moderada', 'moderada', 'forte', 'forte']);
 });
+
+test('1.32: cada barra é o quarto de hora que acaba à sua hora — a 1.ª diz «agora», as outras a hora em que começam', () => {
+    const times = ['01:15', '01:30', '01:45', '02:00', '02:15', '02:30', '02:45', '03:00'];
+    const root = { textContent: '', innerHTML: '' };
+    renderNowcast(root, { steps: [2.6, 1.2, 0.1, 0.6, 0.5, 0.2, 0.2, 0.1].map((p, i) => ({ time: `2026-11-25T${times[i]}`, precip: p })) });
+    assert.deepEqual([...root.innerHTML.matchAll(/<text class="ax[^"]*"[^>]*>([^<]+)</g)].map((m) => m[1]), ['agora', '01:15', '01:45', '02:15', '02:45']);
+    assert.match(root.innerHTML, /<title>01:00–01:15 · 2,6 mm<\/title>/, 'a barra de agora: das 01:00 às 01:15');
+    assert.match(root.innerHTML, /aria-label="Chuva prevista a cada 15 minutos: 01:00–01:15 2,6 mm, 01:15–01:30 1,2 mm/);
+});

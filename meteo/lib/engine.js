@@ -1066,7 +1066,9 @@ export function buildForecast(raw, opts = {}) {
     }));
 
     // 5) Próximas 2 horas (minuto a minuto de 15 em 15)
-    const m15 = P.m15.map((time, j) => ({ time, ms: localToMs(time, off), j })).filter((s) => s.ms > nowMs - 15 * 6e4).slice(0, 8);
+    // cada passo é o quarto de hora que acaba à sua hora (como no Open-Meteo): o 1.º é o que está a decorrer (1.32; antes
+    // era o que tinha acabado — o «agora» vinha 15 min atrasado)
+    const m15 = P.m15.map((time, j) => ({ time, ms: localToMs(time, off), j })).filter((s) => s.ms > nowMs).slice(0, 8);
     const steps = m15.map(({ time, j }) => {
         const v = P.models.map((m) => m.m15[j]), w = P.models.map((m) => m.meta.w * m.fx.r[0] * (m.meta.wPrecip || 1));
         return { time, precip: r1(wmean(v, w)) ?? 0, prob: r0((wvote(v, w, (x) => rainVote(x * 4)) ?? 0) * 100) }; // mm em 15 min → mm/h
@@ -1198,7 +1200,7 @@ export function buildForecast(raw, opts = {}) {
         const blended = blendRadar(steps, radar, off);
         radar.compare = radarVsModels(radar, steps, hourly, off);
         nowcast = { steps: blended, text: radarNowcastText(radar, blended, off, steps), source: 'radar+modelos', modelText: nowcastText(steps) };
-        radarNow(now, n, radar);
+        radarNow(now, n, radar, (blended[0]?.precip ?? 0) * 4);
     }
 
     const r2 = (x) => Math.round(x * 100) / 100;
@@ -1376,7 +1378,7 @@ const stripInternal = (d) => { const { models, members, ...rest } = d; return { 
 // Frase para as próximas 2 h (passos de 15 min: chuva em mm/15 min e probabilidade de chuva, calibrada)
 export function nowcastText(steps) {
     if (!steps.length) return '';
-    const t = (s) => s.time.slice(11, 16);
+    const t = (s) => qStart(s.time).slice(11, 16); // 1.32: o início do quarto de hora (é aí que a chuva começa ou pára)
     const kind = steps.map((s) => (s.prob >= STEP_P && s.precip >= 0.05 ? 'sim' : s.prob >= STEP_MAYBE || s.precip >= 0.1 ? 'talvez' : 'nao'));
     const inten = (list) => { const m = Math.max(...list.map((s) => s.precip)) * 4; return m >= 4 ? 'forte' : m >= 1 ? 'moderada' : 'fraca'; };
     const maxProb = Math.max(...steps.map((s) => s.prob));
@@ -1396,6 +1398,9 @@ export function nowcastText(steps) {
 const STEP_P = RAIN_HOUR_P * 100, STEP_MAYBE = 20;
 const stepKind = (s) => (s.prob >= STEP_P && s.precip >= 0.025 ? 'sim' : s.prob >= STEP_MAYBE || s.precip >= 0.1 ? 'talvez' : 'nao');
 const hh = (iso) => String(iso || '').slice(11, 16);
+// o início do quarto de hora de um passo (cada passo acaba à sua hora): é aí que a chuva começa ou pára (1.32)
+const qStart = (iso) => new Date(Date.parse(String(iso).slice(0, 16) + ':00Z') - 15 * 6e4).toISOString().slice(0, 16);
+const hhS = (s) => hh(qStart(s.time));
 
 // mm/h do radar no ponto num instante: o observado nas imagens até à última, depois a persistência (radar.ahead)
 function radarRateAt(R, ms, frameMs, off) {
@@ -1445,9 +1450,10 @@ export function radarVsModels(R, steps, hourly, off) {
     const wetStep = (x) => x.prob >= STEP_P && x.precip >= 0.05;
     const mNow = !!steps[0] && wetStep(steps[0]);
     const H12 = (hourly || []).slice(1, 13);
-    const mStart = steps.find(wetStep)?.time || H12.find((h) => (h.pop ?? 0) >= STEP_P && (h.precip ?? 0) >= 0.2)?.time || null;
+    const stepStart = (x) => (x ? qStart(x.time) : null); // 1.32: o início do quarto de hora do passo
+    const mStart = stepStart(steps.find(wetStep)) || H12.find((h) => (h.pop ?? 0) >= STEP_P && (h.precip ?? 0) >= 0.2)?.time || null;
     const maybeH = mStart ? [] : H12.filter((h) => (h.precip ?? 0) >= 0.1 && (h.pop ?? 0) >= RAIN_MAYBE_P * 100);
-    const mMaybe = mStart ? null : steps.find((x) => stepKind(x) !== 'nao')?.time || maybeH[0]?.time || null;
+    const mMaybe = mStart ? null : stepStart(steps.find((x) => stepKind(x) !== 'nao')) || maybeH[0]?.time || null;
     const mm = maybeH.map((h) => h.precip), lo = Math.min(...mm), hi = Math.max(...mm);
     const maybeTxt = mMaybe ? `os modelos só dão chuva fraca possível a partir das ${hh(mMaybe)}${maybeH.length
         ? ` (${lo === hi ? fmtMmh(lo) : `${fmtMmh(lo)} a ${fmtMmh(hi)}`} mm/h, até ${Math.round(Math.max(...maybeH.map((h) => h.pop)))}%)` : ''}` : null;
@@ -1455,7 +1461,7 @@ export function radarVsModels(R, steps, hourly, off) {
     const rTxt = A.raining ? `o radar tem chuva no ponto ${since ? 'há mais de 2 h' : `desde as ${hh(rStart)}`}` : `o radar prevê a chegada às ${hh(rStart)}`;
     let lag = null, text;
     if (A.raining && mNow) text = `radar e modelos de acordo: chove agora no ponto (no radar ${since ? 'há mais de 2 h' : `desde as ${hh(rStart)}`}).`;
-    else if (rStart && mNow) { lag = Math.round((ms(steps[0].time) - ms(rStart)) / 6e4); text = `os modelos dão chuva já, mas o radar só a vê chegar às ${hh(rStart)} (${dur(lag)}).`; }
+    else if (rStart && mNow) { lag = Math.round((ms(qStart(steps[0].time)) - ms(rStart)) / 6e4); text = `os modelos dão chuva já, mas o radar só a vê chegar às ${hh(rStart)} (${dur(lag)}).`; }
     else if (rStart && mStart) {
         lag = Math.round((ms(mStart) - ms(rStart)) / 6e4);
         text = Math.abs(lag) < 20 ? `${rTxt}; os modelos dão-na às ${hh(mStart)} (de acordo).`
@@ -1463,18 +1469,18 @@ export function radarVsModels(R, steps, hourly, off) {
     } else if (rStart) text = maybeTxt ? `${rTxt}; ${maybeTxt}.` : `${rTxt}; os modelos não a dão nas próximas 12 h.`;
     else if (mStart && ms(mStart) - ms(R.time) <= 45 * 6e4) text = `os modelos dão chuva às ${hh(mStart)}, mas o radar não a vê no ponto nem a chegar.`;
     else text = mStart ? `sem chuva no radar; os modelos dão-na às ${hh(mStart)}.` : maybeTxt ? `sem chuva no radar; ${maybeTxt}.` : 'radar e modelos de acordo: sem chuva.';
-    return { radar: rStart, models: mNow ? steps[0].time : mStart, modelsNow: mNow, modelsMaybe: mMaybe, lagMin: lag, text: text[0].toUpperCase() + text.slice(1) };
+    return { radar: rStart, models: mNow ? qStart(steps[0].time) : mStart, modelsNow: mNow, modelsMaybe: mMaybe, lagMin: lag, text: text[0].toUpperCase() + text.slice(1) };
 }
 // O que vem nas próximas 2 h, depois do "agora" (passos já combinados)
 function outlookText(steps, { wet, from = 0, radar }) {
     const kinds = steps.map(stepKind);
     if (wet) {
         const i = kinds.findIndex((k, j) => j >= from && k === 'nao');
-        return i < 0 ? 'deve continuar nas próximas 2 horas' : `deve parar por volta das ${hh(steps[i].time)}`;
+        return i < 0 ? 'deve continuar nas próximas 2 horas' : `deve parar por volta das ${hhS(steps[i])}`;
     }
     if (radar?.approach) return approachText(radar);
     const i = kinds.findIndex((k, j) => j >= from && k === 'sim');
-    if (i >= 0) return `${radar ? 'os modelos dão ' : ''}chuva ${rainLabel(Math.max(...steps.slice(i).map((s) => s.precip)) * 4)} a partir das ${hh(steps[i].time)}`;
+    if (i >= 0) return `${radar ? 'os modelos dão ' : ''}chuva ${rainLabel(Math.max(...steps.slice(i).map((s) => s.precip)) * 4)} a partir das ${hhS(steps[i])}`;
     return kinds.some((k, j) => j >= from && k === 'talvez') ? 'possibilidade de chuva fraca nas próximas 2 horas' : 'sem chuva prevista nas próximas 2 horas';
 }
 /** Frase das próximas 2 h com o radar: "A chover agora (fraca, 0,6 mm/h); …" / "Sem chuva no radar; chuva a 12 km a sudoeste, …"
@@ -1482,13 +1488,13 @@ function outlookText(steps, { wet, from = 0, radar }) {
 export function radarNowcastText(R, steps, off = 0, modelSteps = []) {
     const A = R.atPoint;
     if (A.raining) {
-        const at = radarAt(R);
-        let s = `${at ? `A chover no radar${at}` : 'A chover agora'} (${A.label}, ${fmtMmh(A.mmh)} mm/h${A.trend && A.trend !== 'estável' ? `, ${A.trend}` : ''}); `;
+        const at = radarAt(R), cur = (steps[0]?.precip ?? 0) * 4, m = Math.max(A.mmh, cur); // 1.32: com o quarto de hora em curso
+        let s = `${at && m <= A.mmh ? `A chover no radar${at}` : 'A chover agora'} (${m > A.mmh ? rainLabel(m) : A.label}, ${fmtMmh(m)} mm/h${A.trend && A.trend !== 'estável' && m <= A.mmh ? `, ${A.trend}` : ''}); `;
         const modelsDry = modelSteps.length > 0 && !modelSteps.some((x) => x.prob >= 50 && x.precip >= 0.05);
         if (R.ends) {
             s += R.ends.passed ? 'pelo deslocamento dos ecos já deve estar a parar' : `deve parar por volta das ${hh(R.ends.time)}`;
             const again = steps.find((x) => stepKind(x) === 'sim' && localToMs(x.time, off) >= localToMs(R.ends.time, off) + 30 * 6e4);
-            if (again) s += `, mas os modelos dão mais chuva a partir das ${hh(again.time)}`;
+            if (again) s += `, mas os modelos dão mais chuva a partir das ${hhS(again)}`;
         } else if (modelsDry) s += R.compare?.models ? `os modelos só a davam a partir das ${hh(R.compare.models)}` : 'os modelos não a davam nas próximas horas';
         else s += outlookText(steps, { wet: true, from: 1 });
         return s + '.';
@@ -1512,9 +1518,11 @@ export function radarCode(mmh, model, temp) {
 const dryCode = (n, cloud) => (n ? hourCode({ ...n, precip: 0, pop: 0 }) : cloud < 15 ? 0 : cloud < 40 ? 1 : cloud < 75 ? 2 : 3);
 const isWetCode = (c) => isNum(c) && c >= 50;
 // "agora" com o radar: chove → intensidade e código do radar; não chove → sem chuva (os modelos podiam dar)
-function radarNow(now, n, R) {
+// 1.32: a imagem do radar tem sempre uns minutos; com chuva no ponto, o «agora» é o mais forte entre ela e o quarto de hora
+// em curso (o radar deslocado até agora e os modelos) — em Santo Tirso, 25/11 01:00, a imagem dava 0,3 mm/h e já chovia forte
+function radarNow(now, n, R, curMmh = 0) {
     const A = R.atPoint;
-    if (A.raining) { now.precip = Math.max(0.1, r1(A.mmh)); now.code = radarCode(A.mmh, now.codeWet ?? now.code, now.temp); }
+    if (A.raining) { const m = Math.max(A.mmh, curMmh || 0); now.precip = Math.max(0.1, r1(m)); now.code = radarCode(m, now.codeWet ?? now.code, now.temp); }
     else if (isWetCode(now.code) || (now.precip ?? 0) >= 0.1) { now.precip = 0; now.code = dryCode(n, now.cloud); }
     now.rainSource = 'radar';
 }
