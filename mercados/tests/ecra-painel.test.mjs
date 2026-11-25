@@ -409,7 +409,11 @@ function verificar({ de, ate, seed }) {
                 // a tabela de cima: no total (com o investido), hoje e o período (fora do 1D): o nome, o valor e a %, com as cores
                 const casas = gg ? [...gg.querySelectorAll(':scope > .pf-c')].map((c) => [c.querySelector('small').textContent, c.querySelector('b') ? [c.querySelector('b').textContent, c.querySelector('b').className] : null, c.querySelector('i').textContent, c.querySelector('i').className]) : null;
                 // (4.38.4: sem o «No total» — está no Total da tabela)
-                const cq = [['Hoje', [sgf(dd), toneOf(dd) + '-t'], mk.fmtPct(dp), toneOf(dp) + '-t']].concat(mostra ? [[lbl, null, mk.fmtPct(pc), toneOf(pc) + '-t']] : []);
+                // 4.72: só o do período escolhido, em € e em %: hoje no 1D; a semana, o mês, o ano; no «Tudo», o ganho desde o início
+                const gt = ee > 0 ? (vv / ee - 1) * 100 : 0;
+                const cq = kl === 'hoje' ? [['Hoje', [sgf(dd), toneOf(dd) + '-t'], mk.fmtPct(dp), toneOf(dp) + '-t']]
+                    : tu ? [['Desde o início', [sgf(vv - ee), toneOf(vv - ee) + '-t'], mk.fmtPct(gt), toneOf(gt) + '-t']]
+                    : [[lbl, [sgf(pdT), toneOf(pdT) + '-t'], mk.fmtPct(pc), toneOf(pc) + '-t']];
                 if (JSON.stringify(casas) !== JSON.stringify(cq)) erro(`a carteira: a tabela ${JSON.stringify(casas)} em vez de ${JSON.stringify(cq)}`);
                 // o que é dos fundos e ações e o que é da cripto: o valor, o ganho e o de hoje de cada grupo
                 const gr = { c: { v: 0, e: 0, n: 0 }, o: { v: 0, e: 0, n: 0, a: null } };
@@ -444,7 +448,7 @@ function verificar({ de, ate, seed }) {
                     const parte = (d, v) => sg0(d) + (v - d > 0 ? ` (${mk.fmtPct1((d / (v - d)) * 100)})` : '');
                     const dO = tbPf.reduce((t, x) => (!x.a.cr ? t + perDe(x) : t), 0), dC = tbPf.reduce((t, x) => (x.a.cr ? t + perDe(x) : t), 0);
                     const nmO = gr.o.n === 1 ? (gr.o.a.cu ? txt(gr.o.a.cu) : txt(gr.o.a.nm)) : 'Fundos';
-                    const spQ = !tu && gr.o.n > 0 && gr.c.n > 0 ? [(kl !== 'hoje' ? lbl + ': ' : '') + nmO + ' ' + parte(dO, gr.o.v) + ' · Cripto ' + parte(dC, gr.c.v), toneOf(dO) + '-t', toneOf(dC) + '-t'] : null;
+                    const spQ = !tu && gr.o.n > 0 && gr.c.n > 0 ? [nmO + ' ' + parte(dO, gr.o.v) + ' · Cripto ' + parte(dC, gr.c.v), toneOf(dO) + '-t', toneOf(dC) + '-t'] : null;
                     const se = s && s.querySelector('.pf-b .pf-sp'), spV = se ? [se.textContent, ...[...se.querySelectorAll(':scope > span')].map((x) => x.className)] : null;
                     if (JSON.stringify(spV) !== JSON.stringify(spQ)) erro(`a carteira: a linha dos grupos ${JSON.stringify(spV)} em vez de ${JSON.stringify(spQ)}`);
                     if (spQ) T.carteiraGrupos = (T.carteiraGrupos || 0) + 1;

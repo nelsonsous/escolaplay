@@ -3806,3 +3806,18 @@ grupos, e nada no «Tudo». As contas do período são as da 4.70 (o ganho de ag
 **Verificado.** Os 600 estados do Painel (a linha, as cores, quando aparece; a tabela de novo como antes); interface:
 hoje no 1D, «1 semana: …» no 1S, nada no «Tudo».
 
+## Iteração (Mercados 4.72.0): em cima, só o período escolhido
+
+**Pedido.** «Não dá para melhorar?» (com o cartão em 1D, 1S e 1M).
+
+**Visto.** No 1S, em cima, três linhas: «Hoje … bolsa fechada», «1 semana −4,14%» (empurrada para baixo pelo «bolsa
+fechada») e «1 semana: FTSE … · Cripto …» — o período escrito duas vezes, e o de hoje quando se escolheu a semana.
+
+**Feito.** Em cima, só o período escolhido, em € e em % (como na TR): «Hoje» no 1D (com «bolsa fechada»), «1 semana»,
+«1 mês», «1 ano» (o ganho de agora menos o de então, a mesma conta da linha dos grupos) e, no «Tudo», «Desde o início»
+com o ganho todo. Por baixo, a linha dos grupos sem repetir o período, com os nomes mais leves. Duas linhas, sempre.
+
+**Verificado.** Os 600 estados do Painel (a casa de cima em cada período: o rótulo, os euros, a % e as cores; a linha dos
+grupos sem o período); interface: no 1S só a semana em cima, numa linha, e os grupos por baixo; no «Tudo», o ganho desde
+o início e sem a linha dos grupos; no 1D, de novo hoje.
+

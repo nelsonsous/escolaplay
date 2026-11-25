@@ -545,7 +545,7 @@
 # uma casa da linha de cima (k: 1 hoje, 2 o período escolhido): o nome, o valor em € (se houver) e a %
 : pn_casa iffi>i k x p temx {
   `<span class="pf-c"><small>`
-  ? == k 1 "Hoje" pn_perlbl es.per
+  ? == k 1 "Hoje" ? == k 3 "Desde o início" pn_perlbl es.per
   "</small>"
   Se temx `<b class="{ ln_tom x }-t">{ pn_eursf x }</b>`
   `<i class="{ ln_tom p }-t">{ fm_pct p }</i></span>`
@@ -612,18 +612,19 @@
       # o filtro do período, aqui em cima: vale para a carteira e para os meus ativos
       `<div class="pf-pe">{ pn_periodo }</div>`
       `<div class="pf-cx"><button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-st">`
-      # numa linha: o de hoje e, fora do 1D, o do período (o ganho no total está no Total da tabela, em baixo — 4.38.4)
+      # 4.72: em cima, só o do período escolhido, em € e em % (como na TR): «Hoje» no 1D (4.56: com a bolsa fechada, só o
+      # que mexeu, e diz «bolsa fechada»); «1 semana», «1 mês», «1 ano» (o ganho de agora menos o de então); no «Tudo», o
+      # ganho desde o início
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
-      pn_casa 1 dd dp 1
-      # 4.56: com a bolsa fechada, o «Hoje» é só o que mexeu (a cripto)
-      Se ha p.fech `<small class="pf-fech">bolsa fechada</small>`
-      Se && ~ d1 ~ tu pn_casa 2 pc pc 0
+      = gt ? > ee 0.0 * - / vv ee 1.0 100.0 0.0
+      Se == kp 1 { pn_casa 1 dd dp 1 Se ha p.fech `<small class="pf-fech">bolsa fechada</small>` }
+      Se > kp 1 pn_casa 2 dt pc 1
+      Se tu pn_casa 3 - vv ee gt 1
       "</span>"
-      # 4.71: numa linha, o do período escolhido de cada grupo — «FTSE −18 € (−0,6%) · Cripto −91 € (−2,8%)» (fora do 1D,
-      # com o período à frente: «1 semana: …»); só com os dois grupos, e nada no «Tudo» (está no ganho da tabela)
+      # 4.71: por baixo, numa linha, o mesmo período de cada grupo — «FTSE −18 € (−0,6%) · Cripto −91 € (−2,8%)»; só com
+      # os dois grupos, e nada no «Tudo» (está no ganho da tabela)
       Se && kp && nn nc {
         `<span class="pf-sp">`
-        Se > kp 1 { pn_perlbl es.per ": " }
         `<b>{ ? == nn 1 ? ha co.cu esc co.cu esc co.nm "Fundos" }</b> <span class="{ ln_tom d0 }-t">{ pn_eurs0 d0 }{ Se > - vo d0 0.0 ` ({ fm_pct1 * / d0 - vo d0 100.0 })` }</span>`
         ` · <b>Cripto</b> <span class="{ ln_tom dc }-t">{ pn_eurs0 dc }{ Se > - vc dc 0.0 ` ({ fm_pct1 * / dc - vc dc 100.0 })` }</span></span>` }
       # 4.60: a abertura estimada da bolsa (o gémeo e os futuros), à vista: a mesma da linha de cada fundo, e em euros

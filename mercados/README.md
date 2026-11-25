@@ -141,6 +141,13 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## Em cima, só o período escolhido (4.72.0)
+
+Em cima, no cartão da carteira, só o período escolhido, em € e em % (como na TR): «Hoje −105,24 € (−1,71%)» no 1D
+(com «bolsa fechada» quando a bolsa não mexeu), «1 semana −261,32 € (−4,14%)» no 1S (mês e ano igual) e, no «Tudo»,
+«Desde o início» com o ganho todo. Por baixo, a linha dos grupos — «FTSE −29 € (−1,0%) · Cripto −232 € (−6,8%)» —, sem
+repetir o período.
+
 ## Em cima, numa linha, o do período de cada grupo (4.71.0)
 
 A tabela da carteira volta a ter só o investido, o valor e o ganho, «−44 € (−1,5%)». O que cada grupo mexeu no período

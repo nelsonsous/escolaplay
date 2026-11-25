@@ -1077,20 +1077,27 @@ function proxyBody(u) {
     assert.equal(await page.locator('.pf .pf-gg.on').count(), 1, 'e fica aberta quando o cartão se redesenha ao vivo');
     if (SHOTS) await page.locator('#mk-body > section.pf').screenshot({ path: path.join(SHOTS, '1d-carteira-aberta.png') });
     for (const r of grs) { assert.match(r[2], /^\d[\d\s ]*\s€$/, r.join(' | ')); assert.match(r[3], /^\d[\d\s ]*\s€$/); assert.match(r[4], /^[+−][\d\s ]+\s€ \([+−]?\d+,\d%\)$/); }
-    // 4.71: em cima, numa linha, o do período de cada grupo — hoje no 1D, a semana no 1S («1 semana: …»), nada no «Tudo»
+    // 4.72: em cima, só o do período escolhido (em € e em %) e, por baixo, numa linha, o de cada grupo, sem repetir o
+    // período — hoje no 1D, a semana no 1S; no «Tudo», o ganho desde o início e sem a linha dos grupos
     {
         const sp = () => page.evaluate(() => { const e = document.querySelector('.pf .pf-b .pf-sp'); return e ? e.textContent.replace(/\s/g, ' ') : null; });
+        const cab = () => page.evaluate(() => [...document.querySelectorAll('.pf .pf-st .pf-c')].map((c) => c.textContent.replace(/\s/g, ' ')));
         const parte = '[+−][\\d ]+ €( \\([+−]?\\d+,\\d%\\))?';
-        const re = (lb) => new RegExp(`^${lb}FTSE ${parte} · Cripto ${parte}$`);
-        assert.match(await sp(), re(''), 'no 1D, hoje');
+        const re = new RegExp(`^FTSE ${parte} · Cripto ${parte}$`);
+        assert.match(await sp(), re, 'no 1D, hoje');
         await page.click('.pf .pf-pe [data-per="1w"]');
-        await page.waitForFunction(() => { const e = document.querySelector('.pf .pf-sp'); return e && /^1 semana: /.test(e.textContent); }, null, { timeout: 5000 });
-        assert.match(await sp(), re('1 semana: '), 'no 1S, a semana');
+        await page.waitForFunction(() => { const s = document.querySelector('.pf .pf-st .pf-c small'); return s && s.textContent === '1 semana'; }, null, { timeout: 5000 });
+        const c1 = await cab();
+        assert.equal(c1.length, 1, 'no 1S, só a semana em cima (sem o de hoje)');
+        assert.match(c1[0], /^1 semana[+−][\d ]+,\d\d €[+−]?\d+,\d\d%$/, 'a semana em € e em %');
+        assert.match(await sp(), re, 'e por baixo os grupos, sem repetir o período');
+        assert.ok(await page.locator('.pf .pf-st').evaluate((e) => e.getBoundingClientRect().height < 26), 'numa linha');
         await page.click('.pf .pf-pe [data-per="all"]');
         await page.waitForFunction(() => !document.querySelector('.pf .pf-sp'), null, { timeout: 5000 });
+        assert.match((await cab()).join(' | '), /^Desde o início[+−][\d ]+,\d\d €[+−]?\d+,\d\d%$/, 'no Tudo, o ganho desde o início');
         await page.click('.pf .pf-pe [data-per="1d"]');
-        await page.waitForFunction(() => { const e = document.querySelector('.pf .pf-sp'); return e && /^FTSE /.test(e.textContent); }, null, { timeout: 5000 });
-        console.log('✓ em cima, numa linha, o do período de cada grupo:', await sp());
+        await page.waitForFunction(() => { const s = document.querySelector('.pf .pf-st .pf-c small'); return s && s.textContent === 'Hoje'; }, null, { timeout: 5000 });
+        console.log('✓ em cima, só o período escolhido e, por baixo, o de cada grupo:', c1[0], '|', await sp());
     }
     const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
     assert.equal(grs[grs.length - 1][2], inv, 'o investido total');
@@ -1104,7 +1111,7 @@ function proxyBody(u) {
     await page.waitForFunction(() => /^(desde \d\d\/\d\d\/\d{4}|há 1 ano)(investido)?agora$/.test((document.querySelector('.pf .pf-cap') || {}).textContent || ''));
     const capTudo = await page.locator('.pf .pf-cap').textContent();
     assert.equal(await page.evaluate(() => window.__mk.cfg.per), 'all');
-    assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['Hoje'], 'Tudo: sem a casa do período');
+    assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['Desde o início'], 'Tudo: em cima, o ganho desde o início (4.72)');
     assert.equal(await page.locator('.pf .pf-pe .seg.per button.on').textContent(), 'Tudo');
     assert.equal((await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d')).split('L').length, 60, 'a linha do valor desde o início: 60 pontos');
     assert.ok(await page.locator('.pf .pf-pe .seg.per').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && e.scrollWidth <= e.clientWidth + 1; }), 'os cinco botões cabem no ecrã');
