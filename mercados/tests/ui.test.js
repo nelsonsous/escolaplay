@@ -1099,6 +1099,45 @@ function proxyBody(u) {
         await page.waitForFunction(() => { const s = document.querySelector('.pf .pf-st .pf-c small'); return s && s.textContent === 'Hoje'; }, null, { timeout: 5000 });
         console.log('✓ em cima, só o período escolhido e, por baixo, o de cada grupo:', c1[0], '|', await sp());
     }
+    // 4.73: mais nativa — o título grande encolhe para a barra de cima ao fazer scroll (tocar nela volta ao topo); a barra de
+    // baixo com vidro, a flutuar; os separadores mudam com uma passagem suave (sem ela com «reduzir movimento») e vibram
+    {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForFunction(() => !document.querySelector('#mk-tit').classList.contains('on'), null, { timeout: 3000 });
+        await page.evaluate(() => window.scrollTo(0, 420));
+        await page.waitForFunction(() => document.querySelector('#mk-tit').classList.contains('on'), null, { timeout: 3000 });
+        assert.equal(await page.locator('#mk-tit span').textContent(), await page.locator('#mk-body > .pg-t').textContent(), 'em cima, o título da página, pequeno');
+        await page.click('#mk-tit');
+        await page.waitForFunction(() => window.scrollY === 0 && !document.querySelector('#mk-tit').classList.contains('on'), null, { timeout: 4000 });
+        const nav = await page.locator('#mk-nav').evaluate((n) => { const s = getComputedStyle(n), r = n.getBoundingClientRect(); return { bf: s.backdropFilter || s.webkitBackdropFilter || '', rad: parseFloat(s.borderTopLeftRadius), l: Math.round(r.left), b: Math.round(innerHeight - r.bottom) }; });
+        assert.match(nav.bf, /blur/, 'a barra de baixo com vidro');
+        assert.ok(nav.rad >= 20 && nav.l >= 8 && nav.b >= 4, 'a flutuar, em cápsula: ' + JSON.stringify(nav));
+        // o separador muda logo (os testes e o toque não esperam) e a página nova aparece com o esbatido
+        const muda = (alvo, volta) => page.evaluate(([alvo, volta]) => {
+            const mk = window.__mk, b = document.querySelector('#mk-body'), h0 = mk.st.haptic || 0;
+            document.querySelector(`#mk-nav [data-tab="${alvo}"]`).click();
+            const r = { tab: mk.cfg.tab, on: document.querySelector('#mk-nav button.on').dataset.tab, titulo: document.querySelector('#mk-body > .pg-t').textContent,
+                h: (mk.st.haptic || 0) - h0, entra: b.classList.contains('entra') && getComputedStyle(b).animationName === 'mk-entra' };
+            document.querySelector(`#mk-nav [data-tab="${volta}"]`).click();
+            return { ...r, volta: mk.cfg.tab };
+        }, [alvo, volta]);
+        assert.deepEqual(await muda('destaques', 'painel'), { tab: 'destaques', on: 'destaques', titulo: 'Destaques', h: 1, entra: true, volta: 'painel' }, 'com a passagem suave, e a vibrar');
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        assert.deepEqual(await muda('ajustes', 'painel'), { tab: 'ajustes', on: 'ajustes', titulo: 'Ajustes', h: 1, entra: false, volta: 'painel' }, 'com «reduzir movimento», sem a passagem');
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        // no iPhone (sem o vibrate do Android), o interruptor escondido muda a cada toque — e não chega à app
+        const hp = await page.evaluate(() => {
+            const v = Object.getOwnPropertyDescriptor(Navigator.prototype, 'vibrate'); delete Navigator.prototype.vibrate;
+            const mk = window.__mk, cfg0 = JSON.stringify(mk.cfg); let cliques = 0;
+            const conta = () => { cliques++; }; document.addEventListener('click', conta);
+            mk.haptic(); const i = document.querySelector('label.mk-hap input[switch]'), a = !!(i && i.checked); mk.haptic(); const b = !!(i && i.checked);
+            document.removeEventListener('click', conta);
+            if (v) Object.defineProperty(Navigator.prototype, 'vibrate', v);
+            return { tem: !!i, muda: a !== b, cliques, cfg: JSON.stringify(mk.cfg) === cfg0, escondido: !!i && getComputedStyle(i.parentElement).display === 'none' };
+        });
+        assert.deepEqual(hp, { tem: true, muda: true, cliques: 0, cfg: true, escondido: true }, 'o interruptor do iOS: muda, escondido, sem chegar à app');
+        console.log('✓ mais nativa: o título pequeno em cima ao descer, a barra de baixo com vidro, a passagem e a vibração nos separadores');
+    }
     const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
     assert.equal(grs[grs.length - 1][2], inv, 'o investido total');
     assert.ok(await page.locator('.pf .pf-gs').evaluate((g) => g.scrollWidth <= g.clientWidth + 1 && g.getBoundingClientRect().right <= g.closest('.pf-cx').getBoundingClientRect().right), 'a tabela cabe no cartão (390 px)');

@@ -27,13 +27,36 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.72.1';
+    const VERSION = '4.73.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
     // ---------- utilitários ----------
     const $ = (s, r = document) => r.querySelector(s);
     const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+    // 4.73: menos movimento, quando o iPhone o pede (Acessibilidade → Movimento → Reduzir movimento)
+    const semMov = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    // 4.73: vibrar ao tocar, como nas apps do iPhone. O Safari (iOS 18) vibra quando muda um interruptor
+    // (<input type="checkbox" switch>): um escondido, mudado por um clique, dentro de um toque (sem toque não vibra).
+    // Onde há vibrate (Android), esse. O interruptor não chega ao resto da app (nem os cliques nem as mudanças)
+    const haptic = (() => {
+        let lb = null;
+        const para = (e) => e.stopPropagation();
+        return () => {
+            try {
+                st.haptic = (st.haptic || 0) + 1; // (para os testes)
+                if (navigator.vibrate && !/iPhone|iPad|iPod/.test(navigator.userAgent)) { navigator.vibrate(8); return; }
+                if (!lb) {
+                    lb = document.createElement('label'); lb.className = 'mk-hap'; lb.setAttribute('aria-hidden', 'true');
+                    const i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', ''); i.tabIndex = -1;
+                    lb.appendChild(i); lb.addEventListener('click', para);
+                    for (const ev of ['click', 'change', 'input']) i.addEventListener(ev, para);
+                    document.body.appendChild(lb);
+                }
+                lb.click();
+            } catch { /* sem vibração */ }
+        };
+    })();
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const fin = (x) => typeof x === 'number' && Number.isFinite(x);
     const now = () => Date.now();
@@ -1545,6 +1568,7 @@
         body.innerHTML = `<h1 class="pg-t">${title}</h1>${tema}<div class="pg-st" id="mk-status" aria-live="polite"></div>` + html;
         renderStatus();
         drawSparks();
+        if (st.topVer) st.topVer(); // 4.73: a barra de cima (o título pequeno) segue a página nova
     }
 
     function renderStatus() {
@@ -2726,7 +2750,7 @@
             if (y0 == null) return;
             const era = modo === 'puxa'; y0 = null; modo = null; st.puxaFolha = false;
             if (!era) return;
-            if (OG && OG.fim(OG.FECHAR, dy, e.timeStamp - t0)) { closeSheet(true); return; }
+            if (OG && OG.fim(OG.FECHAR, dy, e.timeStamp - t0)) { haptic(); closeSheet(true); return; }
             c.style.transition = 'transform .2s ease-out'; c.style.transform = '';
             bg.style.transition = 'opacity .2s'; bg.style.opacity = '';
         };
@@ -2996,17 +3020,24 @@
     function bindChartHover() {
         const cv = $('#d-cv');
         if (!cv) return;
+        // 4.73: o ponto mais perto do dedo, por procura binária (os X crescem com o ponto), e só se redesenha quando o dedo
+        // muda de ponto (os toques chegam mais depressa do que o ecrã desenha) ou o gráfico foi redesenhado entretanto; ao
+        // pôr o dedo, uma vibração
+        let ult = -1, ultDraw = null;
         const at = (ev) => {
             if (st.puxaFolha || !sheetPts || sheetPts.length < 2 || !sheetDraw) return;
-            const x = ev.clientX - cv.getBoundingClientRect().left;
-            let best = 0, bd = Infinity;
-            for (let i = 0; i < (sheetDraw.n || sheetPts.length); i++) { const d = Math.abs(sheetDraw.X(i) - x); if (d < bd) { bd = d; best = i; } }
+            const x = ev.clientX - cv.getBoundingClientRect().left, n = sheetDraw.n || sheetPts.length;
+            let lo = 0, hi = n - 1;
+            while (hi - lo > 1) { const m = (lo + hi) >> 1; if (sheetDraw.X(m) <= x) lo = m; else hi = m; }
+            const best = Math.abs(sheetDraw.X(hi) - x) < Math.abs(sheetDraw.X(lo) - x) ? hi : lo;
             st.chartHover = now();
+            if (best === ult && sheetDraw === ultDraw) return;
             drawSheetChart(best);
+            ult = best; ultDraw = sheetDraw;
         };
         cv.addEventListener('pointermove', at);
-        cv.addEventListener('pointerdown', at);
-        cv.addEventListener('pointerleave', () => { st.chartHover = 0; drawSheetChart(); });
+        cv.addEventListener('pointerdown', (ev) => { ult = -1; if (ev.pointerType === 'touch' && !st.puxaFolha) haptic(); at(ev); });
+        cv.addEventListener('pointerleave', () => { ult = -1; st.chartHover = 0; drawSheetChart(); });
     }
 
     // ---------- lembretes no calendário (.ics) ----------
@@ -3117,7 +3148,7 @@
             const el = w; w = null;
             if (mode !== 'h') return;
             st.noTap = now() + 400;
-            if (OG.fim(OG.APAGAR, dx, e.timeStamp - t0, el.clientWidth)) { hideAsset(el.dataset.wk, 'list'); return; }
+            if (OG.fim(OG.APAGAR, dx, e.timeStamp - t0, el.clientWidth)) { haptic(); hideAsset(el.dataset.wk, 'list'); return; }
             el.style.transition = 'transform .2s ease-out'; el.style.transform = '';
             setTimeout(() => el.classList.remove('sw', 'vai'), 200);
         };
@@ -3132,6 +3163,34 @@
         if (tab === 'destaques' && !MOVERS) loadMovers();
         render();
     }
+    // 4.73: ao tocar num separador, uma passagem suave: o separador muda logo e a página nova aparece com um esbatido curto,
+    // como nas apps do iPhone; sem ele com «reduzir movimento»
+    function irComTransicao(tab) {
+        irPara(tab);
+        const b = $('#mk-body');
+        b.classList.remove('entra');
+        if (semMov()) return;
+        void b.offsetWidth; // (para a animação recomeçar)
+        b.classList.add('entra');
+        b.addEventListener('animationend', () => b.classList.remove('entra'), { once: true });
+    }
+    // 4.73: o título grande encolhe ao fazer scroll, como nas apps do iPhone: quando sai por cima, aparece pequeno na barra
+    // de cima, com vidro; tocar nela volta ao topo
+    (() => {
+        const top = $('#mk-tit');
+        if (!top) return;
+        let pede = false;
+        const ver = () => {
+            pede = false;
+            const h = $('#mk-body > .pg-t'), on = !!h && h.getBoundingClientRect().bottom <= top.offsetHeight;
+            if (on && top.firstChild.textContent !== h.textContent) top.firstChild.textContent = h.textContent;
+            top.classList.toggle('on', on);
+        };
+        st.topVer = () => { if (!pede) { pede = true; requestAnimationFrame(ver); } };
+        window.addEventListener('scroll', st.topVer, { passive: true });
+        window.addEventListener('resize', st.topVer, { passive: true });
+        top.addEventListener('click', () => { if (!top.classList.contains('on')) return; haptic(); window.scrollTo({ top: 0, behavior: semMov() ? 'auto' : 'smooth' }); });
+    })();
     // arrastar para a esquerda ou para a direita em qualquer parte do ecrã: o separador ao lado (como nas apps do iPhone).
     // Ficam de fora o que já usa o gesto para o lado: as linhas que se apagam (para a esquerda), os gráficos com o dedo,
     // as barras de deslizar, os campos e o que desliza para o lado (as tabelas largas).
@@ -3172,7 +3231,7 @@
             }
             // sai para o lado do dedo e o novo entra do outro lado
             const lado = dx < 0 ? -1 : 1;
-            vai = true;
+            vai = true; haptic();
             body.style.transition = 'transform .14s ease-in'; body.style.transform = `translateX(${lado * innerWidth}px)`;
             setTimeout(() => {
                 irPara(TABS[j]);
@@ -3219,7 +3278,7 @@
             if (!st.pulling) return;
             body.style.transition = ''; ptr.style.transition = '';
             if (OG && OG.fim(OG.ATUALIZAR, dy, 0)) {
-                busy = true; set(44, 'A atualizar…');
+                busy = true; set(44, 'A atualizar…'); haptic();
                 refreshAll().finally(() => { busy = false; st.pulling = false; set(0, ''); scheduleRender(); });
             } else { st.pulling = false; set(0, ''); }
         }, { passive: true });
@@ -3259,7 +3318,9 @@
         const t = ev.target.closest('[data-act],[data-open],[data-tab],[data-sort],[data-range],[data-fiat],[data-filter],[data-lim],[data-rm],[data-add],[data-eur],[data-hz],[data-prof],[data-sday],[data-strat],[data-cpct],[data-cmix],[data-hold],[data-lotrm],[data-fs],[data-thm],[data-others],[data-claude],[data-hide],[data-unhide],[data-per],[data-pera],[data-fuel],[data-mv],[data-hzset]');
         if (!t) return;
         const d = t.dataset;
-        if (d.tab) { irPara(d.tab); return; }
+        // 4.73: vibra ao tocar nos separadores e nas escolhas (os períodos, os intervalos do gráfico, os perfis)
+        if (t.closest('#mk-nav, .seg, .ranges')) haptic();
+        if (d.tab) { if (t.closest('#mk-nav')) irComTransicao(d.tab); else irPara(d.tab); return; }
         if (d.open) { openSheet(d.open, d.name, d.ut); return; }
         if (d.claude) { setClaude(d.claude === '1'); return; }
         if (d.others) {
@@ -3384,7 +3445,7 @@
             case 'reset-watch': cfg.watch = DEFAULT_WATCH.slice(); cfg.funds = DEFAULT_FUNDS.slice(); watchChanged(); break;
             // Carteira: valor no futuro ou em euros de hoje; − e + nos controlos do simulador
             // Carteira: abre «O que tens e as tuas compras» e leva-o à vista
-            case 'reg-compra': {
+            case 'reg-compra': { haptic();
                 st.reg = st.reg || {};
                 const k = st.reg.k, L0 = lotOf(k), e = numPt(st.reg.e || '');
                 let dia = st.reg.d || todayLocal(); if (!ISO_D.test(dia)) dia = todayLocal();
@@ -3467,7 +3528,7 @@
             }
             // 4.65: confirmar (✓) — o escrito ou, com o campo vazio, a média (o plano); hoje, com a hora (conta já, e a hora
             // entra na hora habitual)
-            case 'pp-ok': {
+            case 'pp-ok': { haptic();
                 const k = (st.reg || {}).k, L0 = lotOf(k), tp = d.tp, dia = d.d, chave = tp + '|' + dia;
                 if (!REG[k] || !temHoje(L0) || !PP_MAPA[tp] || !ISO_D.test(dia || '')) break;
                 const f = $(`.reg [data-ppv="${tp}"][data-d="${dia}"]`), txt = String(f ? f.value : (st.ppd || {})[chave] || '').trim();
@@ -3779,7 +3840,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, pprAtivos, pfSnap, baseVisivel, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, haptic, pprAtivos, pfSnap, baseVisivel, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas

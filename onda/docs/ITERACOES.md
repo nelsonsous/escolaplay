@@ -3831,3 +3831,29 @@ início» e a conta dele saem do código.
 **Verificado.** Os 600 estados do Painel (no «Tudo», sem casa em cima); interface: no «Tudo», nada em cima e sem a linha
 dos grupos.
 
+## Iteração (Mercados 4.73.0): mais nativa
+
+**Pedido.** «Podes fazer o que ia fazer na app da Meteo?» — na Meteo ficara combinado deixá-la mais nativa (o título
+grande que encolhe, as passagens suaves, a vibração, a versão nova sozinha, a barra de baixo com vidro e o deslizar mais
+preciso nos gráficos), parado porque a Meteo também é usada em Android. Feito primeiro nos Mercados (só no iPhone).
+
+**Feito.**
+- **O título grande encolhe ao fazer scroll:** uma barra de cima com vidro mostra-o pequeno quando sai por cima; tocar
+  nela volta ao topo.
+- **A barra de baixo com vidro (iOS 26):** a flutuar, em cápsula, translúcida, com o separador escolhido num fundo.
+- **A passagem suave ao tocar num separador:** o separador muda logo e a página nova aparece com um esbatido curto (só
+  a opacidade; nenhum com «reduzir movimento»). As View Transitions do Safari 18 mudariam o ecrã um instante depois do
+  toque (primeiro fotografam o antigo), e o resto da app conta com a página nova logo a seguir.
+- **A vibração ao tocar:** pelo interruptor do Safari (iOS 18), que vibra quando muda — escondido, mudado por um clique
+  dentro do toque, sem chegar ao resto da app; no Android, o vibrate. Nos separadores (tocar e deslizar), nas escolhas
+  (os períodos, os intervalos do gráfico), ao puxar para atualizar, ao fechar a ficha a puxar, ao apagar uma linha, ao
+  confirmar uma poupança ou uma compra e ao pôr o dedo no gráfico.
+- **O gráfico da ficha:** o ponto mais perto do dedo por procura binária, e só se redesenha quando o dedo muda de ponto.
+- **A versão nova a entrar sozinha:** os Mercados já a tinham; fica como estava.
+
+O motor de gestos comum às apps (onda/rt/gestos-onda.js) não mudou: a Meteo e a Música ficam como estavam.
+
+**Verificado.** Interface: a barra de cima aparece ao descer com o título da página e tocar nela volta ao topo; a barra
+de baixo com vidro, em cápsula, a flutuar; tocar num separador muda logo a página, com o esbatido, e vibra, e com
+«reduzir movimento» muda sem ele; no iPhone (sem o vibrate) o interruptor escondido muda a cada toque e nenhum clique chega à app.
+
