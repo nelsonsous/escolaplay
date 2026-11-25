@@ -545,7 +545,7 @@
 # uma casa da linha de cima (k: 1 hoje, 2 o período escolhido): o nome, o valor em € (se houver) e a %
 : pn_casa iffi>i k x p temx {
   `<span class="pf-c"><small>`
-  ? == k 1 "Hoje" ? == k 3 "Desde o início" pn_perlbl es.per
+  ? == k 1 "Hoje" pn_perlbl es.per
   "</small>"
   Se temx `<b class="{ ln_tom x }-t">{ pn_eursf x }</b>`
   `<i class="{ ln_tom p }-t">{ fm_pct p }</i></span>`
@@ -613,13 +613,11 @@
       `<div class="pf-pe">{ pn_periodo }</div>`
       `<div class="pf-cx"><button type="button" class="pf-b" data-tab="carteira" aria-label="Ver a carteira"><span class="pf-st">`
       # 4.72: em cima, só o do período escolhido, em € e em % (como na TR): «Hoje» no 1D (4.56: com a bolsa fechada, só o
-      # que mexeu, e diz «bolsa fechada»); «1 semana», «1 mês», «1 ano» (o ganho de agora menos o de então); no «Tudo», o
-      # ganho desde o início
+      # que mexeu, e diz «bolsa fechada»); «1 semana», «1 mês», «1 ano» (o ganho de agora menos o de então). 4.72.1: no
+      # «Tudo», nada — o ganho desde o início é o Total da tabela, logo abaixo
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
-      = gt ? > ee 0.0 * - / vv ee 1.0 100.0 0.0
       Se == kp 1 { pn_casa 1 dd dp 1 Se ha p.fech `<small class="pf-fech">bolsa fechada</small>` }
       Se > kp 1 pn_casa 2 dt pc 1
-      Se tu pn_casa 3 - vv ee gt 1
       "</span>"
       # 4.71: por baixo, numa linha, o mesmo período de cada grupo — «FTSE −18 € (−0,6%) · Cripto −91 € (−2,8%)»; só com
       # os dois grupos, e nada no «Tudo» (está no ganho da tabela)

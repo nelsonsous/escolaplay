@@ -409,10 +409,9 @@ function verificar({ de, ate, seed }) {
                 // a tabela de cima: no total (com o investido), hoje e o período (fora do 1D): o nome, o valor e a %, com as cores
                 const casas = gg ? [...gg.querySelectorAll(':scope > .pf-c')].map((c) => [c.querySelector('small').textContent, c.querySelector('b') ? [c.querySelector('b').textContent, c.querySelector('b').className] : null, c.querySelector('i').textContent, c.querySelector('i').className]) : null;
                 // (4.38.4: sem o «No total» — está no Total da tabela)
-                // 4.72: só o do período escolhido, em € e em %: hoje no 1D; a semana, o mês, o ano; no «Tudo», o ganho desde o início
-                const gt = ee > 0 ? (vv / ee - 1) * 100 : 0;
+                // 4.72: só o do período escolhido, em € e em %: hoje no 1D; a semana, o mês, o ano; no «Tudo» nada (4.72.1: é o Total)
                 const cq = kl === 'hoje' ? [['Hoje', [sgf(dd), toneOf(dd) + '-t'], mk.fmtPct(dp), toneOf(dp) + '-t']]
-                    : tu ? [['Desde o início', [sgf(vv - ee), toneOf(vv - ee) + '-t'], mk.fmtPct(gt), toneOf(gt) + '-t']]
+                    : tu ? []
                     : [[lbl, [sgf(pdT), toneOf(pdT) + '-t'], mk.fmtPct(pc), toneOf(pc) + '-t']];
                 if (JSON.stringify(casas) !== JSON.stringify(cq)) erro(`a carteira: a tabela ${JSON.stringify(casas)} em vez de ${JSON.stringify(cq)}`);
                 // o que é dos fundos e ações e o que é da cripto: o valor, o ganho e o de hoje de cada grupo

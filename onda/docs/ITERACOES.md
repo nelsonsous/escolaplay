@@ -3821,3 +3821,13 @@ com o ganho todo. Por baixo, a linha dos grupos sem repetir o período, com os n
 grupos sem o período); interface: no 1S só a semana em cima, numa linha, e os grupos por baixo; no «Tudo», o ganho desde
 o início e sem a linha dos grupos; no 1D, de novo hoje.
 
+## Iteração (Mercados 4.72.1): no «Tudo», sem repetir o Total
+
+**Pedido.** «Desde o início já diz em baixo. Não dá para simplificar?»
+
+**Feito.** No «Tudo», nada em cima do gráfico: o ganho desde o início é o Total da tabela, logo abaixo. O rótulo «Desde o
+início» e a conta dele saem do código.
+
+**Verificado.** Os 600 estados do Painel (no «Tudo», sem casa em cima); interface: no «Tudo», nada em cima e sem a linha
+dos grupos.
+
