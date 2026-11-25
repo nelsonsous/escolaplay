@@ -141,6 +141,21 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## Mais nativa (4.73.0)
+
+O que a Meteo ia ganhar para parecer uma app do iPhone, primeiro nos Mercados (a Meteo também é usada em Android):
+- o título grande encolhe ao fazer scroll: quando sai por cima, aparece pequeno numa barra com vidro (tocar nela volta
+  ao topo);
+- a barra de baixo com vidro, como no iOS 26: a flutuar, em cápsula, com o separador escolhido num fundo;
+- uma passagem suave ao tocar num separador: a página nova aparece com um esbatido curto (nenhum com «reduzir
+  movimento»);
+- vibração ao tocar: nos separadores (também ao deslizar), nos períodos e nos intervalos do gráfico, ao puxar para
+  atualizar, ao fechar a ficha a puxar, ao apagar uma linha, ao confirmar uma poupança ou uma compra e ao pôr o dedo no
+  gráfico — pelo interruptor do Safari (iOS 18), que vibra quando muda;
+- o gráfico da ficha segue o dedo mais leve: o ponto mais perto por procura binária e só redesenha quando muda de ponto.
+
+A versão nova já entrava sozinha ao abrir a app (4.x): fica como estava.
+
 ## No «Tudo», sem repetir o Total (4.72.1)
 
 No «Tudo», o cartão da carteira já não diz em cima «Desde o início …»: é o Total da tabela, logo abaixo. Fica o gráfico
