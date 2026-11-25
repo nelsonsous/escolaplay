@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.73.0';
+    const VERSION = '4.73.1';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -264,6 +264,8 @@
         if (!f) { f = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }); TZF.set(tz, f); }
         return Object.fromEntries(f.formatToParts(s * 1000).map((x) => [x.type, x.value]));
     };
+    // 4.73.1: o dia (aaaa-mm-dd) de um instante num fuso (por omissão, o da Xetra)
+    const diaEm = (tz, s) => { const p = tzParts(tz || 'Europe/Berlin', s); return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`; };
     const tzOff = (tz, s) => { const p = tzParts(tz, s); return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - s * 1000) / 1000; };
     // os futuros (CME Globex): de domingo às 18 h a sexta às 17 h de Nova Iorque, com a pausa das 17 h às 18 h (o Yahoo dá o
     // dia inteiro como sessão)
@@ -320,7 +322,10 @@
             if (lv.time && (!series.length || series[series.length - 1][0] < lv.time)) series.push([lv.time, lv.price]);
             // a variação do dia é face ao fecho da véspera na Xetra: o «fecho anterior» que o Yahoo dá para Munique e
             // Düsseldorf é muitas vezes um negócio solto (ex.: 168,44 € em Munique com a Xetra a fechar a 167,42 €)
-            const pcl = fin(q0.prevClose) ? q0.prevClose : lv.prevClose;
+            // 4.73.1: antes de a Xetra abrir (o último preço dela é de um dia anterior ao do negócio em Munique), esse fecho é o
+            // último preço da Xetra — o «fecho anterior» dela é então o de anteontem (às 07:39: −1,90% em vez de −0,37%)
+            const antes = fin(q0.price) && q0.time && diaEm(q0.tz, q0.time) < diaEm(q0.tz, lv.time);
+            const pcl = antes ? q0.price : fin(q0.prevClose) ? q0.prevClose : lv.prevClose;
             q = { ...q0, price: lv.price, time: lv.time, open: lv.open, sess: lv.sess || q0.sess, tz: lv.tz || q0.tz, series, venue: VENUE[lv.sym.split('.').pop()] || lv.sym, prevClose: pcl,
                 change: fin(pcl) ? lv.price - pcl : null, changePct: fin(pcl) ? (lv.price / pcl - 1) * 100 : q0.changePct };
         }
@@ -3840,7 +3845,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, haptic, pprAtivos, pfSnap, baseVisivel, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, haptic, qv, pprAtivos, pfSnap, baseVisivel, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas

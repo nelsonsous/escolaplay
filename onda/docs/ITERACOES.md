@@ -3857,3 +3857,22 @@ O motor de gestos comum às apps (onda/rt/gestos-onda.js) não mudou: a Meteo e 
 de baixo com vidro, em cápsula, a flutuar; tocar num separador muda logo a página, com o esbatido, e vibra, e com
 «reduzir movimento» muda sem ele; no iPhone (sem o vibrate) o interruptor escondido muda a cada toque e nenhum clique chega à app.
 
+## Iteração (Mercados 4.73.1): a variação do dia antes de a Xetra abrir
+
+**Pedido.** «Porque não bate certo e a percentagem é maior e o valor maior?» — às 07:39, a app dizia o FTSE a −1,90% hoje
+(«Hoje»: FTSE −56 €) e a TR −0,73%.
+
+**Visto.** Antes de a Xetra abrir, o preço vem de Munique (161,90 €, das 07:00), e a variação do dia era face ao «fecho
+anterior» da Xetra. Sem negócios hoje na Xetra, esse é o de anteontem (165,04 €), não o de ontem (162,50 €, o último
+preço da Xetra): o dia de ontem (−1,54%) contava outra vez em hoje.
+
+**Feito.** Quando o último preço da Xetra é de um dia anterior ao do negócio em Munique (no fuso da Xetra), a variação do
+dia é face a esse último preço. Com a Xetra já aberta hoje, face ao fecho anterior dela, como antes.
+
+**O resto da diferença para a TR** (−0,37% na app, −0,73% na TR; 2885 € na app, 2873,71 € na TR) é de os preços não serem
+os mesmos: a TR mostra o preço de venda (o «bid», mais baixo, com o spread largo antes de a Xetra abrir) e ao segundo; a
+app, o último negócio em Munique, que de manhã cedo pode ter meia hora.
+
+**Verificado.** Interface: antes de a Xetra abrir, a variação é face ao fecho de ontem (161,90 face a 162,50); com a Xetra
+aberta hoje, face ao fecho anterior dela (como antes).
+

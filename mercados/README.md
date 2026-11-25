@@ -141,6 +141,13 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## A variação do dia antes de a Xetra abrir (4.73.1)
+
+Antes de a Xetra abrir (às 8 h de Portugal), o preço do FTSE vem de Munique (gettex), e a variação do dia era contada
+face ao «fecho anterior» da Xetra — que, com a Xetra ainda sem negócios hoje, é o de anteontem (às 07:39: −1,90% em vez de
+−0,37%, e o «Hoje» do cartão com o FTSE a −56 € em vez de −11 €). Passa a ser face ao último preço da Xetra, o fecho de
+ontem. Com a Xetra aberta, fica como estava.
+
 ## Mais nativa (4.73.0)
 
 O que a Meteo ia ganhar para parecer uma app do iPhone, primeiro nos Mercados (a Meteo também é usada em Android):

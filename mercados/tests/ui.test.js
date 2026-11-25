@@ -1138,6 +1138,25 @@ function proxyBody(u) {
         assert.deepEqual(hp, { tem: true, muda: true, cliques: 0, cfg: true, escondido: true }, 'o interruptor do iOS: muda, escondido, sem chegar à app');
         console.log('✓ mais nativa: o título pequeno em cima ao descer, a barra de baixo com vidro, a passagem e a vibração nos separadores');
     }
+    // 4.73.1: antes de a Xetra abrir, a variação do dia (o preço de Munique de hoje) é face ao último preço da Xetra (o fecho de
+    // ontem), não ao «fecho anterior» dela (o de anteontem); com a Xetra já aberta hoje, face ao fecho anterior, como antes
+    {
+        const r = await page.evaluate(() => {
+            const mk = window.__mk, Q = mk.Q, k = 'VWCE.DE', guarda = Object.fromEntries([k, 'VWCE.MU', 'VWCE.DU'].map((s) => [s, Q[s]]));
+            const agora = Math.floor(Date.now() / 1000), x0 = Q[k];
+            Q['VWCE.MU'] = { ...(guarda['VWCE.MU'] || {}), symbol: 'VWCE.MU', price: 161.9, prevClose: 162.4, time: agora - 60, currency: x0.currency, series: [] };
+            delete Q['VWCE.DU'];
+            Q[k] = { ...x0, price: 162.5, prevClose: 165.04, changePct: -1.54, time: agora - 36 * 3600, tz: 'Europe/Berlin' };
+            const antes = mk.qv(k).changePct;
+            Q[k] = { ...Q[k], time: agora - 120 };
+            const aberta = mk.qv(k).changePct;
+            for (const [s, v] of Object.entries(guarda)) { if (v === undefined) delete Q[s]; else Q[s] = v; }
+            return { antes, aberta };
+        });
+        assert.ok(Math.abs(r.antes - (161.9 / 162.5 - 1) * 100) < 1e-9, 'antes de a Xetra abrir: face ao fecho de ontem (' + r.antes + ')');
+        assert.ok(Math.abs(r.aberta - (161.9 / 165.04 - 1) * 100) < 1e-9, 'com a Xetra aberta hoje: face ao fecho anterior dela (' + r.aberta + ')');
+        console.log('✓ a variação do dia antes de a Xetra abrir: face ao fecho de ontem', r.antes.toFixed(2) + '%');
+    }
     const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
     assert.equal(grs[grs.length - 1][2], inv, 'o investido total');
     assert.ok(await page.locator('.pf .pf-gs').evaluate((g) => g.scrollWidth <= g.clientWidth + 1 && g.getBoundingClientRect().right <= g.closest('.pf-cx').getBoundingClientRect().right), 'a tabela cabe no cartão (390 px)');
