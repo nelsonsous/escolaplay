@@ -3794,3 +3794,15 @@ somam as linhas.
 **Verificado.** Os 600 estados do Painel, com os quatro períodos (o rótulo, os euros, a % e a cor de cada linha);
 interface: 1S em todas as linhas, nada no «Tudo», e hoje outra vez no 1D.
 
+## Iteração (Mercados 4.71.0): em cima, numa linha, o do período de cada grupo
+
+**Pedido.** «Não gosto. Há forma melhor? Basta uma linha simples, até pode ficar em cima.»
+
+**Feito.** A tabela volta a ser a de antes (o investido, o valor e o ganho «€ (%)», sem linhas por baixo). Em cima, por
+baixo do «Hoje», uma linha: «FTSE −18 € (−0,6%) · Cripto −91 € (−2,8%)» — o do período escolhido de cada grupo (o nome
+curto do ativo quando o grupo é um só; senão «Fundos»), com «1 semana: » (mês, ano) à frente fora do 1D; só com os dois
+grupos, e nada no «Tudo». As contas do período são as da 4.70 (o ganho de agora menos o de então).
+
+**Verificado.** Os 600 estados do Painel (a linha, as cores, quando aparece; a tabela de novo como antes); interface:
+hoje no 1D, «1 semana: …» no 1S, nada no «Tudo».
+

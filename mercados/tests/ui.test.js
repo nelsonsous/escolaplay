@@ -1076,24 +1076,21 @@ function proxyBody(u) {
     await page.waitForFunction(() => { const s = document.querySelector('#mk-body > section.pf'); return s && !s.dataset.antes; }, null, { timeout: 8000 });
     assert.equal(await page.locator('.pf .pf-gg.on').count(), 1, 'e fica aberta quando o cartão se redesenha ao vivo');
     if (SHOTS) await page.locator('#mk-body > section.pf').screenshot({ path: path.join(SHOTS, '1d-carteira-aberta.png') });
-    for (const r of grs) { assert.match(r[2], /^\d[\d\s ]*\s€$/, r.join(' | ')); assert.match(r[3], /^\d[\d\s ]*\s€$/); assert.match(r[4], /^[+−][\d\s ]+\s€ \([+−]?\d+,\d%\)hoje [+−][\d\s ]+\s€( \([+−]?\d+,\d%\))?$/, 'o ganho «€ (%)» e, por baixo, «hoje € (%)»'); }
-    // 4.69.1: o de hoje de cada linha, por baixo do ganho — o do Total é o «Hoje» de cima (sem cêntimos)
+    for (const r of grs) { assert.match(r[2], /^\d[\d\s ]*\s€$/, r.join(' | ')); assert.match(r[3], /^\d[\d\s ]*\s€$/); assert.match(r[4], /^[+−][\d\s ]+\s€ \([+−]?\d+,\d%\)$/); }
+    // 4.71: em cima, numa linha, o do período de cada grupo — hoje no 1D, a semana no 1S («1 semana: …»), nada no «Tudo»
     {
-        const h = await page.evaluate(() => { const t = document.querySelector('.pf .pf-gt .pf-d2'), g = t.querySelector(':scope > span'), s = t.querySelector('small'); return { t: s.querySelector('span').textContent.split('€')[0], cima: document.querySelector('.pf .pf-st .pf-c b').textContent, alto: s.getBoundingClientRect().top >= g.getBoundingClientRect().bottom - 2 }; });
-        const n = (x) => Math.round(+x.replace(/[^\d,−+-]/g, '').replace('−', '-').replace(',', '.'));
-        assert.equal(n(h.t), n(h.cima), 'o Hoje do Total é o de cima');
-        assert.ok(h.alto, 'o de hoje por baixo do ganho');
-        console.log('✓ o de hoje por baixo do ganho na tabela da carteira:', h.t, '€ (em cima:', h.cima + ')');
-        // 4.70: no 1S, por baixo do ganho, o da semana («1S …»); no «Tudo», nada (é o próprio ganho); no 1D, de novo hoje
-        const sob = () => page.evaluate(() => [...document.querySelectorAll('.pf .pf-gr .pf-d2 small i')].map((i) => i.textContent));
+        const sp = () => page.evaluate(() => { const e = document.querySelector('.pf .pf-b .pf-sp'); return e ? e.textContent.replace(/\s/g, ' ') : null; });
+        const parte = '[+−][\\d ]+ €( \\([+−]?\\d+,\\d%\\))?';
+        const re = (lb) => new RegExp(`^${lb}FTSE ${parte} · Cripto ${parte}$`);
+        assert.match(await sp(), re(''), 'no 1D, hoje');
         await page.click('.pf .pf-pe [data-per="1w"]');
-        await page.waitForFunction(() => { const i = document.querySelector('.pf .pf-gt .pf-d2 small i'); return i && i.textContent === '1S'; }, null, { timeout: 5000 });
-        assert.ok((await sob()).every((x) => x === '1S'), 'no 1S, a semana em todas as linhas');
+        await page.waitForFunction(() => { const e = document.querySelector('.pf .pf-sp'); return e && /^1 semana: /.test(e.textContent); }, null, { timeout: 5000 });
+        assert.match(await sp(), re('1 semana: '), 'no 1S, a semana');
         await page.click('.pf .pf-pe [data-per="all"]');
-        await page.waitForFunction(() => !document.querySelector('.pf .pf-gr .pf-d2 small'), null, { timeout: 5000 });
+        await page.waitForFunction(() => !document.querySelector('.pf .pf-sp'), null, { timeout: 5000 });
         await page.click('.pf .pf-pe [data-per="1d"]');
-        await page.waitForFunction(() => { const i = document.querySelector('.pf .pf-gt .pf-d2 small i'); return i && i.textContent === 'hoje'; }, null, { timeout: 5000 });
-        console.log('✓ por baixo do ganho, o do período escolhido (hoje, 1S; nada no Tudo)');
+        await page.waitForFunction(() => { const e = document.querySelector('.pf .pf-sp'); return e && /^FTSE /.test(e.textContent); }, null, { timeout: 5000 });
+        console.log('✓ em cima, numa linha, o do período de cada grupo:', await sp());
     }
     const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
     assert.equal(grs[grs.length - 1][2], inv, 'o investido total');

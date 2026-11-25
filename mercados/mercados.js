@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.70.0';
+    const VERSION = '4.71.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1440,7 +1440,7 @@
             const ch = mexeuHoje(k, q) ? q.changePct : 0, pxe = pxEur(k), xh = extrasOf(k).filter((x) => x.d === todayLocal());
             const qh = xh.reduce((s, x) => s + x.q, 0), eh = xh.reduce((s, x) => s + x.e, 0), qa = P.q - qh;
             const dh = temHoje(lotOf(k)) && P.q > 0 && fin(pxe) ? (fin(ch) && ch > -100 ? qa * pxe - (qa * pxe) / (1 + ch / 100) : 0) + (qh * pxe - eh) : undefined;
-            return { k, nm, cr: REG[k].kind === 'crypto', px: pxe, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch, ...(dh === undefined ? {} : { dh }),
+            return { k, nm, cu: nm.split(/\s+/)[0] || nm, cr: REG[k].kind === 'crypto', px: pxe, h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), q: P.q, cost: P.c, ch, ...(dh === undefined ? {} : { dh }),
                 s: (pd.series || []).filter((x) => fin(x[1])).map(([t, v]) => [t, v * f]) };
         }) };
     }
