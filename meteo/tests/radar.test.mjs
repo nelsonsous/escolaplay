@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { colorToDbz, dbzColor, decodeFrame, dbzToMmh, mmhToDbz, rainLabel, tileGeo, analyzeRadar, radarFrames, radarTileUrl, coverageUrl, coveredAt, NO_ECHO, RADAR } from '../lib/radar.js';
 import { decodePng } from '../lib/png.js';
-import { buildForecast, buildSummary, withReport, reportActive, radarWeight, radarVsModels } from '../lib/engine.js';
+import { buildForecast, buildSummary, withReport, reportActive, radarWeight, radarVsModels, radarNowcastText, nowcastText } from '../lib/engine.js';
 import { synthFrames, framePng, encodePng, coveragePng, mapsJson } from './fixtures/radar.mjs';
 
 const fx = (f) => new URL(`./fixtures/${f}`, import.meta.url);
@@ -139,7 +139,8 @@ test('radar a chover no ponto: manda no "agora" e nos primeiros passos (prob. 90
     assert.equal(fc.now.rainSource, 'radar');
     const S = fc.nowcast.steps;
     assert.equal(S.length, 8);
-    for (const s of S.slice(0, 3)) {
+    // 1.32: os passos começam no quarto de hora em curso (15:45–16:00); os das 16:00 e 16:15 são só radar
+    for (const s of S.slice(0, 2)) {
         assert.ok(s.prob >= 90, `${s.time}: ${s.prob}%`);
         assert.ok(Math.abs(s.precip - 0.14) < 0.01, `${s.time}: ${s.precip} mm em 15 min`);
         assert.equal(s.radar, 1);
@@ -173,8 +174,10 @@ test('radar sem chuva no ponto nem à volta: abafa a chuva dos modelos nos prime
     assert.ok(fc.now.code < 50 || fc.now.code === 45, `sem chuva agora (${fc.now.code})`);
     assert.equal(fc.now.precip, 0);
     const [a, b] = fc.nowcast.steps, [ma, mb] = base.nowcast.steps;
-    assert.ok(a.precip <= ma.precip * 0.15 && b.precip <= mb.precip * 0.15, 'chuva dos modelos abafada');
-    assert.ok(a.prob < 15 && b.prob < 15);
+    // 1.32: o 1.º passo é o quarto de hora em curso (15:45–16:00) e o 2.º acaba 35 min depois da imagem: o radar abafa
+    // quase toda a chuva dos modelos no 1.º e boa parte no 2.º, e vai perdendo peso
+    assert.ok(a.precip <= ma.precip * 0.15 && b.precip <= mb.precip * 0.35, 'chuva dos modelos abafada');
+    assert.ok(a.prob < 15 && b.prob < 30);
     const w = fc.nowcast.steps.map((s) => s.radar);
     assert.ok(w[0] >= 0.85 && w.at(-1) <= 0.2 && w.every((x, i) => !i || x <= w[i - 1]), `peso do radar a cair: ${w}`);
     assert.match(fc.nowcast.text, /^Sem chuva no radar até 40 km; /);
@@ -296,4 +299,21 @@ test('radar vs modelos: chuva só possível nos modelos (fraca, abaixo de 45%) n
     assert.equal(radarVsModels(R0, steps, light, 0).text, 'Sem chuva no radar; os modelos só dão chuva fraca possível a partir das 11:00 (0,1 a 0,4 mm/h, até 44%).');
     assert.equal(radarVsModels(R0, steps, dry, 0).text, 'Radar e modelos de acordo: sem chuva.');
     assert.equal(radarVsModels(R0, steps, light, 0).modelsMaybe, t(11));
+});
+
+test('1.32: o «agora» com o radar é o mais forte entre a imagem e o quarto de hora em curso; as horas são o início do quarto de hora', () => {
+    // Santo Tirso, 25/11 01:00: a imagem dava 0,3 mm/h no ponto, mas o radar deslocado e os modelos davam 2,6 mm entre as
+    // 01:00 e as 01:15 — e já chovia forte (a app parecia 5 a 10 min atrasada)
+    const R = { time: '2026-11-25T01:00', atPoint: { raining: true, mmh: 0.33, label: 'fraca', trend: 'estável' }, rings: [], last2h: [] };
+    const st = (t, p, prob = 95) => ({ time: `2026-11-25T${t}`, precip: p, prob });
+    const steps = [st('01:15', 2.6), st('01:30', 1.22), st('01:45', 0.01, 10), st('02:00', 0.6), st('02:15', 0.56), st('02:30', 0.16), st('02:45', 0.18), st('03:00', 0.1)];
+    assert.match(radarNowcastText(R, steps, 0), /^A chover agora \(forte, 10(,4)? mm\/h\); deve parar por volta das 01:30\.$/, 'pára no início do quarto de hora seco (01:30–01:45)');
+    // com a imagem já com 10 min, o «forte» é do quarto de hora em curso: diz-se «agora», não «no radar das 01:00»
+    assert.match(radarNowcastText({ ...R, ageMin: 10 }, steps, 0), /^A chover agora \(forte, /);
+    // a imagem mais forte do que o quarto de hora: fica a da imagem (com a tendência)
+    const R2 = { ...R, atPoint: { raining: true, mmh: 12, label: 'forte', trend: 'a diminuir' } };
+    assert.match(radarNowcastText(R2, [st('01:15', 0.5), ...steps.slice(1)], 0), /^A chover agora \(forte, 12 mm\/h, a diminuir\); /);
+    // sem radar: a chuva começa no início do quarto de hora do 1.º passo com chuva
+    assert.equal(nowcastText([st('01:15', 0, 0), st('01:30', 0.5, 80), st('01:45', 0.5, 80), st('02:00', 0.5, 80), st('02:15', 0.5, 80), st('02:30', 0.5, 80), st('02:45', 0.5, 80), st('03:00', 0.5, 80)]),
+        'Chuva moderada a partir das 01:15.');
 });

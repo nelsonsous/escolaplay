@@ -234,6 +234,13 @@ ficam quietos. Desliga-se em **Ajustes → Avançado → Preferências → Anima
 ondular, e a chuva cai lá para dentro: mais gotas e mais depressa quanto mais chove. 60 imagens/s; pára fora do ecrã.
 Com as animações desligadas (ou sem WebAssembly), as barras SVG de sempre.
 
+**O «agora» sem atraso** (1.32, pedido do dono: «está a chover muito, parece 5 ou 10 min atrasado»): cada passo de 15 min
+é o quarto de hora que acaba à sua hora (como no Open-Meteo). Os passos começam no quarto de hora em curso (antes, no que
+tinha acabado); o gráfico escreve a hora em que cada um começa (o 1.º diz «agora»; ao tocar, «01:00–01:15»); as horas em
+que a chuva começa ou pára são o início do quarto de hora. Com chuva no radar, o «agora» (texto e cartão) é o mais forte
+entre a imagem — que tem sempre uns minutos — e o quarto de hora em curso (o radar deslocado até agora e os modelos): em
+Santo Tirso, a 25/11 às 01:00, a imagem dava 0,3 mm/h e já chovia forte (10 mm/h no quarto de hora em curso).
+
 **Os dois gráficos da chuva dizem o mesmo** (1.31, pedido do dono): as horas do «Próximas horas» que as «Próximas 2
 horas» cobrem somam os passos de 15 min (radar e modelos, ou o aviso de quem lá está) — antes a mesma hora dava 0,6 mm
 em 15 min (~2,4 mm/h) num e 3,6 mm no outro. Cada valor é o do período que acaba à sua hora (como no Open-Meteo); a parte
