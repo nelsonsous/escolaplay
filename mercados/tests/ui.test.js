@@ -1078,7 +1078,7 @@ function proxyBody(u) {
     if (SHOTS) await page.locator('#mk-body > section.pf').screenshot({ path: path.join(SHOTS, '1d-carteira-aberta.png') });
     for (const r of grs) { assert.match(r[2], /^\d[\d\s ]*\s€$/, r.join(' | ')); assert.match(r[3], /^\d[\d\s ]*\s€$/); assert.match(r[4], /^[+−][\d\s ]+\s€ \([+−]?\d+,\d%\)$/); }
     // 4.72: em cima, só o do período escolhido (em € e em %) e, por baixo, numa linha, o de cada grupo, sem repetir o
-    // período — hoje no 1D, a semana no 1S; no «Tudo», o ganho desde o início e sem a linha dos grupos
+    // período — hoje no 1D, a semana no 1S; no «Tudo», nada em cima (4.72.1: o ganho desde o início é o Total da tabela)
     {
         const sp = () => page.evaluate(() => { const e = document.querySelector('.pf .pf-b .pf-sp'); return e ? e.textContent.replace(/\s/g, ' ') : null; });
         const cab = () => page.evaluate(() => [...document.querySelectorAll('.pf .pf-st .pf-c')].map((c) => c.textContent.replace(/\s/g, ' ')));
@@ -1094,7 +1094,7 @@ function proxyBody(u) {
         assert.ok(await page.locator('.pf .pf-st').evaluate((e) => e.getBoundingClientRect().height < 26), 'numa linha');
         await page.click('.pf .pf-pe [data-per="all"]');
         await page.waitForFunction(() => !document.querySelector('.pf .pf-sp'), null, { timeout: 5000 });
-        assert.match((await cab()).join(' | '), /^Desde o início[+−][\d ]+,\d\d €[+−]?\d+,\d\d%$/, 'no Tudo, o ganho desde o início');
+        assert.deepEqual(await cab(), [], 'no Tudo, nada em cima: o ganho desde o início é o Total da tabela');
         await page.click('.pf .pf-pe [data-per="1d"]');
         await page.waitForFunction(() => { const s = document.querySelector('.pf .pf-st .pf-c small'); return s && s.textContent === 'Hoje'; }, null, { timeout: 5000 });
         console.log('✓ em cima, só o período escolhido e, por baixo, o de cada grupo:', c1[0], '|', await sp());
@@ -1111,7 +1111,7 @@ function proxyBody(u) {
     await page.waitForFunction(() => /^(desde \d\d\/\d\d\/\d{4}|há 1 ano)(investido)?agora$/.test((document.querySelector('.pf .pf-cap') || {}).textContent || ''));
     const capTudo = await page.locator('.pf .pf-cap').textContent();
     assert.equal(await page.evaluate(() => window.__mk.cfg.per), 'all');
-    assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), ['Desde o início'], 'Tudo: em cima, o ganho desde o início (4.72)');
+    assert.deepEqual(await page.locator('.pf .pf-st .pf-c small').allTextContents(), [], 'Tudo: nada em cima — o ganho desde o início é o Total da tabela (4.72.1)');
     assert.equal(await page.locator('.pf .pf-pe .seg.per button.on').textContent(), 'Tudo');
     assert.equal((await page.locator('.pf svg.pf-sv path.pf-l').getAttribute('d')).split('L').length, 60, 'a linha do valor desde o início: 60 pontos');
     assert.ok(await page.locator('.pf .pf-pe .seg.per').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && e.scrollWidth <= e.clientWidth + 1; }), 'os cinco botões cabem no ecrã');

@@ -141,6 +141,11 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## No «Tudo», sem repetir o Total (4.72.1)
+
+No «Tudo», o cartão da carteira já não diz em cima «Desde o início …»: é o Total da tabela, logo abaixo. Fica o gráfico
+desde a primeira compra e a tabela.
+
 ## Em cima, só o período escolhido (4.72.0)
 
 Em cima, no cartão da carteira, só o período escolhido, em € e em % (como na TR): «Hoje −105,24 € (−1,71%)» no 1D
