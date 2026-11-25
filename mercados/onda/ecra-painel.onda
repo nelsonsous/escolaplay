@@ -521,32 +521,26 @@
 : pn_eurs0 f>i x { ? >= x 0.0 P '+ { P 226 P 136 P 146 0 } _nu_moeda Ab x 0 $"EUR" }
 # uma linha da tabela da carteira: o nome (impresso antes), o investido, o valor e o ganho face ao investido (sem o
 # investido, só o valor)
-: pn_gx fffi>i v e d k {
+: pn_gx ff>i v e {
   `<span class="num">` Se > e 0.0 pn_eur0 e "</span>"
   `<span class="num">{ pn_eur0 v }</span>`
-  # o ganho, «−44 € (−1,5%)»; por baixo, pequeno, o do período escolhido no mesmo formato (k: 1 hoje, 2 1S, 3 1M, 4 1A;
-  # 0 no «Tudo», que é o próprio ganho) — 4.70: a % sobre o valor de antes (o de agora menos o que mexeu)
-  = vo - v d
-  `<span class="num pf-d2">`
-  Se > e 0.0 `<span class="{ ln_tom - v e }-t">{ pn_eurs0 - v e } ({ fm_pct1 * - / v e 1.0 100.0 })</span>`
-  Se k { `<small><i>` ? == k 1 "hoje" ? == k 2 "1S" ? == k 3 "1M" "1A" `</i> <span class="{ ln_tom d }-t">{ pn_eurs0 d }{ Se > vo 0.0 ` ({ fm_pct1 * / d vo 100.0 })` }</span></small>` }
-  "</span>"
+  ? > e 0.0 `<span class="num { ln_tom - v e }-t">{ pn_eurs0 - v e } ({ fm_pct1 * - / v e 1.0 100.0 })</span>` `<span class="num"></span>`
   0 }
 # o que um ativo mexeu hoje em euros: o da app (dh: as compras de hoje desde o preço pago), senão pela variação do dia
 : pn_dv if>f c val { = dh num c.dh = ch num c.ch ? fin dh dh ? && fin ch > ch -100.0 - val / val + 1.0 / ch 100.0 0.0 }
 # as linhas de um grupo da tabela (g: 0 os fundos e as ações, 1 a cripto; n os ativos dele, v e e as somas; so: quantos
 # tem o outro grupo). Com mais de um ativo e com o outro grupo, a linha da soma, que abre e fecha os ativos dele: fechada
 # por omissão, fica como o utilizador a deixou (es.foldPfc, es.foldPff)
-: pn_gtab iiiifffiii>i tb na g n v e d so dp k {
+: pn_gtab iiiiffi>i tb na g n v e so {
   = sub && > n 1 > so 0
   = ab ? g ha es.foldPfc ha es.foldPff
   Se sub {
     `<span class="pf-gr pf-gg` Se ab " on" `" data-act="pf-g" data-g="{ ? g "cripto" "fundos" }" role="button" aria-expanded="{ ? ab "true" "false" }"><b>`
-    ? g "Cripto" "Fundos e ações" `<i class="pf-sx"></i></b>` pn_gx v e d k "</span>" }
+    ? g "Cripto" "Fundos e ações" `<i class="pf-sx"></i></b>` pn_gx v e "</span>" }
   Se || ~ sub ab {
     L j na {
       = q cr_p tb j = c @ q
-      Se == g ? ha c.cr 1 0 { `<span class="pf-gr` Se sub " pf-ga" `"><b>{ esc c.nm 0 }</b>` pn_gx * @f + q 3 @f + q 4 @f + q 5 @f + dp j k "</span>" } } }
+      Se == g ? ha c.cr 1 0 { `<span class="pf-gr` Se sub " pf-ga" `"><b>{ esc c.nm 0 }</b>` pn_gx * @f + q 3 @f + q 4 @f + q 5 "</span>" } } }
   0 }
 # uma casa da linha de cima (k: 1 hoje, 2 o período escolhido): o nome, o valor em € (se houver) e a %
 : pn_casa iffi>i k x p temx {
@@ -601,17 +595,17 @@
       Se ~ ci { = lo vlo = hi vhi }
       = v0 @f ms = v1 @f + ms - kk 1 = pc ? > v0 0.0 * - / v1 v0 1.0 100.0 0.0
       = d1 || ~ ha es.per eh es.per $"1d"
-      # 4.70: na tabela, por baixo do ganho, o do período escolhido em cada linha: no 1D, o de hoje (pn_dv); no 1S, 1M e
-      # 1A, o ganho de agora menos o de então (as unidades e o investido desse instante: sem contar o dinheiro que entrou
-      # depois); no «Tudo» nada (é o próprio ganho)
+      # 4.70: o do período escolhido de cada ativo: no 1D, o de hoje (pn_dv); no 1S, 1M e 1A, o ganho de agora menos o de
+      # então (as unidades e o investido desse instante: sem contar o dinheiro que entrou depois); no «Tudo» nada (é o
+      # próprio ganho). Somado por grupo (d0 o resto, dc a cripto) e no total (dt); co, um ativo do resto (o nome curto)
       = kp ? tu 0 ? eh es.per $"1w" 2 ? eh es.per $"1m" 3 ? eh es.per $"1y" 4 1
-      = dpa A na = d0 0.0 = dc 0.0 = dt 0.0
+      = d0 0.0 = dc 0.0 = dt 0.0 = co 0
       L j na {
         = q cr_p tb j = c @ q = val * @f + q 3 @f + q 4
         = x ? == kp 1 pn_dv c val - - val @f + q 5 - * pn_ut q t0 pn_pxt q @ + sv j t0 pn_et q t0
         = x ? fin x x 0.0
-        !f + dpa j x = dt + dt x
-        ? ha c.cr { = dc + dc x } { = d0 + d0 x } }
+        = dt + dt x
+        ? ha c.cr { = dc + dc x } { = co c = d0 + d0 x } }
       # e a % do período, em cima (1S, 1M, 1A), a mesma do Total: a do ganho, sem contar o dinheiro que entrou depois
       Se > kp 1 { = pc ? > - vv dt 0.0 * / dt - vv dt 100.0 0.0 }
       `\n        <section class="sec pf"><div class="sec-h pf-h"><h2>A minha carteira</h2><span class="pf-v num">{ pn_eurf vv }</span></div>`
@@ -625,6 +619,13 @@
       Se ha p.fech `<small class="pf-fech">bolsa fechada</small>`
       Se && ~ d1 ~ tu pn_casa 2 pc pc 0
       "</span>"
+      # 4.71: numa linha, o do período escolhido de cada grupo — «FTSE −18 € (−0,6%) · Cripto −91 € (−2,8%)» (fora do 1D,
+      # com o período à frente: «1 semana: …»); só com os dois grupos, e nada no «Tudo» (está no ganho da tabela)
+      Se && kp && nn nc {
+        `<span class="pf-sp">`
+        Se > kp 1 { pn_perlbl es.per ": " }
+        `<b>{ ? == nn 1 ? ha co.cu esc co.cu esc co.nm "Fundos" }</b> <span class="{ ln_tom d0 }-t">{ pn_eurs0 d0 }{ Se > - vo d0 0.0 ` ({ fm_pct1 * / d0 - vo d0 100.0 })` }</span>`
+        ` · <b>Cripto</b> <span class="{ ln_tom dc }-t">{ pn_eurs0 dc }{ Se > - vc dc 0.0 ` ({ fm_pct1 * / dc - vc dc 100.0 })` }</span></span>` }
       # 4.60: a abertura estimada da bolsa (o gémeo e os futuros), à vista: a mesma da linha de cada fundo, e em euros
       Se ha p.abL `<span class="pf-abre { ? >= num p.abP 0.0 "up-t" "down-t" }">{ esc p.abL }</span>`
       # o gráfico do período: o valor e o investido a tracejado
@@ -641,9 +642,9 @@
       # a tabela da carteira, fora do botão: o investido, o valor e o ganho de cada ativo — os fundos e as ações, depois a
       # cripto (um grupo com mais de um ativo, e com o outro grupo, leva a linha da soma, que o abre e fecha) — e o total
       `<div class="pf-gs"><span class="pf-gh"><b></b><span>Investido</span><span>Vale</span><span>Ganho</span></span>`
-      pn_gtab tb na 0 nn vo eo d0 nc dpa kp
-      pn_gtab tb na 1 nc vc ec dc nn dpa kp
-      Se > na 1 { `<span class="pf-gr pf-gt"><b>Total</b>` pn_gx vv ee dt kp "</span>" }
+      pn_gtab tb na 0 nn vo eo nc
+      pn_gtab tb na 1 nc vc ec nn
+      Se > na 1 { `<span class="pf-gr pf-gt"><b>Total</b>` pn_gx vv ee "</span>" }
       "</div></div></section>"
       = r 1 } }
   r }

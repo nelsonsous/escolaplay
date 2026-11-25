@@ -514,9 +514,10 @@ a.st-row { text-decoration: none; color: inherit; }
 .pf .pf-gg.on .pf-sx::after { transform: rotate(90deg); }
 .pf .pf-gr b { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf .pf-gr .num { text-align: right; white-space: nowrap; }
-/* 4.69.1: por baixo do ganho, pequeno, o de hoje no mesmo formato («hoje −18 € (−0,6%)») */
-.pf .pf-gr .pf-d2 small { display: block; margin-top: 1px; font-size: .8em; line-height: 1.15; font-weight: 600; }
-.pf .pf-gr .pf-d2 small i { font-style: normal; font-weight: 500; color: var(--muted); }
+/* 4.71: em cima, numa linha, o do período de cada grupo («FTSE −18 € (−0,6%) · Cripto −91 € (−2,8%)») */
+.pf .pf-sp { display: block; margin-top: 3px; font-size: calc(.8rem * var(--k)); color: var(--muted); }
+.pf .pf-sp b { font-weight: 600; color: var(--text); }
+.pf .pf-sp span { font-weight: 600; white-space: nowrap; }
 .pf .pf-grs { display: block; margin-top: 6px; }
 .pf .pf-gl { display: block; padding: 2px 0; color: var(--muted); font-size: calc(.8rem * var(--k)); }
 .pf .pf-gl b { color: var(--text); font-weight: 650; }
