@@ -59,6 +59,24 @@ test('parseChart: a sessão da bolsa e o fuso (1.18.0)', () => {
     assert.deepEqual([q2.sess, q2.tz, q2.open], [null, null, null], 'sem a sessão do Yahoo');
 });
 
+test('parseChart: a sessão de Lisboa uma hora mais cedo do que a do Yahoo (1.18.1)', () => {
+    const c = chart('BCP.LS', 1.05, 1.03), m = c.chart.result[0].meta;
+    m.exchangeTimezoneName = 'Europe/Lisbon';
+    // 26/11/2026: o Yahoo dá 09:00–17:30 UTC (a hora de Lisboa no inverno); a Euronext Lisboa negoceia das 08:00 às 16:30
+    const s = Date.UTC(2026, 10, 26, 9, 0) / 1000, e = Date.UTC(2026, 10, 26, 17, 30) / 1000;
+    m.currentTradingPeriod = { regular: { start: s, end: e } };
+    assert.deepEqual(parseChart(c, '1d').sess, [s - 3600, e - 3600]);
+    // no verão (Lisboa = UTC+1), o mesmo: 09:00–17:30 de Lisboa passa a 08:00–16:30
+    const s2 = Date.UTC(2026, 6, 1, 8, 0) / 1000, e2 = Date.UTC(2026, 6, 1, 16, 30) / 1000;
+    m.currentTradingPeriod = { regular: { start: s2, end: e2 } };
+    assert.deepEqual(parseChart(c, '1d').sess, [s2 - 3600, e2 - 3600]);
+    // já certa (08:00–16:30), fica; e as outras bolsas também
+    m.currentTradingPeriod = { regular: { start: s - 3600, end: e - 3600 } };
+    assert.deepEqual(parseChart(c, '1d').sess, [s - 3600, e - 3600]);
+    m.exchangeTimezoneName = 'Europe/Paris'; m.currentTradingPeriod = { regular: { start: s, end: e } };
+    assert.deepEqual(parseChart(c, '1d').sess, [s, e]);
+});
+
 test('/quotes devolve várias cotações e erros por símbolo', async () => {
     const calls = mockFetch((u) => {
         if (u.includes('/v8/finance/chart/BAD')) return res({ chart: { result: null, error: { description: 'Not Found' } } }, 404);
