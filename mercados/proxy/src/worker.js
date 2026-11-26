@@ -38,7 +38,7 @@
 import { journalRows, walletRows, cleanCarteira, runD1, copyAdvice, readHistory } from './historico.js';
 import { pdfTexto, parseFuturo, FUT_ANOS, FUT_REND, FUT_INI } from './futuro.js';
 
-const VERSION = '1.18.0';
+const VERSION = '1.18.1';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36';
 const MAX_SYMBOLS = 40;
 const YH = ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com'];
@@ -100,6 +100,9 @@ async function yahoo(path, init, orc) {
 const round = (x) => (x == null || !Number.isFinite(x)) ? null : Number(x.toPrecision(7));
 
 // ---------- /quotes ----------
+// a hora (hh:mm) de um instante num fuso
+const horaEm = (tz, s) => new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(s * 1000);
+
 export function parseChart(data, range, adj) {
     const res = data && data.chart && data.chart.result && data.chart.result[0];
     if (!res) throw new Error((data && data.chart && data.chart.error && data.chart.error.description) || 'sem dados');
@@ -119,7 +122,11 @@ export function parseChart(data, range, adj) {
     if (range === '1d') prev = m.chartPreviousClose ?? m.previousClose ?? null;
     else if (RANGES[range] && RANGES[range].interval === '1d' && series.length > 1) prev = series[series.length - 2][1];
     else prev = m.previousClose ?? null;
-    const reg = m.currentTradingPeriod && m.currentTradingPeriod.regular;
+    let reg = m.currentTradingPeriod && m.currentTradingPeriod.regular;
+    // 1.18.1: o Yahoo dá a sessão de Lisboa uma hora atrasada — 09:00–17:30 da hora de Lisboa (o horário de Paris com o fuso
+    // de Lisboa); a Euronext Lisboa negoceia das 08:00 às 16:30 de Lisboa (a «aberta até 18:30» na app, às 17:10 de Paris)
+    if (reg && m.exchangeTimezoneName === 'Europe/Lisbon' && Number.isFinite(reg.start) && Number.isFinite(reg.end)
+        && horaEm('Europe/Lisbon', reg.start) === '09:00' && horaEm('Europe/Lisbon', reg.end) === '17:30') reg = { ...reg, start: reg.start - 3600, end: reg.end - 3600 };
     const now = Date.now() / 1000;
     return {
         symbol: m.symbol,

@@ -42,7 +42,7 @@ Opcional: para só aceitar pedidos vindos da app, descomenta `ALLOWED_ORIGINS` n
 
 | Pedido | Devolve | Cache no CDN |
 |---|---|---|
-| `/quotes?symbols=BZ=F,AAPL&range=1d` | cotação, variação, máx./mín., série e a sessão da bolsa com o fuso (1.18.0) (até 40 símbolos; `range` = 1d, 5d, 1mo, 6mo, 1y, 5y) | 15 s a 1 h |
+| `/quotes?symbols=BZ=F,AAPL&range=1d` | cotação, variação, máx./mín., série e a sessão da bolsa com o fuso (1.18.0; a de Lisboa acertada em 1.18.1) (até 40 símbolos; `range` = 1d, 5d, 1mo, 6mo, 1y, 5y) | 15 s a 1 h |
 | `/news?q=Galp&lang=pt&sym=GALP.LS` | notícias dos últimos 3 dias (Google; Bing quando o Google recusa; Yahoo pelo símbolo) | 10 min |
 | `/movers` | maiores subidas, descidas e mais negociadas nos EUA | 2 min |
 | `/calendar?symbols=NVDA,EDP.LS` | próximos resultados e datas de dividendo (Yahoo) | 6 h |
@@ -140,6 +140,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
 - `node mercados/proxy/recuperar-historico.mjs` copia o que ainda está no KV (a 16/11: 13 conselhos desde 05/11 e o diário
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
+
+## A sessão de Lisboa (conector 1.18.1)
+
+O Yahoo dá a sessão da Euronext Lisboa uma hora atrasada (das 09:00 às 17:30 da hora de Lisboa — o horário de Paris com o
+fuso de Lisboa): o PSI e o BCP diziam «aberta até 18:30» (da hora de Paris) e, das 16:30 às 17:30 de Lisboa, «aberta» com
+a bolsa já fechada. O conector acerta-a para as 08:00–16:30 de Lisboa (e o «aberta» com ela).
 
 ## A variação de hoje face ao fim de ontem (4.73.3)
 

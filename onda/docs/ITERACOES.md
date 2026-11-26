@@ -3921,3 +3921,17 @@ cartão é o da sessão do FTSE.
 - Com um pedido preso, voltar à app traz as cotações logo.
 - A ficha diz «ontem».
 
+## Iteração (conector Mercados 1.18.1): a sessão de Lisboa
+
+**Pedido.** «Hoje a bolsa americana está fechada?» — sim: a 26/11 é o Dia de Ação de Graças, a app dizia certo «abre
+amanhã às 15:30». No mesmo ecrã, às 17:10 (hora de Paris), o PSI e o BCP diziam «aberta até 18:30».
+
+**Visto.** O Yahoo dá a sessão da Euronext Lisboa das 09:00 às 17:30 UTC (= da hora de Lisboa no inverno): o horário de
+Paris com o fuso de Lisboa. A Euronext Lisboa negoceia das 08:00 às 16:30 de Lisboa (= 09:00–17:30 de Paris).
+
+**Feito.** No conector, a sessão de Lisboa que venha às 09:00–17:30 da hora de Lisboa passa às 08:00–16:30, e o «aberta»
+(open) é contado com ela. Já certa, ou de outra bolsa, fica.
+
+**Verificado.** Testes do conector: 09:00–17:30 de Lisboa passa a 08:00–16:30, no inverno e no verão; já certa, fica; a de
+Paris não mexe. Publicado e conferido no /health e no /quotes do BCP.LS.
+
