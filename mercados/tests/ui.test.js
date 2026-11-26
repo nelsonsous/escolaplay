@@ -909,6 +909,22 @@ function proxyBody(u) {
         const eurS = (x) => (x >= 0 ? '+' : '−') + new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Math.abs(x));
         assert.equal(r.txt.replace(/\s/g, ' '), eurS(r.h).replace(/\s/g, ' '), 'o «Hoje» é a soma do que mexeu hoje');
         assert.equal(r.dia, ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'][new Date(t3 * 1000).getDay()], 'a linha diz o dia');
+        // 4.73.2: o rótulo do cartão segue a sessão (como a linha do ativo): «bolsa fechada» com ela fechada, «ainda sem
+        // negócios hoje» com ela aberta
+        const fx = await page.evaluate(() => { const mk = window.__mk, se = mk.sessaoDe(mk.qv('VWCE.DE')); return { txt: document.querySelector('.pf .pf-fech').textContent, on: !!(se && se.on), snap: mk.pfSnap().fechTxt }; });
+        assert.equal(fx.txt, fx.on ? 'ainda sem negócios hoje' : 'bolsa fechada', 'o rótulo segue a sessão: ' + JSON.stringify(fx));
+        assert.equal(fx.snap, fx.txt);
+        // 4.73.2: com o último preço de ontem, a linha não repete «ontem» (o dia da variação e a hora do último preço)
+        const rot = await page.evaluate(() => {
+            const mk = window.__mk, d = new Date(); d.setHours(0, 0, 0, 0); const t = Math.floor(d.getTime() / 1000) - 6 * 3600;
+            for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) mk.Q[s].time = t;
+            mk.render();
+            const row = document.querySelector('.row[data-key="VWCE.DE"]');
+            return [...row.querySelectorAll('.r-t, .chg-dia')].map((e) => e.textContent);
+        });
+        assert.equal(rot.filter((x) => x === 'ontem').length, 1, '«ontem» uma vez: ' + JSON.stringify(rot));
+        assert.equal(new Set(rot).size, rot.length, 'sem rótulos repetidos: ' + JSON.stringify(rot));
+        await page.evaluate((t) => { const mk = window.__mk; for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) mk.Q[s].time = t; mk.render(); }, t3);
         // com o preço de agora (a bolsa aberta), volta a contar no «Hoje», sem «bolsa fechada» nem o dia na linha
         await page.evaluate(() => { const mk = window.__mk, t = Math.floor(Date.now() / 1000); for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) mk.Q[s].time = t; mk.render(); });
         await page.waitForFunction(() => !document.querySelector('.pf .pf-fech'), null, { timeout: 3000 });

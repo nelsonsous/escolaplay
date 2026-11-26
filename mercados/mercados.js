@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.73.1';
+    const VERSION = '4.73.2';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1456,9 +1456,12 @@
         loadLong(comp);
         const ti = pfInicio();
         // 4.56: o «Hoje» conta só o que mexeu hoje (a bolsa fechada não mexeu: a variação do último dia fica na linha do ativo)
-        const fech = keys.some((k) => REG[k].kind !== 'crypto' && posOf(k).q > 0 && !mexeuHoje(k, qv(k))) ? 1 : 0;
+        // 4.73.2: «bolsa fechada» só com ela fechada; aberta e ainda sem negócios hoje (de manhã cedo, com os dados atrasados
+        // 15 min, ou nos segundos de voltar à app), «ainda sem negócios hoje» — como a linha do ativo diz «aberta até …»
+        const parados = keys.filter((k) => REG[k].kind !== 'crypto' && posOf(k).q > 0 && !mexeuHoje(k, qv(k)));
+        const fech = parados.length ? 1 : 0, fechTxt = parados.some((k) => { const se = sessaoDe(qv(k)); return !!(se && se.on); }) ? 'ainda sem negócios hoje' : 'bolsa fechada';
         // 4.61.1: sem a abertura estimada no cartão (4.60): já está na linha de cada ativo («abre ≈ +0,4%»)
-        return { now: now() / 1000, t0: ti, fech, dl: ti ? dmy(new Date(ti * 1000).toISOString().slice(0, 10)) : '', ativos: keys.map((k) => {
+        return { now: now() / 1000, t0: ti, fech, fechTxt, dl: ti ? dmy(new Date(ti * 1000).toISOString().slice(0, 10)) : '', ativos: keys.map((k) => {
             const P = posOf(k), q = qv(k), f = fxPara(q), pd = perData(k, cfg.per);
             // o nome curto (o símbolo na cripto; sem a moeda, o «(Acc)» e o «UCITS ETF» nos fundos)
             const nm = REG[k].kind === 'crypto' ? REG[k].sym : nameOf(k).replace(/\s*\(.*\)\s*$/, '').replace(/\s+(USD|EUR|UCITS|ETF|Acc|Dist)\b.*$/i, '').trim() || k;
@@ -2134,11 +2137,14 @@
                 const a = REG[k], q = qv(k), r = AN[k], h = r && r.horizons, d = r && r.discount, ad = r && r.advice;
                 // sem o Claude, a etiqueta dos meus ativos é a da decisão consolidada (a mesma da ficha)
                 const my = mine.includes(k), cl = my ? claudeFor(k) : null, dec = my && !cl && ad ? decOf(k) : null, tg = pxTag(k, q);
+                // 4.56: no 1D, a variação de um dia que não é hoje leva o dia; 4.73.2: e a hora do último preço não o repete
+                // (com o último preço de ontem, «ontem» uma vez só)
+                const dia = perA() === '1d' && fin(+q.time) && !mexeuHoje(k, q) ? diaDe(+q.time) : '';
                 return { k, kind: a.kind, temp: a.temp, sym: a.sym, name: nameOf(k), unit: a.unit, dec: a.decimals, pts: a.points,
-                    px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k, perA()).pct, t: tg.t, tt: tg.tt,
+                    px: q.price, cur: q.currency, qc: Q[k] && Q[k].currency, chg: q.changePct, pc: perData(k, perA()).pct, t: dia && tg.t === dia ? '' : tg.t, tt: tg.tt,
                     // 4.61: a sessão (fora a cripto): aberta até quando, ou quando abre
                     ...(() => { const se = a.kind === 'crypto' ? null : sessaoDe(q); return { ses: sesTxt(se), on: se && se.on ? 1 : 0 }; })(),
-                    dia: perA() === '1d' && fin(+q.time) && !mexeuHoje(k, q) ? diaDe(+q.time) : '',
+                    dia,
                     pl: a.perLitre && Q[k] ? A.usdGalToEurL(Q[k].price, eu) : undefined, mkt: mktOf(k), nr: rank ? rank.get(nameOf(k)) : undefined,
                     an: r ? { d: d ? { dd: d.dd, score: d.score } : d, adv: ad ? { key: ad.key, action: ad.action } : ad, L: h ? (h.long || h.mid || {}).score : undefined } : r,
                     cl: cl ? { key: cl.key, action: cl.action } : cl, dk: dec ? dec.key : undefined, tax: my && a.kind === 'crypto' ? taxLine(k) : undefined };

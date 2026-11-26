@@ -141,6 +141,13 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## «Ontem» uma vez e a bolsa aberta sem negócios (4.73.2)
+
+Com o último preço de ontem, a linha do ativo dizia «ontem» duas vezes (o dia da variação e a hora do último preço): fica
+uma. E o cartão da carteira só diz «bolsa fechada» com ela fechada; aberta e ainda sem negócios hoje (de manhã cedo, com
+os dados atrasados 15 minutos, ou nos segundos de voltar à app), diz «ainda sem negócios hoje» — como a linha do ativo,
+que diz «aberta até …».
+
 ## A variação do dia antes de a Xetra abrir (4.73.1)
 
 Antes de a Xetra abrir (às 8 h de Portugal), o preço do FTSE vem de Munique (gettex), e a variação do dia era contada

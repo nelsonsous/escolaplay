@@ -3876,3 +3876,20 @@ app, o último negócio em Munique, que de manhã cedo pode ter meia hora.
 **Verificado.** Interface: antes de a Xetra abrir, a variação é face ao fecho de ontem (161,90 face a 162,50); com a Xetra
 aberta hoje, face ao fecho anterior dela (como antes).
 
+## Iteração (Mercados 4.73.2): «ontem» uma vez e a bolsa aberta sem negócios
+
+**Pedido.** «Diz duas vezes ontem mas está a 0?» — às 10:40, com os dados das ações das 08:10 (a app acabada de abrir), a
+linha do FTSE dizia «+0,27% ontem ontem», e o cartão «bolsa fechada» e «FTSE +0 € (0,0%)», com a linha a dizer «aberta
+até 22:00».
+
+**Visto.** O primeiro «ontem» é o dia da variação (4.56); o segundo, a hora do último preço, que com um preço de ontem diz
+«ontem». O 0 do FTSE é certo para os dados que havia (das 08:10, sem negócios de hoje: com os dados atrasados 15 minutos,
+o primeiro negócio na Xetra só aparece depois das 08:15); ao voltar à app, os preços vêm logo. O «bolsa fechada» é que
+não: a bolsa estava aberta.
+
+**Feito.** A hora do último preço não aparece quando repete o dia da variação. O rótulo do cartão segue a sessão: «bolsa
+fechada» com ela fechada, «ainda sem negócios hoje» com ela aberta.
+
+**Verificado.** Interface: com o último preço de ontem, «ontem» uma vez só e nenhum rótulo repetido na linha; o rótulo do
+cartão é o da sessão do FTSE.
+

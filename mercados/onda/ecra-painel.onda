@@ -616,7 +616,7 @@
       # que mexeu, e diz «bolsa fechada»); «1 semana», «1 mês», «1 ano» (o ganho de agora menos o de então). 4.72.1: no
       # «Tudo», nada — o ganho desde o início é o Total da tabela, logo abaixo
       = dp ? > - vv dd 0.0 * / dd - vv dd 100.0 0.0
-      Se == kp 1 { pn_casa 1 dd dp 1 Se ha p.fech `<small class="pf-fech">bolsa fechada</small>` }
+      Se == kp 1 { pn_casa 1 dd dp 1 Se ha p.fech `<small class="pf-fech">{ ? ha p.fechTxt esc p.fechTxt "bolsa fechada" }</small>` }
       Se > kp 1 pn_casa 2 dt pc 1
       "</span>"
       # 4.71: por baixo, numa linha, o mesmo período de cada grupo — «FTSE −18 € (−0,6%) · Cripto −91 € (−2,8%)»; só com
