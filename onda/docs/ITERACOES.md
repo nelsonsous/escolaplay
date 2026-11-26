@@ -3893,3 +3893,31 @@ fechada» com ela fechada, «ainda sem negócios hoje» com ela aberta.
 **Verificado.** Interface: com o último preço de ontem, «ontem» uma vez só e nenhum rótulo repetido na linha; o rótulo do
 cartão é o da sessão do FTSE.
 
+## Iteração (Mercados 4.73.3): a variação de hoje face ao fim de ontem
+
+**Pedido.** A ficha do FTSE às 10:41 (de Berlim), sem texto: «Último preço de ontem às 21:46», «mercado aberto», +0,27%
+«hoje», e o gráfico de 1D a descer até 158,48 €.
+
+**Visto.**
+- **Os preços parados:** o conector já tinha os de hoje (163,16 € na Xetra às 09:33 UTC). A app não os pedia desde as 07:10
+  UTC: ao voltar, o pedido novo era recusado enquanto um de antes (congelado pelo iPhone com a app em segundo plano) não
+  desistisse (até 30 s).
+- **A variação de hoje:** a 25/11 a Xetra fechou a 158,72 € (o gráfico) e Düsseldorf acabou a 162,32 € às 21:46 (o S&P 500
+  subiu à noite). Com os preços de hoje, a app ia comparar com o fecho da Xetra: +2,8%, com a subida da noite a contar duas
+  vezes; a TR, face ao fim do dia: ≈ +0,5%.
+- **A ficha:** dizia «hoje» na variação de ontem.
+
+**Feito.**
+- **O fecho da véspera:** a app guarda o último preço que mostrou em cada dia (de qualquer praça; ULT e VESP, no
+  `mercados:ult`). Com o preço de hoje, a variação é face ao último preço mostrado no dia útil anterior, se for depois do
+  fecho da Xetra; senão, face ao fecho da Xetra, como antes.
+- **Ao voltar à app:** um pedido das cotações a correr há mais de 10 s não trava o novo; o antigo, se chegar, já não conta.
+- **A ficha:** a variação de um dia que não é hoje leva o dia («ontem»).
+
+**Verificado.** Interface:
+- Com a Xetra aberta e a memória das 21:46 de ontem: face a 162,32 (e não a 158,72). De manhã, antes de a Xetra abrir: face
+  a 162,32. Sem memória, ou com a de antes das 17:30: face ao fecho da Xetra.
+- A memória muda de dia ao chegar o primeiro preço de hoje.
+- Com um pedido preso, voltar à app traz as cotações logo.
+- A ficha diz «ontem».
+
