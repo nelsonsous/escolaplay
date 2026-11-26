@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.73.2';
+    const VERSION = '4.73.3';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -130,6 +130,11 @@
         get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
         set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } },
     };
+    // 4.73.3: o último preço que a app mostrou em cada dia (de qualquer praça), dos fundos com várias praças: ULT o do dia
+    // mais recente, VESP o do dia antes desse — para a variação de hoje ser face ao fim de ontem, como na TR, e não ao fecho
+    // da Xetra às 17:30 (à noite, Düsseldorf e Munique negoceiam até às 22 h)
+    const ULTK = 'mercados:ult', ULT0 = store.get(ULTK) || {};
+    const ULT = ULT0.u && typeof ULT0.u === 'object' ? ULT0.u : {}, VESP = ULT0.v && typeof ULT0.v === 'object' ? ULT0.v : {};
     const cfg = { ...DEFAULTS, ...(store.get(KEY) || {}) };
     if (!Array.isArray(cfg.watch)) cfg.watch = DEFAULT_WATCH.slice();
     if (!Array.isArray(cfg.funds)) cfg.funds = DEFAULT_FUNDS.slice();
@@ -265,6 +270,8 @@
         return Object.fromEntries(f.formatToParts(s * 1000).map((x) => [x.type, x.value]));
     };
     // 4.73.1: o dia (aaaa-mm-dd) de um instante num fuso (por omissão, o da Xetra)
+    // 4.73.3: o dia útil antes de um dia (aaaa-mm-dd): à segunda, a sexta
+    const diaUtilAntes = (d) => { const x = new Date(d + 'T12:00:00Z'); do x.setUTCDate(x.getUTCDate() - 1); while (x.getUTCDay() === 0 || x.getUTCDay() === 6); return x.toISOString().slice(0, 10); };
     const diaEm = (tz, s) => { const p = tzParts(tz || 'Europe/Berlin', s); return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`; };
     const tzOff = (tz, s) => { const p = tzParts(tz, s); return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - s * 1000) / 1000; };
     // os futuros (CME Globex): de domingo às 18 h a sexta às 17 h de Nova Iorque, com a pausa das 17 h às 18 h (o Yahoo dá o
@@ -302,6 +309,34 @@
     // mais recente — e o gráfico ficava em branco)
     const vivaComSerie = (a, q0) => [].concat((a && a.live) || []).map((s) => Q[s]).filter((x) => x && Array.isArray(x.series) && x.series.length && (x.currency || q0.currency) === q0.currency)
         .sort((x, y) => y.series[y.series.length - 1][0] - x.series[x.series.length - 1][0])[0];
+    // 4.73.3: o fecho da véspera para a variação de hoje (o preço mostrado é de hoje): o último preço que a app mostrou no
+    // dia útil anterior, de qualquer praça, se for depois do fecho da Xetra (25/11: a Xetra fechou a 158,72 € às 17:30 e
+    // Düsseldorf acabou a 162,32 € às 21:46 — sem isto, a subida da noite contava outra vez no dia seguinte); senão, o fecho da
+    // Xetra (o último preço dela, se ainda não negociou hoje; senão o «fecho anterior» dela)
+    function vesperaDe(k, q0, tHoje) {
+        const tz = q0.tz || 'Europe/Berlin', dHoje = diaEm(tz, tHoje), xHoje = !!q0.time && diaEm(tz, q0.time) === dHoje;
+        const xp = xHoje ? q0.prevClose : q0.price, u = ULT[k], v = VESP[k];
+        // a memória do dia mais recente antes de hoje: o ULT, se ainda não se guardou nada de hoje; senão o VESP
+        const m = u && u.d < dHoje ? u : v && v.d < dHoje ? v : null;
+        if (m && fin(m.p) && m.p > 0 && fin(m.t)) {
+            if (!xHoje) { if (q0.time && m.t >= q0.time && m.d === diaEm(tz, q0.time)) return m.p; }
+            else { const p = tzParts(tz, m.t); if (m.d === diaUtilAntes(dHoje) && (+p.hour % 24) * 60 + +p.minute >= 17 * 60 + 30) return m.p; }
+        }
+        return fin(xp) ? xp : null;
+    }
+    // guarda o último preço mostrado de cada dia (no ULT e, ao mudar de dia, o anterior no VESP); diz se mudou
+    function notaUlt(k) {
+        const a = REG[k], q0 = Q[k];
+        if (!a || !a.live || !q0 || !fin(q0.price)) return false;
+        let t = q0.time || 0, p = q0.price;
+        for (const s of [].concat(a.live)) { const q = Q[s]; if (q && fin(q.price) && (q.currency || q0.currency) === q0.currency && (q.time || 0) > t) { t = q.time; p = q.price; } }
+        if (!t) return false;
+        const d = diaEm(q0.tz, t), u = ULT[k];
+        if (u && (d < u.d || (d === u.d && t <= u.t))) return false;
+        if (u && d > u.d) VESP[k] = u;
+        ULT[k] = { d, t, p };
+        return true;
+    }
     function liveOf(k) {
         const a = REG[k], q0 = Q[k];
         let best = null;
@@ -325,9 +360,15 @@
             // 4.73.1: antes de a Xetra abrir (o último preço dela é de um dia anterior ao do negócio em Munique), esse fecho é o
             // último preço da Xetra — o «fecho anterior» dela é então o de anteontem (às 07:39: −1,90% em vez de −0,37%)
             const antes = fin(q0.price) && q0.time && diaEm(q0.tz, q0.time) < diaEm(q0.tz, lv.time);
-            const pcl = antes ? q0.price : fin(q0.prevClose) ? q0.prevClose : lv.prevClose;
+            // 4.73.3: com o preço de hoje, face ao fim de ontem (o último preço mostrado ontem, se for depois do fecho da Xetra)
+            const vh = lv.time && diaEm(q0.tz, lv.time) === diaEm(q0.tz, now() / 1000) ? vesperaDe(k, q0, lv.time) : null;
+            const pcl = fin(vh) ? vh : antes ? q0.price : fin(q0.prevClose) ? q0.prevClose : lv.prevClose;
             q = { ...q0, price: lv.price, time: lv.time, open: lv.open, sess: lv.sess || q0.sess, tz: lv.tz || q0.tz, series, venue: VENUE[lv.sym.split('.').pop()] || lv.sym, prevClose: pcl,
                 change: fin(pcl) ? lv.price - pcl : null, changePct: fin(pcl) ? (lv.price / pcl - 1) * 100 : q0.changePct };
+        } else if (a.live && fin(q0.price) && q0.time && diaEm(q0.tz, q0.time) === diaEm(q0.tz, now() / 1000)) {
+            // 4.73.3: a Xetra já negociou hoje e é o preço mais recente: a variação também face ao fim de ontem
+            const vh = vesperaDe(k, q0, q0.time);
+            if (fin(vh) && vh > 0 && vh !== q0.prevClose) q = { ...q0, prevClose: vh, change: q0.price - vh, changePct: (q0.price / vh - 1) * 100 };
         }
         if (!cfg.eur || !q.currency || q.currency === 'EUR') return q;
         const f = fxFactor(q.currency), fp = fxFactor(q.currency, true);
@@ -844,12 +885,16 @@
         return res.flatMap((r) => r.quotes || []);
     }
 
-    let pollBusy = false;
-    async function pollYahoo() {
-        if (!cfg.proxy || pollBusy) return;
-        pollBusy = true;
+    let pollBusy = false, pollId = 0;
+    // 4.73.3: ao voltar à app (forca), um pedido de antes ainda a correr há mais de 10 s — o iPhone congela-o com a app em
+    // segundo plano — não trava o de agora: faz-se outro, e o antigo, se chegar, já não conta
+    async function pollYahoo(forca) {
+        if (!cfg.proxy || (pollBusy && !(forca && now() - (st.pollT0 || 0) > 10000))) return;
+        pollBusy = true; st.pollT0 = now();
+        const id = ++pollId;
         try {
             const list = await quotesBatch(yahooKeys(), '1d');
+            if (id !== pollId) return;
             let ok = 0;
             for (const q of list) {
                 if (q.error || !fin(q.price)) continue;
@@ -866,6 +911,10 @@
             }
             if (!ok) throw new Error('O conector não devolveu cotações');
             st.yahooAt = now(); st.yahooErr = '';
+            // 4.73.3: o último preço mostrado de cada dia (para o fecho da véspera)
+            let mu = false;
+            for (const k of Object.keys(REG)) if (notaUlt(k)) mu = true;
+            if (mu) store.set(ULTK, { u: ULT, v: VESP });
             pjResolve();
             const nfx = fxNeeded.size;
             for (const k of Object.keys(REG)) { const c = isHolding(k) && Q[k] && Q[k].currency; if (c && c !== 'EUR') fxNeeded.add(c === 'GBp' || c === 'GBX' ? 'GBP' : c); }
@@ -873,10 +922,9 @@
             checkAlerts();
             saveSnap();
         } catch (e) {
-            st.yahooErr = e.message || String(e);
+            if (id === pollId) st.yahooErr = e.message || String(e);
         } finally {
-            pollBusy = false;
-            scheduleRender();
+            if (id === pollId) { pollBusy = false; st.pollT0 = 0; scheduleRender(); }
         }
     }
 
@@ -2958,7 +3006,8 @@
         const el = $('#d-px'); if (!el) return;
         const eurusd = Q['EURUSD=X'] && Q['EURUSD=X'].price;
         const l = a.perLitre ? A.usdGalToEurL(q.price, eurusd) : null;
-        let pct = q.changePct, diff = q.change, lbl = a.kind === 'crypto' ? '24 h' : 'hoje';
+        // 4.73.3: a variação de um dia que não é hoje leva o dia («ontem»), como na linha do Painel
+        let pct = q.changePct, diff = q.change, lbl = a.kind === 'crypto' ? '24 h' : fin(+q.time) && !mexeuHoje(k, q) ? diaDe(+q.time) : 'hoje';
         if (sheetRange !== '1d' && sheetPts && sheetPts.length > 1 && fin(q.price)) {
             const f = q.fx || 1;
             const first = sheetPts[0][1] * f;
@@ -3722,7 +3771,7 @@
         yTimer = setInterval(() => { if (!document.hidden) { pollYahoo(); if (!cfg.proxy) checkAlerts(); } }, 30000);
     }
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) { pollYahoo(); if (!ws) startWS(); renderStatus(); }
+        if (!document.hidden) { pollYahoo(true); if (!ws) startWS(); renderStatus(); }
     });
     setInterval(renderStatus, 5000);
     setInterval(() => { if (!document.hidden) { analyseAll(); if (cfg.tab === 'analise') scheduleRender(); } }, 60000);
@@ -3830,6 +3879,7 @@
         sleep(2500).then(() => { if (st.ws !== 'on' && !st.cryptoAt) cryptoREST(); });
         loadCryptoSeries();
         loadDaily(); // ao mesmo tempo que os preços: a análise não espera por eles
+        for (const k of Object.keys(REG)) notaUlt(k); // (o que ficou da última vez)
         if (cfg.proxy) { loadClaude(); await pollYahoo(); loadExt(true); loadFuel(); loadCalendar(); if (cfg.tab === 'destaques') loadMovers(); }
         schedule();
     }
@@ -3851,7 +3901,7 @@
     }
 
     // para os testes
-    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, haptic, qv, pprAtivos, pfSnap, baseVisivel, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
+    window.__mk = { cfg, Q, D, AN, NEWS, st, REG, render, haptic, qv, ULT, VESP, notaUlt, diaEm, diaUtilAntes, pollYahoo, pprAtivos, pfSnap, baseVisivel, horaPP, feitoPP, futurosSnap, sessaoDe, sesTxt, analyseAll, checkAlerts, mergeDay, PS, version: VERSION, get journal() { return JOURNAL; }, get bt() { return BT; },
         // a paridade dos Ajustes (JS e Onda, mesmo HTML): as duas vistas, o instantâneo e o estado que leem
         viewSettings, settingsSnap, settingsHtml, MUNIC, get distritos() { return DISTRITOS; }, set distritos(v) { DISTRITOS = v; }, get stats() { return STATS; }, set stats(v) { STATS = v; },
         // a Análise (só em Onda: o instantâneo e o desenho), o ícone das linhas e a formatação dos números (os das vistas

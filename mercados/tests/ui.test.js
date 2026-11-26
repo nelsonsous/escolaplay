@@ -924,6 +924,12 @@ function proxyBody(u) {
         });
         assert.equal(rot.filter((x) => x === 'ontem').length, 1, '«ontem» uma vez: ' + JSON.stringify(rot));
         assert.equal(new Set(rot).size, rot.length, 'sem rótulos repetidos: ' + JSON.stringify(rot));
+        // 4.73.3: e a ficha diz «ontem» na variação, não «hoje»
+        await page.locator('.row[data-open="VWCE.DE"]:visible').first().click();
+        await page.waitForFunction(() => !document.querySelector('#mk-sheet').hidden && document.querySelector('#d-px .alt'));
+        assert.match(await page.locator('#d-px .alt').textContent(), / ontem/, 'a ficha: «ontem», não «hoje»');
+        await page.click('[data-act="close"] >> nth=-1');
+        await page.waitForFunction(() => document.querySelector('#mk-sheet').hidden);
         await page.evaluate((t) => { const mk = window.__mk; for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) mk.Q[s].time = t; mk.render(); }, t3);
         // com o preço de agora (a bolsa aberta), volta a contar no «Hoje», sem «bolsa fechada» nem o dia na linha
         await page.evaluate(() => { const mk = window.__mk, t = Math.floor(Date.now() / 1000); for (const s of ['VWCE.DE'].concat(mk.REG['VWCE.DE'].live || [])) if (mk.Q[s]) mk.Q[s].time = t; mk.render(); });
@@ -1172,6 +1178,70 @@ function proxyBody(u) {
         assert.ok(Math.abs(r.antes - (161.9 / 162.5 - 1) * 100) < 1e-9, 'antes de a Xetra abrir: face ao fecho de ontem (' + r.antes + ')');
         assert.ok(Math.abs(r.aberta - (161.9 / 165.04 - 1) * 100) < 1e-9, 'com a Xetra aberta hoje: face ao fecho anterior dela (' + r.aberta + ')');
         console.log('✓ a variação do dia antes de a Xetra abrir: face ao fecho de ontem', r.antes.toFixed(2) + '%');
+    }
+    // 4.73.3: a variação de hoje é face ao último preço mostrado ontem (de qualquer praça, à noite) se for depois do fecho da
+    // Xetra; sem essa memória (ou com ela de antes do fecho), face ao fecho da Xetra, como antes. E a memória muda de dia
+    {
+        const r = await page.evaluate(() => {
+            const mk = window.__mk, Q = mk.Q, k = 'VWCE.DE', alts = ['VWCE.MU', 'VWCE.DU'];
+            const guarda = Object.fromEntries([k, ...alts].map((s) => [s, Q[s]])), u0 = mk.ULT[k], v0 = mk.VESP[k];
+            const agora = Math.floor(Date.now() / 1000), dHoje = mk.diaEm('Europe/Berlin', agora), dOntem = mk.diaUtilAntes(dHoje);
+            const em = (h) => Date.parse(`${dOntem}T${h}:00+01:00`) / 1000; // (ontem, à hora de Berlim no inverno)
+            const cur = Q[k].currency, r = {};
+            const poe = (x, mu, du) => { Q[k] = { ...guarda[k], ...x, change: x.price - x.prevClose, changePct: (x.price / x.prevClose - 1) * 100, tz: 'Europe/Berlin' }; Q['VWCE.MU'] = { symbol: 'VWCE.MU', currency: cur, series: [], prevClose: 160.46, ...mu }; Q['VWCE.DU'] = { symbol: 'VWCE.DU', currency: cur, series: [], prevClose: 162.32, ...du }; };
+            // a Xetra já negociou hoje; ontem, Düsseldorf acabou a 162,32 € às 21:46 (o último preço mostrado)
+            poe({ price: 163.16, prevClose: 158.72, time: agora - 60 }, { price: 163.3, time: agora - 3000 }, { price: 163.22, time: agora - 2000 });
+            mk.ULT[k] = { d: dHoje, t: agora - 60, p: 163.16 }; mk.VESP[k] = { d: dOntem, t: em('21:46'), p: 162.32 };
+            r.xetra = mk.qv(k).changePct;
+            // de manhã, antes de a Xetra abrir (Munique já negociou), ainda com a memória de ontem no ULT
+            poe({ price: 158.72, prevClose: 161.88, time: em('17:35') }, { price: 162.9, time: agora - 60 }, { price: 162.32, time: em('21:46') });
+            mk.ULT[k] = { d: dOntem, t: em('21:46'), p: 162.32 }; delete mk.VESP[k];
+            r.manha = mk.qv(k).changePct;
+            // e ao chegar o primeiro preço de hoje, a memória muda de dia
+            r.nota = mk.notaUlt(k); r.vesp = mk.VESP[k] && mk.VESP[k].p; r.ult = mk.ULT[k] && mk.ULT[k].d === dHoje;
+            // sem memória: face ao fecho da Xetra, como antes
+            poe({ price: 163.16, prevClose: 158.72, time: agora - 60 }, { price: 163.3, time: agora - 3000 }, { price: 163.22, time: agora - 2000 });
+            delete mk.ULT[k]; delete mk.VESP[k];
+            r.sem = mk.qv(k).changePct;
+            // com a memória de ontem à tarde (antes do fecho da Xetra): também face ao fecho da Xetra
+            mk.ULT[k] = { d: dHoje, t: agora - 60, p: 163.16 }; mk.VESP[k] = { d: dOntem, t: em('15:00'), p: 160 };
+            r.tarde = mk.qv(k).changePct;
+            for (const [s, v] of Object.entries(guarda)) { if (v === undefined) delete Q[s]; else Q[s] = v; }
+            if (u0 === undefined) delete mk.ULT[k]; else mk.ULT[k] = u0;
+            if (v0 === undefined) delete mk.VESP[k]; else mk.VESP[k] = v0;
+            return r;
+        });
+        const pc = (a, b) => (a / b - 1) * 100, perto = (x, y) => Math.abs(x - y) < 1e-9;
+        assert.ok(perto(r.xetra, pc(163.16, 162.32)), 'com a Xetra aberta: face ao fim de ontem (162,32), não ao fecho da Xetra (' + r.xetra + ')');
+        assert.ok(perto(r.manha, pc(162.9, 162.32)), 'de manhã: face ao fim de ontem (' + r.manha + ')');
+        assert.deepEqual([r.nota, r.vesp, r.ult], [true, 162.32, true], 'a memória muda de dia');
+        assert.ok(perto(r.sem, pc(163.16, 158.72)), 'sem memória: face ao fecho da Xetra (' + r.sem + ')');
+        assert.ok(perto(r.tarde, pc(163.16, 158.72)), 'com a memória de antes do fecho: face ao fecho da Xetra (' + r.tarde + ')');
+        console.log('✓ a variação de hoje face ao fim de ontem (como na TR):', r.xetra.toFixed(2) + '% (pelo fecho da Xetra seria', r.sem.toFixed(2) + '%)');
+    }
+    // 4.73.3: ao voltar à app, um pedido das cotações preso de antes (o iPhone congela-o em segundo plano) não trava o de agora
+    {
+        let preso = null;
+        await page.route(/proxy\.test\/quotes/, (route) => { if (!preso) { preso = route; return; } return route.fallback(); });
+        const ok = await page.evaluate(async () => {
+            const mk = window.__mk;
+            await new Promise((r) => { const v = () => { if (!mk.st.pollT0) r(); else setTimeout(v, 50); }; v(); }); // (sem outro a correr)
+            mk.pollYahoo();
+            await new Promise((r) => setTimeout(r, 300));
+            const preso = mk.st.pollT0 > 0, a0 = mk.st.yahooAt;
+            mk.st.pollT0 -= 20000; // como se estivesse preso há 20 s (com a app em segundo plano)
+            document.dispatchEvent(new Event('visibilitychange'));
+            const t0 = Date.now();
+            while (mk.st.yahooAt === a0 && Date.now() - t0 < 8000) await new Promise((r) => setTimeout(r, 100));
+            return { preso, novo: mk.st.yahooAt > a0 };
+        });
+        // o pedido preso acaba por falhar: como já não é o último, o erro dele não aparece
+        if (preso) await preso.abort();
+        await page.unroute(/proxy\.test\/quotes/);
+        await page.waitForTimeout(300);
+        assert.deepEqual(ok, { preso: true, novo: true }, 'ao voltar, as cotações chegam sem esperar pelo pedido preso');
+        assert.equal(await page.evaluate(() => window.__mk.st.yahooErr), '', 'o erro do pedido antigo não conta');
+        console.log('✓ ao voltar à app, as cotações não esperam por um pedido preso');
     }
     const inv = await page.evaluate(() => { const mk = window.__mk, a = mk.pfSnap().ativos.filter((x) => x.q > 0 && x.cost > 0 && x.px > 0); return mk.fmtPx(a.reduce((t, x) => t + x.cost, 0), { decimals: 0 }, 'EUR'); });
     assert.equal(grs[grs.length - 1][2], inv, 'o investido total');

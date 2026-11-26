@@ -141,6 +141,17 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## A variação de hoje face ao fim de ontem (4.73.3)
+
+A variação de hoje dos fundos com várias praças (a Xetra até às 17:30; Düsseldorf e Munique até às 22 h) passa a ser face
+ao último preço que a app mostrou ontem, como na TR — e não ao fecho da Xetra. A 25/11 a Xetra fechou a 158,72 € e
+Düsseldorf acabou a 162,32 € às 21:46 (o S&P 500 subiu à noite): no dia seguinte, a 163,16 €, o FTSE ia a +0,5% face ao
+fim do dia, e não a +2,8% face à Xetra (a subida da noite contava duas vezes). A app guarda o último preço mostrado de cada
+dia; sem ele (a app não aberta desde a tarde de ontem), fica o fecho da Xetra, como antes.
+
+E ainda: ao voltar à app, os preços vêm logo, mesmo que um pedido de antes tenha ficado preso com a app em segundo plano; e
+a ficha diz «ontem» (e não «hoje») na variação de um dia que não é hoje.
+
 ## «Ontem» uma vez e a bolsa aberta sem negócios (4.73.2)
 
 Com o último preço de ontem, a linha do ativo dizia «ontem» duas vezes (o dia da variação e a hora do último preço): fica
