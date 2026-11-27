@@ -314,6 +314,28 @@
       "</div>" = c seg c }
     "</div>" }
   "</div>" }
+# 4.74: euros com sinal e com cêntimos (o ganho de uma compra pequena: um round up de 5 €)
+: cr_eurs2 f>i x { ? >= x 0.0 P '+ { P 226 P 136 P 146 0 } _nu_moeda Ab x 2 $"EUR" }
+# 4.74: o ganho de cada compra, desde ela (o preço de agora face ao dessa compra): por ativo, numa dobra, a mais recente
+# primeiro. Em cada ativo da tabela (cr_prep), c.cmp: [{ l (a data), tp (o tipo), e (€), q (unidades) }] e c.cmpA (a dobra
+# aberta); o preço de agora é o da tabela
+: cr_cmp ii>i tb na {
+  = tem 0 L j na { = c @ cr_p tb j Se > quantos c.cmp 0 = tem 1 }
+  Se tem {
+    `<div class="cmp"><small class="real-gt">Cada compra · o ganho desde ela</small>`
+    L j na {
+      = p cr_p tb j = c @ p = l c.cmp = n quantos l = px @f + p 3
+      Se > n 0 {
+        `<details class="cmp-a" data-fold="cmp-{ esc c.k }"{ Se ha c.cmpA " open" }><summary><b>{ esc c.name }</b><small>{ _nu_ps F n } { ? == n 1 "compra" "compras" }</small></summary>`
+        = x pri l
+        W x {
+          = e num x.e = q num x.q = g - * q px e
+          `<div class="cmp-i"><span>{ esc x.l } · { esc x.tp }<small>{ _nu_moeda e 2 $"EUR" } a { _nu_moeda / e q 2 $"EUR" }</small></span>`
+          `<span class="num { ? >= g 0.0 "up-t" "down-t" }">{ cr_eurs2 g }<small>{ cr_pc / g e }</small></span></div>`
+          = x seg x }
+        "</details>" } }
+    "</div>" }
+  0 }
 : cr_real i>i r {
   = l r.ativos
   `\n        <section class="sec real"><div class="sec-h"><h2>A tua carteira</h2><button type="button" class="lnk real-edit" data-act="real-ed">Editar o que tenho</button>`
@@ -352,6 +374,8 @@
       Se && @ + p 7 >= - tf cr_t0 tb j + j 1 31557600.0 ` · { cr_pc cr_tir tb j + j 1 v tf } por ano`
       `</div></div><div class="r-px num"><span class="px">{ cs_eur v }</span><span class="chg { ? >= v e "up" "down" }">{ cr_pc - / v e 1.0 }</span></div></button>` }
     "</div>"
+    # 4.74: o ganho de cada compra, desde ela
+    cr_cmp tb na
     = rg r.reg Se ha rg cr_reg rg
     ? sd `<p class="note">Põe a data em «Desde» nos ativos que tens para veres o gráfico e o rendimento por ano.</p>`
       Se ~ umano `<p class="note">O rendimento por ano aparece quando a primeira compra fizer 1 ano.</p>`
