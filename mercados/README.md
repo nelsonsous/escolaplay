@@ -141,6 +141,12 @@ O KV continua a ser o que a app lê. A evolução fica numa base SQL **D1** da C
   da app do dono). Pode correr-se mais de uma vez.
 - Se a D1 falhar, a resposta segue na mesma (o KV já está gravado).
 
+## O ganho de cada compra (4.74.0)
+
+Na Carteira, por baixo dos ativos, «Cada compra · o ganho desde ela»: em cada ativo, numa dobra, cada compra — a posição
+copiada da TR, as compras, o plano, os round ups e o saveback —, a mais recente primeiro, com a data, o tipo, quanto
+custou e a que preço, e o ganho desde ela, em euros (com cêntimos: um round up de 5 € também) e em %.
+
 ## A sessão de Lisboa (conector 1.18.1)
 
 O Yahoo dá a sessão da Euronext Lisboa uma hora atrasada (das 09:00 às 17:30 da hora de Lisboa — o horário de Paris com o

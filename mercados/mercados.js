@@ -27,7 +27,7 @@
         isQuiet: (h, from, to) => aoOk && AO.isQuiet(h, from, to),
         decisao: (d) => (aoOk ? AO.decisao(d) : null),
     };
-    const VERSION = '4.73.3';
+    const VERSION = '4.74.0';
     // as decisões dos gestos (que gesto é, quanto segue o dedo, se se confirma) são do motor comum às apps, em Onda
     const OG = window.OndaGestos || null;
 
@@ -1948,6 +1948,16 @@
         }));
         if (cfg.tab === 'carteira' || cfg.tab === 'painel') scheduleRender();
     }
+    // 4.74: as compras de um ativo, para o ganho desde cada uma: a posição copiada da TR (no dia dela) e o que veio depois —
+    // compras, plano, round up e saveback (sem os acertos de quantidade com a TR) —, a mais recente primeiro
+    const TIPO_COMPRA = { 0: 'plano', 1: 'compra', 3: 'saveback', 4: 'round up', 5: 'saveback (estimado)', 6: 'round up (estimado)' };
+    function comprasDe(k) {
+        const L = lotOf(k);
+        if (!temHoje(L) || !ISO_D.test(L.qd || '')) return [];
+        const l = [{ d: L.qd, tp: 'posição inicial (da TR)', e: +L.cost, q: +L.qty }]
+            .concat(extrasOf(k).filter((x) => x.t !== 2 && x.e > 0 && x.q > 0).map((x) => ({ d: x.d, tp: TIPO_COMPRA[x.t] || 'compra', e: x.e, q: x.q })));
+        return l.reverse().map((x) => ({ l: dmy(x.d), tp: x.tp, e: Math.round(x.e * 100) / 100, q: x.q }));
+    }
     function realSnap() {
         const keys = cfg.holdings.filter((k) => REG[k]);
         const comp = keys.filter((k) => buysOf(k).length || temHoje(lotOf(k)));
@@ -1960,7 +1970,9 @@
             ativos: keys.map((k) => {
                 const L = lotOf(k), P = posOf(k), mais = extrasOf(k).length > 0;
                 return { k, name: nameOf(k), px: pxEur(k), h: buysOf(k).length ? histOf(k) : [], b: buysOf(k), plan: L.plan || '', pm: +L.pm || 0, pmDef: pmDefault(k), hz: hzOf(k), q: P.q, cost: P.c,
-                    avg: mais ? Math.round(P.avg * 1e4) / 1e4 : +L.avg || (+L.qty > 0 && +L.cost > 0 ? Math.round((+L.cost / +L.qty) * 1e4) / 1e4 : 0), qd: L.qd || '' };
+                    avg: mais ? Math.round(P.avg * 1e4) / 1e4 : +L.avg || (+L.qty > 0 && +L.cost > 0 ? Math.round((+L.cost / +L.qty) * 1e4) / 1e4 : 0), qd: L.qd || '',
+                    // 4.74: cada compra, para o ganho desde ela (a dobra aberta como a deixaste)
+                    cmp: comprasDe(k), cmpA: st.fold['cmp-' + k] ? 1 : 0 };
             }),
             reg: regSnap(),
         };

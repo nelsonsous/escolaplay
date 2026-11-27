@@ -1219,6 +1219,35 @@ function proxyBody(u) {
         assert.ok(perto(r.tarde, pc(163.16, 158.72)), 'com a memória de antes do fecho: face ao fecho da Xetra (' + r.tarde + ')');
         console.log('✓ a variação de hoje face ao fim de ontem (como na TR):', r.xetra.toFixed(2) + '% (pelo fecho da Xetra seria', r.sem.toFixed(2) + '%)');
     }
+    // 4.74: na Carteira, o ganho de cada compra desde ela: a mais recente primeiro (a compra de hoje), a posição copiada da
+    // TR no fim; em cada uma, o valor de agora menos o que custou
+    {
+        const r = await page.evaluate(() => {
+            const mk = window.__mk, L0 = mk.cfg.lots['VWCE.DE'], tab0 = mk.cfg.tab, d = new Date();
+            const hj = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            mk.cfg.lots['VWCE.DE'] = { qty: 5, avg: 170, cost: 850, at: '2026-11-10', qd: '2026-11-10', compras: [{ d: hj, e: 2001.04, q: 12.289541 }] };
+            mk.st.fold['cmp-VWCE.DE'] = true;
+            mk.cfg.tab = 'carteira'; mk.render();
+            const a = mk.pfSnap().ativos.find((x) => x.k === 'VWCE.DE'), px = a.px;
+            const dt = document.querySelector('.cmp details[data-fold="cmp-VWCE.DE"]');
+            const linhas = dt ? [...dt.querySelectorAll('.cmp-i')].map((i) => ({ t: i.firstElementChild.firstChild.textContent, g: i.querySelector('.num').firstChild.textContent, cls: i.querySelector('.num').className })) : [];
+            const r = { tem: !!dt, aberta: !!(dt && dt.open), n: linhas.length, prim: linhas[0], ult: linhas[linhas.length - 1], px, resumo: dt && dt.querySelector('summary small').textContent };
+            if (L0 === undefined) delete mk.cfg.lots['VWCE.DE']; else mk.cfg.lots['VWCE.DE'] = L0;
+            delete mk.st.fold['cmp-VWCE.DE'];
+            mk.cfg.tab = tab0; mk.render();
+            return r;
+        });
+        assert.ok(r.tem && r.aberta, 'a dobra do FTSE, aberta como ficou');
+        const num = (s) => (s.includes('−') ? -1 : 1) * +s.replace(/[^\d,]/g, '').replace(',', '.');
+        const dmy = (() => { const d = new Date(); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; })();
+        assert.equal(r.prim.t, `${dmy} · compra`, 'a mais recente primeiro: a compra de hoje');
+        assert.ok(Math.abs(num(r.prim.g) - (12.289541 * r.px - 2001.04)) < 0.006, 'o ganho da compra: o valor de agora menos o que custou (' + r.prim.g + ')');
+        assert.match(r.prim.cls, 12.289541 * r.px - 2001.04 >= 0 ? /up-t/ : /down-t/);
+        assert.equal(r.ult.t, '10/11/2026 · posição inicial (da TR)', 'no fim, a posição copiada da TR');
+        assert.ok(Math.abs(num(r.ult.g) - (5 * r.px - 850)) < 0.006, 'o ganho da posição inicial (' + r.ult.g + ')');
+        assert.equal(r.resumo, `${r.n} compras`);
+        console.log('✓ o ganho de cada compra na Carteira:', r.n, 'compras; a de hoje', r.prim.g, '· a inicial', r.ult.g);
+    }
     // 4.73.3: ao voltar à app, um pedido das cotações preso de antes (o iPhone congela-o em segundo plano) não trava o de agora
     {
         let preso = null;

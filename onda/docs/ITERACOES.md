@@ -3935,3 +3935,18 @@ Paris com o fuso de Lisboa. A Euronext Lisboa negoceia das 08:00 às 16:30 de Li
 **Verificado.** Testes do conector: 09:00–17:30 de Lisboa passa a 08:00–16:30, no inverno e no verão; já certa, fica; a de
 Paris não mexe. Publicado e conferido no /health e no /quotes do BCP.LS.
 
+## Iteração (Mercados 4.74.0): o ganho de cada compra
+
+**Pedido.** «Na Carteira dá para ver a rentabilidade de cada aplicação? Ex.: FTSE, se escrevi 900 €, depois 5 € de
+arredondamentos, depois 2000 € — em cada um, saber o ganho desde a respetiva compra.»
+
+**Feito.** Na Carteira, por baixo dos ativos, «Cada compra · o ganho desde ela». Em cada ativo, numa dobra (fica como a
+deixas), cada compra, a mais recente primeiro: a posição copiada da TR, as compras, o plano, os round ups e o saveback (os
+estimados dizem-no; os acertos de quantidade com a TR não entram). Em cada uma, a data, o tipo, quanto custou e a que preço,
+e o ganho desde ela — as unidades dela ao preço de agora, menos o que custou —, em euros com cêntimos e em %. As contas são
+em Onda (cr_cmp); a app dá as compras (comprasDe).
+
+**Verificado.** Interface: com a posição da TR (5 por 850 €) e uma compra hoje (12,289541 por 2001,04 €), a dobra aberta
+como ficou, a compra de hoje primeiro e a posição da TR no fim, cada uma com o ganho (as unidades ao preço de agora menos
+o que custou) e a cor certa.
+

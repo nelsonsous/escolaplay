@@ -1007,3 +1007,15 @@ body::before { content: ""; position: fixed; z-index: 15; left: 0; right: 0; top
 /* o interruptor escondido que faz vibrar (iOS 18) */
 .mk-hap { display: none; }
 
+/* 4.74: o ganho de cada compra (na Carteira): cada ativo numa dobra, cada compra numa linha */
+.cmp { margin: 4px 0 12px; }
+.cmp-a { border-top: 1px solid var(--line); }
+.cmp-a > summary { display: flex; align-items: baseline; gap: 8px; padding: 10px 2px; cursor: pointer; list-style: none; -webkit-tap-highlight-color: transparent; }
+.cmp-a > summary::-webkit-details-marker { display: none; }
+.cmp-a > summary small { margin-left: auto; color: var(--muted); }
+.cmp-a > summary::after { content: '›'; color: var(--faint); font-weight: 600; transition: transform .2s; }
+.cmp-a[open] > summary::after { transform: rotate(90deg); }
+.cmp-i { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 7px 2px; border-top: 1px solid var(--line); font-size: calc(.86rem * var(--k)); }
+.cmp-i small { display: block; color: var(--muted); font-size: calc(.74rem * var(--k)); margin-top: 1px; }
+.cmp-i .num { text-align: right; white-space: nowrap; font-weight: 650; }
+
