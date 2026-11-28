@@ -584,7 +584,8 @@ const YEAR_EXTRA_FILES = {
         { src: 'content_3_p_extra.js', varName: 'EXERCISES_3_P_EXTRA' },
         { src: 'content_3_m_extra.js', varName: 'EXERCISES_3_M_EXTRA' },
         { src: 'content_3_e_extra.js', varName: 'EXERCISES_3_E_EXTRA' },
-        { src: 'content_3_i_extra.js', varName: 'EXERCISES_3_I_EXTRA' }
+        { src: 'content_3_i_extra.js', varName: 'EXERCISES_3_I_EXTRA' },
+        { src: 'content_3_orientadores_p1t2.js', varName: 'EXERCISES_3_ORIENT_P1T2' }
     ],
     5: [
         { src: 'content_5_p_extra.js', varName: 'EXERCISES_5_P_EXTRA' },
@@ -623,7 +624,7 @@ Object.keys(YEAR_BASE_FILES).forEach(y => {
 });
 
 const _yearExtrasLoaded = {};
-const APP_VERSION = 'v634';
+const APP_VERSION = 'v635';
 // NOTA: a partir da v148, todos os ficheiros _extra*.js são carregados
 // SÍNCRONAMENTE via <script> no index.html. Eliminada a função
 // _loadExtraScript e toda a categoria de bugs "tópicos com 0 exs"
@@ -1908,7 +1909,15 @@ function renderTopicList() {
         : (focus === 'active' && active.size === 0 && allTopics.length > 0)
             ? `<div class="ep-topic-banner"><i class="fas fa-circle-info"></i> Sem tópicos ativos. Ativa abaixo o que ela está a dar agora.</div>`
             : '';
-    container.innerHTML = testBanner + banner + visibleTopics.map((t, vi) => {
+    // v635: teste de Português de 2/12 (3.º ano) — botão para o criar com os
+    // tópicos do orientador, enquanto ainda não existir com todos eles.
+    let orientBanner = '';
+    const _orientTest = (state.tests || []).find(t => t.subject === 'portugues' && t.date === ORIENT_P1T2_3ANO_DATE);
+    const _orientDone = !!_orientTest && (_orientTest.done || ORIENT_P1T2_3ANO_TOPICS.every(tp => (_orientTest.topics || []).includes(tp)));
+    if (activeProfile()?.year === 3 && key === 'portugues' && todayStr() <= ORIENT_P1T2_3ANO_DATE && !_orientDone) {
+        orientBanner = `<div style="background:linear-gradient(135deg,#ffe4e6,#fecdd3);border:1.5px solid #fda4af;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:0.82rem;color:#881337;display:flex;align-items:center;gap:10px"><span style="font-size:1.2rem">📅</span><div style="flex:1"><div style="font-weight:800">Teste de Português a 2/12</div><div style="font-size:0.72rem;margin-top:2px">Cria o teste com os 12 pontos do orientador da professora já marcados</div></div><button class="btn" style="background:#e11d48;color:#fff;border:none;padding:7px 12px;font-size:0.74rem;font-weight:800;border-radius:8px;flex-shrink:0" onclick="event.stopPropagation();setupEduardaPortuguesP1T2()">Criar</button></div>`;
+    }
+    container.innerHTML = orientBanner + testBanner + banner + visibleTopics.map((t, vi) => {
         const i = origIndex.get(t) ?? vi;
         const isActive = active.has(t);
         const isRecommended = recommendedSet.has(t);
@@ -3343,6 +3352,16 @@ function openAddTestModal(testId = null) {
     document.getElementById('test-modal').style.display = 'flex';
 }
 
+// 3.º ano · 1.º período · 2.º teste de Português (2/12/2026): um tópico por
+// cada ponto do orientador da professora (banco: content_3_orientadores_p1t2.js).
+const ORIENT_P1T2_3ANO_DATE = '2026-12-02';
+const ORIENT_P1T2_3ANO_TOPICS = [
+    'Texto narrativo', 'Texto poético', 'Compreensão oral', 'Translineação',
+    'Número de sílabas', 'Sílaba tónica e sílabas átonas', 'Agudas, graves e esdrúxulas',
+    'Pontuação e sinais auxiliares', 'Conectores discursivos', 'Tipos de frase',
+    'Frase afirmativa e negativa', 'Escrita de texto narrativo'
+];
+
 // Agrupadores (presets) — selecionam vários tópicos de uma vez no picker
 const TEST_TOPIC_PRESETS = {
     // 5.º ano, Inglês — orientadores da professora
@@ -3393,6 +3412,12 @@ const TEST_TOPIC_PRESETS = {
                 'Sinal de igual','Estimativa','Formas planas','Horas no relógio'
             ]
         }
+    },
+    // 3.º ano, 1.º período — 2.º teste de Português (orientadores da professora)
+    'orientadores-p1t2-3ano': {
+        label: '🎯 Orientadores Português · teste de 2/12',
+        year: 3,
+        topicsBySubject: { portugues: ORIENT_P1T2_3ANO_TOPICS }
     }
 };
 
@@ -5645,6 +5670,7 @@ function exitSession() {
     if (currentSession.idx > 0 && currentSession.idx < currentSession.items.length) {
         if (!confirm('Queres mesmo sair? Perdes o progresso deste treino.')) return;
     }
+    try { if (currentSession.items?.[currentSession.idx]?.listen) _stopCurrentAudio(); } catch {}
     currentSession = null;
     _lessonGateOnClose = null;
     try { if (typeof _duelTimerInterval !== 'undefined' && _duelTimerInterval) { clearInterval(_duelTimerInterval); _duelTimerInterval = null; } } catch {}
@@ -5706,6 +5732,15 @@ function _renderBaseTen(n) {
     return html;
 }
 window._renderBaseTen = _renderBaseTen;
+
+// v635: lê em voz alta a história do exercício atual (Compreensão oral).
+function _listenCurrent() {
+    const e = currentSession && currentSession.items ? currentSession.items[currentSession.idx] : null;
+    if (!e || !e.listen) return;
+    if (typeof window.ttsSpeak === 'function') window.ttsSpeak(e.listen);
+    else showToast('Este aparelho não consegue ler em voz alta — pede a um adulto para ler o texto.');
+}
+window._listenCurrent = _listenCurrent;
 
 function renderQuestion() {
     const s = currentSession;
@@ -5824,6 +5859,16 @@ function renderQuestion() {
         } else {
             qHtml += `<div class="ex-passage">${escapeHtml(e.passage).replace(/\n/g,'<br>')}</div>`;
         }
+    }
+    // v635: Compreensão oral — `e.listen` é uma história que a app LÊ em voz
+    // alta (ttsSpeak, voz pt-PT). O texto fica escondido: ouvir e responder,
+    // como no teste. Se não houver som, um adulto pode abrir o texto e lê-lo.
+    if (e.listen) {
+        qHtml += `<div class="ex-listen">
+            <button type="button" class="ex-listen-btn" onclick="_listenCurrent()">🔊 Ouvir a história</button>
+            <div class="ex-listen-note">Ouve com atenção. Podes ouvir outra vez sempre que precisares.</div>
+            <details class="ex-listen-text"><summary>Não dá para ouvir? Mostrar o texto (para um adulto ler)</summary><div>${escapeHtml(e.listen)}</div></details>
+        </div>`;
     }
     if (e.table)   qHtml += `<div class="ex-table-wrap">${e.table}</div>`;
     if (e.svg)     qHtml += `<div class="ex-svg-wrap">${e.svg}</div>`;
@@ -12825,6 +12870,7 @@ function _buildDetailedExplanationPrompt(e, yr) {
     let qContext = `Disciplina: ${subName}\nTópico: ${e.t}\nPergunta: "${e.q}"\nResposta CERTA: ${correctAns}`;
     if (e.type === 'mc' && e.opts) qContext += `\nOpções apresentadas: ${e.opts.map((o,i)=>`${String.fromCharCode(65+i)}) ${o}`).join(' | ')}`;
     if (e.passage) qContext += `\nTexto de apoio: "${e.passage.slice(0, 400)}"`;
+    if (e.listen) qContext += `\nHistória que a app leu em voz alta (o aluno ouviu-a, não a vê): "${e.listen.slice(0, 700)}"`;
     if (e.material) qContext += `\nRegra do tópico: "${e.material}"`;
     if (e.exp) qContext += `\nNota curta do exercício: "${e.exp}"`;
     if (e.solution) qContext += `\nResolução resumida: "${e.solution}"`;
@@ -13087,6 +13133,8 @@ function _maybeForceLessonAfterWrong() {
 function nextQuestion() {
     if (!currentSession) return; // sessão terminada entretanto (timer de duelo, saída)
     if (_maybeForceLessonAfterWrong()) return; // avança quando fechar o resumo
+    // v635: a história da Compreensão oral não continua a tocar na pergunta seguinte
+    try { if (currentSession.items[currentSession.idx]?.listen) _stopCurrentAudio(); } catch {}
     showEncouragement();
     currentSession.idx += 1;
     if (currentSession.idx >= currentSession.items.length) finishSession();
@@ -15524,6 +15572,44 @@ function setupCarolinaIngles5() {
 }
 window.setupCarolinaIngles5 = setupCarolinaIngles5;
 
+// Cria o 2.º teste de Português do 1.º período do 3.º ano (2/12) com os
+// tópicos do orientador já marcados — e ATIVA-os: o treino do teste
+// (startTestPrep) só usa tópicos ativos.
+function setupEduardaPortuguesP1T2() {
+    const p = activeProfile();
+    if (!p) { console.warn('Sem perfil ativo'); return 0; }
+    if (p.year !== 3) {
+        if (!confirm(`O perfil ativo (${p.name}) é do ${p.year}.º ano. Continuar mesmo assim?`)) return 0;
+    }
+    const topics = ORIENT_P1T2_3ANO_TOPICS.slice();
+    setActiveTopicsFor('portugues', [...new Set([...activeTopicsFor('portugues'), ...topics])]);
+    if (!state.tests) state.tests = [];
+    const existing = state.tests.find(x => x.date === ORIENT_P1T2_3ANO_DATE && x.subject === 'portugues');
+    if (existing) {
+        // Já havia um teste nesse dia (criado à mão): junta-lhe os tópicos do orientador.
+        existing.topics = [...new Set([...(existing.topics || []), ...topics])];
+    } else {
+        state.tests.push({
+            id: uid(),
+            subject: 'portugues',
+            date: ORIENT_P1T2_3ANO_DATE,
+            note: '1.º período · 2.º teste — texto narrativo e poético, compreensão oral, sílabas, pontuação, conectores, frases e escrita',
+            topics,
+            done: false,
+            targetGrade: null,
+            actualGrade: null
+        });
+    }
+    saveState();
+    if (typeof renderTests === 'function') renderTests();
+    if (typeof renderHome === 'function') renderHome();
+    if (typeof updateAll === 'function') updateAll();
+    if (typeof renderTopicList === 'function' && currentSubjectView === 'portugues') renderTopicList();
+    showToast(existing ? '✅ Teste de 2/12 atualizado com os tópicos do orientador!' : '✅ Teste de Português de 2/12 criado. Bom estudo!');
+    return 1;
+}
+window.setupEduardaPortuguesP1T2 = setupEduardaPortuguesP1T2;
+
 // ===== ABRIR DUELO RECEBIDO via URL =====
 function _checkIncomingDuel() {
     try {
@@ -15859,6 +15945,11 @@ function _buildShareText(e) {
         lines.push('— Texto de apoio —');
         lines.push(String(e.passage));
     }
+    if (e.listen) {
+        lines.push('');
+        lines.push('— História para ler em voz alta —');
+        lines.push(String(e.listen));
+    }
 
     lines.push('');
     lines.push('—');
@@ -16130,6 +16221,7 @@ function _buildProfessorIAPrompt(e, yr) {
     if (e.type === 'order') qContext += `\nTipo: ordenar elementos\nElementos a ordenar (baralhados): ${(e.items||[]).join(', ')}`;
     if (e.type === 'match' && e.pairs) qContext += `\nTipo: associar pares de elementos`;
     if (e.passage) qContext += `\nTexto de apoio: "${e.passage.slice(0, 300)}"`;
+    if (e.listen) qContext += `\nHistória que a app leu em voz alta (o aluno ouviu-a, não a vê): "${e.listen.slice(0, 700)}"`;
     if (e.material) qContext += `\nRegra/conteúdo do tópico: "${e.material}"`;
     if (e.hint) qContext += `\nPista do exercício (podes inspirar-te nela mas reformula): "${e.hint}"`;
 
@@ -19291,7 +19383,9 @@ const _WRITE_PLANS = [
     { titulo: 'O meu fim de semana', emoji: '🏖️', pontos: ['eu (personagem)', 'onde foste', 'no sábado ou domingo', 'o que fizeste', 'com quem estiveste', 'como te sentiste no fim'] },
     { titulo: 'Uma aventura na floresta', emoji: '🌲', pontos: ['o Tomás (personagem)', 'a floresta (onde)', 'numa manhã de sol', 'um animal que encontrou', 'uma surpresa', 'como acabou a aventura'] },
     { titulo: 'A festa de anos', emoji: '🎂', pontos: ['a Ana (personagem)', 'em casa (onde)', 'no domingo', 'os amigos e os jogos', 'o bolo de chocolate', 'uma festa inesquecível (fim)'] },
-    { titulo: 'Um dia de chuva', emoji: '🌧️', pontos: ['tu e a família', 'em casa (onde)', 'num dia de chuva', 'o que fizeram dentro de casa', 'um jogo ou um filme', 'como passou o dia'] }
+    { titulo: 'Um dia de chuva', emoji: '🌧️', pontos: ['tu e a família', 'em casa (onde)', 'num dia de chuva', 'o que fizeram dentro de casa', 'um jogo ou um filme', 'como passou o dia'] },
+    { titulo: 'O presente misterioso', emoji: '🎁', pontos: ['a Rita e o irmão (personagens)', 'em casa (onde)', 'na manhã de Natal (quando)', 'uma caixa que se mexia', 'o que estava lá dentro', 'como acabou o dia (fim)'] },
+    { titulo: 'O dia em que nevou', emoji: '❄️', pontos: ['tu e um amigo (personagens)', 'a tua rua (onde)', 'numa manhã de inverno (quando)', 'a surpresa ao abrir a janela', 'o boneco de neve', 'como se sentiram no fim'] }
 ];
 function _writePick() {
     const i = Math.floor(Math.random() * _WRITE_PLANS.length);

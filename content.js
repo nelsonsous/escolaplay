@@ -320,7 +320,13 @@ const CURRICULUM_3 = {
         'Nomes (próprios, comuns, coletivos)', 'Determinantes', 'Pronomes pessoais',
         'Adjetivos', 'Verbos', 'Plurais e feminino',
         'Tipos de frase', 'Sinónimos e antónimos', 'Família de palavras',
-        'Compreensão de texto', 'Texto poético', 'Banda desenhada'
+        'Compreensão de texto', 'Texto poético', 'Banda desenhada',
+        // P1 — orientadores do 2.º teste (2/12): content_3_orientadores_p1t2.js
+        // (no fim da lista para não baralhar perfis com o «até ao tópico N»)
+        'Texto narrativo', 'Compreensão oral', 'Número de sílabas',
+        'Sílaba tónica e sílabas átonas', 'Agudas, graves e esdrúxulas',
+        'Pontuação e sinais auxiliares', 'Conectores discursivos',
+        'Frase afirmativa e negativa', 'Escrita de texto narrativo'
     ],
     matematica: [
         'Números até 10 000', 'Valor posicional', 'Adição e subtração', 'Multiplicação',
@@ -367,7 +373,12 @@ const PERIODS_3 = {
         'Nomes (próprios, comuns, coletivos)':2, 'Determinantes':2, 'Pronomes pessoais':2,
         'Adjetivos':2, 'Verbos':2, 'Plurais e feminino':2,
         'Tipos de frase':3, 'Sinónimos e antónimos':3, 'Família de palavras':3,
-        'Compreensão de texto':3, 'Texto poético':3, 'Banda desenhada':3
+        'Compreensão de texto':3, 'Texto poético':3, 'Banda desenhada':3,
+        // Orientadores do 2.º teste do 1.º período (2/12)
+        'Texto narrativo':1, 'Compreensão oral':1, 'Número de sílabas':1,
+        'Sílaba tónica e sílabas átonas':1, 'Agudas, graves e esdrúxulas':1,
+        'Pontuação e sinais auxiliares':1, 'Conectores discursivos':1,
+        'Frase afirmativa e negativa':1, 'Escrita de texto narrativo':1
     },
     matematica: {
         'Números até 10 000':1, 'Valor posicional':1, 'Adição e subtração':1, 'Multiplicação':1,
